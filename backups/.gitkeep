@@ -1,0 +1,3 @@
+# Local backup directory — mounted into postgres container in production compose.
+# Files created by scripts/backup-db.sh are stored here.
+# Do not commit *.sql.gz files.

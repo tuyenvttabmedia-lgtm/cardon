@@ -1,0 +1,41 @@
+@import '@cardon/cms-typography/cms-prose.css';
+@import '@cardon/cms-typography/cms-blocks.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply min-h-screen bg-cardon-bg text-cardon-dark antialiased;
+}
+
+@layer components {
+  .site-container {
+    @apply mx-auto w-full max-w-site px-3 md:px-4;
+  }
+
+  .page-shell {
+    @apply site-container pt-6 md:py-8;
+  }
+
+  /** Consistent gap before footer on mobile (24–32px). */
+  .page-footer-gap {
+    @apply pb-7 md:pb-8;
+  }
+
+  .news-card-mobile {
+    @apply flex gap-3 rounded-2xl bg-white p-3;
+  }
+
+  .btn-checkout {
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cardon-blue to-cardon-orange px-6 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 disabled:opacity-50;
+  }
+
+  .step-badge {
+    @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cardon-blue text-sm font-bold text-white;
+  }
+}

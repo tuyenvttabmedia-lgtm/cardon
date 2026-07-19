@@ -1,0 +1,11 @@
+entity,slug,name,parent_slug,sort_order,status,product_slug,category_slug,description,sku,type,face_value,sell_price,provider_code,provider_product_code,provider_cost,priority
+category,the-game,Thẻ game,,1,ACTIVE,,,,,,,,,,
+category,the-dien-thoai,Nạp điện thoại,,2,ACTIVE,,,,,,,,,,
+product,zing-card,Thẻ Zing,,,ACTIVE,,the-game,Thẻ Zing dùng nạp game và dịch vụ Zing.,,,,,,,
+product,garena-card,Thẻ Garena,,,ACTIVE,,the-game,Thẻ Garena cho game Garena.,,,,,,,
+variant,,Zing 100.000đ,,,ACTIVE,zing-card,,,ZING-100K,CARD,100000,100000,ESALE,ZING|100000|Card,95000,1
+variant,,Zing 200.000đ,,,ACTIVE,zing-card,,,ZING-200K,CARD,200000,200000,ESALE,ZING|200000|Card,190000,1
+variant,,Garena 50.000đ,,,ACTIVE,garena-card,,,GARENA-50K,CARD,50000,50000,ESALE,GARENA|50000|Card,47500,1
+provider_mapping,,,,,,,,ZING-100K,,,,,ESALE,ZING|100000|Card,95000,1
+provider_mapping,,,,,,,,ZING-200K,,,,,ESALE,ZING|200000|Card,190000,1
+provider_mapping,,,,,,,,GARENA-50K,,,,,ESALE,GARENA|50000|Card,47500,1

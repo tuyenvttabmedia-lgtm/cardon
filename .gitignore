@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.production
+.env.local-production
+.env.local-full
+scripts/.smoke-credentials.json
+scripts/.local-full-credentials.json
+secrets/
+dist/
+.next/
+*.log
+.tools/
+backups/*.sql
+backups/*.sql.gz
+infra/nginx/ssl/*.pem
+infra/nginx/ssl/*.key

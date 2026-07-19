@@ -1,0 +1,12 @@
+# Phase 6O UAT — alternate host ports when cardon-prod occupies 80/5433.
+# Usage:
+#   docker compose -f docker-compose.local-full.yml -f docker-compose.local-full.uat-override.yml --env-file .env.local-full up -d
+#   REGRESSION_BASE_URL=http://localhost:8080 node scripts/run-local-full-regression.mjs
+
+services:
+  postgres:
+    ports: !override
+      - "5434:5432"
+  nginx:
+    ports: !override
+      - "8080:80"

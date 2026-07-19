@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d9488"/>
+      <stop offset="100%" style="stop-color:#115e59"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <text x="80" y="120" fill="#ffffff" font-family="system-ui,sans-serif" font-size="48" font-weight="700">CardOn.vn</text>
+  <text x="80" y="280" fill="#ecfdf5" font-family="system-ui,sans-serif" font-size="64" font-weight="700">Th� game  Giao ngay</text>
+  <text x="80" y="360" fill="#99f6e4" font-family="system-ui,sans-serif" font-size="32">An to�n " Uy t�n " H� tr� 8h22h</text>
+  <text x="80" y="580" fill="#5eead4" font-family="system-ui,sans-serif" font-size="20">PLACEHOLDER  Export PNG 1200�630 before launch</text>
+</svg>

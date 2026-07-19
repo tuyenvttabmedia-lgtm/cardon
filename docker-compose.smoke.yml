@@ -1,0 +1,22 @@
+# Phase 6B.1 — E2E smoke test overrides (local only)
+# Enables MockESaleProvider without changing application code.
+# APP_ENV=staging skips production-only ESALE_USE_MOCK guard.
+#
+# Usage:
+#   docker compose \
+#     -f docker-compose.production.yml \
+#     -f docker-compose.local-production.yml \
+#     -f docker-compose.smoke.yml \
+#     --env-file .env.local-production \
+#     up -d --force-recreate api worker
+
+services:
+  api:
+    environment:
+      APP_ENV: staging
+      ESALE_USE_MOCK: "true"
+
+  worker:
+    environment:
+      APP_ENV: staging
+      ESALE_USE_MOCK: "true"

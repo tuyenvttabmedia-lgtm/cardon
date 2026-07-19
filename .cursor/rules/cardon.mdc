@@ -1,0 +1,107 @@
+---
+description: CardOn.vn platform architecture and development rules
+alwaysApply: true
+---
+
+# CardOn.vn Development Rules
+
+## Language
+
+- Reply to owner in **Vietnamese**
+- Code, database, API, variables use **English**
+
+## Before Coding
+
+Always read `/docs` files before implementing any feature.
+
+## Architecture
+
+```
+Controller → Service → Repository → Database
+```
+
+Never put business logic in controllers or repositories.
+
+## Provider Abstraction
+
+```
+OrderService → ProviderInterface → ESaleProvider | IMediaProvider
+```
+
+Required methods: `buyCard()`, `topup()`, `checkTransaction()`, `getBalance()`, `syncProduct()`
+
+## Payment Abstraction
+
+```
+PaymentService → PaymentInterface → MegaPayProvider | SePayProvider
+```
+
+Required methods: `createPayment()`, `verifyWebhook()`, `queryTransaction()`, `reconcile()`
+
+Gateway credentials: hybrid — production secrets in ENV, dynamic admin config in DB (encrypted).
+
+## Transaction States
+
+Separate `payment_status` and `fulfillment_status`.
+
+Payment success does NOT mean delivery success. Do NOT auto-refund on provider failure.
+
+## Agent Ledger (HOLD Model)
+
+```
+Create transaction → Ledger HOLD → Create order → Provider processing
+Provider success: HOLD → DEBIT
+Provider fail:    HOLD → RELEASE
+```
+
+Ledger reference: `reference_type` + `reference_id` (use `transaction_id`, not `order_code`).
+
+## Queue
+
+Never process provider API inside webhook.
+
+```
+Webhook → Save Transaction → Queue → Worker → Provider API
+```
+
+Use BullMQ + Redis.
+
+## Provider Timeout
+
+On timeout: call `checkTransaction()` to recover. NEVER call `buyCard()` / `topup()` again.
+
+Provider attempts: Order 1:N provider_transactions (retries = new rows).
+
+## API Key Storage
+
+- `api_key_hash` = **bcrypt hash** (never encrypt for comparison)
+- `secret_key_encrypted` = AES for webhook HMAC
+- Show plain API key **once** on generate only
+
+## Idempotency
+
+| Key | Scope |
+|-----|-------|
+| `payments.payment_reference` | UNIQUE globally (webhooks) |
+| `(agent_id, agent_request_id)` | UNIQUE per agent |
+| `provider_transactions.request_id` | UNIQUE per provider attempt |
+
+Duplicate agent API request → HTTP **200** with original result (not 409).
+
+## Multi-Quantity Cards
+
+1 order → order_items (quantity=N) → N card_records (one per card).
+
+## Security
+
+Encrypt card PIN, provider credentials, gateway admin config, agent secret_key. Never store plain sensitive data.
+
+## Provider Low Balance
+
+Do NOT disable selling. Accept orders → `WAITING_ADMIN_RETRY` → admin manual retry.
+
+## Development Order
+
+1. Database Schema → 2. Auth + RBAC → 3. Product Engine → 4. Payment Gateway → 5. Provider Integration → 6. Order Fulfillment → 7. Admin Panel → 8. Agent Platform → 9. Finance Ledger → 10. Reconciliation → 11. Invoice → 12. SEO CMS
+
+Do not skip phases.

@@ -1,0 +1,8 @@
+# Phase 6B local simulation overrides — do not use on real VPS
+services:
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+      - "8081:8081"

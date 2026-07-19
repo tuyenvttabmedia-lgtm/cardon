@@ -1,0 +1,14 @@
+@import '@cardon/cms-typography/cms-prose.css';
+@import '@cardon/cms-typography/cms-blocks.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply min-h-screen bg-zinc-50 text-zinc-900 antialiased;
+}

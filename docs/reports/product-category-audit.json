@@ -1,0 +1,46 @@
+{
+  "generatedAt": "2026-06-26T16:40:25.666Z",
+  "phase": "6O31.1 HOTFIX",
+  "summary": {
+    "totalCategories": 4,
+    "totalProducts": 17,
+    "issueCount": 0,
+    "mergeActions": 0
+  },
+  "categories": [
+    {
+      "id": "5f01b406-f551-4d9d-842d-064e87ace5c0",
+      "slug": "game-card",
+      "name": "Thẻ game",
+      "homeService": "GAME_CARD",
+      "parentId": null,
+      "productCount": 8
+    },
+    {
+      "id": "d176a8cc-e474-46a1-8c5f-ae95e7639d8a",
+      "slug": "phone-card",
+      "name": "Thẻ điện thoại",
+      "homeService": "PHONE_CARD",
+      "parentId": null,
+      "productCount": 4
+    },
+    {
+      "id": "16673d80-5b3d-45e2-aca7-f5af08052943",
+      "slug": "topup",
+      "name": "Nạp cước",
+      "homeService": "TOPUP",
+      "parentId": null,
+      "productCount": 3
+    },
+    {
+      "id": "88958834-9d72-4202-bac2-24ff4c2a5a4d",
+      "slug": "data",
+      "name": "Nạp Data",
+      "homeService": "DATA",
+      "parentId": null,
+      "productCount": 2
+    }
+  ],
+  "issues": [],
+  "mergePlan": []
+}

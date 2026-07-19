@@ -1,0 +1,13 @@
+# User-agent: *
+Allow: /
+Disallow: /checkout
+Disallow: /login
+Disallow: /order/
+Disallow: /api/
+
+# Partner & Admin — không index
+User-agent: *
+Disallow: https://partner.cardon.vn/
+Disallow: https://admin.cardon.vn/
+
+Sitemap: https://cardon.vn/sitemap.xml

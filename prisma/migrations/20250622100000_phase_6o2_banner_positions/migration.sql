@@ -1,0 +1,4 @@
+-- Phase 6O.2 — extend CMS banner positions
+ALTER TYPE "CmsBannerPosition" ADD VALUE IF NOT EXISTS 'HOME_PROMOTION';
+ALTER TYPE "CmsBannerPosition" ADD VALUE IF NOT EXISTS 'SIDEBAR';
+ALTER TYPE "CmsBannerPosition" ADD VALUE IF NOT EXISTS 'MOBILE_HOME';

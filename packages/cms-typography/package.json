@@ -1,0 +1,9 @@
+{
+  "name": "@cardon/cms-typography",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    "./cms-prose.css": "./cms-prose.css",
+    "./cms-blocks.css": "./cms-blocks.css"
+  }
+}

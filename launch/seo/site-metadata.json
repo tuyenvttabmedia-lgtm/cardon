@@ -1,0 +1,63 @@
+{
+  "site": {
+    "name": "CardOn.vn",
+    "description": "Mua thẻ game, thẻ điện thoại và nạp tiền nhanh chóng, an toàn tại CardOn.vn",
+    "locale": "vi_VN",
+    "url": "https://cardon.vn"
+  },
+  "defaultOpenGraph": {
+    "type": "website",
+    "siteName": "CardOn.vn",
+    "locale": "vi_VN",
+    "image": "https://cardon.vn/og/og-default.png",
+    "imageWidth": 1200,
+    "imageHeight": 630
+  },
+  "twitter": {
+    "card": "summary_large_image",
+    "site": "@cardonvn"
+  },
+  "pages": [
+    {
+      "path": "/",
+      "title": "CardOn.vn — Thẻ game & nạp tiền nhanh",
+      "description": "Mua thẻ game, thẻ điện thoại và nạp tiền nhanh chóng, an toàn tại CardOn.vn",
+      "ogImage": "https://cardon.vn/og/og-home.png"
+    },
+    {
+      "path": "/cards",
+      "title": "Danh mục thẻ — CardOn.vn",
+      "description": "Mua thẻ game, thẻ điện thoại với giá tốt tại CardOn.vn",
+      "ogImage": "https://cardon.vn/og/og-catalog.png"
+    },
+    {
+      "path": "/checkout",
+      "title": "Thanh toán — CardOn.vn",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "path": "/login",
+      "title": "Đăng nhập — CardOn.vn",
+      "robots": "noindex,nofollow"
+    }
+  ],
+  "structuredData": {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "CardOn.vn",
+    "url": "https://cardon.vn",
+    "logo": "https://cardon.vn/og/og-default.png",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "email": "support@cardon.vn",
+      "contactType": "customer support",
+      "availableLanguage": "Vietnamese"
+    }
+  },
+  "nextJsMapping": {
+    "note": "Map to apps/web/lib/seo.ts buildMetadata() and per-page exports",
+    "env": {
+      "NEXT_PUBLIC_SITE_URL": "https://cardon.vn"
+    }
+  }
+}

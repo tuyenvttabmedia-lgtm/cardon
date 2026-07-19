@@ -1,0 +1,71 @@
+[
+  {
+    "type": "PAGE",
+    "slug": "terms-of-service",
+    "title": "Điều khoản sử dụng",
+    "excerpt": "Điều khoản và điều kiện sử dụng dịch vụ CardOn.vn",
+    "status": "DRAFT",
+    "content": "<h1>Điều khoản sử dụng CardOn.vn</h1><p><em>Cập nhật: [NGÀY]. Vui lòng đọc kỹ trước khi sử dụng dịch vụ.</em></p><h2>1. Giới thiệu</h2><p>Website CardOn.vn do <strong>[TÊN CÔNG TY]</strong> (MST: [MST], địa chỉ: [ĐỊA CHỈ]) vận hành, cung cấp dịch vụ mua thẻ game, thẻ điện thoại và các sản phẩm số tương tự (\"Dịch vụ\").</p><h2>2. Chấp nhận điều khoản</h2><p>Bằng việc truy cập, đăng ký tài khoản hoặc đặt hàng, bạn xác nhận đã đọc, hiểu và đồng ý bị ràng buộc bởi Điều khoản này và Chính sách bảo mật.</p><h2>3. Điều kiện sử dụng</h2><ul><li>Bạn từ đủ 18 tuổi hoặc có sự đồng ý của người giám hộ hợp pháp.</li><li>Thông tin đăng ký và thanh toán phải chính xác, trung thực.</li><li>Không sử dụng Dịch vụ cho mục đích rửa tiền, gian lận, vi phạm pháp luật Việt Nam.</li></ul><h2>4. Đặt hàng và thanh toán</h2><p>Giá hiển thị đã bao gồm VAT (nếu có). Đơn hàng chỉ được xử lý giao thẻ sau khi thanh toán thành công qua cổng được CardOn hỗ trợ (MegaPay, chuyển khoản SePay, v.v.). Thời hạn thanh toán theo quy định trên trang checkout.</p><h2>5. Giao nhận sản phẩm số</h2><p>Mã thẻ/serial được cung cấp trên website hoặc qua email sau khi fulfillment hoàn tất. Khách hàng có trách nhiệm bảo mật mã thẻ ngay sau khi nhận. CardOn không chịu trách nhiệm nếu mã bị lộ do lỗi bảo mật phía khách hàng.</p><h2>6. Giới hạn trách nhiệm</h2><p>CardOn không chịu trách nhiệm về thiệt hại gián tiếp. Trách nhiệm tối đa trong mọi trường hợp không vượt quá số tiền khách hàng đã thanh toán cho đơn hàng liên quan, trừ khi pháp luật bắt buộc khác.</p><h2>7. Sở hữu trí tuệ</h2><p>Nội dung website, logo, giao diện thuộc quyền [TÊN CÔNG TY] hoặc bên cấp phép. Nghiêm cấm sao chép trái phép.</p><h2>8. Chấm dứt</h2><p>Chúng tôi có quyền tạm ngưng hoặc chấm dứt quyền truy cập nếu phát hiện vi phạm Điều khoản hoặc nghi ngờ gian lận.</p><h2>9. Luật áp dụng</h2><p>Điều khoản được điều chỉnh bởi pháp luật Việt Nam. Tranh chấp ưu tiên giải quyết thương lượng; nếu không, thuộc thẩm quyền tòa án Việt Nam.</p><h2>10. Liên hệ</h2><p>Email: [EMAIL] | Hotline: [HOTLINE]</p>",
+    "seo": {
+      "meta_title": "Điều khoản sử dụng — CardOn.vn",
+      "meta_description": "Điều khoản và điều kiện sử dụng dịch vụ mua thẻ game, thẻ điện thoại tại CardOn.vn.",
+      "meta_keywords": "điều khoản, terms, CardOn",
+      "og_title": "Điều khoản sử dụng — CardOn.vn",
+      "og_description": "Đọc điều khoản sử dụng CardOn.vn trước khi mua thẻ.",
+      "og_image": "https://cardon.vn/og/legal-terms.png",
+      "canonical_url": "https://cardon.vn/pages/terms-of-service",
+      "robots": "index,follow"
+    }
+  },
+  {
+    "type": "PAGE",
+    "slug": "privacy-policy",
+    "title": "Chính sách bảo mật",
+    "excerpt": "Cách CardOn.vn thu thập, sử dụng và bảo vệ dữ liệu cá nhân",
+    "status": "DRAFT",
+    "content": "<h1>Chính sách bảo mật</h1><p><em>Cập nhật: [NGÀY]</em></p><h2>1. Cam kết</h2><p>[TÊN CÔNG TY] cam kết bảo vệ quyền riêng tư của người dùng CardOn.vn theo Nghị định 13/2023/NĐ-CP và quy định liên quan.</p><h2>2. Dữ liệu thu thập</h2><ul><li><strong>Tài khoản:</strong> email, mật khẩu (hash), số điện thoại (nếu cung cấp).</li><li><strong>Đơn hàng:</strong> sản phẩm, số tiền, trạng thái thanh toán, email guest.</li><li><strong>Kỹ thuật:</strong> IP, user-agent, log truy cập, cookie phiên.</li><li><strong>Thanh toán:</strong> mã tham chiếu — không lưu số thẻ ngân hàng đầy đủ trên hệ thống CardOn.</li></ul><h2>3. Mục đích sử dụng</h2><ul><li>Xử lý đơn hàng, giao thẻ, hỗ trợ khách hàng.</li><li>Phòng chống gian lận, đối soát tài chính.</li><li>Gửi email giao dịch (không spam marketing nếu chưa đồng ý).</li><li>Tuân thủ yêu cầu pháp luật.</li></ul><h2>4. Chia sẻ dữ liệu</h2><p>Chúng tôi có thể chia sẻ dữ liệu cần thiết với: cổng thanh toán (MegaPay, SePay), nhà cung cấp thẻ (eSale), dịch vụ email SMTP — chỉ trong phạm vi thực hiện hợp đồng với bạn.</p><h2>5. Lưu trữ và bảo mật</h2><ul><li>Mật khẩu: bcrypt hash.</li><li>Mã thẻ/PIN: mã hóa AES-256-GCM khi lưu.</li><li>API key đại lý: chỉ lưu hash.</li><li>HTTPS bắt buộc trên production.</li></ul><h2>6. Quyền của chủ thể dữ liệu</h2><p>Bạn có quyền truy cập, chỉnh sửa, xóa, hạn chế xử lý, khiếu nại. Liên hệ [EMAIL] — phản hồi trong 72 giờ làm việc.</p><h2>7. Cookie</h2><p>Cookie phiên đăng nhập và bảo mật. Có thể từ chối cookie không thiết yếu qua cài đặt trình duyệt.</p><h2>8. Thay đổi chính sách</h2><p>Thông báo trên website khi có thay đổi quan trọng.</p><h2>9. Liên hệ DPO / bảo mật</h2><p>Email: [EMAIL] | Địa chỉ: [ĐỊA CHỈ]</p>",
+    "seo": {
+      "meta_title": "Chính sách bảo mật — CardOn.vn",
+      "meta_description": "Chính sách bảo mật và xử lý dữ liệu cá nhân trên CardOn.vn.",
+      "og_title": "Chính sách bảo mật — CardOn.vn",
+      "og_description": "Tìm hiểu cách CardOn.vn bảo vệ dữ liệu của bạn.",
+      "og_image": "https://cardon.vn/og/legal-privacy.png",
+      "canonical_url": "https://cardon.vn/pages/privacy-policy",
+      "robots": "index,follow"
+    }
+  },
+  {
+    "type": "PAGE",
+    "slug": "refund-policy",
+    "title": "Chính sách hoàn tiền",
+    "excerpt": "Quy định hoàn tiền và xử lý khiếu nại đơn hàng CardOn.vn",
+    "status": "DRAFT",
+    "content": "<h1>Chính sách hoàn tiền</h1><p><em>Cập nhật: [NGÀY]</em></p><h2>1. Bản chất sản phẩm</h2><p>Thẻ game, mã nạp là <strong>hàng hóa số, không hoàn trả</strong> sau khi mã đã hiển thị/giao thành công, trừ lỗi hệ thống được xác nhận bởi CardOn.</p><h2>2. Trường hợp được xem xét hoàn tiền</h2><ul><li>Thanh toán thành công nhưng không giao được thẻ sau thời gian xử lý tối đa (liên hệ hỗ trợ).</li><li>Trùng thanh toán / webhook duplicate đã trừ tiền 2 lần (có bằng chứng ngân hàng).</li><li>Mã thẻ provider xác nhận invalid và CardOn không thay thế được.</li><li>Đơn hàng hết hạn thanh toán (EXPIRED) — tiền không được trừ hoặc sẽ hoàn theo quy trình ngân hàng.</li></ul><h2>3. Trường hợp không hoàn tiền</h2><ul><li>Khách nhập sai mệnh giá/sản phẩm sau khi đã thanh toán (trước giao thẻ — liên hệ ngay).</li><li>Mã thẻ đã hiển thị và khách xác nhận đã sử dụng hoặc lộ mã.</li><li>Gian lận, chargeback không có căn cứ.</li></ul><h2>4. Quy trình khiếu nại</h2><ol><li>Gửi email [EMAIL] kèm mã đơn (ORD-…), email đặt hàng, ảnh sao kê (nếu có).</li><li>CardOn phản hồi trong 24–48h làm việc.</li><li>Tra soát với payment gateway / provider (3–7 ngày).</li><li>Hoàn tiền qua chuyển khoản trong 7–14 ngày nếu được duyệt.</li></ol><h2>5. Hoàn một phần</h2><p>Đơn nhiều sản phẩm: chỉ hoàn phần chưa giao hoặc lỗi được xác minh.</p><h2>6. Liên hệ</h2><p>Hotline: [HOTLINE] | Email: [EMAIL]</p>",
+    "seo": {
+      "meta_title": "Chính sách hoàn tiền — CardOn.vn",
+      "meta_description": "Quy định hoàn tiền và khiếu nại đơn hàng thẻ game tại CardOn.vn.",
+      "og_title": "Chính sách hoàn tiền — CardOn.vn",
+      "og_description": "Tìm hiểu quy trình hoàn tiền CardOn.vn.",
+      "og_image": "https://cardon.vn/og/legal-refund.png",
+      "canonical_url": "https://cardon.vn/pages/refund-policy",
+      "robots": "index,follow"
+    }
+  },
+  {
+    "type": "PAGE",
+    "slug": "agent-agreement",
+    "title": "Thỏa thuận đại lý (Partner API)",
+    "excerpt": "Điều khoản dành cho đối tác sử dụng Partner Portal và Agent API",
+    "status": "DRAFT",
+    "content": "<h1>Thỏa thuận đại lý CardOn Partner</h1><p><em>Cập nhật: [NGÀY]</em></p><h2>1. Đối tượng</h2><p>Áp dụng cho doanh nghiệp đã hoàn tất KYC, được CardOn phê duyệt sử dụng Partner Portal và API (`/api/partner/v1`).</p><h2>2. Dịch vụ API</h2><ul><li>Mua thẻ qua API: HOLD → fulfillment → DEBIT số dư ví đại lý.</li><li>Tra cứu số dư, lịch sử giao dịch theo <code>request_id</code>.</li><li>Rate limit mặc định 100 req/phút — có thể điều chỉnh theo hợp đồng.</li></ul><h2>3. Bảo mật API</h2><ul><li>Đại lý bảo mật <code>api_key</code> và <code>secret_key</code>; secret chỉ hiển thị một lần khi cấp.</li><li>Ký HMAC-SHA256 mọi request POST theo tài liệu API.</li><li>Thông báo CardOn ngay nếu nghi ngờ lộ key — CardOn có quyền rotate / vô hiệu hóa API.</li></ul><h2>4. Số dư và nạp tiền</h2><p>Đại lý duy trì số dư đủ cho giao dịch. CardOn có quyền tạm khóa API khi số dư thấp hoặc nghi ngờ gian lận. Nạp tiền theo hướng dẫn kế toán CardOn cung cấp.</p><h2>5. Giá và hoa hồng</h2><p>Giá đại lý (<code>agent_price</code>) theo bảng giá riêng hoặc giá chuẩn. CardOn có quyền điều chỉnh giá với thông báo trước [X] ngày.</p><h2>6. Trách nhiệm đại lý</h2><ul><li>Tuân thủ pháp luật Việt Nam về kinh doanh thẻ điện tử.</li><li>Không bán lại cho thị trường cấm / vi phạm ToS nhà phát hành thẻ.</li><li>Chịu trách nhiệm bảo mật dữ liệu khách cuối nếu tích hợp qua hệ thống đại lý.</li></ul><h2>7. Chấm dứt</h2><p>CardOn có thể suspend API khi vi phạm. Số dư còn lại được hoàn trả sau đối soát (trừ khoản nợ / tranh chấp).</p><h2>8. Luật áp dụng</h2><p>Pháp luật Việt Nam. Liên hệ hợp đồng: [EMAIL]</p>",
+    "seo": {
+      "meta_title": "Thỏa thuận đại lý — CardOn Partner",
+      "meta_description": "Điều khoản sử dụng Partner API và portal dành cho đại lý CardOn.vn.",
+      "og_title": "Thỏa thuận đại lý — CardOn Partner",
+      "og_description": "Điều khoản đối tác CardOn Partner API.",
+      "og_image": "https://cardon.vn/og/legal-agent.png",
+      "canonical_url": "https://partner.cardon.vn/pages/agent-agreement",
+      "robots": "index,follow"
+    }
+  }
+]
