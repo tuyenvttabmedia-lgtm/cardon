@@ -9,3 +9,11 @@ secrets/
 dist/
 *.log
 .tools/
+
+# TLS private keys — never commit
+infra/nginx/ssl/*.key
+infra/nginx/ssl/*.pem
+!infra/nginx/ssl/.gitkeep
+
+# Deploy artifacts
+cardon-deploy.tgz
