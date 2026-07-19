@@ -7,10 +7,15 @@ scripts/.smoke-credentials.json
 scripts/.local-full-credentials.json
 secrets/
 dist/
-.next/
 *.log
 .tools/
-backups/*.sql
-backups/*.sql.gz
-infra/nginx/ssl/*.pem
+
+# TLS private keys — never commit
 infra/nginx/ssl/*.key
+infra/nginx/ssl/*.pem
+!infra/nginx/ssl/.gitkeep
+
+# Deploy artifacts
+cardon-deploy.tgz
+*.tgz
+!packages/**/*.tgz
