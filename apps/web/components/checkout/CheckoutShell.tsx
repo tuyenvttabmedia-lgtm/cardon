@@ -3,7 +3,6 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
-  SepayQrDisplay,
   PaymentMethodsEmpty,
   MobilePaymentMethodButton,
 } from '@/components/checkout/PaymentPanel';
@@ -31,6 +30,7 @@ import {
   loadPendingCheckout,
   savePendingCheckout,
 } from '@/lib/checkout-persistence';
+import { isInlineQrPayment, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
 import {
   collectClientDeviceInfo,
   normalizeVnPhone,
@@ -153,7 +153,6 @@ function CheckoutShellInner({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [orderLimitError, setOrderLimitError] = useState<OrderAmountLimitDetails | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [orderMeta, setOrderMeta] = useState<{ orderCode: string; email: string } | null>(null);
 
   const {
     methods: paymentMethods,
@@ -522,10 +521,21 @@ function CheckoutShellInner({
 
       const pay = await paymentApi.create({ orderId: order.id, gateway }, generateIdempotencyKey());
       setPayment(pay);
-      setOrderMeta({ orderCode: order.orderCode, email: user.email });
       storeOrderGuestEmail(order.id, user.email);
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl && pay.displayMode !== 'qr_inline') {
+      if (isInlineQrPayment(pay)) {
+        router.push(
+          persistAndPathForQrPayment({
+            orderId: order.id,
+            orderCode: order.orderCode,
+            email: user.email,
+            payment: pay,
+          }),
+        );
+        return;
+      }
+
+      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
         window.location.href = pay.paymentUrl;
       }
     } catch (err) {
@@ -822,26 +832,6 @@ function CheckoutShellInner({
                     checkoutFormFields={payment.checkoutFormFields}
                   />
                 )}
-              {payment?.paymentUrl &&
-                (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
-                !payment.checkoutFormFields && (
-                <div className="mt-4">
-                  <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
-                  {orderMeta && (
-                    <button
-                      type="button"
-                      className="mt-3 w-full rounded-lg border border-gray-200 py-2 text-sm font-medium"
-                      onClick={() =>
-                        router.push(
-                          `/checkout/success?orderCode=${orderMeta.orderCode}&email=${encodeURIComponent(orderMeta.email)}`,
-                        )
-                      }
-                    >
-                      Đã chuyển khoản — xem trạng thái
-                    </button>
-                  )}
-                </div>
-              )}
             </aside>
           </div>
         )}
@@ -876,18 +866,6 @@ function CheckoutShellInner({
           checkoutUrl={payment.checkoutUrl}
           checkoutFormFields={payment.checkoutFormFields}
         />
-      )}
-      {payment?.paymentUrl &&
-        (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
-        !payment.checkoutFormFields && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 lg:hidden">
-          <div className="mx-auto mt-8 max-w-md rounded-2xl bg-white p-4">
-            <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
-            <button type="button" className="mt-3 w-full text-sm text-cardon-gray" onClick={() => setPayment(null)}>
-              Đóng
-            </button>
-          </div>
-        </div>
       )}
     </div>
   );

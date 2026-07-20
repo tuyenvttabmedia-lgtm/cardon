@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CustomerPriceBreakdown } from '@/components/checkout/CustomerPriceBreakdown';
 import { QuantityInput, DEFAULT_MAX_QUANTITY } from '@/components/checkout/QuantityInput';
-import { PaymentMethodPicker, PaymentMethodsEmpty, SepayQrDisplay } from '@/components/checkout/PaymentPanel';
+import { PaymentMethodPicker, PaymentMethodsEmpty } from '@/components/checkout/PaymentPanel';
 import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
@@ -15,6 +15,7 @@ import { buildCustomerPriceViewFromVariant } from '@/lib/customer-price';
 import { findProductBySlug, getActiveVariants, useProducts } from '@/hooks/useProducts';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
 import { parseOrderAmountLimitError } from '@/lib/order-limit';
+import { isInlineQrPayment, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
 import { formatVnd, generateIdempotencyKey } from '@/lib/utils';
 import { storeOrderGuestEmail } from '@/lib/order-guest-email';
 
@@ -46,7 +47,6 @@ export default function CheckoutPageClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<Awaited<ReturnType<typeof paymentApi.create>> | null>(null);
-  const [orderMeta, setOrderMeta] = useState<{ orderCode: string; email: string } | null>(null);
 
   useEffect(() => {
     setQuantity(initialQuantity);
@@ -92,10 +92,22 @@ export default function CheckoutPageClient() {
       );
 
       setPayment(pay);
-      setOrderMeta({ orderCode: order.orderCode, email: email ?? order.guestEmail ?? '' });
       storeOrderGuestEmail(order.id, email ?? order.guestEmail ?? '');
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl && pay.displayMode !== 'qr_inline') {
+      const resolvedEmail = email ?? order.guestEmail ?? '';
+      if (isInlineQrPayment(pay)) {
+        router.push(
+          persistAndPathForQrPayment({
+            orderId: order.id,
+            orderCode: order.orderCode,
+            email: resolvedEmail,
+            payment: pay,
+          }),
+        );
+        return;
+      }
+
+      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
         window.location.href = pay.paymentUrl;
         return;
       }
@@ -203,26 +215,6 @@ export default function CheckoutPageClient() {
             checkoutUrl={payment.checkoutUrl}
             checkoutFormFields={payment.checkoutFormFields}
           />
-        )}
-        {payment?.paymentUrl &&
-          (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
-          !payment.checkoutFormFields && (
-          <div className="mt-6">
-            <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
-            {orderMeta && (
-              <Button
-                className="mt-4 w-full"
-                variant="secondary"
-                onClick={() =>
-                  router.push(
-                    `/checkout/success?orderCode=${orderMeta.orderCode}&email=${encodeURIComponent(orderMeta.email)}`,
-                  )
-                }
-              >
-                Tôi đã chuyển khoản — xem trạng thái
-              </Button>
-            )}
-          </div>
         )}
       </div>
     </PageContainer>
