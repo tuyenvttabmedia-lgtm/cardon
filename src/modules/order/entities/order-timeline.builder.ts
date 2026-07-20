@@ -75,7 +75,7 @@ export function buildOrderTimeline(input: {
     const steps: OrderTimelineStep[] = [
       {
         key: 'payment',
-        label: 'Thanh toán thành công',
+        label: paid ? 'Thanh toán thành công' : 'Chờ thanh toán',
         state: paid ? 'completed' : customerStatus === 'WAITING_PAYMENT' ? 'active' : 'pending',
         at: eventAt(events, OrderEventType.PAYMENT_SUCCESS),
       },
@@ -115,7 +115,7 @@ export function buildOrderTimeline(input: {
   return [
     {
       key: 'payment',
-      label: 'Thanh toán thành công',
+      label: paid ? 'Thanh toán thành công' : 'Chờ thanh toán',
       state: paid ? 'completed' : customerStatus === 'WAITING_PAYMENT' ? 'active' : 'pending',
       at: eventAt(events, OrderEventType.PAYMENT_SUCCESS),
     },

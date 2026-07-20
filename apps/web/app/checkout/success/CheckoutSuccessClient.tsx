@@ -89,7 +89,9 @@ export default function CheckoutSuccessPageClient() {
         <OrderDeliveryContent
           delivery={delivery}
           orderId={delivery.order.id}
-          paymentStatus="success"
+          paymentStatus={
+            delivery.order.paymentStatus === 'PAID' ? 'success' : delivery.order.paymentStatus
+          }
           guestEmail={!isAuthenticated && email ? email : undefined}
           backHref={isAuthenticated ? '/tai-khoan/lich-su-giao-dich' : '/'}
           backLabel={isAuthenticated ? '← Về lịch sử giao dịch' : '← Về trang chủ'}

@@ -162,8 +162,12 @@ export default function CheckoutPayPageClient() {
             )
           }
         >
-          Đã chuyển khoản — xem trạng thái
+          Xem trạng thái đơn (chưa xác nhận thanh toán)
         </button>
+        <p className="text-center text-xs text-cardon-gray">
+          Sandbox EPAY chỉ giao thẻ sau khi nhận notify chuyển khoản vào VA. Nút trên không tự đánh dấu
+          đã thanh toán.
+        </p>
       </div>
     </PageContainer>
   );

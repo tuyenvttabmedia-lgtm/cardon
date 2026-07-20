@@ -28,4 +28,11 @@ Khai báo URL notify + IP server với EPAY, restart API — không cần sửa 
 node scripts/uat/test-depositcode-sandbox.mjs
 ```
 
+### Khác SePay
+
+- **SePay** thường xác nhận qua webhook/API sau khi chuyển khoản (sandbox có thể giả lập dễ hơn).
+- **EPAY DepositCode sandbox**: `registerVA` chỉ tạo VA + QR. Đơn chỉ sang `PAID` khi EPAY gọi notify
+  `POST /api/v1/payments/webhook/megapay` (sau khi có giao dịch vào VA — sandbox thật sự nhận tiền hoặc EPAY
+  bắn IPN test). Bấm “xem trạng thái” **không** tự đánh dấu đã thanh toán / không phát thẻ.
+
 Chi tiết kỹ thuật: `docs/04_MEGAPAY_INTEGRATION.md`

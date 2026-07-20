@@ -33,6 +33,13 @@ export function OrderDeliveryContent({
         </div>
       )}
 
+      {paymentStatus === 'WAITING_PAYMENT' && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Đơn chưa nhận được xác nhận thanh toán từ cổng. Giữ nguyên trang QR và chuyển đúng số tiền
+          vào tài khoản VA — hệ thống sẽ cập nhật tự động khi EPAY gửi notify.
+        </div>
+      )}
+
       {!showCardsOnly && (
         <>
           <div>
