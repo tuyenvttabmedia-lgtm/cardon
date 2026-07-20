@@ -15,7 +15,7 @@
 | NEED_MANUAL_REVIEW | Cần xử lý tay | **Admin retry** + recovery actions |
 | FAILED | Terminal (hiếm) | Case-by-case |
 
-**NCC bảo trì:** Khi tất cả mapping bị maintenance / không ACTIVE, fulfill **không** để đơn kẹt `PENDING` — chuyển `WAITING_ADMIN_RETRY` để hiện nút **Thử lại NCC**. Sau khi bỏ bảo trì → mở đơn → **Thử lại NCC**.
+**NCC bảo trì:** Khi tất cả mapping bị maintenance / không ACTIVE, fulfill **không** để đơn kẹt `PENDING` — chuyển `WAITING_ADMIN_RETRY` (badge **Chờ giao**) để hiện nút **Giao lại**. Sau khi bỏ bảo trì → mở đơn → **Giao lại**.
 
 ---
 
@@ -29,10 +29,10 @@
 
 **Thao tác:**
 
-1. Admin → Orders → lọc **Chờ thử lại NCC** (queue) — hoặc mở đơn PAID chưa giao
+1. Admin → Orders → lọc **Đơn chờ giao** — hoặc mở đơn PAID chưa giao
 2. Mở chi tiết đơn — xem failure code (OOS / LOW_BALANCE / MAINTENANCE) + khối **Đối soát thanh toán (MMS)**
 3. Nếu nghi tiền chưa về: tra MegaPay MMS (`Merchant trx Id` ≈ `paymentReference` PAY-… + số tiền + Approval)
-4. NCC đã sẵn sàng (hết bảo trì / đã nạp tiền / có stock) → **Thử lại NCC**
+4. NCC đã sẵn sàng (hết bảo trì / đã nạp tiền / có stock) → **Giao lại**
 5. **Gửi lại email** chỉ khi đơn đã có thẻ
 
 **Sau retry:**

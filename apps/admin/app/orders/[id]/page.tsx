@@ -127,7 +127,7 @@ export default function OrderDetailPage() {
                     (detail.cardDelivery?.cardCount ?? 0) === 0)) && (
                 <>
                   <Button
-                    title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới thử lại NCC"
+                    title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới bấm Giao lại"
                     onClick={() => void runAction(vi.orders.retryFulfillment, () => adminApi.retryOrder(params.id))}
                   >
                     {vi.orders.retryFulfillment}

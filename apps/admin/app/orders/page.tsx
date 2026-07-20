@@ -146,7 +146,7 @@ export default function OrdersPage() {
               setApplied(next);
             }}
           >
-            Queue: Chờ thử lại NCC
+            {vi.orders.waitingDeliveryFilter}
           </Button>
         </div>
 
@@ -226,7 +226,7 @@ export default function OrdersPage() {
                 {DELIVERY_FILTERS.filter(Boolean).map((s) => (
                   <option key={s} value={s}>
                     {s === 'WAITING_ADMIN_RETRY'
-                      ? 'Chờ thử lại NCC'
+                      ? vi.status.WAITING_ADMIN_RETRY
                       : translateStatus(
                           s === 'DELIVERED'
                             ? 'COMPLETED'
