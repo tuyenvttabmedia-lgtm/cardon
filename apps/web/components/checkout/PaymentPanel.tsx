@@ -12,7 +12,7 @@ import {
 function PaymentMethodLogo({ method, compact }: { method: PublicPaymentMethod; compact?: boolean }) {
   const [failed, setFailed] = useState(false);
   const src = method.logoUrl ?? method.iconUrl;
-  const sizeClass = compact ? 'h-8 w-8' : 'h-10 w-10';
+  const sizeClass = compact ? 'h-9 w-9' : 'h-10 w-10';
 
   if (src && !failed) {
     return (
@@ -25,8 +25,8 @@ function PaymentMethodLogo({ method, compact }: { method: PublicPaymentMethod; c
         <Image
           src={src}
           alt=""
-          width={compact ? 32 : 40}
-          height={compact ? 32 : 40}
+          width={compact ? 36 : 40}
+          height={compact ? 36 : 40}
           className="object-contain"
           unoptimized
           onError={() => setFailed(true)}
@@ -63,7 +63,7 @@ function CompactPaymentMethodCard({
       type="button"
       onClick={onSelect}
       className={cn(
-        'relative flex h-[54px] items-center gap-3 rounded-xl border p-3 text-left transition-all duration-200 sm:h-[58px]',
+        'relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-all duration-200',
         selected
           ? 'border-cardon-blue bg-blue-50'
           : 'border-gray-200 bg-white hover:border-cardon-blue/40 hover:bg-blue-50/40',
@@ -75,13 +75,15 @@ function CompactPaymentMethodCard({
         </span>
       )}
       <PaymentMethodLogo method={method} compact />
-      <span className="min-w-0 flex-1 pr-3">
-        <p className="truncate text-sm font-semibold leading-tight text-cardon-navy">
+      <span className="min-w-0 flex-1 pr-5">
+        <p className="text-sm font-semibold leading-snug text-cardon-navy">
           {method.displayName}
         </p>
         {feeHint ? (
-          <p className="mt-0.5 truncate text-xs leading-tight text-cardon-gray">{feeHint}</p>
-        ) : null}
+          <p className="mt-1 text-xs leading-snug text-cardon-gray">{feeHint}</p>
+        ) : (
+          <p className="mt-1 text-xs leading-snug text-emerald-700">Miễn phí giao dịch</p>
+        )}
       </span>
     </button>
   );
@@ -107,7 +109,7 @@ export function PaymentMethodPicker({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:grid-cols-2">
+    <div className="flex flex-col gap-2">
       {enabled.map((method) => (
         <CompactPaymentMethodCard
           key={method.methodCode}
@@ -120,13 +122,27 @@ export function PaymentMethodPicker({
   );
 }
 
-export function SepayQrDisplay({ paymentUrl }: { paymentUrl: string }) {
+export function SepayQrDisplay({
+  paymentUrl,
+  bankInfo,
+}: {
+  paymentUrl: string;
+  bankInfo?: {
+    bankCode?: string | null;
+    bankName?: string | null;
+    accountNumber?: string | null;
+    accountName?: string | null;
+  } | null;
+}) {
   const [error, setError] = useState(false);
+  const isDataImage = paymentUrl.startsWith('data:image');
 
   return (
     <div className="rounded-2xl border border-cardon-border bg-white p-6 text-center">
       <p className="font-semibold text-cardon-navy">Quét mã QR để thanh toán</p>
-      <p className="mt-1 text-sm text-cardon-gray">Nội dung chuyển khoản đã bao gồm mã đơn</p>
+      <p className="mt-1 text-sm text-cardon-gray">
+        Chuyển đúng số tiền. Nội dung / tài khoản VA đã gắn với đơn hàng.
+      </p>
       <div className="relative mx-auto mt-4 h-64 w-64">
         {!error ? (
           <Image
@@ -138,17 +154,41 @@ export function SepayQrDisplay({ paymentUrl }: { paymentUrl: string }) {
             onError={() => setError(true)}
           />
         ) : (
-          <p className="text-sm text-red-600">Không tải được QR. Mở link bên dưới.</p>
+          <p className="text-sm text-red-600">Không tải được QR.</p>
         )}
       </div>
-      <a
-        href={paymentUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-4 inline-flex rounded-xl border border-cardon-border px-4 py-2 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
-      >
-        Mở trang thanh toán
-      </a>
+      {bankInfo?.accountNumber ? (
+        <div className="mt-4 space-y-1 rounded-xl bg-cardon-light px-4 py-3 text-left text-sm">
+          {bankInfo.bankName || bankInfo.bankCode ? (
+            <p>
+              <span className="text-cardon-gray">Ngân hàng: </span>
+              <span className="font-semibold text-cardon-navy">
+                {bankInfo.bankName || bankInfo.bankCode}
+              </span>
+            </p>
+          ) : null}
+          <p>
+            <span className="text-cardon-gray">Số TK VA: </span>
+            <span className="font-semibold text-cardon-navy">{bankInfo.accountNumber}</span>
+          </p>
+          {bankInfo.accountName ? (
+            <p>
+              <span className="text-cardon-gray">Chủ TK: </span>
+              <span className="font-semibold text-cardon-navy">{bankInfo.accountName}</span>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {!isDataImage ? (
+        <a
+          href={paymentUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex rounded-xl border border-cardon-border px-4 py-2 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
+        >
+          Mở trang thanh toán
+        </a>
+      ) : null}
     </div>
   );
 }

@@ -6,6 +6,13 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
+export interface PaymentBankInfo {
+  bankCode?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+}
+
 export interface PaymentView {
   id: string;
   orderId: string;
@@ -16,6 +23,9 @@ export interface PaymentView {
   paymentUrl?: string;
   checkoutUrl?: string;
   checkoutFormFields?: Record<string, string>;
+  /** qr_inline = show QR on CardOn checkout (DepositCode / SePay QR). redirect = hosted gateway page. */
+  displayMode?: 'qr_inline' | 'redirect';
+  bankInfo?: PaymentBankInfo | null;
   expiresAt: string | null;
   paidAt: string | null;
   createdAt: string;
@@ -52,6 +62,8 @@ export function mapPayment(
     paymentUrl?: string;
     checkoutUrl?: string;
     checkoutFormFields?: Record<string, string>;
+    displayMode?: 'qr_inline' | 'redirect';
+    bankInfo?: PaymentBankInfo | null;
   },
 ): PaymentView {
   return {
@@ -64,6 +76,8 @@ export function mapPayment(
     paymentUrl: extras?.paymentUrl,
     checkoutUrl: extras?.checkoutUrl,
     checkoutFormFields: extras?.checkoutFormFields,
+    displayMode: extras?.displayMode,
+    bankInfo: extras?.bankInfo ?? null,
     expiresAt: payment.expiresAt?.toISOString() ?? null,
     paidAt: payment.paidAt?.toISOString() ?? null,
     createdAt: payment.createdAt.toISOString(),

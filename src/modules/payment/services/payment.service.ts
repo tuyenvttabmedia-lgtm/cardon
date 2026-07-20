@@ -89,6 +89,8 @@ export class PaymentService {
             ? gatewayResponse.checkoutUrl
             : undefined,
         checkoutFormFields,
+        displayMode: readDisplayMode(gatewayResponse),
+        bankInfo: readBankInfo(gatewayResponse),
       });
     }
 
@@ -180,6 +182,8 @@ export class PaymentService {
           ? providerResult.rawResponse.checkoutUrl
           : undefined,
       checkoutFormFields: readCheckoutFormFields(providerResult.rawResponse),
+      displayMode: readDisplayMode(providerResult.rawResponse),
+      bankInfo: readBankInfo(providerResult.rawResponse),
     });
   }
 
@@ -712,6 +716,38 @@ function readCheckoutFormFields(
     }
   }
   return Object.keys(result).length ? result : undefined;
+}
+
+function readDisplayMode(
+  gatewayResponse: Record<string, unknown>,
+): 'qr_inline' | 'redirect' | undefined {
+  const mode = gatewayResponse.displayMode;
+  if (mode === 'qr_inline' || mode === 'redirect') return mode;
+  if (gatewayResponse.integrationMode === 'deposit_code_va') return 'qr_inline';
+  if (gatewayResponse.integrationMode === 'legacy_qr') return 'qr_inline';
+  return undefined;
+}
+
+function readBankInfo(
+  gatewayResponse: Record<string, unknown>,
+): {
+  bankCode?: string | null;
+  bankName?: string | null;
+  accountNumber?: string | null;
+  accountName?: string | null;
+} | null {
+  const raw = gatewayResponse.bank_info;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return null;
+  }
+  const info = raw as Record<string, unknown>;
+  return {
+    bankCode: typeof info.bankCode === 'string' ? info.bankCode : null,
+    bankName: typeof info.bankName === 'string' ? info.bankName : null,
+    accountNumber:
+      typeof info.accountNumber === 'string' ? info.accountNumber : null,
+    accountName: typeof info.accountName === 'string' ? info.accountName : null,
+  };
 }
 
 function normalizeGatewayParam(value: string): PaymentGatewayCode {

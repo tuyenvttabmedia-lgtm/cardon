@@ -80,7 +80,8 @@ describe('MegaPayProvider (DepositCode VA)', () => {
             bank_code: 'WOORIBANK',
             bank_name: 'WOORIBANK',
             map_id: 'PAY-REF-001',
-            qr_url: 'https://qr.example/PAY-REF-001',
+            qr_code: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+            qr_url: 'http://42.113.207.131:5005/transaction/Dcodeabc',
             amount: 100000,
           }),
       });
@@ -92,10 +93,12 @@ describe('MegaPayProvider (DepositCode VA)', () => {
         gateway: PaymentGatewayCode.MEGAPAY,
       });
 
-      expect(result.paymentUrl).toBe('https://qr.example/PAY-REF-001');
+      expect(result.paymentUrl).toMatch(/^data:image\/png;base64,/);
       expect(result.providerReference).toBe('902000229207');
+      expect(result.rawResponse.displayMode).toBe('qr_inline');
       expect(result.rawResponse.bank_info).toEqual({
         bankCode: 'WOORIBANK',
+        bankName: 'WOORIBANK',
         accountNumber: '902000229207',
         accountName: 'VNEP VAP001 CARDON',
       });

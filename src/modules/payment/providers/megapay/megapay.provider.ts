@@ -16,6 +16,27 @@ import {
 } from './depositcode.types';
 import { MegapayConfigService } from './megapay.config';
 
+/** Prefer embeddable QR image; EPAY sandbox qr_url often points at an unreachable host page. */
+export function resolveDepositCodeQrImage(response: {
+  qr_code?: string;
+  qr_url?: string;
+}): string | undefined {
+  const code = response.qr_code?.trim();
+  if (code) {
+    return code.startsWith('data:') ? code : `data:image/png;base64,${code}`;
+  }
+
+  const url = response.qr_url?.trim();
+  if (!url) return undefined;
+
+  // Hosted transaction pages (sandbox :5005 /transaction/...) are not QR images and are often unreachable.
+  if (/\/transaction\//i.test(url) || /:5005\b/.test(url)) {
+    return undefined;
+  }
+
+  return url;
+}
+
 @Injectable()
 export class MegaPayProvider implements PaymentProviderInterface {
   readonly gateway = PaymentGatewayCode.MEGAPAY;
@@ -45,14 +66,9 @@ export class MegaPayProvider implements PaymentProviderInterface {
       );
     }
 
-    const qrUrl =
-      response.qr_url ||
-      (response.qr_code
-        ? `data:image/png;base64,${response.qr_code}`
-        : undefined);
-
-    if (!qrUrl) {
-      throw new Error('DepositCode register succeeded but no QR returned');
+    const qrImage = resolveDepositCodeQrImage(response);
+    if (!qrImage) {
+      throw new Error('DepositCode register succeeded but no QR image returned');
     }
 
     const expiredAt =
@@ -60,21 +76,23 @@ export class MegaPayProvider implements PaymentProviderInterface {
       new Date(Date.now() + 24 * 60 * 60_000).toISOString();
 
     return {
-      paymentUrl: qrUrl,
+      paymentUrl: qrImage,
       providerReference: response.account_no ?? params.paymentReference,
       rawResponse: {
         integrationMode: 'deposit_code_va',
+        displayMode: 'qr_inline',
         response_code: response.response_code,
         map_id: response.map_id ?? params.paymentReference,
         account_no: response.account_no,
         account_name: response.account_name,
         bank_code: response.bank_code,
         bank_name: response.bank_name,
-        qr_url: qrUrl,
+        qr_url: response.qr_url,
         qr_code: response.qr_code,
         qr_dataRaw: response.qr_dataRaw,
         bank_info: {
           bankCode: response.bank_code,
+          bankName: response.bank_name,
           accountNumber: response.account_no,
           accountName: response.account_name,
         },

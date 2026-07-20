@@ -525,7 +525,7 @@ function CheckoutShellInner({
       setOrderMeta({ orderCode: order.orderCode, email: user.email });
       storeOrderGuestEmail(order.id, user.email);
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
+      if (gateway === 'MEGAPAY' && pay.paymentUrl && pay.displayMode !== 'qr_inline') {
         window.location.href = pay.paymentUrl;
       }
     } catch (err) {
@@ -823,10 +823,10 @@ function CheckoutShellInner({
                   />
                 )}
               {payment?.paymentUrl &&
-                gateway === 'SEPAY' &&
+                (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
                 !payment.checkoutFormFields && (
                 <div className="mt-4">
-                  <SepayQrDisplay paymentUrl={payment.paymentUrl} />
+                  <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
                   {orderMeta && (
                     <button
                       type="button"
@@ -877,10 +877,12 @@ function CheckoutShellInner({
           checkoutFormFields={payment.checkoutFormFields}
         />
       )}
-      {payment?.paymentUrl && gateway === 'SEPAY' && !payment.checkoutFormFields && (
+      {payment?.paymentUrl &&
+        (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
+        !payment.checkoutFormFields && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4 lg:hidden">
           <div className="mx-auto mt-8 max-w-md rounded-2xl bg-white p-4">
-            <SepayQrDisplay paymentUrl={payment.paymentUrl} />
+            <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
             <button type="button" className="mt-3 w-full text-sm text-cardon-gray" onClick={() => setPayment(null)}>
               Đóng
             </button>

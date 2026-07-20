@@ -95,7 +95,7 @@ export default function CheckoutPageClient() {
       setOrderMeta({ orderCode: order.orderCode, email: email ?? order.guestEmail ?? '' });
       storeOrderGuestEmail(order.id, email ?? order.guestEmail ?? '');
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
+      if (gateway === 'MEGAPAY' && pay.paymentUrl && pay.displayMode !== 'qr_inline') {
         window.location.href = pay.paymentUrl;
         return;
       }
@@ -204,9 +204,11 @@ export default function CheckoutPageClient() {
             checkoutFormFields={payment.checkoutFormFields}
           />
         )}
-        {payment?.paymentUrl && gateway === 'SEPAY' && !payment.checkoutFormFields && (
+        {payment?.paymentUrl &&
+          (gateway === 'SEPAY' || payment.displayMode === 'qr_inline') &&
+          !payment.checkoutFormFields && (
           <div className="mt-6">
-            <SepayQrDisplay paymentUrl={payment.paymentUrl} />
+            <SepayQrDisplay paymentUrl={payment.paymentUrl} bankInfo={payment.bankInfo} />
             {orderMeta && (
               <Button
                 className="mt-4 w-full"
