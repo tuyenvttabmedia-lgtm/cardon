@@ -8,7 +8,7 @@ import { ProviderModule } from '../provider/provider.module';
 import { PaymentController } from './controllers/payment.controller';
 import { PaymentMethodsController } from './controllers/payment-methods.controller';
 import { MegapayConfigService } from './providers/megapay/megapay.config';
-import { MegapayHttpClient } from './providers/megapay/megapay.client';
+import { DepositCodeHttpClient } from './providers/megapay/depositcode.client';
 import { MegaPayProvider } from './providers/megapay/megapay.provider';
 import { SePayProvider } from './providers/sepay/sepay.provider';
 import { SepayConfigService } from './providers/sepay/sepay.config';
@@ -35,7 +35,7 @@ import { PaymentService } from './services/payment.service';
     PaymentRepository,
     WebhookLogRepository,
     MegapayConfigService,
-    MegapayHttpClient,
+    DepositCodeHttpClient,
     MegaPayProvider,
     SepayConfigService,
     SePayProvider,

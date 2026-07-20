@@ -1,3 +1,25 @@
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+
+function loadMegapayNotifyPublicKey(): string | undefined {
+  const inline = process.env.MEGAPAY_NOTIFY_PUBLIC_KEY;
+  if (inline?.trim()) {
+    return inline.replace(/\\n/g, '\n');
+  }
+  const keyPath =
+    process.env.MEGAPAY_NOTIFY_PUBLIC_KEY_PATH ??
+    resolve(process.cwd(), 'secrets', 'megapay-notify-public.pem');
+  if (existsSync(keyPath)) {
+    return readFileSync(keyPath, 'utf8');
+  }
+  // Fallback: PEM mistakenly stored in webhook secret
+  const wh = process.env.MEGAPAY_WEBHOOK_SECRET;
+  if (wh?.includes('BEGIN PUBLIC KEY')) {
+    return wh.replace(/\\n/g, '\n');
+  }
+  return undefined;
+}
+
 export default () => ({
   app: {
     env: process.env.APP_ENV ?? 'development',
@@ -38,6 +60,8 @@ export default () => ({
     returnUrl: process.env.MEGAPAY_RETURN_URL,
     webhookSecret: process.env.MEGAPAY_WEBHOOK_SECRET,
     callbackUrl: process.env.MEGAPAY_CALLBACK_URL,
+    bankCode: process.env.MEGAPAY_BANK_CODE ?? 'WOORIBANK',
+    notifyPublicKey: loadMegapayNotifyPublicKey(),
   },
   sepay: {
     apiKey: process.env.SEPAY_API_KEY,

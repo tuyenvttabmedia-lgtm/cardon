@@ -1,19 +1,28 @@
 /**
- * Phase 2E.2 — MegaPay Payment Adapter Tests
+ * VNPT ePay DepositCode adapter (wired as MegaPay gateway).
  */
 import { PaymentGatewayCode } from '@prisma/client';
-import { MegapayHttpClient } from './megapay.client';
+import { generateKeyPairSync, createSign } from 'crypto';
+import { DepositCodeHttpClient } from './depositcode.client';
 import { MegapayConfigService } from './megapay.config';
 import { MegaPayProvider } from './megapay.provider';
-import { signMegapayRequest, toSignableFields } from './megapay.signature';
+
+const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+  modulusLength: 1024,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
 
 const TEST_CONFIG = {
-  merchantId: 'merchant-test',
-  secretKey: 'megapay-secret-key',
-  endpoint: 'https://api.megapay.test',
-  returnUrl: 'https://cardon.vn/payment/return',
-  webhookSecret: 'megapay-webhook-secret',
+  merchantId: 'VAP001',
+  secretKey: '31feae316de0a42520ef5ec4',
+  endpoint:
+    'https://sandboxva.ecollect.vn:10003/ApiResf_VirtualAccount/services/registerVA',
+  returnUrl: 'https://cardon.vn/checkout/result',
+  webhookSecret: 'unused',
   callbackUrl: 'https://cardon.vn/api/v1/payments/webhook/megapay',
+  bankCode: 'WOORIBANK',
+  notifyPublicKey: publicKey,
 };
 
 function buildProvider(fetchMock: jest.Mock): MegaPayProvider {
@@ -21,17 +30,35 @@ function buildProvider(fetchMock: jest.Mock): MegaPayProvider {
     getConfig: () => TEST_CONFIG,
     isConfigured: () => true,
   } as unknown as MegapayConfigService;
-  const httpClient = new MegapayHttpClient(configService, fetchMock);
+  const httpClient = new DepositCodeHttpClient(configService, fetchMock);
   return new MegaPayProvider(configService, httpClient);
 }
 
-function signWebhook(
-  payload: Record<string, string | number>,
-): string {
-  return signMegapayRequest(toSignableFields(payload), TEST_CONFIG.webhookSecret);
+function signNotify(fields: {
+  RequestId: string;
+  ReferenceId: string;
+  RequestTime: string;
+  Amount: number;
+  Fee: number;
+  VaAcc: string;
+  MapId: string;
+}): string {
+  const canonical = [
+    fields.RequestId,
+    fields.ReferenceId,
+    fields.RequestTime,
+    String(fields.Amount),
+    String(fields.Fee),
+    fields.VaAcc,
+    fields.MapId,
+  ].join('|');
+  const signer = createSign('RSA-SHA256');
+  signer.update(canonical, 'utf8');
+  signer.end();
+  return signer.sign(privateKey).toString('hex');
 }
 
-describe('MegaPayProvider', () => {
+describe('MegaPayProvider (DepositCode VA)', () => {
   let fetchMock: jest.Mock;
   let provider: MegaPayProvider;
 
@@ -41,15 +68,21 @@ describe('MegaPayProvider', () => {
   });
 
   describe('createPayment', () => {
-    it('maps payment_reference to MegaPay order_id and returns payment URL', async () => {
+    it('registers VA and returns QR paymentUrl + bank_info', async () => {
       fetchMock.mockResolvedValue({
         ok: true,
-        json: async () => ({
-          request_id: 'req-001',
-          order_id: 'PAY-REF-001',
-          payment_url: 'https://pay.megapay.test/checkout/PAY-REF-001',
-          status: 'PENDING',
-        }),
+        text: async () =>
+          JSON.stringify({
+            response_code: '00',
+            message: 'Thanh cong',
+            account_no: '902000229207',
+            account_name: 'VNEP VAP001 CARDON',
+            bank_code: 'WOORIBANK',
+            bank_name: 'WOORIBANK',
+            map_id: 'PAY-REF-001',
+            qr_url: 'https://qr.example/PAY-REF-001',
+            amount: 100000,
+          }),
       });
 
       const result = await provider.createPayment({
@@ -59,129 +92,73 @@ describe('MegaPayProvider', () => {
         gateway: PaymentGatewayCode.MEGAPAY,
       });
 
-      expect(result.paymentUrl).toBe(
-        'https://pay.megapay.test/checkout/PAY-REF-001',
-      );
-      expect(result.providerReference).toBe('PAY-REF-001');
+      expect(result.paymentUrl).toBe('https://qr.example/PAY-REF-001');
+      expect(result.providerReference).toBe('902000229207');
+      expect(result.rawResponse.bank_info).toEqual({
+        bankCode: 'WOORIBANK',
+        accountNumber: '902000229207',
+        accountName: 'VNEP VAP001 CARDON',
+      });
 
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toBe('https://api.megapay.test/v1/checkout/create');
+      expect(url).toContain('registerVA');
       const body = JSON.parse(init.body as string) as Record<string, unknown>;
-      expect(body.order_id).toBe('PAY-REF-001');
-      expect(body.amount).toBe(100000);
-      expect(body.return_url).toBe(TEST_CONFIG.returnUrl);
-      expect(body.callback_url).toBe(TEST_CONFIG.callbackUrl);
-      expect(body.merchant_id).toBe(TEST_CONFIG.merchantId);
-      expect(typeof body.signature).toBe('string');
-      expect(body.signature).not.toBe('');
+      expect(body.pcode).toBe('9000');
+      expect(body.merchant_code).toBe('VAP001');
+      expect(typeof body.data).toBe('string');
     });
   });
 
   describe('verifyWebhook', () => {
-    it('accepts valid webhook signature', async () => {
+    it('accepts valid DepositCode notify signature', async () => {
       const payload = {
-        order_id: 'PAY-REF-001',
-        status: 'SUCCESS',
-        amount: '100000.00',
-        request_id: 'req-wh-1',
+        MerchantCode: 'VAP001',
+        RequestId: 'VAP001REQ1',
+        RequestTime: '2024-10-15 14:52:58',
+        VaAcc: '902000225341',
+        VaName: 'VAP001 NGUYEN VAN A',
+        MapId: 'PAY-REF-001',
+        ReferenceId: 'VAP001REF1',
+        Amount: 100000,
+        Fee: 0,
+        BankCode: 'WOORIBANK',
+        BankName: 'WOORI',
       };
-      const signature = signWebhook(payload);
+      const Signature = signNotify({
+        RequestId: payload.RequestId,
+        ReferenceId: payload.ReferenceId,
+        RequestTime: payload.RequestTime,
+        Amount: payload.Amount,
+        Fee: payload.Fee,
+        VaAcc: payload.VaAcc,
+        MapId: payload.MapId,
+      });
 
-      const result = await provider.verifyWebhook(
-        { ...payload, signature },
-        {},
-      );
+      const result = await provider.verifyWebhook({ ...payload, Signature }, {});
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('PAY-REF-001');
       expect(result.status).toBe('SUCCESS');
       expect(result.amount).toBe('100000.00');
+      expect(result.providerTransactionId).toBe('VAP001REF1');
     });
 
-    it('rejects invalid webhook signature', async () => {
+    it('rejects invalid signature', async () => {
       const result = await provider.verifyWebhook(
         {
-          order_id: 'PAY-REF-001',
-          status: 'SUCCESS',
-          amount: '100000.00',
-          signature: 'invalid-signature',
+          MerchantCode: 'VAP001',
+          RequestId: 'VAP001REQ1',
+          RequestTime: '2024-10-15 14:52:58',
+          VaAcc: '902000225341',
+          MapId: 'PAY-REF-001',
+          ReferenceId: 'VAP001REF1',
+          Amount: 100000,
+          Fee: 0,
+          Signature: 'deadbeef',
         },
         {},
       );
-
       expect(result.valid).toBe(false);
     });
-
-    it('maps SUCCESS webhook to SUCCESS status', async () => {
-      const payload = { order_id: 'PAY-1', status: 'SUCCESS' };
-      const result = await provider.verifyWebhook(
-        { ...payload, signature: signWebhook(payload) },
-        {},
-      );
-      expect(result.status).toBe('SUCCESS');
-    });
-
-    it('maps FAILED webhook to FAILED status', async () => {
-      const payload = { order_id: 'PAY-1', status: 'FAILED' };
-      const result = await provider.verifyWebhook(
-        { ...payload, signature: signWebhook(payload) },
-        {},
-      );
-      expect(result.status).toBe('FAILED');
-    });
-
-    it('maps PENDING/UNKNOWN webhook to PENDING (no final action)', async () => {
-      for (const status of ['PENDING', 'UNKNOWN']) {
-        const payload = { order_id: 'PAY-1', status };
-        const result = await provider.verifyWebhook(
-          { ...payload, signature: signWebhook(payload) },
-          {},
-        );
-        expect(result.status).toBe('PENDING');
-      }
-    });
-  });
-
-  describe('queryTransaction', () => {
-    it('queries MegaPay and maps transaction status', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          order_id: 'PAY-REF-001',
-          amount: '100000.00',
-          status: 'SUCCESS',
-          request_id: 'req-q-1',
-        }),
-      });
-
-      const result = await provider.queryTransaction('PAY-REF-001');
-
-      expect(result.paymentReference).toBe('PAY-REF-001');
-      expect(result.status).toBe('SUCCESS');
-      expect(result.amount).toBe('100000.00');
-
-      const [url] = fetchMock.mock.calls[0] as [string];
-      expect(url).toContain('/v1/checkout/query');
-      expect(url).toContain('order_id=PAY-REF-001');
-      expect(url).toContain('signature=');
-    });
-  });
-
-  describe('refund', () => {
-    it('returns placeholder not implemented', async () => {
-      const result = await provider.refund('PAY-REF-001');
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('not implemented');
-    });
-  });
-});
-
-describe('MegaPay signature', () => {
-  it('produces deterministic HMAC-SHA256 hex signatures', () => {
-    const fields = { merchant_id: 'm1', order_id: 'PAY-1', amount: 100 };
-    const sig1 = signMegapayRequest(fields, 'secret');
-    const sig2 = signMegapayRequest(fields, 'secret');
-    expect(sig1).toBe(sig2);
-    expect(sig1).toMatch(/^[a-f0-9]{64}$/);
   });
 });

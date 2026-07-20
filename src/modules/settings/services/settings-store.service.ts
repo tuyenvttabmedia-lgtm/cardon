@@ -126,16 +126,29 @@ export class SettingsStoreService implements OnModuleInit {
     const endpoint =
       stored?.endpoint ?? this.configService.get<string>('megapay.endpoint');
     const returnUrl =
-      stored?.returnUrl ?? this.configService.get<string>('megapay.returnUrl');
+      stored?.returnUrl ??
+      this.configService.get<string>('megapay.returnUrl') ??
+      this.configService.get<string>('appPublicUrl') ??
+      'http://localhost/checkout/result';
     const webhookSecret =
       (stored?.webhookSecretEnc
         ? this.decryptField(stored.webhookSecretEnc)
         : undefined) ??
-      this.configService.get<string>('megapay.webhookSecret');
+      this.configService.get<string>('megapay.webhookSecret') ??
+      '';
+    const bankCode =
+      stored?.bankCode ??
+      this.configService.get<string>('megapay.bankCode') ??
+      'WOORIBANK';
+    const notifyPublicKeyRaw =
+      this.configService.get<string>('megapay.notifyPublicKey') ??
+      webhookSecret;
+    const notifyPublicKey =
+      normalizePem(notifyPublicKeyRaw) ?? '';
 
-    if (!merchantId || !secretKey || !endpoint || !returnUrl || !webhookSecret) {
+    if (!merchantId || !secretKey || !endpoint || !notifyPublicKey) {
       throw new Error(
-        'MegaPay is not configured. Set MEGAPAY_* env vars or configure in Admin Settings.',
+        'VNPT ePay DepositCode is not configured. Set MEGAPAY_MERCHANT_ID, MEGAPAY_SECRET_KEY (3DES), MEGAPAY_ENDPOINT, MEGAPAY_NOTIFY_PUBLIC_KEY.',
       );
     }
 
@@ -149,8 +162,10 @@ export class SettingsStoreService implements OnModuleInit {
       secretKey,
       endpoint: endpoint.replace(/\/$/, ''),
       returnUrl,
-      webhookSecret,
+      webhookSecret: webhookSecret || 'depositcode-rsa',
       callbackUrl,
+      bankCode,
+      notifyPublicKey,
     };
   }
 

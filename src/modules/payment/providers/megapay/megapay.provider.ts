@@ -8,14 +8,13 @@ import {
   RefundResult,
   WebhookVerificationResult,
 } from '../payment-provider.interface';
-import { MegapayHttpClient } from './megapay.client';
-import { MegapayConfigService } from './megapay.config';
+import { DepositCodeHttpClient } from './depositcode.client';
+import { verifyDepositCodeNotifySignature } from './depositcode.crypto';
 import {
-  mapMegapayQueryStatus,
-  mapMegapayWebhookStatus,
-  MegapayWebhookPayload,
-} from './megapay.types';
-import { toSignableFields, verifyMegapaySignature } from './megapay.signature';
+  DepositCodeNotifyPayload,
+  normalizeDepositCodeNotify,
+} from './depositcode.types';
+import { MegapayConfigService } from './megapay.config';
 
 @Injectable()
 export class MegaPayProvider implements PaymentProviderInterface {
@@ -23,27 +22,65 @@ export class MegaPayProvider implements PaymentProviderInterface {
 
   constructor(
     private readonly configService: MegapayConfigService,
-    private readonly httpClient: MegapayHttpClient,
+    private readonly httpClient: DepositCodeHttpClient,
   ) {}
 
   async createPayment(
     params: CreateProviderPaymentParams,
   ): Promise<ProviderPaymentResult> {
     const amountInt = Math.round(parseFloat(params.amount));
+    const customerName = `CARDON ${params.paymentReference}`.slice(0, 50);
 
-    const response = await this.httpClient.createCheckout({
-      orderId: params.paymentReference,
+    const response = await this.httpClient.registerVirtualAccount({
+      mapId: params.paymentReference,
       amount: amountInt,
-      description: `CardOn order ${params.paymentReference}`,
+      customerName,
+      expiresAt: params.expiresAt,
+      email: params.guestEmail,
     });
 
+    if (response.response_code !== '00') {
+      throw new Error(
+        `DepositCode register failed: ${response.response_code} ${response.message ?? ''}`.trim(),
+      );
+    }
+
+    const qrUrl =
+      response.qr_url ||
+      (response.qr_code
+        ? `data:image/png;base64,${response.qr_code}`
+        : undefined);
+
+    if (!qrUrl) {
+      throw new Error('DepositCode register succeeded but no QR returned');
+    }
+
+    const expiredAt =
+      params.expiresAt?.toISOString() ??
+      new Date(Date.now() + 24 * 60 * 60_000).toISOString();
+
     return {
-      paymentUrl: response.payment_url,
-      providerReference: response.order_id,
+      paymentUrl: qrUrl,
+      providerReference: response.account_no ?? params.paymentReference,
       rawResponse: {
-        request_id: response.request_id,
-        order_id: response.order_id,
-        status: response.status,
+        integrationMode: 'deposit_code_va',
+        response_code: response.response_code,
+        map_id: response.map_id ?? params.paymentReference,
+        account_no: response.account_no,
+        account_name: response.account_name,
+        bank_code: response.bank_code,
+        bank_name: response.bank_name,
+        qr_url: qrUrl,
+        qr_code: response.qr_code,
+        qr_dataRaw: response.qr_dataRaw,
+        bank_info: {
+          bankCode: response.bank_code,
+          accountNumber: response.account_no,
+          accountName: response.account_name,
+        },
+        amount: amountInt,
+        transferContent: response.account_no,
+        expired_at: expiredAt,
         gateway: this.gateway,
       },
     };
@@ -53,52 +90,73 @@ export class MegaPayProvider implements PaymentProviderInterface {
     payload: unknown,
     _headers: Record<string, string>,
   ): Promise<WebhookVerificationResult> {
-    const body = normalizePayload(payload) as unknown as MegapayWebhookPayload;
+    const body = normalizePayload(payload) as DepositCodeNotifyPayload;
+    const notify = normalizeDepositCodeNotify(body);
     const config = this.configService.getConfig();
 
-    const signable = toSignableFields(body as unknown as Record<string, unknown>);
-    const signature = String(body.signature ?? '');
+    const requiredOk =
+      !!notify.requestId &&
+      !!notify.referenceId &&
+      !!notify.requestTime &&
+      !!notify.mapId &&
+      !!notify.vaAcc &&
+      notify.amount !== '' &&
+      !!notify.signature;
 
-    const valid = verifyMegapaySignature(
-      signable,
-      signature,
-      config.webhookSecret,
-    );
+    if (!requiredOk) {
+      return {
+        valid: false,
+        paymentReference: notify.mapId,
+        status: 'PENDING',
+        rawPayload: { ...notify, gateway: this.gateway },
+      };
+    }
 
+    const valid = verifyDepositCodeNotifySignature({
+      requestId: notify.requestId,
+      referenceId: notify.referenceId,
+      requestTime: notify.requestTime,
+      amount: notify.amount,
+      fee: notify.fee || '0',
+      vaAcc: notify.vaAcc,
+      mapId: notify.mapId,
+      signatureHex: notify.signature,
+      publicKeyPem: config.notifyPublicKey,
+    });
+
+    const amountNum = parseFloat(notify.amount);
     const amount =
-      body.amount != null ? parseFloat(String(body.amount)).toFixed(2) : undefined;
-
-    const providerTransactionId =
-      body.request_id != null
-        ? String(body.request_id)
-        : undefined;
+      Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
 
     return {
       valid,
-      paymentReference: String(body.order_id ?? ''),
-      status: mapMegapayWebhookStatus(String(body.status ?? 'PENDING')),
+      paymentReference: notify.mapId,
+      status: valid ? 'SUCCESS' : 'PENDING',
       amount,
-      providerTransactionId,
+      providerTransactionId: notify.referenceId,
       rawPayload: {
-        ...body,
+        ...notify,
         gateway: this.gateway,
+        integrationMode: 'deposit_code_va',
       },
     };
   }
 
   async queryTransaction(reference: string): Promise<ProviderTransactionStatus> {
-    const result = await this.httpClient.queryTransaction(reference);
+    // DepositCode status API only confirms VA mapping — payment success is notify-driven.
+    const result = await this.httpClient.checkStatusByMapId(reference);
     return {
-      paymentReference: result.order_id,
-      status: mapMegapayQueryStatus(result.status),
-      amount: result.amount,
+      paymentReference: result.map_id ?? reference,
+      status: result.response_code === '00' ? 'PENDING' : 'FAILED',
+      amount: result.amount != null ? String(result.amount) : '0',
     };
   }
 
   async refund(_reference: string): Promise<RefundResult> {
     return {
       success: false,
-      message: 'MegaPay refund not implemented — placeholder for future phase',
+      message:
+        'DepositCode VA refund is not supported via API — handle manually / cancel mapping',
     };
   }
 }

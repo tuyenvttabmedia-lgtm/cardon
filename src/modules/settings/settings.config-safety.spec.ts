@@ -269,7 +269,7 @@ describe('Phase 5C.6 — Fallback safety', () => {
     const store = new SettingsStoreService(repository, encryption, configService);
 
     expect(() => store.resolveMegapayConfig()).toThrow(
-      /MegaPay is not configured/,
+      /DepositCode is not configured|MegaPay is not configured/,
     );
     expect(store.isMegapayConfigured()).toBe(false);
     expect(store.getMegapayAdminView().configured).toBe(false);

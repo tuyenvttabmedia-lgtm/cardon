@@ -1,74 +1,46 @@
-# MegaPay Integration
+# VNPT ePay DepositCode (MegaPay gateway slot)
 
-> CardOn adapter spec — Phase 2E.2. Aligns with `03_PAYMENT.md`.
+CardOn dùng `PaymentGatewayCode.MEGAPAY` để chạy **DepositCode VA** (tài liệu
+`[DepositCode]API_For_Merchant_V1.4`).
 
-## Configuration (ENV)
+## Luồng
 
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `MEGAPAY_MERCHANT_ID` | Production | Merchant identifier |
-| `MEGAPAY_SECRET_KEY` | Production | Request signing (create/query) |
-| `MEGAPAY_ENDPOINT` | Production | API base URL (e.g. `https://api.megapay.vn`) |
-| `MEGAPAY_RETURN_URL` | Production | Customer redirect after payment |
-| `MEGAPAY_WEBHOOK_SECRET` | Production | Webhook HMAC verification |
-| `MEGAPAY_CALLBACK_URL` | Optional | Webhook URL sent to MegaPay; defaults to `{APP_PUBLIC_URL}/{API_PREFIX}/payments/webhook/megapay` |
-| `APP_PUBLIC_URL` | Optional | Public site URL for default callback |
+1. `createPayment` → `registerVA` (pcode 9000, 3DES) → nhận `account_no` + QR
+2. Khách chuyển đúng số tiền vào VA
+3. EPAY gọi notify → `POST /api/v1/payments/webhook/megapay`
+4. Verify chữ ký RSA (`RequestId|ReferenceId|RequestTime|Amount|Fee|VaAcc|MapId`)
+5. `MapId` = `payment_reference` (PAY-… / DEP-…)
+6. Response bắt buộc: `{ "ResponseCode": "200", "ResponseMessage": "Success" }`
 
-Never hardcode credentials in code.
+## ENV
 
-## ID Mapping
+| Biến | Ý nghĩa |
+|------|---------|
+| `MEGAPAY_MERCHANT_ID` | merchant_code |
+| `MEGAPAY_SECRET_KEY` | Key 3DES (24 ký tự) |
+| `MEGAPAY_ENDPOINT` | URL `.../registerVA` |
+| `MEGAPAY_BANK_CODE` | VD `WOORIBANK` |
+| `MEGAPAY_NOTIFY_PUBLIC_KEY` hoặc `MEGAPAY_NOTIFY_PUBLIC_KEY_PATH` | Public key PEM verify notify |
+| `MEGAPAY_CALLBACK_URL` | URL merchant khai báo cho EPAY |
+| `MEGAPAY_RETURN_URL` | Redirect sau thanh toán (UI) |
+
+## Sandbox demo (trong tài liệu EPAY)
 
 ```
-CardOn payments.payment_reference  →  MegaPay order_id
+MEGAPAY_MERCHANT_ID=VAP001
+MEGAPAY_SECRET_KEY=31feae316de0a42520ef5ec4
+MEGAPAY_ENDPOINT=https://sandboxva.ecollect.vn:10003/ApiResf_VirtualAccount/services/registerVA
+MEGAPAY_BANK_CODE=WOORIBANK
+MEGAPAY_NOTIFY_PUBLIC_KEY_PATH=secrets/megapay-notify-public.pem
 ```
 
-## Create Payment
+Test nhanh register:
 
-`POST {MEGAPAY_ENDPOINT}/v1/checkout/create`
+```bash
+node scripts/uat/test-depositcode-sandbox.mjs
+```
 
-| Field | Source |
-|-------|--------|
-| `merchant_id` | ENV |
-| `order_id` | `payment_reference` |
-| `amount` | Order total (VND, integer) |
-| `description` | `CardOn order {payment_reference}` |
-| `return_url` | `MEGAPAY_RETURN_URL` |
-| `callback_url` | Webhook URL |
-| `signature` | HMAC-SHA256 (see below) |
+## Production
 
-Response: `payment_url`, `request_id`, `order_id`
-
-## Request Signature
-
-1. Collect signed fields (exclude `signature`)
-2. Sort keys alphabetically
-3. Join as `key1=value1&key2=value2`
-4. `HMAC-SHA256(canonical, MEGAPAY_SECRET_KEY)` → lowercase hex
-
-## Webhook
-
-MegaPay POSTs to `callback_url`:
-
-| Field | Notes |
-|-------|-------|
-| `order_id` | Maps to `payment_reference` |
-| `amount` | Must match local payment |
-| `status` | `SUCCESS`, `FAILED`, `PENDING`, `UNKNOWN` |
-| `signature` | HMAC-SHA256 with `MEGAPAY_WEBHOOK_SECRET` |
-
-| MegaPay status | CardOn action |
-|----------------|---------------|
-| `SUCCESS` | Mark payment SUCCESS → order PAID |
-| `FAILED` | Mark payment FAILED |
-| `PENDING`, `UNKNOWN` | No final action (200 OK) |
-
-## Query Transaction
-
-`GET {MEGAPAY_ENDPOINT}/v1/checkout/query?merchant_id&order_id&signature`
-
-Used for manual reconciliation and webhook-missing recovery.
-
-## Security
-
-- Never log `signature`, secrets, or customer PII
-- Log: `request_id`, `payment_reference`, `status`
+Khi VNPT gửi merchant thật: chỉ cần đổi các biến `MEGAPAY_*` (+ public key notify),
+bật gateway MegaPay trong Admin, rebuild/restart API. Không cần sửa code.
