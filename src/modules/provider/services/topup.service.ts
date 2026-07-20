@@ -111,7 +111,27 @@ export class TopupService {
       return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED };
     }
 
-    const selection = await this.registry.selectForVariant(orderItem.variantId);
+    let selection;
+    try {
+      selection = await this.registry.selectForVariant(orderItem.variantId);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        this.logger.warn(
+          `No eligible provider for topup order=${orderId} — WAITING_ADMIN_RETRY (${error.message})`,
+        );
+        await this.orderRepository.updateFulfillmentStatus(
+          orderId,
+          FulfillmentStatus.WAITING_ADMIN_RETRY,
+        );
+        await this.notificationService.notifyAdminRetryRequired(orderId);
+        return {
+          orderId,
+          fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+          failureCode: 'MAINTENANCE',
+        };
+      }
+      throw error;
+    }
     const phoneNumber = resolveTopupPhone(order);
     const providerCode = selection.mapping.providerProductCode.trim();
     const isData = orderItem.variant.type === ProductVariantType.DATA;
@@ -154,7 +174,11 @@ export class TopupService {
     }
 
     const allowedStatuses: FulfillmentStatus[] = options.isRetry
-      ? [FulfillmentStatus.WAITING_ADMIN_RETRY]
+      ? [
+          FulfillmentStatus.WAITING_ADMIN_RETRY,
+          FulfillmentStatus.NEED_MANUAL_REVIEW,
+          FulfillmentStatus.PENDING,
+        ]
       : [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY];
 
     if (!allowedStatuses.includes(order.fulfillmentStatus)) {

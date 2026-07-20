@@ -14,6 +14,8 @@ import {
 
   FulfillmentStatus,
 
+  OrderPaymentStatus,
+
   ProviderTransactionStatus,
 
 } from '@prisma/client';
@@ -110,11 +112,23 @@ export class AdminOrderService {
 
 
 
+    if (order.paymentStatus !== OrderPaymentStatus.PAID) {
+
+      throw new BadRequestException('Only PAID orders can be retried');
+
+    }
+
+
+
     const allowed: FulfillmentStatus[] = [
 
       FulfillmentStatus.WAITING_ADMIN_RETRY,
 
       FulfillmentStatus.NEED_MANUAL_REVIEW,
+
+      // PAID + PENDING: recovery when fulfill never claimed (e.g. all NCC maintenance)
+
+      FulfillmentStatus.PENDING,
 
     ];
 
@@ -124,7 +138,7 @@ export class AdminOrderService {
 
       throw new BadRequestException(
 
-        'Only orders with WAITING_ADMIN_RETRY or NEED_MANUAL_REVIEW can be retried',
+        'Only orders with WAITING_ADMIN_RETRY, NEED_MANUAL_REVIEW, or PAID+PENDING can be retried',
 
       );
 

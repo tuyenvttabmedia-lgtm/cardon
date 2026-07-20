@@ -120,8 +120,11 @@ export default function OrderDetailPage() {
                   Gửi lại email
                 </Button>
               )}
-              {(detail.order.fulfillmentStatus === 'WAITING_ADMIN_RETRY' ||
-                detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW') && (
+              {detail.order.paymentStatus === 'PAID' &&
+                (detail.order.fulfillmentStatus === 'WAITING_ADMIN_RETRY' ||
+                  detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' ||
+                  (detail.order.fulfillmentStatus === 'PENDING' &&
+                    (detail.cardDelivery?.cardCount ?? 0) === 0)) && (
                 <>
                   <Button
                     title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới thử lại NCC"

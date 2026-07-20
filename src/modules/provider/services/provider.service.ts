@@ -144,11 +144,21 @@ export class ProviderService {
       return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED };
     }
 
-    const selections = await this.resolveSelections(
-      orderItem.variantId,
-      options.skipProviderIds,
-      options.forceProviderId,
-    );
+    let selections;
+    try {
+      selections = await this.resolveSelections(
+        orderItem.variantId,
+        options.skipProviderIds,
+        options.forceProviderId,
+      );
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        // All providers in maintenance / no ACTIVE mapping — park for admin retry
+        // instead of throwing (which left PAID orders stuck in PENDING with no UI retry).
+        return this.parkForAdminRetryNoProvider(orderId, error.message);
+      }
+      throw error;
+    }
     const primarySelection = selections[0];
 
     if (order.fulfillmentStatus === FulfillmentStatus.PROCESSING) {
@@ -164,6 +174,8 @@ export class ProviderService {
           FulfillmentStatus.WAITING_ADMIN_RETRY,
           FulfillmentStatus.PROCESSING,
           FulfillmentStatus.NEED_MANUAL_REVIEW,
+          // Recovery for PAID orders that never left PENDING (e.g. pre-fix maintenance throws)
+          FulfillmentStatus.PENDING,
         ]
       : [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY];
 
@@ -234,6 +246,25 @@ export class ProviderService {
     return {
       orderId,
       fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+    };
+  }
+
+  private async parkForAdminRetryNoProvider(
+    orderId: string,
+    reason: string,
+  ): Promise<FulfillmentResult> {
+    this.logger.warn(
+      `No eligible provider for order=${orderId} — WAITING_ADMIN_RETRY (${reason})`,
+    );
+    await this.orderRepository.updateFulfillmentStatus(
+      orderId,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    await this.notificationService.notifyAdminRetryRequired(orderId);
+    return {
+      orderId,
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      failureCode: 'MAINTENANCE',
     };
   }
 

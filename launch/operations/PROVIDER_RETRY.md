@@ -8,11 +8,14 @@
 
 | Status | Ý nghĩa | Retry tự động |
 |--------|---------|---------------|
-| PENDING | Chưa claim | Worker queue |
+| PENDING | Chưa claim | Worker queue; **Admin retry** nếu đã PAID mà kẹt |
 | PROCESSING | Đang giao / recovery | Worker retry job |
 | COMPLETED | Xong | Không |
-| WAITING_ADMIN_RETRY | Provider fail có thể retry | **Admin retry** |
+| WAITING_ADMIN_RETRY | Provider fail / NCC bảo trì / hết mapping | **Admin retry** |
+| NEED_MANUAL_REVIEW | Cần xử lý tay | **Admin retry** + recovery actions |
 | FAILED | Terminal (hiếm) | Case-by-case |
+
+**NCC bảo trì:** Khi tất cả mapping bị maintenance / không ACTIVE, fulfill **không** để đơn kẹt `PENDING` — chuyển `WAITING_ADMIN_RETRY` để hiện nút **Thử lại NCC**. Sau khi bỏ bảo trì → mở đơn → **Thử lại NCC**.
 
 ---
 
@@ -20,16 +23,16 @@
 
 **Điều kiện:**
 
-- `payment_status = PAID` (B2C) hoặc agent order đã HOLD/DEBIT policy
-- `fulfillment_status = WAITING_ADMIN_RETRY`
+- `payment_status = PAID`
+- `fulfillment_status` ∈ `WAITING_ADMIN_RETRY` | `NEED_MANUAL_REVIEW` | `PENDING` (PAID chưa có thẻ)
 - Permission `orders.retry`
 
 **Thao tác:**
 
-1. Admin → Orders → lọc **Chờ thử lại NCC** (queue)
-2. Mở chi tiết đơn — xem failure code (OOS / LOW_BALANCE) + khối **Đối soát thanh toán (MMS)**
+1. Admin → Orders → lọc **Chờ thử lại NCC** (queue) — hoặc mở đơn PAID chưa giao
+2. Mở chi tiết đơn — xem failure code (OOS / LOW_BALANCE / MAINTENANCE) + khối **Đối soát thanh toán (MMS)**
 3. Nếu nghi tiền chưa về: tra MegaPay MMS (`Merchant trx Id` ≈ `paymentReference` PAY-… + số tiền + Approval)
-4. Có thẻ / đã nạp tiền popup → **Thử lại NCC**
+4. NCC đã sẵn sàng (hết bảo trì / đã nạp tiền / có stock) → **Thử lại NCC**
 5. **Gửi lại email** chỉ khi đơn đã có thẻ
 
 **Sau retry:**

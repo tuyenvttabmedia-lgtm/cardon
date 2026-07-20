@@ -231,6 +231,78 @@ describe('ProviderService', () => {
     expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
   });
 
+  it('sets WAITING_ADMIN_RETRY when all providers are in maintenance', async () => {
+    const mappingRepository = {
+      findActiveByVariantId: jest.fn().mockResolvedValue([
+        {
+          id: 'map-1',
+          providerProductCode: 'ESALE-SKU-001',
+          priority: 0,
+          providerCost: 9000,
+          availability: 'AVAILABLE',
+          provider: {
+            id: 'provider-esale-1',
+            code: 'ESALE',
+            name: 'Mock eSale',
+            status: ProviderStatus.ACTIVE,
+            deletedAt: null,
+          },
+        },
+      ]),
+    } as unknown as ProviderMappingRepository;
+
+    const runtimeSettings = {
+      isProviderInMaintenance: jest.fn().mockResolvedValue(true),
+    };
+    const registry = ProviderRegistryService.withAdapters(
+      mappingRepository,
+      runtimeSettings as never,
+      new MockESaleProvider(),
+      new MockIMediaProvider(),
+    );
+
+    const ctx = buildService();
+    const service = new ProviderService(
+      { $transaction: jest.fn(async (cb) => cb({})) } as never,
+      registry,
+      { createProviderLog: jest.fn() } as never,
+      ctx.orderRepository as never,
+      ctx.transactionRepository as never,
+      ctx.cardRecordRepository as never,
+      ctx.cardEncryption,
+      ctx.providerAudit as never,
+      { notifyCardDelivery: jest.fn(), notifyAdminRetryRequired: jest.fn() } as never,
+      {
+        enqueueDelayedRetry: jest.fn(),
+        enqueueFulfillment: jest.fn(),
+        enqueueRetry: jest.fn(),
+      } as never,
+      { recordApiCall: jest.fn() } as never,
+      { evaluateProvider: jest.fn().mockResolvedValue(false) } as never,
+      { record: jest.fn() } as never,
+    );
+
+    const result = await service.fulfillOrder('order-1');
+
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
+    expect(result.failureCode).toBe('MAINTENANCE');
+    expect(ctx.orderRepository.updateFulfillmentStatus).toHaveBeenCalledWith(
+      'order-1',
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    expect(ctx.orderRepository.claimFulfillmentProcessing).not.toHaveBeenCalled();
+  });
+
+  it('admin retry can recover PAID+PENDING after provider becomes available', async () => {
+    const ctx = buildService();
+    ctx.paidCardOrder.fulfillmentStatus = FulfillmentStatus.PENDING;
+    MockESaleProvider.buyCardBehavior = 'SUCCESS';
+
+    const result = await ctx.service.retryFulfillment('order-1');
+
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.COMPLETED);
+  });
+
   it('recovers from TIMEOUT via checkTransaction when found', async () => {
     MockESaleProvider.buyCardBehavior = 'TIMEOUT';
     const { service, transactionRepository } = buildService();
