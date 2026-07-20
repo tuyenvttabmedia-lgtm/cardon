@@ -10,7 +10,7 @@ export type CustomerOrderStatus =
 const CUSTOMER_STATUS_LABELS: Record<CustomerOrderStatus, string> = {
   WAITING_PAYMENT: 'Chờ thanh toán',
   PAID: 'Đã thanh toán',
-  PROCESSING_PROVIDER: 'Đang lấy mã thẻ',
+  PROCESSING_PROVIDER: 'Đang xử lý',
   DELIVERED: 'Hoàn thành',
   NEED_SUPPORT: 'Cần hỗ trợ',
 };
@@ -35,9 +35,15 @@ export function resolveCustomerOrderStatus(
     return 'DELIVERED';
   }
 
+  // Admin-retry queue (OOS / low balance): customer still sees “processing”, not support.
+  if (fulfillmentStatus === FulfillmentStatus.WAITING_ADMIN_RETRY) {
+    return paymentStatus === OrderPaymentStatus.PAID
+      ? 'PROCESSING_PROVIDER'
+      : 'PAID';
+  }
+
   if (
     fulfillmentStatus === FulfillmentStatus.NEED_MANUAL_REVIEW ||
-    fulfillmentStatus === FulfillmentStatus.WAITING_ADMIN_RETRY ||
     fulfillmentStatus === FulfillmentStatus.FAILED
   ) {
     return 'NEED_SUPPORT';

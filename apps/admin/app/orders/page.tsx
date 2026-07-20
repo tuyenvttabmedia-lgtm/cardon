@@ -14,7 +14,14 @@ import { adminApi, ApiClientError } from '@/services/api-client';
 import type { AdminOrderListItem, AdminOrderSummary, ProviderStatus } from '@/types/api';
 
 const PAYMENT_FILTERS = ['', 'PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const;
-const DELIVERY_FILTERS = ['', 'PROCESSING', 'DELIVERED', 'FAILED', 'NEED_SUPPORT'] as const;
+const DELIVERY_FILTERS = [
+  '',
+  'WAITING_ADMIN_RETRY',
+  'PROCESSING',
+  'DELIVERED',
+  'FAILED',
+  'NEED_SUPPORT',
+] as const;
 const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA'] as const;
 const DATE_PRESETS: { value: DatePreset | ''; label: string }[] = [
   { value: '', label: vi.app.all },
@@ -128,6 +135,21 @@ export default function OrdersPage() {
 
         <OrderSummaryCards summary={summary} />
 
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={applied.deliveryStatus === 'WAITING_ADMIN_RETRY' ? 'primary' : 'secondary'}
+            onClick={() => {
+              const next = { ...DEFAULT_FILTERS, deliveryStatus: 'WAITING_ADMIN_RETRY' };
+              setFilters(next);
+              setApplied(next);
+            }}
+          >
+            Queue: Chờ thử lại NCC
+          </Button>
+        </div>
+
         <Card className="space-y-4 p-4">
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="xl:col-span-2">
@@ -203,7 +225,15 @@ export default function OrdersPage() {
                 <option value="">{vi.app.all}</option>
                 {DELIVERY_FILTERS.filter(Boolean).map((s) => (
                   <option key={s} value={s}>
-                    {translateStatus(s === 'DELIVERED' ? 'COMPLETED' : s === 'NEED_SUPPORT' ? 'NEED_MANUAL_REVIEW' : s)}
+                    {s === 'WAITING_ADMIN_RETRY'
+                      ? 'Chờ thử lại NCC'
+                      : translateStatus(
+                          s === 'DELIVERED'
+                            ? 'COMPLETED'
+                            : s === 'NEED_SUPPORT'
+                              ? 'NEED_MANUAL_REVIEW'
+                              : s,
+                        )}
                   </option>
                 ))}
               </Select>

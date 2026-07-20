@@ -36,7 +36,7 @@ export class AdminOrderQueryDto {
   paymentFilter?: AdminPaymentFilter;
 
   @IsOptional()
-  @IsIn(['PROCESSING', 'DELIVERED', 'FAILED', 'NEED_SUPPORT'])
+  @IsIn(['PROCESSING', 'DELIVERED', 'FAILED', 'NEED_SUPPORT', 'WAITING_ADMIN_RETRY'])
   deliveryStatus?: AdminDeliveryFilter;
 
   @IsOptional()

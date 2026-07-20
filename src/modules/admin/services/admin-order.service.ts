@@ -423,39 +423,29 @@ export class AdminOrderService {
 
 
   async resendDeliveryEmail(adminId: string, orderId: string) {
-
     const order = await this.repository.findOrderById(orderId);
-
     if (!order) {
-
       throw new NotFoundException('Order not found');
-
     }
 
-
+    const cardCount = await this.repository.countOrderCards(orderId);
+    if (cardCount < 1 && order.fulfillmentStatus !== FulfillmentStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Chưa có thẻ trên đơn — chỉ gửi lại email khi đã giao thẻ thành công',
+      );
+    }
 
     await this.notificationService.resendCardDeliveryEmail(orderId);
 
-
-
     await this.adminAudit.record(
-
       adminId,
-
       ADMIN_AUDIT_ACTIONS.ADMIN_ORDER_RESEND_EMAIL,
-
       AuditTargetType.ORDER,
-
       orderId,
-
-      { orderCode: order.orderCode },
-
+      { orderCode: order.orderCode, cardCount },
     );
 
-
-
     return { ok: true, orderId };
-
   }
 
 

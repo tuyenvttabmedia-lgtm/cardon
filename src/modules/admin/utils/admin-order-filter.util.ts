@@ -10,7 +10,8 @@ export type AdminDeliveryFilter =
   | 'PROCESSING'
   | 'DELIVERED'
   | 'FAILED'
-  | 'NEED_SUPPORT';
+  | 'NEED_SUPPORT'
+  | 'WAITING_ADMIN_RETRY';
 
 export type AdminPaymentFilter = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 
@@ -39,6 +40,8 @@ export function mapDeliveryFilter(
       return FulfillmentStatus.FAILED;
     case 'NEED_SUPPORT':
       return [FulfillmentStatus.NEED_MANUAL_REVIEW, FulfillmentStatus.WAITING_ADMIN_RETRY];
+    case 'WAITING_ADMIN_RETRY':
+      return FulfillmentStatus.WAITING_ADMIN_RETRY;
     default:
       return undefined;
   }

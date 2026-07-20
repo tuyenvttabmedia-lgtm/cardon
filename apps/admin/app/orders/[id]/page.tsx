@@ -109,19 +109,24 @@ export default function OrderDetailPage() {
           </div>
 
           {can('orders.retry') && detail && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void runAction('Gửi lại email', () => adminApi.resendOrderEmail(params.id))}
-              >
-                Gửi lại email
-              </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {(detail.order.fulfillmentStatus === 'COMPLETED' ||
+                (detail.cardDelivery?.cardCount ?? 0) > 0) && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void runAction('Gửi lại email', () => adminApi.resendOrderEmail(params.id))}
+                >
+                  Gửi lại email
+                </Button>
+              )}
               {(detail.order.fulfillmentStatus === 'WAITING_ADMIN_RETRY' ||
-                detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' ||
-                detail.order.fulfillmentStatus === 'FAILED') && (
+                detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW') && (
                 <>
-                  <Button onClick={() => void runAction(vi.orders.retryFulfillment, () => adminApi.retryOrder(params.id))}>
+                  <Button
+                    title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới thử lại NCC"
+                    onClick={() => void runAction(vi.orders.retryFulfillment, () => adminApi.retryOrder(params.id))}
+                  >
                     {vi.orders.retryFulfillment}
                   </Button>
                   {detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' && (
@@ -154,13 +159,6 @@ export default function OrderDetailPage() {
                   )}
                 </>
               )}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => void runAction('Retry giao hàng', () => adminApi.retryOrderDelivery(params.id))}
-              >
-                Retry giao hàng
-              </Button>
             </div>
           )}
 
@@ -250,6 +248,43 @@ export default function OrderDetailPage() {
               </p>
 
             </div>
+
+            {detail.paymentTrace?.length > 0 && (
+              <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4 text-sm">
+                <h3 className="font-semibold text-sky-950">Đối soát thanh toán (MMS)</h3>
+                <p className="mt-1 text-xs text-sky-800">
+                  Tra MegaPay MMS → Transaction history: khớp <strong>Merchant trx Id</strong> với mã PAY bên
+                  dưới + số tiền + trạng thái Approval trước khi thử lại NCC (nếu nghi tiền chưa về).
+                </p>
+                <dl className="mt-3 grid gap-2 md:grid-cols-2">
+                  <div>
+                    <dt className="text-zinc-500">Order ID (CardOn)</dt>
+                    <dd className="font-mono text-xs">{detail.overview.orderCode}</dd>
+                  </div>
+                  {detail.paymentTrace.slice(0, 2).map((p) => (
+                    <div key={String(p.id)} className="contents">
+                      <div>
+                        <dt className="text-zinc-500">Merchant trx Id ≈ paymentReference</dt>
+                        <dd className="font-mono text-xs break-all">{String(p.paymentReference ?? '—')}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-zinc-500">Transaction ID ≈ gateway</dt>
+                        <dd className="font-mono text-xs break-all">
+                          {String(p.gatewayTransactionId ?? '—')}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-zinc-500">Số tiền / TT payment</dt>
+                        <dd>
+                          {formatVnd(String(p.amount))} · {String(p.status)}
+                          {p.paidAt ? ` · ${formatDateTime(String(p.paidAt))}` : ''}
+                        </dd>
+                      </div>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
 
             {detail.overview.pricing && (
               <div className="grid gap-6 md:grid-cols-2">

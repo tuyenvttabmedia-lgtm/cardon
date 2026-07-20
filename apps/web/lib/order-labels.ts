@@ -15,7 +15,7 @@ export function fulfillmentStatusLabelVi(status: string): string {
     PROCESSING: 'Đang giao thẻ',
     COMPLETED: 'Hoàn thành',
     FAILED: 'Thất bại',
-    WAITING_ADMIN_RETRY: 'Chờ xử lý thủ công',
+    WAITING_ADMIN_RETRY: 'Đang xử lý',
     NEED_MANUAL_REVIEW: 'Cần hỗ trợ',
   };
   return map[status] ?? status;
@@ -25,7 +25,7 @@ export function customerOrderStatusLabelVi(status: string): string {
   const map: Record<string, string> = {
     WAITING_PAYMENT: 'Chờ thanh toán',
     PAID: 'Đã thanh toán',
-    PROCESSING_PROVIDER: 'Đang lấy mã thẻ',
+    PROCESSING_PROVIDER: 'Đang xử lý',
     DELIVERED: 'Hoàn thành',
     NEED_SUPPORT: 'Cần hỗ trợ',
   };
@@ -42,9 +42,11 @@ export function resolveCustomerOrderStatusLabel(order: {
   if (order.customerStatus) return customerOrderStatusLabelVi(order.customerStatus);
   if (order.paymentStatus === 'WAITING_PAYMENT') return customerOrderStatusLabelVi('WAITING_PAYMENT');
   if (order.fulfillmentStatus === 'COMPLETED') return customerOrderStatusLabelVi('DELIVERED');
+  if (order.fulfillmentStatus === 'WAITING_ADMIN_RETRY') {
+    return customerOrderStatusLabelVi('PROCESSING_PROVIDER');
+  }
   if (
     order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' ||
-    order.fulfillmentStatus === 'WAITING_ADMIN_RETRY' ||
     order.fulfillmentStatus === 'FAILED'
   ) {
     return customerOrderStatusLabelVi('NEED_SUPPORT');

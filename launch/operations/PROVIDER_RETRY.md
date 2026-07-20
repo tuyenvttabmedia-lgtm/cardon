@@ -26,10 +26,11 @@
 
 **Thao tác:**
 
-1. Admin → Orders → chi tiết đơn
-2. Xem **Provider transactions** — failure code, attempt count
-3. Kiểm tra provider status / balance (Admin → Providers)
-4. **Retry fulfillment** button hoặc `POST /admin/orders/:id/retry`
+1. Admin → Orders → lọc **Chờ thử lại NCC** (queue)
+2. Mở chi tiết đơn — xem failure code (OOS / LOW_BALANCE) + khối **Đối soát thanh toán (MMS)**
+3. Nếu nghi tiền chưa về: tra MegaPay MMS (`Merchant trx Id` ≈ `paymentReference` PAY-… + số tiền + Approval)
+4. Có thẻ / đã nạp tiền popup → **Thử lại NCC**
+5. **Gửi lại email** chỉ khi đơn đã có thẻ
 
 **Sau retry:**
 
