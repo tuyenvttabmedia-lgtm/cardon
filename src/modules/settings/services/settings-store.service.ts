@@ -367,18 +367,35 @@ export class SettingsStoreService implements OnModuleInit {
     );
     const configured = Array.isArray(stored?.methods) ? stored.methods : [];
     const byMethodCode = new Map<string, StoredPaymentMethod>();
+    const obsoleteRawCodes = new Set([
+      'ATM',
+      'VISA',
+      'WALLET',
+      'MEGAPAY_ATM',
+      'MEGAPAY_VISA',
+      'MEGAPAY_WALLET',
+      'BANK_GATEWAY',
+    ]);
 
     for (const defaults of DEFAULT_PAYMENT_METHODS) {
       byMethodCode.set(defaults.methodCode, { ...defaults });
     }
 
     for (const item of configured) {
+      const rawCode = String(item.methodCode ?? item.code ?? '')
+        .trim()
+        .toUpperCase();
+      if (obsoleteRawCodes.has(rawCode)) {
+        continue;
+      }
       const normalized = normalizeStoredPaymentMethod(item);
       if (!normalized) continue;
       byMethodCode.set(normalized.methodCode, normalized);
     }
 
-    return Array.from(byMethodCode.values());
+    return DEFAULT_PAYMENT_METHODS.map(
+      (defaults) => byMethodCode.get(defaults.methodCode) ?? { ...defaults },
+    );
   }
 
   private isGatewayPubliclyEnabled(

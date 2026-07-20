@@ -91,7 +91,7 @@ describe('Phase 5C.1 — Admin payment list', () => {
       id: 'pay-1',
       orderId: 'order-1',
       gateway: PaymentGatewayCode.MEGAPAY,
-      methodCode: 'VISA',
+      methodCode: 'VNPAYQR',
       settlementType: null,
       paymentReference: 'REF-001',
       idempotencyKey: null,

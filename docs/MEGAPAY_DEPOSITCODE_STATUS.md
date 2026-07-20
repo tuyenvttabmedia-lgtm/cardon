@@ -7,6 +7,7 @@
 - Webhook response đúng chuẩn EPAY: `ResponseCode` 200/102/103/125.
 - Unit tests MegaPay/DepositCode: pass.
 - Local API rebuild; `settings.payment.gateway.megapay.enabled=true`.
+- Catalog phương thức MegaPay theo hợp đồng: `ZALOPAY` (1.5% + 1.100đ), `DEPOSIT_CODE` VietQR (0.77%), `VNPAYQR` (0.77%).
 
 ## Khi VNPT gửi account production
 

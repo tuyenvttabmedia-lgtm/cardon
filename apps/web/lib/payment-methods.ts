@@ -16,8 +16,11 @@ export type PublicPaymentMethod = {
 const METHOD_ICONS: Record<string, string> = {
   VIETQR: '🏦',
   NAPAS_247: '🔷',
-  ATM: '🏧',
-  VISA: '💳',
+  DEPOSIT_CODE: '🏦',
+  ZALOPAY: '👛',
+  VNPAYQR: '📱',
+  ATM: '🏦',
+  VISA: '📱',
   WALLET: '👛',
 };
 
@@ -60,7 +63,16 @@ export function publicCodeToGateway(code: string): PaymentGatewayCode | null {
   if (code === 'BANK_QR' || code.startsWith('SEPAY') || code === 'VIETQR' || code === 'NAPAS_247') {
     return 'SEPAY';
   }
-  if (code === 'BANK_GATEWAY' || code.startsWith('MEGAPAY') || code === 'ATM' || code === 'VISA' || code === 'WALLET') {
+  if (
+    code === 'BANK_GATEWAY' ||
+    code.startsWith('MEGAPAY') ||
+    code === 'ATM' ||
+    code === 'VISA' ||
+    code === 'WALLET' ||
+    code === 'ZALOPAY' ||
+    code === 'DEPOSIT_CODE' ||
+    code === 'VNPAYQR'
+  ) {
     return 'MEGAPAY';
   }
   return null;
