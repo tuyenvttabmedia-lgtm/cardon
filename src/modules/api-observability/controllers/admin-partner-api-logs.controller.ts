@@ -10,7 +10,7 @@ export class AdminPartnerApiLogsController {
   constructor(private readonly logService: AgentApiRequestLogService) {}
 
   @Get()
-  @Permissions('webhooks.read')
+  @Permissions('webhook.read')
   list(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
@@ -28,7 +28,7 @@ export class AdminPartnerApiLogsController {
   }
 
   @Get(':id')
-  @Permissions('webhooks.read')
+  @Permissions('webhook.read')
   detail(@Param('id', ParseUUIDPipe) id: string) {
     return this.logService.adminGet(id);
   }

@@ -55,6 +55,7 @@ export default function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   async function load(filter?: string) {
     setError(null);
@@ -67,6 +68,8 @@ export default function OrderDetailPage() {
   }
 
   async function runAction(label: string, action: () => Promise<unknown>) {
+    if (actionBusy) return;
+    setActionBusy(true);
     setError(null);
     setActionMessage(null);
     try {
@@ -75,6 +78,8 @@ export default function OrderDetailPage() {
       await load(gatewayFilter || undefined);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : `${label} — thất bại`);
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -115,6 +120,7 @@ export default function OrderDetailPage() {
                 <Button
                   variant="secondary"
                   size="sm"
+                  disabled={actionBusy}
                   onClick={() => void runAction('Gửi lại email', () => adminApi.resendOrderEmail(params.id))}
                 >
                   Gửi lại email
@@ -127,15 +133,17 @@ export default function OrderDetailPage() {
                     (detail.cardDelivery?.cardCount ?? 0) === 0)) && (
                 <>
                   <Button
+                    disabled={actionBusy}
                     title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới bấm Giao lại"
                     onClick={() => void runAction(vi.orders.retryFulfillment, () => adminApi.retryOrder(params.id))}
                   >
-                    {vi.orders.retryFulfillment}
+                    {actionBusy ? 'Đang giao…' : vi.orders.retryFulfillment}
                   </Button>
                   {detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' && (
                     <>
                       <Button
                         variant="secondary"
+                        disabled={actionBusy}
                         onClick={() =>
                           void adminApi.orderManualRecovery(params.id, 'switch_provider').then(() => load())
                         }
@@ -144,6 +152,7 @@ export default function OrderDetailPage() {
                       </Button>
                       <Button
                         variant="secondary"
+                        disabled={actionBusy}
                         onClick={() =>
                           void adminApi.orderManualRecovery(params.id, 'mark_fulfilled').then(() => load())
                         }
@@ -152,6 +161,7 @@ export default function OrderDetailPage() {
                       </Button>
                       <Button
                         variant="ghost"
+                        disabled={actionBusy}
                         onClick={() =>
                           void adminApi.orderManualRecovery(params.id, 'refund').then(() => load())
                         }

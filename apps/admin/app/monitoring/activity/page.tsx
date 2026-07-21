@@ -22,9 +22,25 @@ import type { SystemActivityLog, SystemActivityLogStats } from '@/types/api';
 
 const SEVERITIES = ['INFO', 'SUCCESS', 'WARNING', 'ERROR', 'CRITICAL'] as const;
 const CATEGORIES = [
-  'AUTH', 'SYSTEM', 'EMAIL', 'PROVIDER', 'EXPORT', 'ORDER', 'WEBHOOK',
+  'AUTH',
+  'SYSTEM',
+  'PAYMENT',
+  'PROVIDER',
+  'PRODUCT',
+  'ORDER',
+  'CUSTOMER',
+  'PARTNER',
+  'FINANCE',
+  'MARKETING',
+  'QUEUE',
+  'WEBHOOK',
+  'EMAIL',
+  'SECURITY',
+  'API',
+  'EXPORT',
+  'IMPORT',
 ] as const;
-const SOURCES = ['ADMIN', 'SYSTEM', 'WORKER', 'API'] as const;
+const SOURCES = ['ADMIN', 'PARTNER', 'CUSTOMER', 'API', 'WORKER', 'CRON', 'SYSTEM'] as const;
 const PAGE_SIZES = [20, 50, 100] as const;
 
 const SEVERITY_ROW: Record<string, string> = {

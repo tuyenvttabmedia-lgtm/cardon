@@ -71,6 +71,12 @@ export function MonitoringDashboard() {
               setQueueFailed(q.summary.failedJobs);
               setQueueRedis(q.summary.redisStatus === 'ok' ? vi.monitoringHub.redisOk : vi.monitoringHub.redisError);
               setWorkersOnline(q.summary.workerConnected);
+            }).catch(() => {
+              if (!cancelled) {
+                setQueueFailed(null);
+                setQueueRedis('—');
+                setWorkersOnline(null);
+              }
             }),
           );
         }
@@ -81,6 +87,11 @@ export function MonitoringDashboard() {
               if (cancelled) return;
               setWebhookFailed(w.summary.failed);
               setWebhookPending(w.summary.pending);
+            }).catch(() => {
+              if (!cancelled) {
+                setWebhookFailed(null);
+                setWebhookPending(null);
+              }
             }),
           );
           tasks.push(
@@ -88,19 +99,28 @@ export function MonitoringDashboard() {
               if (cancelled) return;
               setApiErrors(logs.items.filter((i) => i.httpStatus >= 400).length);
             }).catch(() => {
-              if (!cancelled) setApiErrors(0);
+              if (!cancelled) setApiErrors(null);
             }),
           );
         }
 
         if (can('notification.read')) {
           tasks.push(
-            systemNotificationApi.list({ page: 1, limit: 5, severity: 'CRITICAL', read: false }).then((n) => {
-              if (cancelled) return;
-              setRecentAlerts(n.items);
-              setNotificationsCritical(n.stats.critical);
-              setNotificationsUnread(n.stats.unread);
-            }),
+            systemNotificationApi
+              .list({ page: 1, limit: 5, severity: 'CRITICAL', tab: 'unread' })
+              .then((n) => {
+                if (cancelled) return;
+                setRecentAlerts(n.items);
+                setNotificationsCritical(n.stats.critical);
+                setNotificationsUnread(n.stats.unread);
+              })
+              .catch(() => {
+                if (!cancelled) {
+                  setRecentAlerts([]);
+                  setNotificationsCritical(null);
+                  setNotificationsUnread(null);
+                }
+              }),
           );
         }
 
@@ -109,6 +129,8 @@ export function MonitoringDashboard() {
             systemActivityApi.list({ page: 1, limit: 8, sort: 'newest' }).then((a) => {
               if (cancelled) return;
               setRecentActivities(a.items);
+            }).catch(() => {
+              if (!cancelled) setRecentActivities([]);
             }),
           );
         }

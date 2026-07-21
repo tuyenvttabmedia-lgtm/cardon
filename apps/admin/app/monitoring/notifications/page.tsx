@@ -22,7 +22,7 @@ const TYPES = [
   'SYSTEM', 'SECURITY', 'PAYMENT', 'PROVIDER', 'QUEUE', 'WEBHOOK',
   'EMAIL', 'MARKETING', 'FINANCE', 'ORDER',
 ] as const;
-const SOURCES = ['ADMIN', 'SYSTEM', 'WORKER', 'API'] as const;
+const SOURCES = ['ADMIN', 'SYSTEM', 'WORKER', 'API', 'PARTNER', 'CUSTOMER', 'CRON'] as const;
 const PAGE_SIZES = [20, 50, 100] as const;
 
 const SEVERITY_ROW: Record<string, string> = {
@@ -178,7 +178,8 @@ function NotificationsPage() {
         severity: severity || undefined,
         type: type || undefined,
         source: source || undefined,
-        is_read: readFilter === 'all' ? undefined : readFilter === 'read',
+        tab: readFilter === 'unread' ? 'unread' : undefined,
+        is_read: readFilter === 'read' ? true : undefined,
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
       });

@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDateString,
@@ -18,6 +18,13 @@ import {
 } from '@prisma/client';
 
 const SORT_VALUES = ['newest', 'oldest'] as const;
+
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (value === true || value === 'true' || value === '1') return true;
+  if (value === false || value === 'false' || value === '0') return false;
+  return undefined;
+}
 
 export class SystemNotificationQueryDto {
   @IsOptional()
@@ -55,8 +62,8 @@ export class SystemNotificationQueryDto {
   source?: SystemActivitySource;
 
   @IsOptional()
+  @Transform(({ value }) => parseOptionalBoolean(value))
   @IsBoolean()
-  @Type(() => Boolean)
   is_read?: boolean;
 
   @IsOptional()
