@@ -86,6 +86,22 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         orderRepository as never,
         variantRepository as never,
         pricingService as never,
+        { findLowestActiveCost: jest.fn().mockResolvedValue({ providerCost: 0 }) } as never,
+        {
+          resolvePaymentMethod: jest.fn().mockReturnValue({
+            methodCode: 'VIETQR',
+            displayName: 'VietQR',
+            gatewayCode: 'SEPAY',
+            settlementType: 'DIRECT_TO_MERCHANT',
+            percentageFee: 0,
+            fixedFee: 0,
+          }),
+          resolveOrderConfig: jest.fn().mockReturnValue({
+            guestMaxOrderAmount: 0,
+            customerMaxOrderAmount: 0,
+          }),
+          resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+        } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
       );
@@ -162,9 +178,11 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
       expect(prisma.order.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            orderCode: 'ORD-123',
-            guestEmail: { equals: 'guest@test.com', mode: 'insensitive' },
-            isGuestOrder: true,
+            orderCode: { equals: 'ORD-123', mode: 'insensitive' },
+            OR: [
+              { guestEmail: { equals: 'guest@test.com', mode: 'insensitive' } },
+              { user: { email: { equals: 'guest@test.com', mode: 'insensitive' } } },
+            ],
           }),
         }),
       );
@@ -176,7 +194,23 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         { findByCodeForGuest: jest.fn().mockResolvedValue(null) } as never,
         {} as never,
         {} as never,
-        {} as never,
+        { findLowestActiveCost: jest.fn().mockResolvedValue({ providerCost: 0 }) } as never,
+        {
+          resolvePaymentMethod: jest.fn().mockReturnValue({
+            methodCode: 'VIETQR',
+            displayName: 'VietQR',
+            gatewayCode: 'SEPAY',
+            settlementType: 'DIRECT_TO_MERCHANT',
+            percentageFee: 0,
+            fixedFee: 0,
+          }),
+          resolveOrderConfig: jest.fn().mockReturnValue({
+            guestMaxOrderAmount: 0,
+            customerMaxOrderAmount: 0,
+          }),
+          resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+        } as never,
+        { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
       );
       await expect(
@@ -203,7 +237,23 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         { findByIdForUser: jest.fn().mockResolvedValue(null) } as never,
         {} as never,
         {} as never,
-        {} as never,
+        { findLowestActiveCost: jest.fn().mockResolvedValue({ providerCost: 0 }) } as never,
+        {
+          resolvePaymentMethod: jest.fn().mockReturnValue({
+            methodCode: 'VIETQR',
+            displayName: 'VietQR',
+            gatewayCode: 'SEPAY',
+            settlementType: 'DIRECT_TO_MERCHANT',
+            percentageFee: 0,
+            fixedFee: 0,
+          }),
+          resolveOrderConfig: jest.fn().mockReturnValue({
+            guestMaxOrderAmount: 0,
+            customerMaxOrderAmount: 0,
+          }),
+          resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+        } as never,
+        { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
       );
       await expect(
@@ -334,6 +384,22 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         orderRepository as never,
         variantRepository as never,
         pricingService as never,
+        { findLowestActiveCost: jest.fn().mockResolvedValue({ providerCost: 0 }) } as never,
+        {
+          resolvePaymentMethod: jest.fn().mockReturnValue({
+            methodCode: 'VIETQR',
+            displayName: 'VietQR',
+            gatewayCode: 'SEPAY',
+            settlementType: 'DIRECT_TO_MERCHANT',
+            percentageFee: 0,
+            fixedFee: 0,
+          }),
+          resolveOrderConfig: jest.fn().mockReturnValue({
+            guestMaxOrderAmount: 0,
+            customerMaxOrderAmount: 0,
+          }),
+          resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+        } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
       );
