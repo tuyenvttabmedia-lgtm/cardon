@@ -13,6 +13,12 @@ export interface PaymentBankInfo {
   accountName?: string | null;
 }
 
+export interface PaymentCheckoutClient {
+  domain: string;
+  jsUrl: string;
+  cssUrl: string;
+}
+
 export interface PaymentView {
   id: string;
   orderId: string;
@@ -23,8 +29,9 @@ export interface PaymentView {
   paymentUrl?: string;
   checkoutUrl?: string;
   checkoutFormFields?: Record<string, string>;
-  /** qr_inline = show QR on CardOn checkout (DepositCode / SePay QR). redirect = hosted gateway page. */
-  displayMode?: 'qr_inline' | 'redirect';
+  checkoutClient?: PaymentCheckoutClient;
+  /** qr_inline = show QR on CardOn. open_payment = MegaPay layer. redirect = hosted form POST. */
+  displayMode?: 'qr_inline' | 'redirect' | 'open_payment';
   bankInfo?: PaymentBankInfo | null;
   expiresAt: string | null;
   paidAt: string | null;
@@ -62,7 +69,8 @@ export function mapPayment(
     paymentUrl?: string;
     checkoutUrl?: string;
     checkoutFormFields?: Record<string, string>;
-    displayMode?: 'qr_inline' | 'redirect';
+    checkoutClient?: PaymentCheckoutClient;
+    displayMode?: 'qr_inline' | 'redirect' | 'open_payment';
     bankInfo?: PaymentBankInfo | null;
   },
 ): PaymentView {
@@ -76,6 +84,7 @@ export function mapPayment(
     paymentUrl: extras?.paymentUrl,
     checkoutUrl: extras?.checkoutUrl,
     checkoutFormFields: extras?.checkoutFormFields,
+    checkoutClient: extras?.checkoutClient,
     displayMode: extras?.displayMode,
     bankInfo: extras?.bankInfo ?? null,
     expiresAt: payment.expiresAt?.toISOString() ?? null,

@@ -115,6 +115,7 @@ describe('PaymentService', () => {
       paymentAuditService as never,
       fulfillmentDispatchService as never,
       { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+      { dispatch: jest.fn() } as never,
     );
   });
 

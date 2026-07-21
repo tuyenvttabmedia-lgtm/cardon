@@ -7,6 +7,7 @@ import {
   MobilePaymentMethodButton,
 } from '@/components/checkout/PaymentPanel';
 import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
+import { MegapayPgCheckoutOpen } from '@/components/checkout/MegapayPgCheckoutOpen';
 import {
   CardOrderSummaryPanel,
   TelcoOrderSummaryPanel,
@@ -535,9 +536,7 @@ function CheckoutShellInner({
         return;
       }
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
-        window.location.href = pay.paymentUrl;
-      }
+      // MegaPay PG / SePay form checkout rendered below via payment state.
     } catch (err) {
       if (err instanceof ApiClientError) {
         const limitDetails = parseOrderAmountLimitError({
@@ -826,10 +825,19 @@ function CheckoutShellInner({
               )}
               {payment?.checkoutUrl &&
                 payment.checkoutFormFields &&
-                gateway === 'SEPAY' && (
+                payment.gateway === 'SEPAY' && (
                   <SepayPgCheckoutRedirect
                     checkoutUrl={payment.checkoutUrl}
                     checkoutFormFields={payment.checkoutFormFields}
+                  />
+                )}
+              {payment?.checkoutFormFields &&
+                payment.checkoutClient &&
+                payment.gateway === 'MEGAPAY' &&
+                payment.displayMode !== 'qr_inline' && (
+                  <MegapayPgCheckoutOpen
+                    checkoutFormFields={payment.checkoutFormFields}
+                    checkoutClient={payment.checkoutClient}
                   />
                 )}
             </aside>
@@ -861,12 +869,21 @@ function CheckoutShellInner({
         </div>
       )}
 
-      {payment?.checkoutUrl && payment.checkoutFormFields && gateway === 'SEPAY' && (
+      {payment?.checkoutUrl && payment.checkoutFormFields && payment.gateway === 'SEPAY' && (
         <SepayPgCheckoutRedirect
           checkoutUrl={payment.checkoutUrl}
           checkoutFormFields={payment.checkoutFormFields}
         />
       )}
+      {payment?.checkoutFormFields &&
+        payment.checkoutClient &&
+        payment.gateway === 'MEGAPAY' &&
+        payment.displayMode !== 'qr_inline' && (
+          <MegapayPgCheckoutOpen
+            checkoutFormFields={payment.checkoutFormFields}
+            checkoutClient={payment.checkoutClient}
+          />
+        )}
     </div>
   );
 }

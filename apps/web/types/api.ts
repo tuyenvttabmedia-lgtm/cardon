@@ -135,7 +135,12 @@ export interface Payment {
   paymentUrl?: string;
   checkoutUrl?: string;
   checkoutFormFields?: Record<string, string>;
-  displayMode?: 'qr_inline' | 'redirect';
+  checkoutClient?: {
+    domain: string;
+    jsUrl: string;
+    cssUrl: string;
+  };
+  displayMode?: 'qr_inline' | 'redirect' | 'open_payment';
   bankInfo?: {
     bankCode?: string | null;
     bankName?: string | null;

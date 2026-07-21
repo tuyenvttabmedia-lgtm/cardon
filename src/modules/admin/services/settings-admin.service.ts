@@ -237,6 +237,12 @@ export class SettingsAdminService {
         dto.webhookSecret,
         current.webhookSecretEnc,
       ),
+      pgEncodeKeyEnc: this.mergeSecretField(
+        dto.pgEncodeKey,
+        current.pgEncodeKeyEnc,
+      ),
+      pgEnvironment: dto.pgEnvironment ?? current.pgEnvironment,
+      reqDomain: dto.reqDomain ?? current.reqDomain,
     };
 
     await this.persist(adminId, SETTINGS_KEYS.PAYMENT_MEGAPAY, next as Prisma.InputJsonValue, [
@@ -249,6 +255,9 @@ export class SettingsAdminService {
       'webhookUrl',
       'secretKey',
       'webhookSecret',
+      'pgEncodeKey',
+      'pgEnvironment',
+      'reqDomain',
     ]);
     return this.getPaymentMegapay();
   }

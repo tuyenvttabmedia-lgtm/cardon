@@ -89,6 +89,7 @@ export class PaymentService {
             ? gatewayResponse.checkoutUrl
             : undefined,
         checkoutFormFields,
+        checkoutClient: readCheckoutClient(gatewayResponse),
         displayMode: readDisplayMode(gatewayResponse),
         bankInfo: readBankInfo(gatewayResponse),
       });
@@ -117,29 +118,71 @@ export class PaymentService {
     }
 
     const provider = this.providerRegistry.get(dto.gateway);
-    const paymentReference =
-      dto.gateway === PaymentGatewayCode.SEPAY
+    let gateway = dto.gateway;
+    let paymentReference =
+      gateway === PaymentGatewayCode.SEPAY
         ? generateSepayPaymentCode()
         : generatePaymentReference();
     const expiresAt =
       order.paymentExpiresAt ??
       new Date(Date.now() + 15 * 60_000);
 
-    const providerResult = await provider.createPayment({
-      paymentReference,
-      amount: new Decimal(order.totalAmount).toFixed(2),
-      orderId: order.id,
-      gateway: dto.gateway,
-      expiresAt,
-      guestEmail: order.isGuestOrder ? order.guestEmail : null,
-    });
+    let providerResult;
+    try {
+      providerResult = await provider.createPayment({
+        paymentReference,
+        amount: new Decimal(order.totalAmount).toFixed(2),
+        orderId: order.id,
+        gateway,
+        expiresAt,
+        guestEmail: order.isGuestOrder ? order.guestEmail : null,
+        methodCode: order.paymentMethodCode,
+      });
+    } catch (primaryError) {
+      // B2C failover: MegaPay down/locked → SePay bank transfer (still dự phòng).
+      if (
+        gateway === PaymentGatewayCode.MEGAPAY &&
+        this.canFailoverRetailToSepay()
+      ) {
+        gateway = PaymentGatewayCode.SEPAY;
+        paymentReference = generateSepayPaymentCode();
+        const failoverProvider = this.providerRegistry.get(gateway);
+        providerResult = await failoverProvider.createPayment({
+          paymentReference,
+          amount: new Decimal(order.totalAmount).toFixed(2),
+          orderId: order.id,
+          gateway,
+          expiresAt,
+          guestEmail: order.isGuestOrder ? order.guestEmail : null,
+          methodCode: 'VIETQR',
+          preferLegacyQr: true,
+        });
+        providerResult = {
+          ...providerResult,
+          rawResponse: {
+            ...providerResult.rawResponse,
+            failoverFrom: PaymentGatewayCode.MEGAPAY,
+            failoverReason:
+              primaryError instanceof Error
+                ? primaryError.message
+                : 'MegaPay createPayment failed',
+          },
+        };
+      } else {
+        throw primaryError;
+      }
+    }
 
     const payment = await this.prisma.$transaction(async (tx) => {
       const created = await tx.payment.create({
         data: {
           orderId: order.id,
-          gateway: dto.gateway,
-          methodCode: order.paymentMethodCode,
+          gateway,
+          methodCode:
+            gateway === PaymentGatewayCode.SEPAY &&
+            dto.gateway === PaymentGatewayCode.MEGAPAY
+              ? 'VIETQR'
+              : order.paymentMethodCode,
           settlementType: order.settlementType,
           paymentReference,
           idempotencyKey: idempotencyKey.trim(),
@@ -154,6 +197,7 @@ export class PaymentService {
                 ? providerResult.rawResponse.checkoutUrl
                 : undefined,
             checkoutFormFields: readCheckoutFormFields(providerResult.rawResponse),
+            checkoutClient: readCheckoutClient(providerResult.rawResponse),
             ...providerResult.rawResponse,
           } as Prisma.InputJsonValue,
         },
@@ -161,7 +205,16 @@ export class PaymentService {
 
       await tx.order.update({
         where: { id: order.id },
-        data: { paymentId: created.id },
+        data: {
+          paymentId: created.id,
+          ...(gateway !== dto.gateway
+            ? {
+                paymentGateway: gateway,
+                paymentMethodCode:
+                  gateway === PaymentGatewayCode.SEPAY ? 'VIETQR' : order.paymentMethodCode,
+              }
+            : {}),
+        },
       });
 
       return created;
@@ -173,8 +226,13 @@ export class PaymentService {
       actorUserId: user?.id,
       metadata: {
         paymentReference,
-        gateway: dto.gateway,
+        gateway,
+        requestedGateway: dto.gateway,
         idempotencyKey: idempotencyKey.trim(),
+        failover:
+          gateway !== dto.gateway
+            ? { from: dto.gateway, to: gateway }
+            : undefined,
       },
     });
 
@@ -185,6 +243,7 @@ export class PaymentService {
           ? providerResult.rawResponse.checkoutUrl
           : undefined,
       checkoutFormFields: readCheckoutFormFields(providerResult.rawResponse),
+      checkoutClient: readCheckoutClient(providerResult.rawResponse),
       displayMode: readDisplayMode(providerResult.rawResponse),
       bankInfo: readBankInfo(providerResult.rawResponse),
     });
@@ -703,6 +762,16 @@ export class PaymentService {
       return false;
     });
   }
+
+  /** SePay remains available as retail backup when MegaPay createPayment fails. */
+  private canFailoverRetailToSepay(): boolean {
+    try {
+      this.providerRegistry.get(PaymentGatewayCode.SEPAY);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 function readCheckoutFormFields(
@@ -721,13 +790,32 @@ function readCheckoutFormFields(
   return Object.keys(result).length ? result : undefined;
 }
 
+function readCheckoutClient(
+  gatewayResponse: Record<string, unknown>,
+): { domain: string; jsUrl: string; cssUrl: string } | undefined {
+  const raw = gatewayResponse.checkoutClient;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  const client = raw as Record<string, unknown>;
+  const domain = typeof client.domain === 'string' ? client.domain : '';
+  const jsUrl = typeof client.jsUrl === 'string' ? client.jsUrl : '';
+  const cssUrl = typeof client.cssUrl === 'string' ? client.cssUrl : '';
+  if (!domain || !jsUrl || !cssUrl) return undefined;
+  return { domain, jsUrl, cssUrl };
+}
+
 function readDisplayMode(
   gatewayResponse: Record<string, unknown>,
-): 'qr_inline' | 'redirect' | undefined {
+): 'qr_inline' | 'redirect' | 'open_payment' | undefined {
   const mode = gatewayResponse.displayMode;
-  if (mode === 'qr_inline' || mode === 'redirect') return mode;
+  if (mode === 'qr_inline' || mode === 'redirect' || mode === 'open_payment') {
+    return mode;
+  }
   if (gatewayResponse.integrationMode === 'deposit_code_va') return 'qr_inline';
   if (gatewayResponse.integrationMode === 'legacy_qr') return 'qr_inline';
+  if (gatewayResponse.integrationMode === 'megapay_pg_v146') return 'open_payment';
+  if (gatewayResponse.integrationMode === 'payment_gateway') return 'redirect';
   return undefined;
 }
 

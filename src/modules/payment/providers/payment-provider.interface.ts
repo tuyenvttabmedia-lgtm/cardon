@@ -7,6 +7,8 @@ export interface CreateProviderPaymentParams {
   gateway: PaymentGatewayCode;
   expiresAt?: Date;
   guestEmail?: string | null;
+  /** CardOn payment method code (DEPOSIT_CODE | VNPAYQR | ZALOPAY | …). */
+  methodCode?: string | null;
   /** Force SePay legacy QR (shared STK + transfer content) even when B2C uses payment_gateway. */
   preferLegacyQr?: boolean;
 }

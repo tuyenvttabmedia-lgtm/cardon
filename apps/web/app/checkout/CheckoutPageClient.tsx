@@ -6,6 +6,7 @@ import { CustomerPriceBreakdown } from '@/components/checkout/CustomerPriceBreak
 import { QuantityInput, DEFAULT_MAX_QUANTITY } from '@/components/checkout/QuantityInput';
 import { PaymentMethodPicker, PaymentMethodsEmpty } from '@/components/checkout/PaymentPanel';
 import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
+import { MegapayPgCheckoutOpen } from '@/components/checkout/MegapayPgCheckoutOpen';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -107,10 +108,8 @@ export default function CheckoutPageClient() {
         return;
       }
 
-      if (gateway === 'MEGAPAY' && pay.paymentUrl) {
-        window.location.href = pay.paymentUrl;
-        return;
-      }
+      // MegaPay PG layer (VNPAYQR / ZaloPay) opens via MegapayPgCheckoutOpen below.
+      // SePay / other redirect forms handled by checkout form components.
     } catch (err) {
       if (err instanceof ApiClientError) {
         const limitDetails = parseOrderAmountLimitError({
@@ -210,12 +209,21 @@ export default function CheckoutPageClient() {
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
 
-        {payment?.checkoutUrl && payment.checkoutFormFields && gateway === 'SEPAY' && (
+        {payment?.checkoutUrl && payment.checkoutFormFields && payment.gateway === 'SEPAY' && (
           <SepayPgCheckoutRedirect
             checkoutUrl={payment.checkoutUrl}
             checkoutFormFields={payment.checkoutFormFields}
           />
         )}
+        {payment?.checkoutFormFields &&
+          payment.checkoutClient &&
+          payment.gateway === 'MEGAPAY' &&
+          payment.displayMode !== 'qr_inline' && (
+            <MegapayPgCheckoutOpen
+              checkoutFormFields={payment.checkoutFormFields}
+              checkoutClient={payment.checkoutClient}
+            />
+          )}
       </div>
     </PageContainer>
   );

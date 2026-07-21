@@ -90,6 +90,21 @@ export class UpdatePaymentGatewayDto {
   @IsString()
   @MaxLength(64)
   qrTemplate?: string;
+
+  /** MegaPay PG encodeKey (V1.4.6) — separate from DepositCode 3DES when provided */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  pgEncodeKey?: string;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'production'])
+  pgEnvironment?: 'sandbox' | 'production';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  reqDomain?: string;
 }
 
 export class UpdateProviderEsaleDto {

@@ -1,38 +1,27 @@
-# MegaPay / VNPT ePay DepositCode — trạng thái
+# MegaPay / VNPT ePay — trạng thái bán lẻ
 
 ## Đã làm
 
-- Adapter **DepositCode VA** gắn vào gateway `MEGAPAY` (reuse enum/webhook/agent-deposit).
-- Sandbox demo (`VAP001`) cấu hình trong `.env.local-full`.
-- Webhook response đúng chuẩn EPAY: `ResponseCode` 200/102/103/125.
-- Unit tests MegaPay/DepositCode: pass.
-- Local API rebuild; `settings.payment.gateway.megapay.enabled=true`.
-- Catalog phương thức MegaPay theo hợp đồng: `ZALOPAY` (1.5% + 1.100đ), `DEPOSIT_CODE` VietQR (0.77%), `VNPAYQR` (0.77%).
+- **3 phương thức bán lẻ** (V1.4.6 + DepositCode):
+  - `DEPOSIT_CODE` — VietQR / mã nộp tiền (`registerVA`)
+  - `VNPAYQR` — MegaPay PG `payType=QR` + `openPayment`
+  - `ZALOPAY` — MegaPay PG `payType=EW`, `bankCode=ZALO`
+- Webhook MegaPay nhận cả DepositCode RSA notify và PG IPN `merchantToken`.
+- **SePay dự phòng bán lẻ**: failover khi MegaPay `createPayment` lỗi; nạp đại lý vẫn SePay-only.
+- Default priority: MegaPay 1, SePay 2.
+- Unit tests DepositCode + PG form/IPN.
 
 ## Khi VNPT gửi account production
 
-Đổi ENV (hoặc Admin Settings MegaPay):
-
 1. `MEGAPAY_MERCHANT_ID`
-2. `MEGAPAY_SECRET_KEY` (Key 3DES 24 ký tự)
-3. `MEGAPAY_ENDPOINT` (URL registerVA production)
-4. `MEGAPAY_BANK_CODE`
-5. `MEGAPAY_NOTIFY_PUBLIC_KEY` (PEM public key verify notify)
-6. `MEGAPAY_CALLBACK_URL=https://cardon.vn/api/v1/payments/webhook/megapay`
+2. `MEGAPAY_SECRET_KEY` (3DES DepositCode)
+3. `MEGAPAY_PG_ENCODE_KEY` (nếu khác key 3DES)
+4. `MEGAPAY_ENDPOINT` (registerVA production)
+5. `MEGAPAY_PG_ENVIRONMENT=production`
+6. `MEGAPAY_NOTIFY_PUBLIC_KEY`
+7. `MEGAPAY_CALLBACK_URL=https://cardon.vn/api/v1/payments/webhook/megapay`
+8. `MEGAPAY_RETURN_URL` / `MEGAPAY_REQ_DOMAIN`
 
-Khai báo URL notify + IP server với EPAY, restart API — không cần sửa code.
+Admin: bật gateway MegaPay + 3 method; giữ SePay enabled làm dự phòng.
 
-## Test sandbox nhanh
-
-```bash
-node scripts/uat/test-depositcode-sandbox.mjs
-```
-
-### Khác SePay
-
-- **SePay** thường xác nhận qua webhook/API sau khi chuyển khoản (sandbox có thể giả lập dễ hơn).
-- **EPAY DepositCode sandbox**: `registerVA` chỉ tạo VA + QR. Đơn chỉ sang `PAID` khi EPAY gọi notify
-  `POST /api/v1/payments/webhook/megapay` (sau khi có giao dịch vào VA — sandbox thật sự nhận tiền hoặc EPAY
-  bắn IPN test). Bấm “xem trạng thái” **không** tự đánh dấu đã thanh toán / không phát thẻ.
-
-Chi tiết kỹ thuật: `docs/04_MEGAPAY_INTEGRATION.md`
+Chi tiết: `docs/04_MEGAPAY_INTEGRATION.md`

@@ -146,6 +146,24 @@ export class SettingsStoreService implements OnModuleInit {
     const notifyPublicKey =
       normalizePem(notifyPublicKeyRaw) ?? '';
 
+    const pgEncodeKey =
+      (stored?.pgEncodeKeyEnc
+        ? this.decryptField(stored.pgEncodeKeyEnc)
+        : undefined) ??
+      this.configService.get<string>('megapay.pgEncodeKey') ??
+      secretKey;
+    const pgEnvironmentRaw =
+      stored?.pgEnvironment ??
+      this.configService.get<string>('megapay.pgEnvironment') ??
+      'sandbox';
+    const pgEnvironment =
+      pgEnvironmentRaw === 'production' ? 'production' : 'sandbox';
+    const reqDomain =
+      stored?.reqDomain ??
+      this.configService.get<string>('megapay.reqDomain') ??
+      this.configService.get<string>('appPublicUrl') ??
+      'https://cardon.vn';
+
     if (!merchantId || !secretKey || !endpoint || !notifyPublicKey) {
       throw new Error(
         'VNPT ePay DepositCode is not configured. Set MEGAPAY_MERCHANT_ID, MEGAPAY_SECRET_KEY (3DES), MEGAPAY_ENDPOINT, MEGAPAY_NOTIFY_PUBLIC_KEY.',
@@ -160,12 +178,15 @@ export class SettingsStoreService implements OnModuleInit {
     return {
       merchantId,
       secretKey,
+      pgEncodeKey: pgEncodeKey || secretKey,
+      pgEnvironment,
       endpoint: endpoint.replace(/\/$/, ''),
       returnUrl,
       webhookSecret: webhookSecret || 'depositcode-rsa',
       callbackUrl,
       bankCode,
       notifyPublicKey,
+      reqDomain: reqDomain.replace(/\/$/, ''),
     };
   }
 
@@ -199,6 +220,9 @@ export class SettingsStoreService implements OnModuleInit {
       webhookUrl: stored?.webhookUrl ?? config?.callbackUrl ?? '',
       secretKey: this.encryption.maskSecret(config?.secretKey),
       webhookSecret: this.encryption.maskSecret(config?.webhookSecret),
+      pgEncodeKey: this.encryption.maskSecret(config?.pgEncodeKey),
+      pgEnvironment: config?.pgEnvironment ?? stored?.pgEnvironment ?? 'sandbox',
+      reqDomain: config?.reqDomain ?? stored?.reqDomain ?? '',
       configured: !!config,
       source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_MEGAPAY)
         ? 'database'

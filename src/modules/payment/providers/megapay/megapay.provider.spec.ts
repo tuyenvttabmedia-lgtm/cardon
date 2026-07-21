@@ -16,6 +16,8 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 const TEST_CONFIG = {
   merchantId: 'VAP001',
   secretKey: '31feae316de0a42520ef5ec4',
+  pgEncodeKey: 'pg-encode-key-for-tests-only',
+  pgEnvironment: 'sandbox' as const,
   endpoint:
     'https://sandboxva.ecollect.vn:10003/ApiResf_VirtualAccount/services/registerVA',
   returnUrl: 'https://cardon.vn/checkout/result',
@@ -23,6 +25,7 @@ const TEST_CONFIG = {
   callbackUrl: 'https://cardon.vn/api/v1/payments/webhook/megapay',
   bankCode: 'WOORIBANK',
   notifyPublicKey: publicKey,
+  reqDomain: 'https://cardon.vn',
 };
 
 function buildProvider(fetchMock: jest.Mock): MegaPayProvider {
@@ -91,6 +94,7 @@ describe('MegaPayProvider (DepositCode VA)', () => {
         amount: '100000',
         orderId: 'order-1',
         gateway: PaymentGatewayCode.MEGAPAY,
+        methodCode: 'DEPOSIT_CODE',
       });
 
       expect(result.paymentUrl).toMatch(/^data:image\/png;base64,/);
@@ -109,6 +113,43 @@ describe('MegaPayProvider (DepositCode VA)', () => {
       expect(body.pcode).toBe('9000');
       expect(body.merchant_code).toBe('VAP001');
       expect(typeof body.data).toBe('string');
+    });
+
+    it('builds MegaPay PG layer form for VNPAYQR (payType=QR)', async () => {
+      const result = await provider.createPayment({
+        paymentReference: 'PAY-QR-001',
+        amount: '50000',
+        orderId: 'order-2',
+        gateway: PaymentGatewayCode.MEGAPAY,
+        methodCode: 'VNPAYQR',
+      });
+
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.rawResponse.integrationMode).toBe('megapay_pg_v146');
+      expect(result.rawResponse.displayMode).toBe('open_payment');
+      expect(result.rawResponse.payType).toBe('QR');
+      const fields = result.rawResponse.checkoutFormFields as Record<string, string>;
+      expect(fields.payType).toBe('QR');
+      expect(fields.merId).toBe('VAP001');
+      expect(fields.amount).toBe('50000');
+      expect(fields.merchantToken).toHaveLength(64);
+      expect(result.rawResponse.checkoutClient).toMatchObject({
+        domain: 'https://sandbox.megapay.vn',
+      });
+    });
+
+    it('builds MegaPay PG layer form for ZaloPay (payType=EW, bankCode=ZALO)', async () => {
+      const result = await provider.createPayment({
+        paymentReference: 'PAY-ZL-001',
+        amount: '75000',
+        orderId: 'order-3',
+        gateway: PaymentGatewayCode.MEGAPAY,
+        methodCode: 'ZALOPAY',
+      });
+
+      const fields = result.rawResponse.checkoutFormFields as Record<string, string>;
+      expect(fields.payType).toBe('EW');
+      expect(fields.bankCode).toBe('ZALO');
     });
   });
 
@@ -162,6 +203,31 @@ describe('MegaPayProvider (DepositCode VA)', () => {
         {},
       );
       expect(result.valid).toBe(false);
+    });
+
+    it('accepts valid MegaPay PG IPN merchantToken', async () => {
+      const { buildMegapayPgIpnToken } = await import('./megapay-pg');
+      const payload = {
+        resultCd: '00_000',
+        resultMsg: 'SUCCESS',
+        timeStamp: '1600065260940',
+        merTrxId: 'PAY-PG-001',
+        trxId: 'EPAYTRX001',
+        merId: 'VAP001',
+        amount: '100000',
+        invoiceNo: 'PAY-PG-001',
+      };
+      const merchantToken = buildMegapayPgIpnToken({
+        ...payload,
+        encodeKey: TEST_CONFIG.pgEncodeKey,
+      });
+
+      const result = await provider.verifyWebhook({ ...payload, merchantToken }, {});
+
+      expect(result.valid).toBe(true);
+      expect(result.status).toBe('SUCCESS');
+      expect(result.paymentReference).toBe('PAY-PG-001');
+      expect(result.amount).toBe('100000.00');
     });
   });
 });

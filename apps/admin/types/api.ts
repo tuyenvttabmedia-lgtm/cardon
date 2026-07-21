@@ -1372,6 +1372,10 @@ export interface PaymentGatewaySettings extends SettingsSourceView {
   accountName?: string;
   qrTemplate?: string;
   integrationMode?: 'legacy_qr' | 'payment_gateway';
+  /** MegaPay PG encodeKey (V1.4.6) */
+  pgEncodeKey?: string;
+  pgEnvironment?: 'sandbox' | 'production';
+  reqDomain?: string;
 }
 
 export interface PaymentRuntimeSettings extends SettingsSourceView {

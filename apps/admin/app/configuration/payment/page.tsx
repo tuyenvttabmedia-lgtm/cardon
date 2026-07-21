@@ -107,6 +107,45 @@ function GatewayForm({
               <Label>{vi.settings.webhookSecret}</Label>
               <Input className="mt-1 font-mono" type="password" value={form.webhookSecret ?? ''} onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })} />
             </div>
+            <div className="md:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
+              Bán lẻ CardOn: VietQR dùng DepositCode (3DES). VNPAYQR + ZaloPay dùng MegaPay PG V1.4.6
+              (<code>openPayment</code>). Điền PG Encode Key nếu khác key 3DES.
+            </div>
+            <div>
+              <Label>PG Encode Key (V1.4.6)</Label>
+              <Input
+                className="mt-1 font-mono"
+                type="password"
+                value={form.pgEncodeKey ?? ''}
+                onChange={(e) => setForm({ ...form, pgEncodeKey: e.target.value })}
+                placeholder="********"
+              />
+            </div>
+            <div>
+              <Label>PG Environment</Label>
+              <Select
+                className="mt-1"
+                value={form.pgEnvironment ?? form.environment ?? 'sandbox'}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    pgEnvironment: e.target.value as 'sandbox' | 'production',
+                  })
+                }
+              >
+                <option value="sandbox">{vi.app.sandbox}</option>
+                <option value="production">{vi.app.production}</option>
+              </Select>
+            </div>
+            <div>
+              <Label>reqDomain (site công khai)</Label>
+              <Input
+                className="mt-1"
+                value={form.reqDomain ?? ''}
+                onChange={(e) => setForm({ ...form, reqDomain: e.target.value })}
+                placeholder="https://cardon.vn"
+              />
+            </div>
           </>
         )}
         {fields === 'sepay' && (
