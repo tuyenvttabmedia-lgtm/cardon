@@ -195,6 +195,34 @@ export const agentApi = {
     const params = new URLSearchParams({ key: storageKey });
     return `${getApiBaseUrl()}/agents/me/kyc/documents/file?${params}`;
   },
+  async fetchKycDocumentBlob(storageKey: string): Promise<Blob> {
+    const params = new URLSearchParams({ key: storageKey });
+    const path = `/agents/me/kyc/documents/file?${params}`;
+    const headers: Record<string, string> = {};
+    const token = getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    let response = await fetch(`${getApiBaseUrl()}${path}`, {
+      headers,
+      cache: 'no-store',
+    });
+
+    if (response.status === 401 && getRefreshToken()) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers.Authorization = `Bearer ${newToken}`;
+        response = await fetch(`${getApiBaseUrl()}${path}`, {
+          headers,
+          cache: 'no-store',
+        });
+      }
+    }
+
+    if (!response.ok) {
+      throw new ApiClientError('Không tải được tài liệu KYC', response.status);
+    }
+    return response.blob();
+  },
   submitKyc(payload: SubmitKycPayload) {
     return apiRequest<{ agentId: string; kycStatus: string }>('/agents/kyc', {
       method: 'POST',

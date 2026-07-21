@@ -87,6 +87,100 @@ function DocumentUploadField({
   );
 }
 
+const DOC_FIELD_LABELS: Record<string, string> = {
+  selfie: 'Ảnh chân dung',
+  cccdFront: 'CCCD mặt trước',
+  cccdBack: 'CCCD mặt sau',
+  citizenId: 'CCCD',
+  businessLicense: 'Giấy phép / ĐKKD',
+  businessRegistration: 'Giấy đăng ký kinh doanh',
+  authorizationLetter: 'Giấy ủy quyền',
+};
+
+const PROFILE_FIELD_LABELS: Record<string, string> = {
+  fullName: 'Họ và tên',
+  dob: 'Ngày sinh',
+  email: 'Email',
+  phone: 'Số điện thoại',
+  address: 'Địa chỉ',
+  cccd: 'Số CCCD',
+  cccdIssueDate: 'Ngày cấp CCCD',
+  cccdIssuePlace: 'Nơi cấp CCCD',
+};
+
+function KycDocumentPreview({
+  field,
+  storageKey,
+}: {
+  field: string;
+  storageKey: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const label = DOC_FIELD_LABELS[field] ?? field;
+
+  useEffect(() => {
+    return () => {
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [url]);
+
+  async function openPreview() {
+    setOpen(true);
+    setError(null);
+    if (url) return;
+    setLoading(true);
+    try {
+      const blob = await agentApi.fetchKycDocumentBlob(storageKey);
+      setUrl(URL.createObjectURL(blob));
+    } catch (e) {
+      setError(e instanceof ApiClientError ? e.message : 'Không mở được ảnh');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void openPreview()}
+        className="rounded border border-slate-200 px-2 py-1 text-xs text-blue-700 hover:bg-slate-50"
+      >
+        {label}
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="font-semibold text-slate-900">{label}</p>
+              <Button size="sm" variant="secondary" onClick={() => setOpen(false)}>
+                Đóng
+              </Button>
+            </div>
+            {loading && <p className="text-sm text-slate-500">Đang tải ảnh…</p>}
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={url} alt={label} className="mx-auto max-h-[75vh] w-auto rounded-lg object-contain" />
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ProfileSummary({ kyc }: { kyc: AgentKycDetail }) {
   const profile = kyc.profile ?? {};
   const docs = kyc.documents ?? {};
@@ -101,7 +195,7 @@ function ProfileSummary({ kyc }: { kyc: AgentKycDetail }) {
       </div>
       {Object.entries(profile).map(([key, val]) => (
         <div key={key}>
-          <dt className="text-slate-500">{key}</dt>
+          <dt className="text-slate-500">{PROFILE_FIELD_LABELS[key] ?? key}</dt>
           <dd className="font-medium">{String(val ?? '—')}</dd>
         </div>
       ))}
@@ -110,15 +204,7 @@ function ProfileSummary({ kyc }: { kyc: AgentKycDetail }) {
           <dt className="mb-2 text-slate-500">Tài liệu đính kèm</dt>
           <dd className="flex flex-wrap gap-2">
             {Object.entries(docs).map(([field, key]) => (
-              <a
-                key={field}
-                href={agentApi.kycDocumentUrl(key)}
-                target="_blank"
-                rel="noreferrer"
-                className="rounded border border-slate-200 px-2 py-1 text-xs text-blue-700 hover:bg-slate-50"
-              >
-                {field}
-              </a>
+              <KycDocumentPreview key={field} field={field} storageKey={key} />
             ))}
           </dd>
         </div>

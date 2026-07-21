@@ -771,7 +771,7 @@ export class SettingsStoreService implements OnModuleInit {
       ...defaults,
       ...stored,
       priority,
-      enabled: stored?.enabled ?? credentials?.enabled ?? defaults.enabled,
+      enabled: resolveGatewayEnabled(stored?.enabled, credentials?.enabled, defaults.enabled),
     };
   }
 
@@ -880,4 +880,16 @@ export class SettingsStoreService implements OnModuleInit {
       source: this.hasDbSetting(SETTINGS_KEYS.MAINTENANCE) ? 'database' : 'environment',
     };
   }
+}
+
+/** Runtime enabled AND credential toggle (Admin off MegaPay/SePay credentials forces gateway off). */
+function resolveGatewayEnabled(
+  storedEnabled: boolean | undefined,
+  credentialsEnabled: boolean | undefined,
+  defaultEnabled: boolean | undefined,
+): boolean {
+  if (credentialsEnabled === false) return false;
+  if (storedEnabled !== undefined) return Boolean(storedEnabled);
+  if (credentialsEnabled !== undefined) return Boolean(credentialsEnabled);
+  return Boolean(defaultEnabled);
 }

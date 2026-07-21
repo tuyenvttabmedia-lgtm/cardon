@@ -72,14 +72,20 @@ export class AgentDepositService {
   ) {}
 
   listAvailableGateways() {
-    return this.settingsStore
+    // Agent deposits use SePay bank-transfer QR only (MegaPay fees are too high for top-up).
+    const sepay = this.settingsStore
       .resolveOrderedPaymentGateways()
-      .filter((g) => g.enabled)
-      .map((g) => ({
-        code: g.code,
-        label: g.displayName ?? g.label,
-        priority: g.priority,
-      }));
+      .find((g) => g.code === 'SEPAY' && g.enabled);
+    if (!sepay) {
+      return [];
+    }
+    return [
+      {
+        code: sepay.code,
+        label: 'Thanh toán chuyển khoản qua mã QR',
+        priority: sepay.priority,
+      },
+    ];
   }
 
   async createDeposit(
@@ -416,17 +422,17 @@ export class AgentDepositService {
   }
 
   private resolveGateway(requested?: PaymentGatewayCode): PaymentGatewayCode {
-    const enabled = this.settingsStore.resolvePaymentGatewaySelectionOrder();
-    if (!enabled.length) {
-      throw new BadRequestException('No payment gateway is currently available');
+    const available = this.listAvailableGateways();
+    if (!available.length) {
+      throw new BadRequestException(
+        'Cổng nạp hạn mức chưa sẵn sàng. Vui lòng bật SePay (chuyển khoản QR) trong Admin.',
+      );
     }
-    if (requested && enabled.includes(requested)) {
-      return requested;
+    // Partner deposits are SePay QR only.
+    if (requested && requested !== PaymentGatewayCode.SEPAY) {
+      this.logger.warn(`Ignoring non-SePay deposit gateway request: ${requested}`);
     }
-    if (requested && !enabled.includes(requested)) {
-      return enabled[0];
-    }
-    return enabled[0];
+    return PaymentGatewayCode.SEPAY;
   }
 
   private async requireActiveAgent(userId: string) {
@@ -454,7 +460,7 @@ export class AgentDepositService {
       statusTone: depositStatusTone(deposit.status),
       completedAt: deposit.creditedAt?.toISOString() ?? deposit.paidAt?.toISOString() ?? null,
       approvedBy: null,
-      description: `Nạp tiền qua ${deposit.gateway}`,
+      description: 'Nạp hạn mức qua chuyển khoản QR',
     };
   }
 
