@@ -34,6 +34,12 @@ export interface StoredPaymentGateway {
   secretKeyEnc?: string;
   webhookSecretEnc?: string;
   apiKeyEnc?: string;
+  /** MegaPay PG encodeKey (V1.4.6) — separate from DepositCode 3DES key when provided */
+  pgEncodeKeyEnc?: string;
+  /** MegaPay PG environment for domain/JS assets */
+  pgEnvironment?: SettingsEnvironment;
+  /** Public site URL for MegaPay reqDomain */
+  reqDomain?: string;
   bankAccount?: string;
   bankCode?: string;
   accountName?: string;
@@ -91,19 +97,19 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     methodCode: 'ZALOPAY',
     displayName: 'Ví điện tử ZaloPay',
     description:
-      'Thanh toán qua ví ZaloPay. Phí hoàn trả: 1.100đ/giao dịch.',
+      'Thanh toán qua ví ZaloPay (MegaPay payType=EW). Phí hoàn trả: 1.100đ/giao dịch.',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
-    enabled: false,
+    enabled: true,
     percentageFee: 1.5,
     fixedFee: 1100,
   },
   {
     gatewayCode: 'MEGAPAY',
     methodCode: 'DEPOSIT_CODE',
-    displayName: 'Chuyển khoản mã nộp tiền (VietQR)',
-    description: 'Thanh toán qua chuyển khoản mã nộp tiền VietQR (DepositCode).',
+    displayName: 'Chuyển khoản VietQR',
+    description: 'Chuyển khoản VietQR / mã nộp tiền (MegaPay DepositCode VA).',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
@@ -114,12 +120,12 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
   {
     gatewayCode: 'MEGAPAY',
     methodCode: 'VNPAYQR',
-    displayName: 'VNPAYQR',
-    description: 'Thanh toán bằng VNPAYQR.',
+    displayName: 'Chuyển khoản VNPAYQR',
+    description: 'Thanh toán QR VNPAY (MegaPay payType=QR).',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
-    enabled: false,
+    enabled: true,
     percentageFee: 0.77,
     fixedFee: 0,
   },
@@ -314,22 +320,22 @@ export interface StoredPaymentStrategy {
 }
 
 export const DEFAULT_PAYMENT_GATEWAY_RUNTIME: Record<MvpPaymentGatewayCode, StoredPaymentGatewayRuntime> = {
-  SEPAY: {
-    enabled: true,
-    priority: 1,
-    displayName: 'SePay',
-    percentageFee: 0,
-    fixedFee: 300,
-  },
   MEGAPAY: {
     enabled: true,
-    priority: 2,
+    priority: 1,
     displayName: 'MegaPay',
     percentageFee: 0,
     fixedFee: 0,
   },
+  SEPAY: {
+    enabled: true,
+    priority: 2,
+    displayName: 'SePay (dự phòng bán lẻ)',
+    percentageFee: 0,
+    fixedFee: 300,
+  },
 };
 
 export const DEFAULT_PAYMENT_STRATEGY: StoredPaymentStrategy = {
-  defaultGateway: 'SEPAY',
+  defaultGateway: 'MEGAPAY',
 };

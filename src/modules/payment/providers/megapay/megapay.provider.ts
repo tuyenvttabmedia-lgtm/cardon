@@ -14,6 +14,12 @@ import {
   DepositCodeNotifyPayload,
   normalizeDepositCodeNotify,
 } from './depositcode.types';
+import {
+  buildMegapayPgCheckoutForm,
+  buildMegapayPgIpnToken,
+  isMegapayPgIpnPayload,
+  mapMethodCodeToMegapayPg,
+} from './megapay-pg';
 import { MegapayConfigService } from './megapay.config';
 
 /** Prefer embeddable QR image; EPAY sandbox qr_url often points at an unreachable host page. */
@@ -49,6 +55,17 @@ export class MegaPayProvider implements PaymentProviderInterface {
   async createPayment(
     params: CreateProviderPaymentParams,
   ): Promise<ProviderPaymentResult> {
+    const mapped = mapMethodCodeToMegapayPg(params.methodCode);
+    // VietQR / DepositCode stays on registerVA (inline QR). PG layer for VNPAYQR + ZaloPay.
+    if (!mapped || mapped.payType === 'VA') {
+      return this.createDepositCodePayment(params);
+    }
+    return this.createPgLayerPayment(params, mapped.payType, mapped.bankCode);
+  }
+
+  private async createDepositCodePayment(
+    params: CreateProviderPaymentParams,
+  ): Promise<ProviderPaymentResult> {
     const amountInt = Math.round(parseFloat(params.amount));
     const customerName = `CARDON ${params.paymentReference}`.slice(0, 50);
 
@@ -81,6 +98,7 @@ export class MegaPayProvider implements PaymentProviderInterface {
       rawResponse: {
         integrationMode: 'deposit_code_va',
         displayMode: 'qr_inline',
+        methodCode: params.methodCode ?? 'DEPOSIT_CODE',
         response_code: response.response_code,
         map_id: response.map_id ?? params.paymentReference,
         account_no: response.account_no,
@@ -104,10 +122,66 @@ export class MegaPayProvider implements PaymentProviderInterface {
     };
   }
 
+  private createPgLayerPayment(
+    params: CreateProviderPaymentParams,
+    payType: 'QR' | 'EW',
+    bankCode?: string,
+  ): ProviderPaymentResult {
+    const config = this.configService.getConfig();
+    const amountInt = Math.round(parseFloat(params.amount));
+    const { checkoutFormFields, assets, timeStamp } = buildMegapayPgCheckoutForm({
+      merId: config.merchantId,
+      encodeKey: config.pgEncodeKey,
+      environment: config.pgEnvironment,
+      amount: amountInt,
+      invoiceNo: params.paymentReference,
+      merTrxId: params.paymentReference,
+      goodsNm: `CardOn ${params.paymentReference}`,
+      description: `CardOn ${params.paymentReference}`,
+      payType,
+      bankCode,
+      callBackUrl: config.returnUrl,
+      notiUrl: config.callbackUrl,
+      reqDomain: config.reqDomain,
+      expiresAt: params.expiresAt,
+    });
+
+    return {
+      paymentUrl: assets.domain,
+      providerReference: params.paymentReference,
+      rawResponse: {
+        integrationMode: 'megapay_pg_v146',
+        displayMode: 'open_payment',
+        methodCode: params.methodCode ?? payType,
+        payType,
+        bankCode: bankCode ?? null,
+        checkoutUrl: assets.domain,
+        checkoutFormFields,
+        checkoutClient: {
+          domain: assets.domain,
+          jsUrl: assets.jsUrl,
+          cssUrl: assets.cssUrl,
+        },
+        amount: amountInt,
+        timeStamp,
+        gateway: this.gateway,
+      },
+    };
+  }
+
   async verifyWebhook(
     payload: unknown,
     _headers: Record<string, string>,
   ): Promise<WebhookVerificationResult> {
+    if (isMegapayPgIpnPayload(payload)) {
+      return this.verifyPgIpn(payload);
+    }
+    return this.verifyDepositCodeNotify(payload);
+  }
+
+  private verifyDepositCodeNotify(
+    payload: unknown,
+  ): WebhookVerificationResult {
     const body = normalizePayload(payload) as DepositCodeNotifyPayload;
     const notify = normalizeDepositCodeNotify(body);
     const config = this.configService.getConfig();
@@ -160,6 +234,70 @@ export class MegaPayProvider implements PaymentProviderInterface {
     };
   }
 
+  private verifyPgIpn(payload: unknown): WebhookVerificationResult {
+    const body = normalizePayload(payload);
+    const config = this.configService.getConfig();
+    const resultCd = String(body.resultCd ?? '');
+    const timeStamp = String(body.timeStamp ?? '');
+    const merTrxId = String(body.merTrxId ?? '');
+    const trxId = String(body.trxId ?? '');
+    const merId = String(body.merId ?? '');
+    const amountRaw = String(body.amount ?? '');
+    const merchantToken = String(body.merchantToken ?? '');
+    const invoiceNo = String(body.invoiceNo ?? '');
+    const paymentReference = merTrxId || invoiceNo;
+
+    if (
+      !resultCd ||
+      !timeStamp ||
+      !merTrxId ||
+      !trxId ||
+      !merId ||
+      !amountRaw ||
+      !merchantToken
+    ) {
+      return {
+        valid: false,
+        paymentReference,
+        status: 'PENDING',
+        rawPayload: { ...body, gateway: this.gateway, integrationMode: 'megapay_pg_v146' },
+      };
+    }
+
+    const expected = buildMegapayPgIpnToken({
+      resultCd,
+      timeStamp,
+      merTrxId,
+      trxId,
+      merId,
+      amount: amountRaw,
+      encodeKey: config.pgEncodeKey,
+      userFee: body.userFee as string | number | null | undefined,
+    });
+
+    const valid =
+      expected.toLowerCase() === merchantToken.toLowerCase() &&
+      merId === config.merchantId;
+
+    const success = resultCd === '00_000' || resultCd === '00';
+    const amountNum = parseFloat(amountRaw);
+    const amount =
+      Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
+
+    return {
+      valid,
+      paymentReference,
+      status: valid && success ? 'SUCCESS' : valid ? 'FAILED' : 'PENDING',
+      amount,
+      providerTransactionId: trxId,
+      rawPayload: {
+        ...body,
+        gateway: this.gateway,
+        integrationMode: 'megapay_pg_v146',
+      },
+    };
+  }
+
   async queryTransaction(reference: string): Promise<ProviderTransactionStatus> {
     // DepositCode status API only confirms VA mapping — payment success is notify-driven.
     const result = await this.httpClient.checkStatusByMapId(reference);
@@ -174,7 +312,7 @@ export class MegaPayProvider implements PaymentProviderInterface {
     return {
       success: false,
       message:
-        'DepositCode VA refund is not supported via API — handle manually / cancel mapping',
+        'MegaPay refund is not automated — handle via MegaPay portal / DepositCode cancel mapping',
     };
   }
 }
