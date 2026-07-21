@@ -139,12 +139,12 @@ export default function CheckoutPayPageClient() {
 
   return (
     <PageContainer className="page-footer-gap">
-      <div className="mx-auto max-w-lg space-y-4">
-        <div className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card">
+      <div className="mx-auto w-full max-w-2xl space-y-5">
+        <div className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card sm:p-6">
           <p className="text-sm text-cardon-gray">Đơn hàng</p>
-          <p className="text-lg font-bold text-cardon-navy">{orderCode}</p>
+          <p className="text-lg font-bold text-cardon-navy sm:text-xl">{orderCode}</p>
           <p className="mt-3 text-sm text-cardon-gray">Số tiền cần chuyển</p>
-          <p className="text-2xl font-bold text-cardon-danger">
+          <p className="text-2xl font-bold text-cardon-danger sm:text-3xl">
             {Number.isFinite(amountNumber) ? formatVnd(amountNumber) : pending.amount}
           </p>
           <p className="mt-2 text-sm text-cardon-blue">{statusLabel}</p>
@@ -164,9 +164,9 @@ export default function CheckoutPayPageClient() {
         >
           Xem trạng thái đơn (chưa xác nhận thanh toán)
         </button>
-        <p className="text-center text-xs text-cardon-gray">
-          Sandbox EPAY chỉ giao thẻ sau khi nhận notify chuyển khoản vào VA. Nút trên không tự đánh dấu
-          đã thanh toán.
+        <p className="text-center text-xs text-cardon-gray sm:text-sm">
+          Đơn chỉ xác nhận sau khi ngân hàng báo về SePay và webhook tới CardOn. Nút trên không tự đánh
+          dấu đã thanh toán — hãy giữ trang này hoặc kiểm tra lại đơn sau vài phút.
         </p>
       </div>
     </PageContainer>

@@ -10,12 +10,19 @@ import { formatVnd, cn } from '@/lib/utils';
 import { paymentStatusLabelVi, resolveCustomerOrderStatusLabel } from '@/lib/order-labels';
 
 type OrderTypeFilter = 'all' | 'CARD' | 'TOPUP' | 'DATA';
+type OrderStatusFilter = 'all' | 'processing' | 'completed';
 
 const TYPE_FILTERS: Array<{ id: OrderTypeFilter; label: string; requiresData?: boolean }> = [
   { id: 'all', label: 'Tất cả' },
   { id: 'CARD', label: 'Mua thẻ' },
   { id: 'TOPUP', label: 'Nạp cước' },
   { id: 'DATA', label: 'Nạp Data', requiresData: true },
+];
+
+const STATUS_FILTERS: Array<{ id: OrderStatusFilter; label: string }> = [
+  { id: 'all', label: 'Mọi trạng thái' },
+  { id: 'processing', label: 'Đang xử lý' },
+  { id: 'completed', label: 'Hoàn thành' },
 ];
 
 function orderProductSummary(order: AccountOrder): string {
@@ -43,6 +50,7 @@ export default function AccountOrdersPage() {
   const siteConfig = useSiteConfig();
   const [take, setTake] = useState<number>(LIST_PAGE_SIZES[0]);
   const [typeFilter, setTypeFilter] = useState<OrderTypeFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>('all');
   const [orders, setOrders] = useState<AccountOrder[]>([]);
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
@@ -61,13 +69,18 @@ export default function AccountOrdersPage() {
   useEffect(() => {
     setLoading(true);
     void accountApi
-      .listOrders('all', typeFilter === 'all' ? undefined : typeFilter, skip, take)
+      .listOrders(
+        statusFilter,
+        typeFilter === 'all' ? undefined : typeFilter,
+        skip,
+        take,
+      )
       .then((result) => {
         setOrders(result.items);
         setTotal(result.total);
       })
       .finally(() => setLoading(false));
-  }, [typeFilter, skip, take]);
+  }, [typeFilter, statusFilter, skip, take]);
 
   useEffect(() => {
     if (typeFilter === 'DATA' && !isDataServiceVisible(siteConfig)) {
@@ -96,27 +109,51 @@ export default function AccountOrdersPage() {
       <h2 className="text-lg font-bold text-cardon-navy">Lịch sử giao dịch</h2>
       <p className="mt-1 text-sm text-cardon-gray">Theo dõi trạng thái và nhận thẻ an toàn</p>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {visibleFilters.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => {
-              setTypeFilter(item.id);
-              setSkip(0);
-              setExpandedOrderId(null);
-              setExpandMode(null);
-            }}
-            className={cn(
-              'rounded-full px-4 py-1.5 text-sm font-semibold',
-              typeFilter === item.id
-                ? 'bg-cardon-blue text-white'
-                : 'bg-cardon-light text-cardon-gray hover:bg-gray-200',
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="mt-4 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          {visibleFilters.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setTypeFilter(item.id);
+                setSkip(0);
+                setExpandedOrderId(null);
+                setExpandMode(null);
+              }}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-sm font-semibold',
+                typeFilter === item.id
+                  ? 'bg-cardon-blue text-white'
+                  : 'bg-cardon-light text-cardon-gray hover:bg-gray-200',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                setStatusFilter(item.id);
+                setSkip(0);
+                setExpandedOrderId(null);
+                setExpandMode(null);
+              }}
+              className={cn(
+                'rounded-full px-4 py-1.5 text-sm font-semibold',
+                statusFilter === item.id
+                  ? 'bg-cardon-navy text-white'
+                  : 'border border-cardon-border bg-white text-cardon-gray hover:bg-cardon-light',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (

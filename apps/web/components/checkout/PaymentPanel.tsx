@@ -135,15 +135,14 @@ export function SepayQrDisplay({
   } | null;
 }) {
   const [error, setError] = useState(false);
-  const isDataImage = paymentUrl.startsWith('data:image');
 
   return (
-    <div className="rounded-2xl border border-cardon-border bg-white p-6 text-center">
-      <p className="font-semibold text-cardon-navy">Quét mã QR để thanh toán</p>
+    <div className="rounded-2xl border border-cardon-border bg-white p-5 text-center sm:p-8">
+      <p className="text-base font-semibold text-cardon-navy sm:text-lg">Quét mã QR để thanh toán</p>
       <p className="mt-1 text-sm text-cardon-gray">
         Chuyển đúng số tiền. Nội dung / tài khoản VA đã gắn với đơn hàng.
       </p>
-      <div className="relative mx-auto mt-4 h-64 w-64">
+      <div className="relative mx-auto mt-5 aspect-square w-full max-w-[280px] sm:max-w-[320px]">
         {!error ? (
           <Image
             src={paymentUrl}
@@ -154,11 +153,13 @@ export function SepayQrDisplay({
             onError={() => setError(true)}
           />
         ) : (
-          <p className="text-sm text-red-600">Không tải được QR.</p>
+          <p className="flex h-full items-center justify-center text-sm text-red-600">
+            Không tải được QR.
+          </p>
         )}
       </div>
       {bankInfo?.accountNumber ? (
-        <div className="mt-4 space-y-1 rounded-xl bg-cardon-light px-4 py-3 text-left text-sm">
+        <div className="mt-5 space-y-1.5 rounded-xl bg-cardon-light px-4 py-3 text-left text-sm sm:px-5 sm:py-4">
           {bankInfo.bankName || bankInfo.bankCode ? (
             <p>
               <span className="text-cardon-gray">Ngân hàng: </span>
@@ -178,16 +179,6 @@ export function SepayQrDisplay({
             </p>
           ) : null}
         </div>
-      ) : null}
-      {!isDataImage ? (
-        <a
-          href={paymentUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-4 inline-flex rounded-xl border border-cardon-border px-4 py-2 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
-        >
-          Mở trang thanh toán
-        </a>
       ) : null}
     </div>
   );
