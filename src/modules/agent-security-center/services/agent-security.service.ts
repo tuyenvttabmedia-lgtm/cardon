@@ -231,9 +231,12 @@ export class AgentSecurityService {
       id: randomUUID(),
       cidr: body.cidr.trim(),
       description: body.description?.trim() ?? '',
-      enabled: true,
+      enabled: false,
+      status: 'PENDING',
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
+      reviewedAt: null,
+      reviewedBy: null,
     };
     const ipWhitelist = [...(config.ipWhitelist ?? []), entry];
     await this.prisma.agent.update({
@@ -254,9 +257,20 @@ export class AgentSecurityService {
     const config = this.parseSecurityConfig(agent.securityConfig);
     const ipWhitelist = (config.ipWhitelist ?? []).map((e) => {
       if (e.id !== id) return e;
+      const status = e.status ?? 'APPROVED';
       if (body.cidr !== undefined) {
+        if (status === 'APPROVED') {
+          throw new BadRequestException(
+            'Không thể sửa CIDR IP đã duyệt — xóa và gửi yêu cầu mới',
+          );
+        }
         if (!validateCidrOrIp(body.cidr)) throw new BadRequestException('CIDR/IP không hợp lệ');
-        return { ...e, cidr: body.cidr.trim() };
+        return { ...e, cidr: body.cidr.trim(), status: 'PENDING' as const, enabled: false };
+      }
+      if (body.enabled !== undefined) {
+        if (status !== 'APPROVED') {
+          throw new BadRequestException('IP chưa được Admin duyệt — không thể bật');
+        }
       }
       return {
         ...e,
@@ -484,7 +498,11 @@ export class AgentSecurityService {
 
     if (params.success && ip && config.ipWhitelist?.length) {
       const updated = config.ipWhitelist.map((e) =>
-        e.enabled && ipMatchesEntry(ip, e.cidr) ? { ...e, lastUsedAt: new Date().toISOString() } : e,
+        e.enabled &&
+        (e.status ?? 'APPROVED') === 'APPROVED' &&
+        ipMatchesEntry(ip, e.cidr)
+          ? { ...e, lastUsedAt: new Date().toISOString() }
+          : e,
       );
       if (JSON.stringify(updated) !== JSON.stringify(config.ipWhitelist)) {
         await this.prisma.agent.update({
@@ -503,7 +521,10 @@ export class AgentSecurityService {
   checkIpWhitelist(agentId: string, securityConfig: unknown, clientIp: string | null): boolean {
     const config = this.parseSecurityConfig(securityConfig);
     const entries = config.ipWhitelist ?? [];
-    if (entries.filter((e) => e.enabled).length === 0) return true;
+    const approvedEnabled = entries.filter(
+      (e) => e.enabled && (e.status ?? 'APPROVED') === 'APPROVED',
+    );
+    if (approvedEnabled.length === 0) return true;
     if (!clientIp) return false;
     return isIpAllowed(clientIp, entries);
   }

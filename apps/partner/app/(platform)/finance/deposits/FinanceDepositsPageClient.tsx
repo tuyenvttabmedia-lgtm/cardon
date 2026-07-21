@@ -14,6 +14,9 @@ import { WalletPageShell } from '@/components/wallet/WalletSubNav';
 
 const TERMINAL = new Set(['CREDITED', 'EXPIRED', 'FAILED', 'CANCELLED']);
 const POLL_MS = 30_000;
+/** Per-transaction limits — keep in sync with API deposit.constants.ts */
+const MIN_DEPOSIT_AMOUNT = 5_000_000;
+const MAX_DEPOSIT_AMOUNT = 300_000_000;
 
 function newIdempotencyKey() {
   return crypto.randomUUID();
@@ -161,17 +164,22 @@ export default function FinanceDepositsPageClient() {
               <h2 className="text-sm font-semibold text-slate-900">Tạo yêu cầu nạp hạn mức</h2>
               <form className="grid gap-4 md:grid-cols-2" onSubmit={handleCreate}>
                 <div>
-                  <Label htmlFor="amount">Số tiền (VND)</Label>
+                  <Label htmlFor="amount">Số tiền (VND) / lần giao dịch</Label>
                   <Input
                     id="amount"
                     className="mt-1"
                     inputMode="numeric"
-                    placeholder="100000"
+                    placeholder={String(MIN_DEPOSIT_AMOUNT)}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    min={10000}
+                    min={MIN_DEPOSIT_AMOUNT}
+                    max={MAX_DEPOSIT_AMOUNT}
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Tối thiểu {formatVnd(String(MIN_DEPOSIT_AMOUNT))} — tối đa{' '}
+                    {formatVnd(String(MAX_DEPOSIT_AMOUNT))} mỗi lần nạp.
+                  </p>
                 </div>
                 <div>
                   <Label htmlFor="gateway">Cổng thanh toán</Label>
@@ -198,7 +206,14 @@ export default function FinanceDepositsPageClient() {
                     <p className="font-semibold text-emerald-700">{formatVnd(String(net))}</p>
                   </div>
                   <div className="flex items-end">
-                    <Button type="submit" disabled={creating || parsedAmount < 10000}>
+                    <Button
+                      type="submit"
+                      disabled={
+                        creating ||
+                        parsedAmount < MIN_DEPOSIT_AMOUNT ||
+                        parsedAmount > MAX_DEPOSIT_AMOUNT
+                      }
+                    >
                       {creating ? 'Đang tạo...' : 'Sinh giao dịch'}
                     </Button>
                   </div>

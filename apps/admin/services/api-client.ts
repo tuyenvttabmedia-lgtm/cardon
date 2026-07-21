@@ -1886,6 +1886,18 @@ export const agentCenterApi = {
   api(agentId: string) {
     return apiRequest<Record<string, unknown>>(`/admin/agent-center/agents/${agentId}/api`);
   },
+  approveIpWhitelist(agentId: string, entryId: string) {
+    return apiRequest<Record<string, unknown>>(
+      `/admin/agent-center/agents/${agentId}/ip-whitelist/${entryId}/approve`,
+      { method: 'POST' },
+    );
+  },
+  rejectIpWhitelist(agentId: string, entryId: string) {
+    return apiRequest<Record<string, unknown>>(
+      `/admin/agent-center/agents/${agentId}/ip-whitelist/${entryId}/reject`,
+      { method: 'POST' },
+    );
+  },
   webhooks(agentId: string, params: Record<string, number | undefined> = {}) {
     return apiRequest<Record<string, unknown>>(
       `/admin/agent-center/agents/${agentId}/webhooks${agentCenterQuery(params)}`,

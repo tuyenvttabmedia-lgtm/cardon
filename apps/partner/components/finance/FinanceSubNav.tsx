@@ -5,12 +5,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const FINANCE_NAV = [
-  { href: '/finance', label: 'Tổng quan', exact: true },
   { href: '/finance/deposits', label: 'Nạp hạn mức' },
   { href: '/finance/settlements', label: 'Đối soát' },
-  { href: '/finance/adjustments', label: 'Điều chỉnh' },
-  { href: '/finance/credit', label: 'Công nợ & Hạn mức' },
-  { href: '/finance/history', label: 'Lịch sử tài chính' },
 ] as const;
 
 export function FinanceSubNav() {

@@ -62,8 +62,7 @@ export const AGENT_PLATFORM_NAV: AgentNavItem[] = [
     label: 'Tài khoản',
     permission: 'settings.read',
     children: [
-      { href: '/account', label: 'Hồ sơ', permission: 'settings.read', exact: true },
-      { href: '/account#doi-mat-khau', label: 'Đổi mật khẩu', permission: 'settings.read' },
+      { href: '/account', label: 'Hồ sơ & bảo mật', permission: 'settings.read', exact: true },
       { href: '/account/kyc', label: 'Xác minh KYC', permission: 'settings.read' },
       { href: '/account/organization', label: 'Tổ chức', permission: 'organization.read' },
       { href: '/users', label: 'Người dùng', permission: 'users.read' },

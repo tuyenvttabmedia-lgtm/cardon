@@ -585,9 +585,14 @@ export class AdminAgentCenterService {
       rateLimit: agent.rateLimit,
       lastUsedAt: agent.lastUsedAt?.toISOString() ?? null,
       ipWhitelist: (config.ipWhitelist ?? []).map((e) => ({
+        id: e.id,
         cidr: e.cidr,
         description: e.description,
         enabled: e.enabled,
+        status: e.status ?? 'APPROVED',
+        createdAt: e.createdAt,
+        reviewedAt: e.reviewedAt ?? null,
+        reviewedBy: e.reviewedBy ?? null,
       })),
       usage24h: {
         total: totalCalls,
@@ -609,6 +614,61 @@ export class AdminAgentCenterService {
           }
         : null,
     };
+  }
+
+  async approveIpWhitelistEntry(
+    agentId: string,
+    entryId: string,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.setIpWhitelistReviewStatus(agentId, entryId, 'APPROVED', adminId, adminEmail);
+  }
+
+  async rejectIpWhitelistEntry(
+    agentId: string,
+    entryId: string,
+    adminId: string,
+    adminEmail: string,
+  ) {
+    return this.setIpWhitelistReviewStatus(agentId, entryId, 'REJECTED', adminId, adminEmail);
+  }
+
+  private async setIpWhitelistReviewStatus(
+    agentId: string,
+    entryId: string,
+    status: 'APPROVED' | 'REJECTED',
+    adminId: string,
+    adminEmail: string,
+  ) {
+    const agent = await this.requireAgent(agentId);
+    const config = this.parseSecurityConfig(agent.securityConfig) as {
+      ipWhitelist?: AgentIpWhitelistEntry[];
+    };
+    const list = config.ipWhitelist ?? [];
+    const idx = list.findIndex((e) => e.id === entryId);
+    if (idx < 0) {
+      throw new NotFoundException('IP whitelist entry not found');
+    }
+    const now = new Date().toISOString();
+    const updated: AgentIpWhitelistEntry = {
+      ...list[idx],
+      status,
+      enabled: status === 'APPROVED',
+      reviewedAt: now,
+      reviewedBy: adminEmail || adminId,
+    };
+    const ipWhitelist = list.map((e, i) => (i === idx ? updated : e));
+    await this.prisma.agent.update({
+      where: { id: agentId },
+      data: {
+        securityConfig: {
+          ...config,
+          ipWhitelist,
+        } as Prisma.InputJsonValue,
+      },
+    });
+    return updated;
   }
 
   async getWebhooks(agentId: string, query: AdminAgentCenterTabQueryDto) {

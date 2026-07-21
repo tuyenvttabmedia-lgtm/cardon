@@ -40,7 +40,10 @@ export default function SettingsPageClient() {
   }
 
   return (
-    <PlatformSection title="Tài khoản" description="Thông tin doanh nghiệp, KYC, bảo mật và liên hệ API.">
+    <PlatformSection
+      title="Hồ sơ & bảo mật"
+      description="Thông tin doanh nghiệp và đổi mật khẩu đăng nhập partner."
+    >
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
           <p className="font-semibold text-slate-900">Thông tin doanh nghiệp</p>

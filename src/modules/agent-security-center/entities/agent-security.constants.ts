@@ -1,12 +1,18 @@
 export type AgentApiKeyEnvironment = 'PRODUCTION' | 'SANDBOX';
 
+export type AgentIpWhitelistStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
 export interface AgentIpWhitelistEntry {
   id: string;
   cidr: string;
   description: string;
   enabled: boolean;
+  /** Missing on legacy rows — treat as APPROVED. */
+  status?: AgentIpWhitelistStatus;
   createdAt: string;
   lastUsedAt: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
 }
 
 export interface AgentSecurityConfig {
