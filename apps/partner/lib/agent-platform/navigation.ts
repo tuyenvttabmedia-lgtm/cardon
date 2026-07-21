@@ -17,14 +17,14 @@ export const AGENT_PLATFORM_NAV: AgentNavItem[] = [
   { href: '/dashboard', label: 'Bảng điều khiển', permission: 'dashboard.read', exact: true },
   {
     href: '/wallet',
-    label: 'Ví',
+    label: 'Số dư đại lý',
     permission: 'wallet.read',
     children: [
       { href: '/wallet', label: 'Tổng quan', permission: 'wallet.read', exact: true },
-      { href: '/finance/deposits', label: 'Nạp tiền', permission: 'finance.read' },
+      { href: '/finance/deposits', label: 'Nạp hạn mức', permission: 'finance.read' },
       { href: '/finance/settlements', label: 'Đối soát', permission: 'settlement.read' },
-      { href: '/wallet/deposit-history', label: 'Lịch sử nạp', permission: 'wallet.read' },
-      { href: '/wallet/ledger', label: 'Sổ quỹ', permission: 'wallet.read' },
+      { href: '/wallet/deposit-history', label: 'Lịch sử hạn mức', permission: 'wallet.read' },
+      { href: '/wallet/ledger', label: 'Biến động số dư', permission: 'wallet.read' },
     ],
   },
   {

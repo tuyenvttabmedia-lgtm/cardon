@@ -33,8 +33,7 @@ export function WalletOverviewCards({ wallet }: { wallet: AgentWalletOverviewExt
         <StatCard label="Số dư khả dụng" value={formatVnd(wallet?.availableBalance ?? '0')} />
         <StatCard label="Số dư đóng băng" value={formatVnd(wallet?.frozenBalance ?? '0')} />
         <StatCard label="Hạn mức tín dụng" value={formatVnd(wallet?.creditLimit ?? '0')} />
-        <StatCard label="Chờ nạp" value={formatVnd(wallet?.pendingDeposit ?? '0')} />
-        <StatCard label="Chờ rút" value={formatVnd(wallet?.pendingWithdraw ?? '0')} />
+        <StatCard label="Chờ nạp hạn mức" value={formatVnd(wallet?.pendingDeposit ?? '0')} />
         <StatCard label="Đang đối soát" value={formatVnd(wallet?.pendingSettlement ?? '0')} />
         <StatCard label="Chi tiêu hôm nay" value={formatVnd(wallet?.todaySpending ?? '0')} />
         <StatCard label="Chi tiêu tháng này" value={formatVnd(wallet?.monthSpending ?? '0')} />

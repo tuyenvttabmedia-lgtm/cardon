@@ -6,9 +6,9 @@ import { cn } from '@/lib/utils';
 
 const WALLET_NAV = [
   { href: '/wallet', label: 'Tổng quan', exact: true },
-  { href: '/finance/deposits', label: 'Nạp tiền' },
-  { href: '/wallet/deposit-history', label: 'Lịch sử nạp' },
-  { href: '/wallet/ledger', label: 'Sổ quỹ' },
+  { href: '/finance/deposits', label: 'Nạp hạn mức' },
+  { href: '/wallet/deposit-history', label: 'Lịch sử hạn mức' },
+  { href: '/wallet/ledger', label: 'Biến động số dư' },
 ] as const;
 
 export function WalletSubNav() {

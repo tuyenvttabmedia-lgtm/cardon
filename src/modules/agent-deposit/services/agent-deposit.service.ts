@@ -117,6 +117,7 @@ export class AgentDepositService {
       orderId: paymentReference,
       gateway,
       expiresAt,
+      preferLegacyQr: true,
     });
 
     const deposit = await this.depositRepository.create({
@@ -475,7 +476,9 @@ export class AgentDepositService {
           ? gatewayResponse.transferContent
           : typeof gatewayResponse.transfer_content === 'string'
             ? gatewayResponse.transfer_content
-            : `CARDON ${deposit.paymentReference}`,
+            : /^DH[0-9A-Z]{4,30}$/i.test(deposit.paymentReference)
+              ? deposit.paymentReference
+              : `CARDON ${deposit.paymentReference}`,
       expiresAt: deposit.expiresAt?.toISOString() ?? null,
       paidAt: deposit.paidAt?.toISOString() ?? null,
       creditedAt: deposit.creditedAt?.toISOString() ?? null,

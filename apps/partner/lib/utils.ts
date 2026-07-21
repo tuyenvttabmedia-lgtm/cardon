@@ -86,9 +86,9 @@ export function kycStatusLabel(status: string | null | undefined): string {
 
 export function ledgerTypeLabel(type: string): string {
   const map: Record<string, string> = {
-    CREDIT: 'Nạp tiền',
-    HOLD: 'Giữ tiền',
-    DEBIT: 'Trừ tiền',
+    CREDIT: 'Nạp hạn mức',
+    HOLD: 'Giữ hạn mức',
+    DEBIT: 'Trừ hạn mức',
     RELEASE: 'Hoàn giữ',
   };
   return map[type] ?? type;

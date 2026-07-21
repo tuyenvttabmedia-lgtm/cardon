@@ -143,7 +143,7 @@ export default function FinanceDepositsPageClient() {
     }));
     if (format === 'csv') exportLedgerCsv(rows, 'nap-tien.csv');
     if (format === 'excel') exportLedgerExcel(rows, 'nap-tien.csv');
-    if (format === 'pdf') exportLedgerPdf(rows, 'Lịch sử nạp tiền');
+    if (format === 'pdf') exportLedgerPdf(rows, 'Lịch sử nạp hạn mức');
     void financeApi.audit(`export_${format}` as 'export_csv' | 'export_excel' | 'export_pdf', { count: rows.length });
   }
 
@@ -151,14 +151,14 @@ export default function FinanceDepositsPageClient() {
 
   return (
     <WalletPageShell
-      title="Nạp tiền"
-      description="Tạo yêu cầu nạp tiền qua SePay hoặc MegaPay. Số dư ví cập nhật tự động qua Sổ quỹ sau khi thanh toán thành công."
+      title="Nạp hạn mức"
+      description="Tạo yêu cầu nạp hạn mức qua chuyển khoản QR (SePay). Số dư cập nhật tự động sau khi ngân hàng báo có. Số dư chỉ dùng mua hàng — ngừng dịch vụ thì liên hệ CardOn bằng văn bản để xem xét hoàn số dư còn lại."
     >
       <div className="grid gap-6 xl:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           {canCreate && (
             <Card className="space-y-4">
-              <h2 className="text-sm font-semibold text-slate-900">Tạo yêu cầu nạp tiền</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Tạo yêu cầu nạp hạn mức</h2>
               <form className="grid gap-4 md:grid-cols-2" onSubmit={handleCreate}>
                 <div>
                   <Label htmlFor="amount">Số tiền (VND)</Label>

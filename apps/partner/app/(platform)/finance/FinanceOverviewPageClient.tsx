@@ -73,7 +73,7 @@ export default function FinanceOverviewPageClient() {
   return (
     <FinancePageShell
       title="Tổng quan tài chính"
-      description="Trung tâm quản lý tài chính đại lý — dữ liệu tổng hợp từ Sổ quỹ (Ledger)."
+      description="Trung tâm quản lý hạn mức đại lý — dữ liệu tổng hợp từ biến động số dư (Ledger)."
     >
       <EnterpriseModuleBanner />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -81,8 +81,7 @@ export default function FinanceOverviewPageClient() {
         <StatCard label="Đang đối soát" value={formatVnd(data?.pendingSettlement ?? '0')} />
         <StatCard label="Hạn mức tín dụng" value={formatVnd(data?.creditLimit ?? '0')} />
         <StatCard label="Đã sử dụng" value={formatVnd(data?.creditUsed ?? '0')} />
-        <StatCard label="Chờ nạp" value={formatVnd(data?.pendingDeposit ?? '0')} />
-        <StatCard label="Chờ rút" value={formatVnd(data?.pendingWithdraw ?? '0')} />
+        <StatCard label="Chờ nạp hạn mức" value={formatVnd(data?.pendingDeposit ?? '0')} />
         <StatCard label="Doanh thu hôm nay" value={formatVnd(data?.revenueToday ?? '0')} />
         <StatCard label="Chiết khấu hôm nay" value={formatVnd(data?.discountToday ?? '0')} />
         <StatCard label="Lợi nhuận tháng" value={formatVnd(data?.monthProfit ?? '0')} />

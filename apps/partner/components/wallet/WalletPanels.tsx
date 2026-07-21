@@ -24,7 +24,7 @@ export function RecentActivityPanel({ activity }: { activity: WalletRecentActivi
           )}
         </ul>
         <Link href="/wallet/ledger" className="mt-3 inline-block text-xs font-medium text-indigo-600">
-          Xem sổ quỹ →
+          Xem biến động số dư →
         </Link>
       </Card>
 
@@ -41,14 +41,10 @@ export function RecentActivityPanel({ activity }: { activity: WalletRecentActivi
 
       <Card>
         <p className="text-sm font-semibold text-slate-900">Đang chờ xử lý</p>
-        <dl className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+        <dl className="mt-2 grid grid-cols-2 gap-2 text-center text-xs">
           <div>
-            <dt className="text-slate-400">Nạp tiền</dt>
+            <dt className="text-slate-400">Nạp hạn mức</dt>
             <dd className="font-semibold">{activity.pendingItems.deposits}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-400">Rút tiền</dt>
-            <dd className="font-semibold">{activity.pendingItems.withdraws}</dd>
           </div>
           <div>
             <dt className="text-slate-400">Đối soát</dt>

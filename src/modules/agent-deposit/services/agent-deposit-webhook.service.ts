@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -16,7 +15,6 @@ import {
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { PaymentProviderRegistry } from '../../payment/providers/payment-provider.registry';
 import { WebhookLogRepository } from '../../payment/repositories/payment.repository';
-import { isAgentDepositReference } from '../entities/deposit-reference.generator';
 import { AgentDepositRepository } from '../repositories/agent-deposit.repository';
 import { AgentDepositService } from './agent-deposit.service';
 
@@ -49,11 +47,20 @@ export class AgentDepositWebhookService {
     const provider = this.providerRegistry.get(gateway);
     const verification = await provider.verifyWebhook(payload, headers);
 
-    if (!verification.paymentReference || !isAgentDepositReference(verification.paymentReference)) {
+    if (!verification.paymentReference) {
       return { handled: false };
     }
 
-    const webhookSource = gateway === PaymentGatewayCode.MEGAPAY ? WebhookSource.MEGAPAY : WebhookSource.SEPAY;
+    // Route by DB presence (DH* shared with B2C). Missing row → let PaymentService handle.
+    const deposit = await this.depositRepository.findByReference(
+      verification.paymentReference,
+    );
+    if (!deposit) {
+      return { handled: false };
+    }
+
+    const webhookSource =
+      gateway === PaymentGatewayCode.MEGAPAY ? WebhookSource.MEGAPAY : WebhookSource.SEPAY;
 
     await this.webhookLogRepository.create({
       source: webhookSource,
@@ -80,11 +87,6 @@ export class AgentDepositWebhookService {
       throw new UnauthorizedException('Invalid webhook signature');
     }
 
-    const deposit = await this.depositRepository.findByReference(verification.paymentReference);
-    if (!deposit) {
-      throw new NotFoundException('Agent deposit not found');
-    }
-
     if (deposit.gateway !== gateway) {
       throw new BadRequestException(
         `Gateway mismatch: deposit is ${deposit.gateway}, webhook is ${gateway}`,
@@ -100,7 +102,10 @@ export class AgentDepositWebhookService {
     }
 
     if (verification.status !== 'SUCCESS') {
-      await this.depositService.markDepositFailed(deposit.id, `Webhook status: ${verification.status}`);
+      await this.depositService.markDepositFailed(
+        deposit.id,
+        `Webhook status: ${verification.status}`,
+      );
       return {
         handled: true,
         ok: true,
