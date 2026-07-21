@@ -96,9 +96,9 @@ export default function DashboardPageClient() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="font-semibold text-slate-900">Nạp tiền gần đây</h2>
+          <h2 className="font-semibold text-slate-900">Nạp hạn mức gần đây</h2>
           {recentDeposits.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">Chưa có giao dịch nạp.</p>
+            <p className="mt-3 text-sm text-slate-500">Chưa có giao dịch nạp hạn mức.</p>
           ) : (
             <ul className="mt-3 space-y-2 text-sm">
               {recentDeposits.map((d) => (
@@ -110,7 +110,7 @@ export default function DashboardPageClient() {
             </ul>
           )}
           <Link href="/finance/deposits" className="mt-4 inline-block text-sm font-medium text-indigo-600 hover:underline">
-            Nạp tiền →
+            Nạp hạn mức →
           </Link>
         </Card>
 
@@ -161,7 +161,7 @@ export default function DashboardPageClient() {
             {[
               ['/api/keys', 'Khóa API'],
               ['/orders/search', 'Tra cứu đơn'],
-              ['/finance/deposits', 'Nạp tiền'],
+              ['/finance/deposits', 'Nạp hạn mức'],
               ['/reports', 'Báo cáo API'],
             ].map(([href, label]) => (
               <Link

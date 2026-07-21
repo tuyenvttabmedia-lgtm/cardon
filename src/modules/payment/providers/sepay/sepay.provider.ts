@@ -46,7 +46,8 @@ export class SePayProvider implements PaymentProviderInterface {
     const config = this.configService.getConfig();
     const amountInt = Math.round(parseFloat(params.amount));
 
-    if (config.mode === 'payment_gateway') {
+    // Agent deposits always need inline QR + bank info (partner UI), not hosted PG checkout.
+    if (config.mode === 'payment_gateway' && !params.preferLegacyQr) {
       return this.createPaymentGatewayCheckout(params, config, amountInt);
     }
 

@@ -68,7 +68,7 @@ export default function WalletLedgerPageClient() {
   const page = Math.floor((filters.skip ?? 0) / (filters.take ?? 25));
 
   return (
-    <WalletPageShell title="Sổ quỹ" description="Nguồn dữ liệu duy nhất cho mọi biến động số dư.">
+    <WalletPageShell title="Biến động số dư" description="Nguồn dữ liệu duy nhất cho mọi biến động hạn mức đại lý.">
       <LedgerFiltersBar
         filters={filters}
         onChange={setFilters}

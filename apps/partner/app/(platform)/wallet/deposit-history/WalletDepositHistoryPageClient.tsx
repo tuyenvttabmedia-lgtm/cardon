@@ -32,14 +32,14 @@ export default function WalletDepositHistoryPageClient() {
 
   return (
     <WalletPageShell
-      title="Lịch sử nạp"
-      description="Toàn bộ giao dịch nạp tiền qua cổng thanh toán — dữ liệu từ Sổ quỹ."
+      title="Lịch sử hạn mức"
+      description="Toàn bộ giao dịch nạp hạn mức qua cổng thanh toán — dữ liệu từ biến động số dư."
     >
       <Card className="overflow-x-auto p-0">
         {loading ? (
           <p className="p-4 text-sm text-slate-500">Đang tải...</p>
         ) : items.length === 0 ? (
-          <p className="p-4 text-sm text-slate-500">Chưa có giao dịch nạp tiền.</p>
+          <p className="p-4 text-sm text-slate-500">Chưa có giao dịch nạp hạn mức.</p>
         ) : (
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">

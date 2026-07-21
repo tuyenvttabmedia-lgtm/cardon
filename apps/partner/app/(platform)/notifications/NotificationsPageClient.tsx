@@ -6,7 +6,7 @@ import { agentPlatformApi } from '@/services/api-client';
 import { formatDateTime } from '@/lib/utils';
 
 const GROUPS = [
-  { id: 'wallet', label: 'Ví' },
+  { id: 'wallet', label: 'Số dư' },
   { id: 'api', label: 'API' },
   { id: 'webhook', label: 'Webhook' },
   { id: 'provider', label: 'Provider' },
@@ -47,7 +47,7 @@ export default function NotificationsPageClient() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Thông báo</h1>
-        <p className="mt-1 text-sm text-slate-600">Nhóm theo Ví, API, Webhook, Provider và Hệ thống.</p>
+        <p className="mt-1 text-sm text-slate-600">Nhóm theo Số dư, API, Webhook, Provider và Hệ thống.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

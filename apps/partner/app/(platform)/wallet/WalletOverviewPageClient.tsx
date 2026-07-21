@@ -22,8 +22,8 @@ export default function WalletOverviewPageClient() {
 
   return (
     <WalletPageShell
-      title="Tổng quan Ví"
-      description="Trung tâm số dư đại lý — dữ liệu từ Sổ quỹ (Ledger)."
+      title="Số dư đại lý"
+      description="Hạn mức mua hàng nội bộ dùng để thanh toán đơn API. Khi ngừng sử dụng dịch vụ, liên hệ CardOn bằng văn bản để xem xét hoàn số dư còn lại — không hỗ trợ tự rút tiền."
     >
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">

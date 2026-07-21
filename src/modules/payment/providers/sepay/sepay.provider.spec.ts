@@ -168,6 +168,43 @@ describe('SePayProvider', () => {
           .order_invoice_number,
       ).toBe('PAY-PG-002');
     });
+
+    it('preferLegacyQr forces QR even when mode is payment_gateway', async () => {
+      const configService = {
+        getConfig: () => ({
+          mode: 'payment_gateway' as const,
+          merchantId: 'SP-TEST-CT4BB234',
+          merchantSecretKey: 'spsk_test_secret',
+          ipnSecretKey: 'ipn-secret-key',
+          environment: 'sandbox' as const,
+          paymentMethod: 'BANK_TRANSFER' as const,
+          publicUrl: 'https://cardon.vn',
+          bankAccount: '1017588888',
+          bankCode: 'Vietcombank',
+          accountName: 'CARDON COMPANY',
+          qrTemplate: 'compact',
+        }),
+        isConfigured: () => true,
+      } as unknown as SepayConfigService;
+      const provider = new SePayProvider(configService);
+
+      const result = await provider.createPayment({
+        paymentReference: 'DH87654321',
+        amount: '100000.00',
+        orderId: 'DH87654321',
+        gateway: PaymentGatewayCode.SEPAY,
+        preferLegacyQr: true,
+      });
+
+      expect(result.rawResponse.integrationMode).toBe('legacy_qr');
+      expect(result.paymentUrl).toContain('qr.sepay.vn');
+      expect(result.rawResponse.transferContent).toBe('DH87654321');
+      expect(result.rawResponse.bank_info).toEqual({
+        bankCode: 'Vietcombank',
+        accountNumber: '1017588888',
+        accountName: 'CARDON COMPANY',
+      });
+    });
   });
 
   describe('verifyWebhook', () => {

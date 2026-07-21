@@ -6,8 +6,7 @@ import { cn } from '@/lib/utils';
 
 const FINANCE_NAV = [
   { href: '/finance', label: 'Tổng quan', exact: true },
-  { href: '/finance/deposits', label: 'Nạp tiền' },
-  { href: '/finance/withdraws', label: 'Rút tiền' },
+  { href: '/finance/deposits', label: 'Nạp hạn mức' },
   { href: '/finance/settlements', label: 'Đối soát' },
   { href: '/finance/adjustments', label: 'Điều chỉnh' },
   { href: '/finance/credit', label: 'Công nợ & Hạn mức' },
