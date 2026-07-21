@@ -182,19 +182,25 @@ export default function FinanceDepositsPageClient() {
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="gateway">Cổng thanh toán</Label>
-                  <select
-                    id="gateway"
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                    value={gateway}
-                    onChange={(e) => setGateway(e.target.value)}
-                  >
-                    {gateways.map((g) => (
-                      <option key={g.code} value={g.code}>
-                        {g.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Label htmlFor="gateway">Hình thức thanh toán</Label>
+                  {gateways.length <= 1 ? (
+                    <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800">
+                      {gateways[0]?.label ?? 'Thanh toán chuyển khoản qua mã QR'}
+                    </p>
+                  ) : (
+                    <select
+                      id="gateway"
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      value={gateway}
+                      onChange={(e) => setGateway(e.target.value)}
+                    >
+                      {gateways.map((g) => (
+                        <option key={g.code} value={g.code}>
+                          {g.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="md:col-span-2 grid gap-2 rounded-lg bg-slate-50 p-3 text-sm sm:grid-cols-3">
                   <div>
