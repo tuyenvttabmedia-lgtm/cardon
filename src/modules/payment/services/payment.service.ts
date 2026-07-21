@@ -23,7 +23,7 @@ import { ActivityEventDispatcher } from '../../activity-event/activity-event-dis
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { OrderService } from '../../order/services/order.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
-import { generatePaymentReference } from '../entities/payment-reference.generator';
+import { generatePaymentReference, generateSepayPaymentCode } from '../entities/payment-reference.generator';
 import { mapPayment } from '../entities/payment.mapper';
 import { sanitizeGatewayPayload } from '../entities/gateway-payload-safety';
 import {
@@ -117,7 +117,10 @@ export class PaymentService {
     }
 
     const provider = this.providerRegistry.get(dto.gateway);
-    const paymentReference = generatePaymentReference();
+    const paymentReference =
+      dto.gateway === PaymentGatewayCode.SEPAY
+        ? generateSepayPaymentCode()
+        : generatePaymentReference();
     const expiresAt =
       order.paymentExpiresAt ??
       new Date(Date.now() + 15 * 60_000);

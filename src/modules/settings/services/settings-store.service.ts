@@ -246,6 +246,10 @@ export class SettingsStoreService implements OnModuleInit {
         merchantId,
         merchantSecretKey,
         ipnSecretKey,
+        // Bank-transfer webhook HMAC (separate from PG IPN secret).
+        webhookSecret:
+          this.configService.get<string>('sepay.hmacSecret') || undefined,
+        apiKey: this.configService.get<string>('sepay.apiKey') || undefined,
         environment:
           stored?.environment === 'sandbox' ||
           this.configService.get<string>('sepay.environment') === 'sandbox'
@@ -253,6 +257,18 @@ export class SettingsStoreService implements OnModuleInit {
             : 'production',
         paymentMethod: stored?.paymentMethod ?? 'BANK_TRANSFER',
         publicUrl: publicUrl.replace(/\/$/, ''),
+        bankAccount:
+          stored?.bankAccount ??
+          this.configService.get<string>('sepay.bankAccount'),
+        bankCode:
+          stored?.bankCode ?? this.configService.get<string>('sepay.bankCode'),
+        accountName:
+          stored?.accountName ??
+          this.configService.get<string>('sepay.accountName'),
+        qrTemplate:
+          stored?.qrTemplate ??
+          this.configService.get<string>('sepay.qrTemplate') ??
+          'compact',
       };
     }
 
@@ -279,16 +295,17 @@ export class SettingsStoreService implements OnModuleInit {
       this.configService.get<string>('sepay.qrTemplate') ??
       'compact';
 
-    if (!apiKey || !bankAccount || !bankCode || !accountName) {
+    // HMAC-only webhooks do not need API Key; bank QR still needs account fields.
+    if ((!apiKey && !webhookSecret) || !bankAccount || !bankCode || !accountName) {
       throw new Error(
-        'SePay is not configured. Set SEPAY_* env vars or configure in Admin Settings.',
+        'SePay is not configured. Set bank account + HMAC webhook secret (or API key) in Admin / SEPAY_* env.',
       );
     }
 
     return {
       mode: 'legacy_qr',
-      apiKey,
-      webhookSecret,
+      apiKey: apiKey || undefined,
+      webhookSecret: webhookSecret || undefined,
       bankAccount,
       bankCode,
       accountName,

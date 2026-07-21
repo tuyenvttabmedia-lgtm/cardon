@@ -66,6 +66,7 @@ export default () => ({
   sepay: {
     apiKey: process.env.SEPAY_API_KEY,
     webhookSecret: process.env.SEPAY_WEBHOOK_SECRET,
+    hmacSecret: process.env.SEPAY_HMAC_SECRET,
     bankAccount: process.env.SEPAY_BANK_ACCOUNT,
     bankCode: process.env.SEPAY_BANK_CODE,
     accountName: process.env.SEPAY_ACCOUNT_NAME,

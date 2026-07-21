@@ -111,13 +111,34 @@ function GatewayForm({
         )}
         {fields === 'sepay' && (
           <>
+            <div className="md:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
+              Webhook bank-transfer (my.sepay.vn): dùng <strong>HMAC-SHA256</strong> → điền Secret Key vào
+              ô Webhook Secret bên dưới. Ô API Key chỉ cần khi webhook SePay chọn xác thực API Key (không
+              bắt buộc với HMAC). Nội dung CK dùng mã <code>DH…</code> khớp bộ lọc tiền tố DH.
+            </div>
             <div>
-              <Label>{vi.settings.apiKey}</Label>
+              <Label>Chế độ tích hợp</Label>
+              <Select
+                className="mt-1"
+                value={form.integrationMode ?? 'legacy_qr'}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    integrationMode: e.target.value as 'legacy_qr' | 'payment_gateway',
+                  })
+                }
+              >
+                <option value="legacy_qr">VietQR / chuyển khoản (webhook HMAC)</option>
+                <option value="payment_gateway">SePay Payment Gateway (checkout + IPN)</option>
+              </Select>
+            </div>
+            <div>
+              <Label>{vi.settings.apiKey} (tùy chọn — auth API Key)</Label>
               <Input className="mt-1 font-mono" type="password" value={form.apiKey ?? ''} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} />
             </div>
             <div>
-              <Label>{vi.settings.webhookSecret}</Label>
-              <Input className="mt-1 font-mono" type="password" value={form.webhookSecret ?? ''} onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })} />
+              <Label>{vi.settings.webhookSecret} (HMAC Secret Key)</Label>
+              <Input className="mt-1 font-mono" type="password" value={form.webhookSecret ?? ''} onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })} placeholder="whsec_…" />
             </div>
             <div>
               <Label>{vi.settings.bankAccount}</Label>

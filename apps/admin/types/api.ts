@@ -1371,6 +1371,7 @@ export interface PaymentGatewaySettings extends SettingsSourceView {
   bankCode?: string;
   accountName?: string;
   qrTemplate?: string;
+  integrationMode?: 'legacy_qr' | 'payment_gateway';
 }
 
 export interface PaymentRuntimeSettings extends SettingsSourceView {

@@ -30,6 +30,10 @@ export interface SepayCreatePaymentResult {
 }
 
 export function buildTransferContent(paymentReference: string): string {
+  // Prefer bare DH* codes so SePay can extract `code` for webhook filters.
+  if (/^DH[0-9A-Z]{4,30}$/i.test(paymentReference.trim())) {
+    return paymentReference.trim().toUpperCase();
+  }
   return `${SEPAY_TRANSFER_PREFIX} ${paymentReference}`;
 }
 
@@ -52,6 +56,10 @@ export function extractPaymentReference(
 }
 
 function matchPaymentReference(text: string): string | null {
+  const dhMatch = text.match(/\b(DH[0-9A-Z]{4,30})\b/i);
+  if (dhMatch) {
+    return dhMatch[1].toUpperCase();
+  }
   const cardonMatch = text.match(/CARDON\s+((?:PAY|DEP)-[A-Z0-9-]+)/i);
   if (cardonMatch) {
     return cardonMatch[1].toUpperCase();

@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from 'crypto';
 
+/** Reject HMAC requests older/newer than 5 minutes (SePay anti-replay guidance). */
+const SEPAY_HMAC_MAX_SKEW_SECONDS = 5 * 60;
+
 export function verifySepayApiKey(
   headers: Record<string, string>,
   expectedApiKey: string,
@@ -24,6 +27,7 @@ export function verifySepayHmacSignature(
   headers: Record<string, string>,
   rawBody: string,
   webhookSecret: string,
+  nowSeconds = Math.floor(Date.now() / 1000),
 ): boolean {
   const signatureHeader =
     headers['x-sepay-signature'] ?? headers['X-SePay-Signature'] ?? '';
@@ -31,6 +35,14 @@ export function verifySepayHmacSignature(
     headers['x-sepay-timestamp'] ?? headers['X-SePay-Timestamp'] ?? '';
 
   if (!signatureHeader || !timestamp || !webhookSecret) {
+    return false;
+  }
+
+  const ts = Number(timestamp);
+  if (!Number.isFinite(ts)) {
+    return false;
+  }
+  if (Math.abs(nowSeconds - ts) > SEPAY_HMAC_MAX_SKEW_SECONDS) {
     return false;
   }
 

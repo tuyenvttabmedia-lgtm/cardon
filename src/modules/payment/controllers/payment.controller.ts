@@ -56,13 +56,20 @@ export class PaymentController {
     @Param('gateway') gateway: string,
     @Body() payload: unknown,
     @Headers() headers: Record<string, string>,
-    @Req() req: Request,
+    @Req() req: Request & { rawBody?: Buffer },
   ) {
     const ip =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
       req.ip;
 
     const isDepositCode = gateway.toLowerCase() === 'megapay';
+    const enrichedHeaders = { ...headers };
+    if (req.rawBody?.length) {
+      // SePay HMAC signs the original bytes — never re-serialize parsed JSON.
+      enrichedHeaders['x-sepay-raw-body'] = Buffer.isBuffer(req.rawBody)
+        ? req.rawBody.toString('utf8')
+        : String(req.rawBody);
+    }
 
     try {
       const agentDepositWebhook = this.resolveAgentDepositWebhook();
@@ -70,7 +77,7 @@ export class PaymentController {
         const depositResult = await agentDepositWebhook.tryHandle(
           gateway,
           payload,
-          headers,
+          enrichedHeaders,
           ip,
         );
         if (depositResult.handled) {
@@ -91,7 +98,7 @@ export class PaymentController {
       const result = await this.paymentService.handleWebhook(
         gateway,
         payload,
-        headers,
+        enrichedHeaders,
         ip,
       );
       return this.formatWebhookResponse(gateway, result);
@@ -128,7 +135,8 @@ export class PaymentController {
       return depositCodeNotifySuccess();
     }
     if (gateway.toLowerCase() === 'sepay') {
-      return { success: true, ...result };
+      // SePay requires exactly success:true on 200/201 (extra fields are ok).
+      return { success: true };
     }
     return result;
   }

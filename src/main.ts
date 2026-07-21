@@ -35,6 +35,8 @@ async function bootstrap(): Promise<void> {
 
     bufferLogs: true,
 
+    rawBody: true,
+
   });
 
 

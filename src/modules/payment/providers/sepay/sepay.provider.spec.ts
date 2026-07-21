@@ -81,6 +81,18 @@ describe('SePayProvider', () => {
       );
       expect(result.rawResponse.expired_at).toBe(expiresAt.toISOString());
     });
+
+    it('uses bare DH code as transfer content for SePay payment-code filters', async () => {
+      const result = await provider.createPayment({
+        paymentReference: 'DH12345678',
+        amount: '50000.00',
+        orderId: 'order-dh',
+        gateway: PaymentGatewayCode.SEPAY,
+      });
+
+      expect(result.rawResponse.transferContent).toBe('DH12345678');
+      expect(result.paymentUrl).toContain('des=DH12345678');
+    });
   });
 
   describe('verifyWebhook — payment gateway IPN', () => {
@@ -196,7 +208,7 @@ describe('SePayProvider', () => {
     it('accepts HMAC webhook secret when raw body provided', async () => {
       const payload = buildWebhookPayload({ id: 55555 });
       const rawBody = JSON.stringify(payload);
-      const timestamp = '1719900000';
+      const timestamp = String(Math.floor(Date.now() / 1000));
       const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
         .update(`${timestamp}.${rawBody}`)
         .digest('hex');
@@ -209,6 +221,45 @@ describe('SePayProvider', () => {
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('PAY-REF-SEPAY-001');
+    });
+
+    it('rejects HMAC when timestamp skew exceeds 5 minutes', async () => {
+      const payload = buildWebhookPayload({ id: 55556 });
+      const rawBody = JSON.stringify(payload);
+      const timestamp = String(Math.floor(Date.now() / 1000) - 600);
+      const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest('hex');
+
+      const result = await provider.verifyWebhook(payload, {
+        'X-SePay-Signature': `sha256=${signature}`,
+        'X-SePay-Timestamp': timestamp,
+        'x-sepay-raw-body': rawBody,
+      });
+
+      expect(result.valid).toBe(false);
+    });
+
+    it('extracts DH payment codes from SePay code/content', async () => {
+      const payload = buildWebhookPayload({
+        id: 777,
+        code: 'DH12345678',
+        content: 'DH12345678 chuyen khoan',
+      });
+      const rawBody = JSON.stringify(payload);
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest('hex');
+
+      const result = await provider.verifyWebhook(payload, {
+        'X-SePay-Signature': `sha256=${signature}`,
+        'X-SePay-Timestamp': timestamp,
+        'x-sepay-raw-body': rawBody,
+      });
+
+      expect(result.valid).toBe(true);
+      expect(result.paymentReference).toBe('DH12345678');
     });
   });
 
