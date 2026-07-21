@@ -38,33 +38,29 @@ export function BlogListClient({
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const composingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [searchEpoch, setSearchEpoch] = useState(0);
+  const syncedQueryRef = useRef((searchParams.get('q') ?? '').trim());
 
-  useEffect(() => {
-    // Avoid resetting the controlled input while the user is typing / composing VI IME.
-    if (composingRef.current) return;
-    if (document.activeElement === searchInputRef.current) return;
-    setQuery(searchParams.get('q') ?? '');
-  }, [searchParams]);
-
+  // Keep ?q= in the address bar for sharing, without Next.js soft-navigation remount
+  // (remount was wiping client filter results mid-typing).
   useEffect(() => {
     if (composingRef.current) return;
     const trimmed = query.trim();
-    const current = searchParams.get('q') ?? '';
-    if (trimmed === current) return;
+    if (trimmed === syncedQueryRef.current) return;
 
     const timer = setTimeout(() => {
       if (composingRef.current) return;
-      const params = new URLSearchParams(searchParams.toString());
+      syncedQueryRef.current = trimmed;
+      const params = new URLSearchParams(window.location.search);
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
       params.delete('page');
       const qs = params.toString();
-      router.replace(qs ? `${listBasePath}?${qs}` : listBasePath, { scroll: false });
+      const url = qs ? `${listBasePath}?${qs}` : listBasePath;
+      window.history.replaceState(window.history.state, '', url);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, listBasePath, router, searchParams, searchEpoch]);
+  }, [query, listBasePath]);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -98,7 +94,7 @@ export function BlogListClient({
   const gridPosts = currentPage === 1 ? paginatedPosts.slice(1) : paginatedPosts;
 
   function goToPage(next: number) {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : searchParams.toString());
     if (next <= 1) params.delete('page');
     else params.set('page', String(next));
     const qs = params.toString();
@@ -134,9 +130,11 @@ export function BlogListClient({
             onCompositionEnd={(e) => {
               composingRef.current = false;
               setQuery(e.currentTarget.value);
-              setSearchEpoch((n) => n + 1);
             }}
             placeholder="Tìm bài viết..."
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="w-full rounded-xl border border-cardon-border bg-white py-2.5 pl-4 pr-10 text-sm outline-none focus:border-cardon-blue"
           />
           <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-cardon-gray">🔍</span>

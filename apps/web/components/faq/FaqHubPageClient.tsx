@@ -36,33 +36,26 @@ export function FaqHubPageClient() {
   const [loading, setLoading] = useState(true);
   const composingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [searchEpoch, setSearchEpoch] = useState(0);
+  const syncedQueryRef = useRef((searchParams.get('q') ?? '').trim());
 
-  useEffect(() => {
-    if (composingRef.current) return;
-    if (document.activeElement === searchInputRef.current) return;
-    setQuery(searchParams.get('q') ?? '');
-    setCategorySlug(searchParams.get('category') ?? '');
-    setPosition(searchParams.get('position') ?? '');
-  }, [searchParams]);
-
+  // Shareable ?q= without remounting via Next router (avoids wiping in-progress search).
   useEffect(() => {
     if (composingRef.current) return;
     const trimmed = query.trim();
-    const current = searchParams.get('q') ?? '';
-    if (trimmed === current) return;
+    if (trimmed === syncedQueryRef.current) return;
 
     const timer = setTimeout(() => {
       if (composingRef.current) return;
-      const params = new URLSearchParams(searchParams.toString());
+      syncedQueryRef.current = trimmed;
+      const params = new URLSearchParams(window.location.search);
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
       const qs = params.toString();
-      router.replace(qs ? `/tro-giup?${qs}` : '/tro-giup', { scroll: false });
+      window.history.replaceState(window.history.state, '', qs ? `/tro-giup?${qs}` : '/tro-giup');
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, router, searchParams, searchEpoch]);
+  }, [query]);
 
   useEffect(() => {
     void listFaqCategoriesClient().then((rows) => setCategories(rows ?? []));
@@ -92,7 +85,7 @@ export function FaqHubPageClient() {
     if (composingRef.current) return;
     const t = setTimeout(() => void load(), query ? 300 : 0);
     return () => clearTimeout(t);
-  }, [load, query, searchEpoch]);
+  }, [load, query]);
 
   useEffect(() => {
     setPage(1);
@@ -107,7 +100,7 @@ export function FaqHubPageClient() {
 
   const selectCategory = (slug: string) => {
     setCategorySlug(slug);
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : searchParams.toString());
     if (slug) params.set('category', slug);
     else params.delete('category');
     params.delete('page');
@@ -143,8 +136,10 @@ export function FaqHubPageClient() {
           onCompositionEnd={(e) => {
             composingRef.current = false;
             setQuery(e.currentTarget.value);
-            setSearchEpoch((n) => n + 1);
           }}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
       </div>
 

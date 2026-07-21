@@ -1,11 +1,10 @@
-/** Lowercase + strip Vietnamese diacritics for accent-insensitive search. */
+/** Lowercase + strip Vietnamese diacritics for accent/case-insensitive search. */
 export function normalizeViSearch(input: string): string {
   return input
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'd')
-    .toLowerCase()
+    .replace(/đ/gi, 'd')
+    .toLocaleLowerCase('en-US')
     .trim();
 }
 
@@ -15,8 +14,9 @@ export function stripHtmlForSearch(html: string | null | undefined): string {
 }
 
 /**
- * Accent-insensitive match: query tokens (whitespace-separated) must all appear
- * in the combined haystack. Works for both "nạp thẻ" and "nap the".
+ * Accent + case insensitive match.
+ * Query tokens (whitespace-separated) must all appear in the combined haystack.
+ * "Viettel" / "viettel" / "VIETTEL" and "nạp thẻ" / "nap the" all match.
  */
 export function matchesViSearch(
   query: string,
