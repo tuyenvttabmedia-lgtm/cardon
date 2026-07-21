@@ -42,8 +42,13 @@ export function ipMatchesEntry(clientIp: string, entryCidr: string): boolean {
   return clientIp === cidr.split('/')[0];
 }
 
-export function isIpAllowed(clientIp: string, entries: Array<{ cidr: string; enabled: boolean }>): boolean {
-  const active = entries.filter((e) => e.enabled);
+export function isIpAllowed(
+  clientIp: string,
+  entries: Array<{ cidr: string; enabled: boolean; status?: string }>,
+): boolean {
+  const active = entries.filter(
+    (e) => e.enabled && (e.status ?? 'APPROVED') === 'APPROVED',
+  );
   if (active.length === 0) return true;
   return active.some((e) => ipMatchesEntry(clientIp, e.cidr));
 }

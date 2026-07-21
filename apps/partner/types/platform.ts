@@ -484,8 +484,11 @@ export interface AgentIpWhitelistEntry {
   cidr: string;
   description: string;
   enabled: boolean;
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
   createdAt: string;
   lastUsedAt: string | null;
+  reviewedAt?: string | null;
+  reviewedBy?: string | null;
 }
 
 export interface AgentSecurityApiKeys {

@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Post,
   Query,
   Res,
   UseGuards,
@@ -141,6 +142,26 @@ export class AdminAgentCenterController {
   @Permissions('users.read')
   api(@Param('agentId', ParseUUIDPipe) agentId: string) {
     return this.service.getApi(agentId);
+  }
+
+  @Post('agents/:agentId/ip-whitelist/:entryId/approve')
+  @Permissions('agents.manage')
+  approveIpWhitelist(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @Param('entryId', ParseUUIDPipe) entryId: string,
+  ) {
+    return this.service.approveIpWhitelistEntry(agentId, entryId, admin.id, admin.email);
+  }
+
+  @Post('agents/:agentId/ip-whitelist/:entryId/reject')
+  @Permissions('agents.manage')
+  rejectIpWhitelist(
+    @CurrentUser() admin: AuthenticatedUser,
+    @Param('agentId', ParseUUIDPipe) agentId: string,
+    @Param('entryId', ParseUUIDPipe) entryId: string,
+  ) {
+    return this.service.rejectIpWhitelistEntry(agentId, entryId, admin.id, admin.email);
   }
 
   @Get('agents/:agentId/webhooks')

@@ -264,6 +264,19 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
     );
   }
 
+  async function handleReviewIp(entryId: string, action: 'approve' | 'reject') {
+    const label = action === 'approve' ? 'duyệt' : 'từ chối';
+    if (!window.confirm(`Xác nhận ${label} IP này?`)) return;
+    await runAction(async () => {
+      if (action === 'approve') {
+        await agentCenterApi.approveIpWhitelist(agentId, entryId);
+      } else {
+        await agentCenterApi.rejectIpWhitelist(agentId, entryId);
+      }
+      await loadTab('api', true);
+    });
+  }
+
   async function handleImpersonate() {
     if (!window.confirm(vi.agentCenter.impersonateConfirm)) return;
     await runAction(async () => {
@@ -644,16 +657,56 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             </Card>
             <Card className="space-y-2">
               <h3 className="font-semibold">IP whitelist</h3>
+              <p className="text-sm text-zinc-500">
+                Đại lý gửi IP → Admin duyệt mới cho phép gọi API từ IP đó. Rate-limit theo đại lý vẫn áp dụng.
+              </p>
               {whitelist.length === 0 ? (
                 <EmptyBlock />
               ) : (
-                <ul className="space-y-1 text-sm">
-                  {whitelist.map((e, i) => (
-                    <li key={i} className="font-mono text-xs">
-                      {String(e.cidr)} {e.label ? `(${String(e.label)})` : ''}{' '}
-                      {e.enabled === false ? '· tắt' : ''}
-                    </li>
-                  ))}
+                <ul className="space-y-3 text-sm">
+                  {whitelist.map((e, i) => {
+                    const status = String(e.status ?? 'APPROVED');
+                    const entryId = String(e.id ?? '');
+                    return (
+                      <li
+                        key={entryId || i}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2"
+                      >
+                        <div>
+                          <p className="font-mono text-xs">{String(e.cidr)}</p>
+                          <p className="text-xs text-zinc-500">
+                            {String(e.description || '—')} ·{' '}
+                            {status === 'PENDING'
+                              ? 'Chờ duyệt'
+                              : status === 'REJECTED'
+                                ? 'Từ chối'
+                                : e.enabled === false
+                                  ? 'Đã duyệt · tắt'
+                                  : 'Đã duyệt · bật'}
+                          </p>
+                        </div>
+                        {can('agents.manage') && status === 'PENDING' && entryId && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              disabled={actionBusy}
+                              onClick={() => void handleReviewIp(entryId, 'approve')}
+                            >
+                              Duyệt
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              disabled={actionBusy}
+                              onClick={() => void handleReviewIp(entryId, 'reject')}
+                            >
+                              Từ chối
+                            </Button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </Card>
