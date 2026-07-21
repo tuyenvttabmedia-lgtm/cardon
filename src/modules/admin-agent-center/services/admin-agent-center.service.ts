@@ -665,7 +665,7 @@ export class AdminAgentCenterService {
         securityConfig: {
           ...config,
           ipWhitelist,
-        } as Prisma.InputJsonValue,
+        } as unknown as Prisma.InputJsonValue,
       },
     });
     return updated;
