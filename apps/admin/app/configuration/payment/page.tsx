@@ -244,7 +244,31 @@ function GatewayPriorityCard({
   );
 
   function updateRow(code: 'MEGAPAY' | 'SEPAY', patch: Partial<GatewayPriorityRow>) {
-    setRows((current) => current.map((row) => (row.code === code ? { ...row, ...patch } : row)));
+    setRows((current) => {
+      if (patch.priority == null) {
+        return current.map((row) => (row.code === code ? { ...row, ...patch } : row));
+      }
+
+      const nextPriority = Math.max(1, Math.floor(Number(patch.priority)) || 1);
+      const self = current.find((row) => row.code === code);
+      if (!self) return current;
+
+      const conflict = current.find(
+        (row) => row.code !== code && row.priority === nextPriority,
+      );
+
+      // Đổi chỗ khi trùng số — tránh lỗi "Priority đã được sử dụng bởi Gateway khác"
+      // khi user muốn hoán đổi ① ↔ ② mà chưa kịp sửa gateway còn lại.
+      return current.map((row) => {
+        if (row.code === code) {
+          return { ...row, ...patch, priority: nextPriority };
+        }
+        if (conflict && row.code === conflict.code) {
+          return { ...row, priority: self.priority };
+        }
+        return row;
+      });
+    });
     setValidationError(null);
   }
 
@@ -276,7 +300,9 @@ function GatewayPriorityCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">{vi.settings.gatewayPriorityTitle}</h2>
-          <p className="text-sm text-zinc-500">{vi.settings.gatewayPriorityHint}</p>
+          <p className="text-sm text-zinc-500">
+            {vi.settings.gatewayPriorityHint} Đổi số của một gateway sẽ tự đổi chỗ với gateway đang giữ số đó.
+          </p>
         </div>
         <SettingsRuntimeBadges source={strategy.source} secretsProtected={false} />
       </div>
