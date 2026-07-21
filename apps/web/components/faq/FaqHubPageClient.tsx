@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
@@ -34,19 +34,26 @@ export function FaqHubPageClient() {
   const [position, setPosition] = useState(searchParams.get('position') ?? '');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const composingRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchEpoch, setSearchEpoch] = useState(0);
 
   useEffect(() => {
+    if (composingRef.current) return;
+    if (document.activeElement === searchInputRef.current) return;
     setQuery(searchParams.get('q') ?? '');
     setCategorySlug(searchParams.get('category') ?? '');
     setPosition(searchParams.get('position') ?? '');
   }, [searchParams]);
 
   useEffect(() => {
+    if (composingRef.current) return;
     const trimmed = query.trim();
     const current = searchParams.get('q') ?? '';
     if (trimmed === current) return;
 
     const timer = setTimeout(() => {
+      if (composingRef.current) return;
       const params = new URLSearchParams(searchParams.toString());
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
@@ -55,7 +62,7 @@ export function FaqHubPageClient() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, router, searchParams]);
+  }, [query, router, searchParams, searchEpoch]);
 
   useEffect(() => {
     void listFaqCategoriesClient().then((rows) => setCategories(rows ?? []));
@@ -82,9 +89,10 @@ export function FaqHubPageClient() {
   }, [categorySlug, page, position, query]);
 
   useEffect(() => {
+    if (composingRef.current) return;
     const t = setTimeout(() => void load(), query ? 300 : 0);
     return () => clearTimeout(t);
-  }, [load, query]);
+  }, [load, query, searchEpoch]);
 
   useEffect(() => {
     setPage(1);
@@ -123,11 +131,20 @@ export function FaqHubPageClient() {
           Giải đáp thắc mắc về mua thẻ, nạp cước, data 4G/5G và thanh toán tại CardOn.vn
         </p>
         <input
+          ref={searchInputRef}
           type="search"
           placeholder="Tìm câu hỏi..."
           className="mt-4 w-full rounded-xl border border-cardon-border px-4 py-3 text-sm outline-none focus:border-cardon-blue md:max-w-lg"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={(e) => {
+            composingRef.current = false;
+            setQuery(e.currentTarget.value);
+            setSearchEpoch((n) => n + 1);
+          }}
         />
       </div>
 

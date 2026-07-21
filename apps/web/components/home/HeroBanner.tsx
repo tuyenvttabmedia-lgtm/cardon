@@ -91,12 +91,19 @@ function HeroFallback({ variant }: { variant: HeroBannerVariant }) {
 
 function HeroImageBanner({ banner }: { banner: CmsBanner }) {
   const img = (
-    <div className={cn(SERVICE_HERO_SHELL_CLASS)}>
+    <div
+      className={cn(
+        SERVICE_HERO_SHELL_CLASS,
+        // Mobile: contain so text baked into CMS banner is not side-cropped.
+        // Desktop: cover fills the fixed hero shell.
+        'bg-gradient-to-r from-cardon-navy via-cardon-blue to-cardon-blue',
+      )}
+    >
       <Image
         src={banner.imageUrl}
         alt={banner.title}
         fill
-        className="object-cover"
+        className="object-contain object-center md:object-cover"
         priority
         unoptimized
       />

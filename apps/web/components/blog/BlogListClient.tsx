@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { BlogCard } from '@/components/blog/BlogCard';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -36,17 +36,25 @@ export function BlogListClient({
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
+  const composingRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [searchEpoch, setSearchEpoch] = useState(0);
 
   useEffect(() => {
+    // Avoid resetting the controlled input while the user is typing / composing VI IME.
+    if (composingRef.current) return;
+    if (document.activeElement === searchInputRef.current) return;
     setQuery(searchParams.get('q') ?? '');
   }, [searchParams]);
 
   useEffect(() => {
+    if (composingRef.current) return;
     const trimmed = query.trim();
     const current = searchParams.get('q') ?? '';
     if (trimmed === current) return;
 
     const timer = setTimeout(() => {
+      if (composingRef.current) return;
       const params = new URLSearchParams(searchParams.toString());
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
@@ -56,7 +64,7 @@ export function BlogListClient({
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, listBasePath, router, searchParams]);
+  }, [query, listBasePath, router, searchParams, searchEpoch]);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -77,7 +85,8 @@ export function BlogListClient({
         stripHtmlForSearch(p.content),
         p.category,
         p.categorySlug,
-        ...p.tags,
+        p.slug,
+        ...(Array.isArray(p.tags) ? p.tags : []),
       ),
     );
   }, [posts, query]);
@@ -115,9 +124,18 @@ export function BlogListClient({
         </div>
         <div className="relative w-full md:max-w-xs">
           <input
+            ref={searchInputRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onCompositionStart={() => {
+              composingRef.current = true;
+            }}
+            onCompositionEnd={(e) => {
+              composingRef.current = false;
+              setQuery(e.currentTarget.value);
+              setSearchEpoch((n) => n + 1);
+            }}
             placeholder="Tìm bài viết..."
             className="w-full rounded-xl border border-cardon-border bg-white py-2.5 pl-4 pr-10 text-sm outline-none focus:border-cardon-blue"
           />

@@ -11,7 +11,7 @@ const TRUST_ITEMS = [
   { icon: '⚡', title: 'Giao mã tức thì', desc: 'Nhận thẻ ngay sau thanh toán' },
   { icon: '🔒', title: 'Thanh toán an toàn', desc: 'QR ngân hàng & chuyển khoản bảo mật' },
   { icon: '🎧', title: 'Hỗ trợ 24/7', desc: 'Luôn sẵn sàng hỗ trợ bạn' },
-  { icon: '✓', title: 'Uy tín CardOn', desc: 'Nền tảng phân phối số #1' },
+  { icon: '✓', title: 'Uy tín CardOn', desc: 'Nền tảng phân phối số 1' },
 ];
 
 function FooterColumnLinks({ col }: { col: FooterColumn }) {
