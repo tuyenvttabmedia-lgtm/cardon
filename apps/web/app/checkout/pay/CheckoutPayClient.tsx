@@ -139,35 +139,37 @@ export default function CheckoutPayPageClient() {
 
   return (
     <PageContainer className="page-footer-gap">
-      <div className="mx-auto w-full max-w-2xl space-y-5">
-        <div className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card sm:p-6">
-          <p className="text-sm text-cardon-gray">Đơn hàng</p>
-          <p className="text-lg font-bold text-cardon-navy sm:text-xl">{orderCode}</p>
-          <p className="mt-3 text-sm text-cardon-gray">Số tiền cần chuyển</p>
-          <p className="text-2xl font-bold text-cardon-danger sm:text-3xl">
-            {Number.isFinite(amountNumber) ? formatVnd(amountNumber) : pending.amount}
-          </p>
-          <p className="mt-2 text-sm text-cardon-blue">{statusLabel}</p>
-          {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+      <div className="w-full space-y-5">
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <div className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card sm:p-6">
+            <p className="text-sm text-cardon-gray">Đơn hàng</p>
+            <p className="text-lg font-bold text-cardon-navy sm:text-xl">{orderCode}</p>
+            <p className="mt-4 text-sm text-cardon-gray">Số tiền cần chuyển</p>
+            <p className="text-3xl font-bold text-cardon-danger">
+              {Number.isFinite(amountNumber) ? formatVnd(amountNumber) : pending.amount}
+            </p>
+            <p className="mt-3 text-sm text-cardon-blue">{statusLabel}</p>
+            {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
+
+            <button
+              type="button"
+              className="mt-6 w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
+              onClick={() =>
+                router.push(
+                  `/checkout/success?orderCode=${encodeURIComponent(orderCode)}&email=${encodeURIComponent(email)}`,
+                )
+              }
+            >
+              Xem trạng thái đơn (chưa xác nhận thanh toán)
+            </button>
+            <p className="mt-3 text-xs leading-relaxed text-cardon-gray sm:text-sm">
+              Đơn chỉ xác nhận sau khi ngân hàng báo về SePay và webhook tới CardOn. Nút trên không tự
+              đánh dấu đã thanh toán — hãy giữ trang này hoặc kiểm tra lại đơn sau vài phút.
+            </p>
+          </div>
+
+          <SepayQrDisplay paymentUrl={pending.paymentUrl} bankInfo={pending.bankInfo} />
         </div>
-
-        <SepayQrDisplay paymentUrl={pending.paymentUrl} bankInfo={pending.bankInfo} />
-
-        <button
-          type="button"
-          className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
-          onClick={() =>
-            router.push(
-              `/checkout/success?orderCode=${encodeURIComponent(orderCode)}&email=${encodeURIComponent(email)}`,
-            )
-          }
-        >
-          Xem trạng thái đơn (chưa xác nhận thanh toán)
-        </button>
-        <p className="text-center text-xs text-cardon-gray sm:text-sm">
-          Đơn chỉ xác nhận sau khi ngân hàng báo về SePay và webhook tới CardOn. Nút trên không tự đánh
-          dấu đã thanh toán — hãy giữ trang này hoặc kiểm tra lại đơn sau vài phút.
-        </p>
       </div>
     </PageContainer>
   );

@@ -109,7 +109,7 @@ export default function AccountOrdersPage() {
       <h2 className="text-lg font-bold text-cardon-navy">Lịch sử giao dịch</h2>
       <p className="mt-1 text-sm text-cardon-gray">Theo dõi trạng thái và nhận thẻ an toàn</p>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           {visibleFilters.map((item) => (
             <button
@@ -132,28 +132,25 @@ export default function AccountOrdersPage() {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {STATUS_FILTERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setStatusFilter(item.id);
-                setSkip(0);
-                setExpandedOrderId(null);
-                setExpandMode(null);
-              }}
-              className={cn(
-                'rounded-full px-4 py-1.5 text-sm font-semibold',
-                statusFilter === item.id
-                  ? 'bg-cardon-navy text-white'
-                  : 'border border-cardon-border bg-white text-cardon-gray hover:bg-cardon-light',
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
+        <label className="flex w-full items-center gap-2 sm:w-auto sm:min-w-[200px]">
+          <span className="sr-only">Lọc trạng thái</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as OrderStatusFilter);
+              setSkip(0);
+              setExpandedOrderId(null);
+              setExpandMode(null);
+            }}
+            className="w-full rounded-xl border border-cardon-border bg-white px-3 py-2 text-sm font-semibold text-cardon-navy outline-none focus:border-cardon-blue"
+          >
+            {STATUS_FILTERS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {loading ? (

@@ -137,12 +137,12 @@ export function SepayQrDisplay({
   const [error, setError] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-cardon-border bg-white p-5 text-center sm:p-8">
+    <div className="h-full rounded-2xl border border-cardon-border bg-white p-5 text-center shadow-card sm:p-8">
       <p className="text-base font-semibold text-cardon-navy sm:text-lg">Quét mã QR để thanh toán</p>
       <p className="mt-1 text-sm text-cardon-gray">
         Chuyển đúng số tiền. Nội dung / tài khoản VA đã gắn với đơn hàng.
       </p>
-      <div className="relative mx-auto mt-5 aspect-square w-full max-w-[280px] sm:max-w-[320px]">
+      <div className="relative mx-auto mt-5 aspect-square w-full max-w-[300px] sm:max-w-[360px]">
         {!error ? (
           <Image
             src={paymentUrl}
