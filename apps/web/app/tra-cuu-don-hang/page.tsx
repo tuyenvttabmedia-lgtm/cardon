@@ -1,12 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { CardDeliveryPanel } from '@/components/order/CardDeliveryPanel';
-import { OrderStatusPanel } from '@/components/order/OrderStatusPanel';
-import { OrderTimeline } from '@/components/order/OrderTimeline';
+import { PageContainer } from '@/components/layout/PageContainer';
+import { OrderDeliveryContent } from '@/components/order/OrderDeliveryContent';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { orderApi } from '@/services/api-client';
+import { ApiClientError, orderApi } from '@/services/api-client';
 import type { OrderDeliveryResponse } from '@/types/api';
 
 export default function GuestOrderLookupPage() {
@@ -20,75 +20,99 @@ export default function GuestOrderLookupPage() {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setResult(null);
     try {
       const data = await orderApi.lookupDelivery(orderCode.trim(), email.trim());
       setResult(data);
     } catch (err) {
-      setResult(null);
-      setError(err instanceof Error ? err.message : 'Không tìm thấy đơn hàng');
+      if (err instanceof ApiClientError) {
+        setError(
+          err.status === 404
+            ? 'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.'
+            : err.message,
+        );
+      } else {
+        setError(err instanceof Error ? err.message : 'Không tra cứu được đơn hàng');
+      }
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Tra cứu đơn hàng</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Nhập mã đơn và email đã dùng khi mua hàng. Giới hạn 5 lần / 15 phút.
-        </p>
-      </div>
-
-      <form
-        onSubmit={handleLookup}
-        className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6"
-      >
-        <label className="block text-sm font-medium text-gray-700">
-          Mã đơn hàng
-          <Input
-            className="mt-1"
-            value={orderCode}
-            onChange={(e) => setOrderCode(e.target.value)}
-            placeholder="CO12345678"
-            required
-          />
-        </label>
-        <label className="mt-4 block text-sm font-medium text-gray-700">
-          Email
-          <Input
-            className="mt-1"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="email@example.com"
-            required
-          />
-        </label>
-        <Button className="mt-4 w-full" type="submit" disabled={loading}>
-          {loading ? 'Đang tra cứu...' : 'Tra cứu'}
-        </Button>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-      </form>
-
-      {result && (
-        <div className="space-y-6">
-          <OrderStatusPanel order={result.order} />
-          <OrderTimeline steps={result.timeline} />
-          {result.delivery.hasCards && result.delivery.cards.length > 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-              <h2 className="text-lg font-semibold">Thông tin giao thẻ</h2>
-              <div className="mt-4">
-                <CardDeliveryPanel
-                  orderId={result.order.id}
-                  cards={result.delivery.cards}
-                  guestEmail={email.trim()}
-                />
-              </div>
-            </div>
-          )}
+    <PageContainer className="page-footer-gap">
+      <div className="mx-auto max-w-2xl space-y-6">
+        <div>
+          <p className="text-sm text-cardon-gray">
+            <Link href="/" className="text-cardon-blue hover:underline">
+              Trang chủ
+            </Link>
+            {' / '}
+            Tra cứu đơn hàng
+          </p>
+          <h1 className="mt-2 text-2xl font-bold text-cardon-navy sm:text-3xl">
+            Tra cứu đơn hàng
+          </h1>
+          <p className="mt-2 text-sm text-cardon-gray">
+            Nhập mã đơn (dạng <span className="font-mono">ORD-…</span>) và email đã dùng khi mua
+            hàng. Giới hạn 5 lần / 15 phút.
+          </p>
         </div>
-      )}
-    </div>
+
+        <form
+          onSubmit={handleLookup}
+          className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:p-6"
+        >
+          <label className="block text-sm font-medium text-cardon-navy">
+            Mã đơn hàng
+            <Input
+              className="mt-1"
+              value={orderCode}
+              onChange={(e) => setOrderCode(e.target.value)}
+              placeholder="ORD-20260721-A1B2C3"
+              autoComplete="off"
+              required
+            />
+          </label>
+          <label className="mt-4 block text-sm font-medium text-cardon-navy">
+            Email
+            <Input
+              className="mt-1"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="email@example.com"
+              autoComplete="email"
+              required
+            />
+          </label>
+          <Button className="btn-checkout mt-5 w-full" type="submit" disabled={loading} size="lg">
+            {loading ? 'Đang tra cứu...' : 'Tra cứu'}
+          </Button>
+          {error && (
+            <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          )}
+          <p className="mt-4 text-sm text-cardon-gray">
+            Đã có tài khoản?{' '}
+            <Link href="/login" className="font-semibold text-cardon-blue hover:underline">
+              Đăng nhập
+            </Link>{' '}
+            để xem lịch sử đơn trong tài khoản.
+          </p>
+        </form>
+
+        {result && (
+          <div className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:p-6">
+            <OrderDeliveryContent
+              delivery={result}
+              orderId={result.order.id}
+              guestEmail={email.trim()}
+              backHref="/tra-cuu-don-hang"
+              backLabel="← Tra cứu đơn khác"
+            />
+          </div>
+        )}
+      </div>
+    </PageContainer>
   );
 }

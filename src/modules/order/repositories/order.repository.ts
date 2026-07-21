@@ -107,10 +107,12 @@ export class OrderRepository {
   findByCodeForGuest(orderCode: string, guestEmail: string) {
     return this.prisma.order.findFirst({
       where: {
-        orderCode,
-        guestEmail: { equals: guestEmail, mode: 'insensitive' },
-        isGuestOrder: true,
         ...ACTIVE_ORDER_WHERE,
+        orderCode: { equals: orderCode.trim(), mode: 'insensitive' },
+        OR: [
+          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
+          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
+        ],
       },
       include: ORDER_INCLUDE,
     });
@@ -119,10 +121,12 @@ export class OrderRepository {
   findByCodeForGuestWithCards(orderCode: string, guestEmail: string) {
     return this.prisma.order.findFirst({
       where: {
-        orderCode,
-        guestEmail: { equals: guestEmail, mode: 'insensitive' },
-        isGuestOrder: true,
         ...ACTIVE_ORDER_WHERE,
+        orderCode: { equals: orderCode.trim(), mode: 'insensitive' },
+        OR: [
+          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
+          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
+        ],
       },
       include: ORDER_INCLUDE_WITH_CARDS,
     });
@@ -147,9 +151,11 @@ export class OrderRepository {
     return this.prisma.order.findFirst({
       where: {
         id: orderId,
-        guestEmail: { equals: guestEmail, mode: 'insensitive' },
-        isGuestOrder: true,
         ...ACTIVE_ORDER_WHERE,
+        OR: [
+          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
+          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
+        ],
       },
       include: ORDER_INCLUDE_WITH_CARDS,
     });

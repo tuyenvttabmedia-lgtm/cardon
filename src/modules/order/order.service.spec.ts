@@ -86,7 +86,12 @@ describe('OrderService', () => {
     settingsStore = {
       resolvePaymentMethod: jest.fn().mockReturnValue(defaultPaymentMethod),
       getPublicPaymentMethods: jest.fn().mockReturnValue([defaultPaymentMethod]),
-    };
+      resolveOrderConfig: jest.fn().mockReturnValue({
+        guestMaxOrderAmount: 0,
+        customerMaxOrderAmount: 0,
+      }),
+      resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+    } as never;
     orderAuditService = { recordOrderCreated: jest.fn() };
 
     prisma = {

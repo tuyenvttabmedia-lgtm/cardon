@@ -56,7 +56,9 @@ export class OrderDeliveryService {
       email.trim(),
     );
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException(
+        'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
     }
     return this.buildDeliveryResponse(order);
   }
@@ -64,7 +66,9 @@ export class OrderDeliveryService {
   async revealGuestDeliveryById(orderId: string, email: string) {
     const order = await this.orderRepository.findByIdForGuestWithDelivery(orderId, email);
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException(
+        'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
     }
     return this.buildDeliveryResponse(order);
   }

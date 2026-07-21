@@ -247,7 +247,9 @@ export class OrderService {
       email.trim(),
     );
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException(
+        'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
     }
     return mapOrder(order);
   }
@@ -270,7 +272,9 @@ export class OrderService {
       email.trim(),
     );
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException(
+        'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
     }
     return this.buildMaskedCardsResponse(order);
   }
