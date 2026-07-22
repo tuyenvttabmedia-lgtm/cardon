@@ -426,6 +426,8 @@ export class UpdateCmsThemeDto {
     boCongThuongEnabled?: boolean;
     boCongThuongImageUrl?: string;
     boCongThuongLinkUrl?: string;
+    googleMapEnabled?: boolean;
+    googleMapEmbedUrl?: string;
   };
 
   @IsOptional()

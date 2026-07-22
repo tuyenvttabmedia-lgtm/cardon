@@ -38,6 +38,7 @@ COPY scripts/deploy/sync-rbac-production.mjs ./scripts/deploy/sync-rbac-producti
 COPY scripts/deploy/bootstrap-admin-only.mjs ./scripts/deploy/bootstrap-admin-only.mjs
 COPY scripts/deploy/cleanup-uat-tier1-agents.mjs ./scripts/deploy/cleanup-uat-tier1-agents.mjs
 COPY scripts/deploy/generate-article-card-images.mjs ./scripts/deploy/generate-article-card-images.mjs
+COPY scripts/deploy/patch-gioi-thieu-trust-block.mjs ./scripts/deploy/patch-gioi-thieu-trust-block.mjs
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 3000

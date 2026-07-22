@@ -98,6 +98,8 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       boCongThuongEnabled: theme.companyInfo?.boCongThuongEnabled === true,
       boCongThuongImageUrl: theme.companyInfo?.boCongThuongImageUrl ?? '',
       boCongThuongLinkUrl: theme.companyInfo?.boCongThuongLinkUrl ?? '',
+      googleMapEnabled: theme.companyInfo?.googleMapEnabled === true,
+      googleMapEmbedUrl: theme.companyInfo?.googleMapEmbedUrl ?? '',
     },
     contactChannels: normalizeContactChannels(theme.contactChannels),
   };

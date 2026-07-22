@@ -13,6 +13,7 @@ import {
   CONTACT_CHANNEL_META,
   type ContactChannel,
 } from '@/lib/contact-channels';
+import { extractGoogleMapsEmbedUrl } from '@/lib/google-map';
 
 interface ContactPageClientProps {
   title?: string;
@@ -25,13 +26,17 @@ export function ContactPageClient({
   subtitle = 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.',
   introHtml,
 }: ContactPageClientProps) {
-  const { contactChannels } = useThemeSettings();
+  const { contactChannels, companyInfo } = useThemeSettings();
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
 
   const visibleChannels = contactChannels.filter((channel) => channel.enabled && channel.value.trim());
+  const mapEmbedUrl =
+    companyInfo.googleMapEnabled === true
+      ? extractGoogleMapsEmbedUrl(companyInfo.googleMapEmbedUrl)
+      : null;
 
   return (
     <PageContainer>
@@ -117,6 +122,27 @@ export function ContactPageClient({
           )}
         </div>
       </div>
+
+      {mapEmbedUrl ? (
+        <section className="mt-8 overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-card">
+          <div className="border-b border-cardon-border px-5 py-4 md:px-6">
+            <h2 className="text-lg font-bold text-cardon-navy">Bản đồ</h2>
+            {companyInfo.address?.trim() ? (
+              <p className="mt-1 text-sm text-cardon-gray">{companyInfo.address.trim()}</p>
+            ) : null}
+          </div>
+          <div className="relative aspect-[16/10] w-full bg-zinc-100 md:aspect-[21/9]">
+            <iframe
+              title="Bản đồ trụ sở CardOn"
+              src={mapEmbedUrl}
+              className="absolute inset-0 h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+        </section>
+      ) : null}
 
       <FaqSection
         position="contact"

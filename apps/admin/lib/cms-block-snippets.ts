@@ -34,10 +34,10 @@ export type CmsBlockSnippetKey =
 export const CMS_BLOCK_SNIPPET_LABELS: Record<CmsBlockSnippetKey, { label: string; desc: string }> = {
   section: { label: 'Khối nội dung', desc: 'Tiêu đề + đoạn văn trong card' },
   'mission-grid': { label: '3 card Sứ mệnh', desc: 'Lưới 3 cột icon + tiêu đề' },
-  stats: { label: 'Banner thống kê', desc: '4 số liệu nổi bật' },
+  stats: { label: 'Cam kết vận hành', desc: '4 điểm tin cậy (không dùng số liệu marketing ảo)' },
   features: { label: '4 lý do chọn', desc: 'Lưới 2 cột feature card' },
   cta: { label: 'Nút CTA', desc: 'Hai nút hành động' },
-  'gioi-thieu-full': { label: 'Mẫu Giới thiệu đầy đủ', desc: 'Toàn bộ layout như trang cũ' },
+  'gioi-thieu-full': { label: 'Mẫu Giới thiệu đầy đủ', desc: 'Layout phù hợp công bố minh bạch' },
 };
 
 export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
@@ -54,7 +54,7 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
   <div class="cms-block-card">
     <span class="cms-block-card-icon">💡</span>
     <p class="cms-block-card-title">Tầm nhìn</p>
-    <p class="cms-block-card-desc">Trở thành nền tảng phân phối thẻ số và nạp cước hàng đầu.</p>
+    <p class="cms-block-card-desc">Xây dựng nền tảng phân phối thẻ số và nạp cước tin cậy, dễ tiếp cận.</p>
   </div>
   <div class="cms-block-card">
     <span class="cms-block-card-icon">🤝</span>
@@ -64,20 +64,20 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
 </div>`,
   stats: `<div class="cms-block-stats">
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">50K+</p>
-    <p class="cms-block-stat-label">Khách hàng</p>
+    <p class="cms-block-stat-value">Giao mã</p>
+    <p class="cms-block-stat-label">Tự động sau thanh toán</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">200K+</p>
-    <p class="cms-block-stat-label">Đơn hàng</p>
+    <p class="cms-block-stat-value">Thanh toán</p>
+    <p class="cms-block-stat-label">QR / chuyển khoản ngân hàng</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">99.9%</p>
-    <p class="cms-block-stat-label">Uptime</p>
+    <p class="cms-block-stat-value">Minh bạch</p>
+    <p class="cms-block-stat-label">Thông tin doanh nghiệp công khai</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">24/7</p>
-    <p class="cms-block-stat-label">Hỗ trợ</p>
+    <p class="cms-block-stat-value">Hỗ trợ</p>
+    <p class="cms-block-stat-label">Email · Hotline · Zalo</p>
   </div>
 </div>`,
   features: `<h2>Vì sao chọn CardOn?</h2>
@@ -86,7 +86,7 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
     <span class="cms-block-feature-icon">⚡</span>
     <div class="cms-block-feature-body">
       <p class="cms-block-feature-title">Giao dịch tức thì</p>
-      <p class="cms-block-feature-desc">Nhận mã thẻ ngay sau thanh toán, nạp cước tự động 24/7.</p>
+      <p class="cms-block-feature-desc">Nhận mã thẻ ngay sau thanh toán, nạp cước tự động.</p>
     </div>
   </div>
   <div class="cms-block-feature">
@@ -99,15 +99,15 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
   <div class="cms-block-feature">
     <span class="cms-block-feature-icon">💰</span>
     <div class="cms-block-feature-body">
-      <p class="cms-block-feature-title">Giá tốt nhất</p>
-      <p class="cms-block-feature-desc">Chiết khấu hấp dẫn, không phí ẩn, minh bạch từng giao dịch.</p>
+      <p class="cms-block-feature-title">Giá rõ ràng</p>
+      <p class="cms-block-feature-desc">Chiết khấu hiển thị trước khi thanh toán, không phí ẩn.</p>
     </div>
   </div>
   <div class="cms-block-feature">
     <span class="cms-block-feature-icon">🎧</span>
     <div class="cms-block-feature-body">
       <p class="cms-block-feature-title">Hỗ trợ tận tâm</p>
-      <p class="cms-block-feature-desc">Đội ngũ CSKH luôn sẵn sàng qua email, hotline và Zalo.</p>
+      <p class="cms-block-feature-desc">Đội ngũ CSKH sẵn sàng qua email, hotline và Zalo.</p>
     </div>
   </div>
 </div>`,
@@ -117,7 +117,7 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
 </div>`,
   'gioi-thieu-full': `<div class="cms-block-section">
   <h2>CardOn là gì?</h2>
-  <p>CardOn.vn là nền tảng thương mại điện tử chuyên cung cấp thẻ game, thẻ điện thoại và dịch vụ nạp cước trực tuyến. Chúng tôi kết nối trực tiếp với các nhà cung cấp uy tín, đảm bảo giao mã nhanh chóng và hỗ trợ khách hàng 24/7.</p>
+  <p>CardOn.vn là nền tảng thương mại điện tử chuyên cung cấp thẻ game, thẻ điện thoại và dịch vụ nạp cước trực tuyến. Chúng tôi kết nối với các nhà cung cấp uy tín, giao mã sau thanh toán và hỗ trợ khách hàng qua các kênh công khai trên website.</p>
 </div>
 <div class="cms-block-grid-3">
   <div class="cms-block-card">
@@ -128,7 +128,7 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
   <div class="cms-block-card">
     <span class="cms-block-card-icon">💡</span>
     <p class="cms-block-card-title">Tầm nhìn</p>
-    <p class="cms-block-card-desc">Trở thành nền tảng phân phối thẻ số và nạp cước hàng đầu.</p>
+    <p class="cms-block-card-desc">Xây dựng nền tảng phân phối thẻ số và nạp cước tin cậy, dễ tiếp cận.</p>
   </div>
   <div class="cms-block-card">
     <span class="cms-block-card-icon">🤝</span>
@@ -138,21 +138,25 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
 </div>
 <div class="cms-block-stats">
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">50K+</p>
-    <p class="cms-block-stat-label">Khách hàng</p>
+    <p class="cms-block-stat-value">Giao mã</p>
+    <p class="cms-block-stat-label">Tự động sau thanh toán</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">200K+</p>
-    <p class="cms-block-stat-label">Đơn hàng</p>
+    <p class="cms-block-stat-value">Thanh toán</p>
+    <p class="cms-block-stat-label">QR / chuyển khoản ngân hàng</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">99.9%</p>
-    <p class="cms-block-stat-label">Uptime</p>
+    <p class="cms-block-stat-value">Minh bạch</p>
+    <p class="cms-block-stat-label">Thông tin doanh nghiệp công khai</p>
   </div>
   <div class="cms-block-stat">
-    <p class="cms-block-stat-value">24/7</p>
-    <p class="cms-block-stat-label">Hỗ trợ</p>
+    <p class="cms-block-stat-value">Hỗ trợ</p>
+    <p class="cms-block-stat-label">Email · Hotline · Zalo</p>
   </div>
+</div>
+<div class="cms-block-section">
+  <h2>Thông tin doanh nghiệp</h2>
+  <p>Tên công ty, mã số thuế, địa chỉ trụ sở, email và thời gian làm việc được công bố tại chân trang website và trang Liên hệ — đúng thông tin đã đăng ký kinh doanh.</p>
 </div>
 <h2>Vì sao chọn CardOn?</h2>
 <div class="cms-block-grid-2">
@@ -160,7 +164,7 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
     <span class="cms-block-feature-icon">⚡</span>
     <div class="cms-block-feature-body">
       <p class="cms-block-feature-title">Giao dịch tức thì</p>
-      <p class="cms-block-feature-desc">Nhận mã thẻ ngay sau thanh toán, nạp cước tự động 24/7.</p>
+      <p class="cms-block-feature-desc">Nhận mã thẻ ngay sau thanh toán, nạp cước tự động.</p>
     </div>
   </div>
   <div class="cms-block-feature">
@@ -173,15 +177,15 @@ export const CMS_BLOCK_SNIPPETS: Record<CmsBlockSnippetKey, string> = {
   <div class="cms-block-feature">
     <span class="cms-block-feature-icon">💰</span>
     <div class="cms-block-feature-body">
-      <p class="cms-block-feature-title">Giá tốt nhất</p>
-      <p class="cms-block-feature-desc">Chiết khấu hấp dẫn, không phí ẩn, minh bạch từng giao dịch.</p>
+      <p class="cms-block-feature-title">Giá rõ ràng</p>
+      <p class="cms-block-feature-desc">Chiết khấu hiển thị trước khi thanh toán, không phí ẩn.</p>
     </div>
   </div>
   <div class="cms-block-feature">
     <span class="cms-block-feature-icon">🎧</span>
     <div class="cms-block-feature-body">
       <p class="cms-block-feature-title">Hỗ trợ tận tâm</p>
-      <p class="cms-block-feature-desc">Đội ngũ CSKH luôn sẵn sàng qua email, hotline và Zalo.</p>
+      <p class="cms-block-feature-desc">Đội ngũ CSKH sẵn sàng qua email, hotline và Zalo.</p>
     </div>
   </div>
 </div>

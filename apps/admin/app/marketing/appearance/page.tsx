@@ -9,6 +9,7 @@ import { Button, Input, Label } from '@/components/ui/Form';
 import { vi } from '@/lib/i18n/vi';
 import { normalizeThemeSettings } from '@/lib/theme-normalize';
 import { CONTACT_CHANNEL_META } from '@/lib/contact-channels';
+import { extractGoogleMapsEmbedUrl } from '@/lib/google-map';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsThemeSettings } from '@/types/api';
 
@@ -307,6 +308,54 @@ export default function AppearancePage() {
                 })
               }
             />
+          </div>
+        </Card>
+
+        <Card className="max-w-2xl space-y-4">
+          <h2 className="font-semibold">Google Map (trang /lien-he)</h2>
+          <p className="text-sm text-zinc-500">
+            Bật để hiện bản đồ dưới form liên hệ. Lấy mã nhúng từ Google Maps → Chia sẻ → Nhúng bản đồ,
+            rồi dán URL trong thuộc tính <code className="rounded bg-zinc-100 px-1">src</code> hoặc cả
+            thẻ iframe.
+          </p>
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={form.companyInfo?.googleMapEnabled === true}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, googleMapEnabled: e.target.checked },
+                })
+              }
+            />
+            Hiển thị Google Map trên trang Liên hệ
+          </label>
+          <div>
+            <Label>Embed URL / HTML iframe</Label>
+            <textarea
+              className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+              rows={4}
+              placeholder="https://www.google.com/maps/embed?pb=… hoặc &lt;iframe src=&quot;…&quot;&gt;"
+              value={form.companyInfo?.googleMapEmbedUrl ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, googleMapEmbedUrl: e.target.value },
+                })
+              }
+            />
+            {form.companyInfo?.googleMapEnabled &&
+            (form.companyInfo?.googleMapEmbedUrl ?? '').trim() &&
+            !extractGoogleMapsEmbedUrl(form.companyInfo.googleMapEmbedUrl) ? (
+              <p className="mt-1 text-xs text-amber-600">
+                URL chưa hợp lệ — cần link embed Google Maps (có /maps/embed).
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-500">
+                Chỉ chấp nhận HTTPS embed từ Google Maps. Không dùng link mở trang Maps thông thường.
+              </p>
+            )}
           </div>
         </Card>
 

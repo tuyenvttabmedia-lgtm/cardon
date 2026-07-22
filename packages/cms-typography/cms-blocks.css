@@ -109,13 +109,14 @@
 
 .cms-landing .cms-block-stat-value {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.125rem;
   font-weight: 700;
+  line-height: 1.3;
 }
 
 @media (min-width: 768px) {
   .cms-landing .cms-block-stat-value {
-    font-size: 1.875rem;
+    font-size: 1.25rem;
   }
 }
 

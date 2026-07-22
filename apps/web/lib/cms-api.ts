@@ -263,6 +263,8 @@ export interface CmsThemeSettings {
     boCongThuongEnabled?: boolean;
     boCongThuongImageUrl?: string;
     boCongThuongLinkUrl?: string;
+    googleMapEnabled?: boolean;
+    googleMapEmbedUrl?: string;
   };
   contactChannels?: Array<{
     key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';

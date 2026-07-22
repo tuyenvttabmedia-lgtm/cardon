@@ -15,6 +15,9 @@ export type CompanyInfo = {
   boCongThuongEnabled?: boolean;
   boCongThuongImageUrl?: string;
   boCongThuongLinkUrl?: string;
+  /** Google Maps embed on /lien-he (iframe src or pasted embed HTML). */
+  googleMapEnabled?: boolean;
+  googleMapEmbedUrl?: string;
 };
 
 /** Default link columns (2–4). Column 1 is always built from companyInfo. */

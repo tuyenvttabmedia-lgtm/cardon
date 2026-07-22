@@ -199,6 +199,8 @@ export class CmsRepository {
         boCongThuongEnabled?: boolean;
         boCongThuongImageUrl?: string;
         boCongThuongLinkUrl?: string;
+        googleMapEnabled?: boolean;
+        googleMapEmbedUrl?: string;
       }>(map[CMS_THEME_SETTING_KEYS.COMPANY_INFO], {}),
       contactChannels: coerceSettingJson<ContactChannel[]>(
         map[CMS_THEME_SETTING_KEYS.CONTACT_CHANNELS],

@@ -29,6 +29,8 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   boCongThuongEnabled: false,
   boCongThuongImageUrl: '',
   boCongThuongLinkUrl: '',
+  googleMapEnabled: false,
+  googleMapEmbedUrl: '',
 };
 
 export { DEFAULT_FOOTER_LINK_COLUMNS };
