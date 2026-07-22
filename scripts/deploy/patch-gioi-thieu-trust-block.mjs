@@ -61,8 +61,7 @@ async function main() {
     console.log('[patch-gioi-thieu] no fake stats found — content already clean or custom');
   }
 
-  if (changed && !content.includes('Thông tin doanh nghiệp')) {
-    // Insert company section before "Vì sao chọn" if present
+  if (!content.includes('<h2>Thông tin doanh nghiệp</h2>')) {
     if (content.includes('<h2>Vì sao chọn CardOn?</h2>')) {
       content = content.replace(
         '<h2>Vì sao chọn CardOn?</h2>',
@@ -71,6 +70,7 @@ async function main() {
     } else {
       content = `${content}\n${COMPANY_SECTION}`;
     }
+    changed = true;
     console.log('[patch-gioi-thieu] inserted company transparency section');
   }
 
