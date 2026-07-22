@@ -195,6 +195,10 @@ export class CmsRepository {
         address?: string;
         hotline?: string;
         email?: string;
+        workingHours?: string;
+        boCongThuongEnabled?: boolean;
+        boCongThuongImageUrl?: string;
+        boCongThuongLinkUrl?: string;
       }>(map[CMS_THEME_SETTING_KEYS.COMPANY_INFO], {}),
       contactChannels: coerceSettingJson<ContactChannel[]>(
         map[CMS_THEME_SETTING_KEYS.CONTACT_CHANNELS],

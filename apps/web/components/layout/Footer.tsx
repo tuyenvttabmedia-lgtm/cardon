@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { WEB_BUILD_VERSION } from '@/lib/build-version';
-import type { FooterColumn } from '@/lib/footer-config';
+import {
+  resolveBoCongThuongBadge,
+  type CompanyInfo,
+  type FooterColumn,
+} from '@/lib/footer-config';
 import { SITE_NAME } from '@/lib/utils';
 
 const TRUST_ITEMS = [
@@ -37,6 +41,49 @@ function FooterColumnLinks({ col }: { col: FooterColumn }) {
   );
 }
 
+function BoCongThuongBadge({ company }: { company: CompanyInfo }) {
+  const badge = resolveBoCongThuongBadge(company);
+  if (!badge) return null;
+
+  return (
+    <a
+      href={badge.linkUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-4 inline-block opacity-90 transition hover:opacity-100"
+      aria-label={badge.alt}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL */}
+      <img
+        src={badge.imageUrl}
+        alt={badge.alt}
+        className="h-12 w-auto max-w-[160px] object-contain"
+      />
+    </a>
+  );
+}
+
+function FooterLinkGrid({
+  columns,
+  companyInfo,
+  className,
+}: {
+  columns: FooterColumn[];
+  companyInfo: CompanyInfo;
+  className: string;
+}) {
+  return (
+    <div className={className}>
+      {columns.map((col, index) => (
+        <div key={`${className}-${col.title}-${index}`} className="min-w-0">
+          <FooterColumnLinks col={col} />
+          {index === columns.length - 1 ? <BoCongThuongBadge company={companyInfo} /> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function Footer() {
   const { footerColumns, companyInfo } = useThemeSettings();
 
@@ -62,19 +109,16 @@ export function Footer() {
 
       <div className="border-t border-white/10 bg-[#152d6b]">
         <div className="site-container py-10">
-          {/* Mobile ≤767px: CMS columns only, 2×2 grid (company + link groups) */}
-          <div className="footer-links grid grid-cols-2 items-start gap-x-8 gap-y-8 md:hidden">
-            {footerColumns.map((col) => (
-              <FooterColumnLinks key={col.title} col={col} />
-            ))}
-          </div>
-
-          {/* Desktop: 4 columns */}
-          <div className="footer-links hidden grid-cols-2 items-start gap-x-8 gap-y-8 md:grid lg:grid-cols-4">
-            {footerColumns.map((col) => (
-              <FooterColumnLinks key={`desktop-${col.title}`} col={col} />
-            ))}
-          </div>
+          <FooterLinkGrid
+            columns={footerColumns}
+            companyInfo={companyInfo}
+            className="footer-links grid grid-cols-2 items-start gap-x-8 gap-y-8 md:hidden"
+          />
+          <FooterLinkGrid
+            columns={footerColumns}
+            companyInfo={companyInfo}
+            className="footer-links hidden grid-cols-2 items-start gap-x-8 gap-y-8 md:grid lg:grid-cols-4"
+          />
         </div>
 
         <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">

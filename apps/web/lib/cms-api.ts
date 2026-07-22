@@ -259,6 +259,10 @@ export interface CmsThemeSettings {
     address?: string;
     hotline?: string;
     email?: string;
+    workingHours?: string;
+    boCongThuongEnabled?: boolean;
+    boCongThuongImageUrl?: string;
+    boCongThuongLinkUrl?: string;
   };
   contactChannels?: Array<{
     key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';

@@ -5,7 +5,7 @@ import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { MediaImageField } from '@/components/marketing/MediaImageField';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
-import { Button, Input } from '@/components/ui/Form';
+import { Button, Input, Label } from '@/components/ui/Form';
 import { vi } from '@/lib/i18n/vi';
 import { normalizeThemeSettings } from '@/lib/theme-normalize';
 import { CONTACT_CHANNEL_META } from '@/lib/contact-channels';
@@ -184,46 +184,130 @@ export default function AppearancePage() {
         <Card className="max-w-2xl space-y-4">
           <h2 className="font-semibold">Thông tin công ty (Cột 1 footer)</h2>
           <p className="text-sm text-zinc-500">
-            Dữ liệu hiển thị ở cột &quot;Thông tin công ty&quot; trên website. Không cần tạo cột riêng trong footer bên dưới.
+            Dữ liệu hiển thị ở cột công ty trên website (tên, MST, địa chỉ, email, giờ làm việc). Hotline
+            vẫn hiện ở cột Hỗ trợ.
           </p>
-          <Input
-            placeholder="Tên công ty"
-            value={form.companyInfo?.companyName ?? ''}
-            onChange={(e) =>
+          <div>
+            <Label>Tên công ty</Label>
+            <Input
+              className="mt-1"
+              placeholder="Công Ty TNHH …"
+              value={form.companyInfo?.companyName ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, companyName: e.target.value },
+                })
+              }
+            />
+          </div>
+          <div>
+            <Label>Mã số thuế</Label>
+            <Input
+              className="mt-1"
+              placeholder="MST"
+              value={form.companyInfo?.taxCode ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, companyInfo: { ...form.companyInfo, taxCode: e.target.value } })
+              }
+            />
+          </div>
+          <div>
+            <Label>Địa chỉ</Label>
+            <Input
+              className="mt-1"
+              placeholder="Địa chỉ trụ sở"
+              value={form.companyInfo?.address ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, companyInfo: { ...form.companyInfo, address: e.target.value } })
+              }
+            />
+          </div>
+          <div>
+            <Label>Email</Label>
+            <Input
+              className="mt-1"
+              type="email"
+              placeholder="support@cardon.vn"
+              value={form.companyInfo?.email ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, companyInfo: { ...form.companyInfo, email: e.target.value } })
+              }
+            />
+            <p className="mt-1 text-xs text-zinc-500">Hiện dưới địa chỉ ở cột 1 footer (nhãn Email: …).</p>
+          </div>
+          <div>
+            <Label>Thời gian làm việc</Label>
+            <Input
+              className="mt-1"
+              placeholder="T2–T6: 8:00–18:00 · T7: 8:00–12:00"
+              value={form.companyInfo?.workingHours ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, workingHours: e.target.value },
+                })
+              }
+            />
+            <p className="mt-1 text-xs text-zinc-500">Hiện dưới email ở cột 1 footer.</p>
+          </div>
+          <div>
+            <Label>Hotline</Label>
+            <Input
+              className="mt-1"
+              placeholder="0962…"
+              value={form.companyInfo?.hotline ?? ''}
+              onChange={(e) =>
+                setForm({ ...form, companyInfo: { ...form.companyInfo, hotline: e.target.value } })
+              }
+            />
+            <p className="mt-1 text-xs text-zinc-500">Hiện ở cột Hỗ trợ (nhãn Hotline: …).</p>
+          </div>
+        </Card>
+
+        <Card className="max-w-2xl space-y-4">
+          <h2 className="font-semibold">Logo Bộ Công Thương (dưới cột 4 footer)</h2>
+          <p className="text-sm text-zinc-500">
+            Bật khi đã thông báo / được duyệt. Logo hiển thị dưới cột cuối footer (thường là Hỗ trợ).
+          </p>
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={form.companyInfo?.boCongThuongEnabled === true}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, boCongThuongEnabled: e.target.checked },
+                })
+              }
+            />
+            Hiển thị logo đã thông báo Bộ Công Thương
+          </label>
+          <MediaImageField
+            label="Ảnh logo / huy hiệu"
+            folder="banners"
+            value={form.companyInfo?.boCongThuongImageUrl ?? ''}
+            onChange={(url) =>
               setForm({
                 ...form,
-                companyInfo: { ...form.companyInfo, companyName: e.target.value },
+                companyInfo: { ...form.companyInfo, boCongThuongImageUrl: url },
               })
             }
           />
-          <Input
-            placeholder="Mã số thuế"
-            value={form.companyInfo?.taxCode ?? ''}
-            onChange={(e) =>
-              setForm({ ...form, companyInfo: { ...form.companyInfo, taxCode: e.target.value } })
-            }
-          />
-          <Input
-            placeholder="Địa chỉ"
-            value={form.companyInfo?.address ?? ''}
-            onChange={(e) =>
-              setForm({ ...form, companyInfo: { ...form.companyInfo, address: e.target.value } })
-            }
-          />
-          <Input
-            placeholder="Hotline"
-            value={form.companyInfo?.hotline ?? ''}
-            onChange={(e) =>
-              setForm({ ...form, companyInfo: { ...form.companyInfo, hotline: e.target.value } })
-            }
-          />
-          <Input
-            placeholder="Email"
-            value={form.companyInfo?.email ?? ''}
-            onChange={(e) =>
-              setForm({ ...form, companyInfo: { ...form.companyInfo, email: e.target.value } })
-            }
-          />
+          <div>
+            <Label>Link khi click logo</Label>
+            <Input
+              className="mt-1"
+              placeholder="https://…"
+              value={form.companyInfo?.boCongThuongLinkUrl ?? ''}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  companyInfo: { ...form.companyInfo, boCongThuongLinkUrl: e.target.value },
+                })
+              }
+            />
+          </div>
         </Card>
 
         <Card className="max-w-2xl space-y-4">

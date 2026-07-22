@@ -5,8 +5,16 @@ export type CompanyInfo = {
   companyName?: string;
   taxCode?: string;
   address?: string;
-  hotline?: string;
+  /** Displayed in company column below address, with "Email:" label. */
   email?: string;
+  /** Displayed in company column below email. */
+  workingHours?: string;
+  /** Displayed in support column only. */
+  hotline?: string;
+  /** Bộ Công Thương notification badge under footer column 4. */
+  boCongThuongEnabled?: boolean;
+  boCongThuongImageUrl?: string;
+  boCongThuongLinkUrl?: string;
 };
 
 /** Default link columns (2–4). Column 1 is always built from companyInfo. */
@@ -49,6 +57,18 @@ export function buildCompanyFooterColumn(company: CompanyInfo): FooterColumn {
   if (company.address?.trim()) {
     links.push({ label: company.address.trim(), href: '/lien-he' });
   }
+  if (company.email?.trim()) {
+    links.push({
+      label: `Email: ${company.email.trim()}`,
+      href: `mailto:${company.email.trim()}`,
+    });
+  }
+  if (company.workingHours?.trim()) {
+    links.push({
+      label: company.workingHours.trim(),
+      href: '/lien-he',
+    });
+  }
   if (links.length === 0) {
     links.push({ label: 'CardOn.vn', href: '/' });
   }
@@ -62,9 +82,6 @@ function supportContactLinks(company: CompanyInfo): FooterLink[] {
       label: `Hotline: ${company.hotline.trim()}`,
       href: `tel:${company.hotline.replace(/\s/g, '')}`,
     });
-  }
-  if (company.email?.trim()) {
-    links.push({ label: company.email.trim(), href: `mailto:${company.email.trim()}` });
   }
   return links;
 }
@@ -105,4 +122,19 @@ export function buildFooterColumns(
 ): FooterColumn[] {
   const linkCols = mergeSupportLinks(normalizeLinkFooterColumns(savedLinkColumns), company);
   return [buildCompanyFooterColumn(company), ...linkCols];
+}
+
+export function resolveBoCongThuongBadge(company: CompanyInfo): {
+  imageUrl: string;
+  linkUrl: string;
+  alt: string;
+} | null {
+  if (!company.boCongThuongEnabled) return null;
+  const imageUrl = company.boCongThuongImageUrl?.trim();
+  if (!imageUrl) return null;
+  return {
+    imageUrl,
+    linkUrl: company.boCongThuongLinkUrl?.trim() || 'https://www.moc.gov.vn/',
+    alt: 'Đã thông báo Bộ Công Thương',
+  };
 }

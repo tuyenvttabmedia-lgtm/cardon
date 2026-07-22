@@ -94,6 +94,10 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       address: theme.companyInfo?.address ?? '',
       hotline: theme.companyInfo?.hotline ?? '',
       email: theme.companyInfo?.email ?? '',
+      workingHours: theme.companyInfo?.workingHours ?? '',
+      boCongThuongEnabled: theme.companyInfo?.boCongThuongEnabled === true,
+      boCongThuongImageUrl: theme.companyInfo?.boCongThuongImageUrl ?? '',
+      boCongThuongLinkUrl: theme.companyInfo?.boCongThuongLinkUrl ?? '',
     },
     contactChannels: normalizeContactChannels(theme.contactChannels),
   };

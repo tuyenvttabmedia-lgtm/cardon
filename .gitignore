@@ -17,3 +17,8 @@ infra/nginx/ssl/*.pem
 
 # Deploy artifacts
 cardon-deploy.tgz
+
+# UAT eSale BBNT reports (may contain transIds)
+scripts/uat/reports/*
+!scripts/uat/reports/.gitkeep
+

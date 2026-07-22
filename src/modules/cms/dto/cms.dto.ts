@@ -422,6 +422,10 @@ export class UpdateCmsThemeDto {
     address?: string;
     hotline?: string;
     email?: string;
+    workingHours?: string;
+    boCongThuongEnabled?: boolean;
+    boCongThuongImageUrl?: string;
+    boCongThuongLinkUrl?: string;
   };
 
   @IsOptional()

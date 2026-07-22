@@ -23,8 +23,12 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   companyName: 'CardOn.vn',
   taxCode: '',
   address: 'Hà Nội, Việt Nam',
-  hotline: '1900 xxxx',
   email: 'support@cardon.vn',
+  workingHours: '',
+  hotline: '1900 xxxx',
+  boCongThuongEnabled: false,
+  boCongThuongImageUrl: '',
+  boCongThuongLinkUrl: '',
 };
 
 export { DEFAULT_FOOTER_LINK_COLUMNS };
