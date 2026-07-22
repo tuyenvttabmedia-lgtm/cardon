@@ -50,14 +50,14 @@ function BoCongThuongBadge({ company }: { company: CompanyInfo }) {
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-4 inline-block opacity-90 transition hover:opacity-100"
+      className="mt-4 block w-full opacity-90 transition hover:opacity-100"
       aria-label={badge.alt}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        className="h-12 w-auto max-w-[160px] object-contain"
+        className="mt-1 h-auto w-full max-w-full object-contain object-left"
       />
     </a>
   );
