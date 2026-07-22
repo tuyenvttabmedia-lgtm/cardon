@@ -46,12 +46,14 @@ export function statusTone(status: string): 'default' | 'success' | 'warning' | 
 export function Card({
   children,
   className,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <div className={cn('rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm', className)}>
+    <div id={id} className={cn('rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm', className)}>
       {children}
     </div>
   );
