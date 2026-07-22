@@ -7,7 +7,7 @@ export type CompanyInfo = {
   address?: string;
   /** Displayed in company column below address, with "Email:" label. */
   email?: string;
-  /** Displayed in company column below email. */
+  /** Displayed in company column below email, with "Thời gian làm việc:" label. */
   workingHours?: string;
   /** Displayed in support column only. */
   hotline?: string;
@@ -65,7 +65,7 @@ export function buildCompanyFooterColumn(company: CompanyInfo): FooterColumn {
   }
   if (company.workingHours?.trim()) {
     links.push({
-      label: company.workingHours.trim(),
+      label: `Thời gian làm việc: ${company.workingHours.trim()}`,
       href: '/lien-he',
     });
   }
