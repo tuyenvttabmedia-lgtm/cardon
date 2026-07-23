@@ -191,7 +191,8 @@ export class ProviderService {
       ProviderTransactionAction.BUY_CARD,
     );
     if (recoverable) {
-      const recovered = await this.tryRecoverPersistedTransaction({
+      // Never open a new buyCard() while a recoverable attempt exists (TIMEOUT/PENDING).
+      return this.tryRecoverPersistedTransaction({
         orderId,
         orderItemId: orderItem.id,
         quantity: orderItem.quantity,
@@ -200,9 +201,6 @@ export class ProviderService {
         txn: recoverable,
         isRetry: options.isRetry,
       });
-      if (recovered) {
-        return recovered;
-      }
     }
 
     const claim = await this.orderRepository.claimFulfillmentProcessing(
@@ -322,7 +320,7 @@ export class ProviderService {
       ProviderTransactionAction.BUY_CARD,
     );
     if (recoverable) {
-      const recovered = await this.tryRecoverPersistedTransaction({
+      return this.tryRecoverPersistedTransaction({
         orderId: params.orderId,
         orderItemId: params.orderItem.id,
         quantity: params.orderItem.quantity,
@@ -331,14 +329,6 @@ export class ProviderService {
         txn: recoverable,
         isRetry: false,
       });
-
-      if (recovered) {
-        return recovered;
-      }
-
-      throw new ConflictException(
-        'Could not recover in-flight fulfillment from persisted metadata',
-      );
     }
 
     this.logger.warn(
@@ -487,45 +477,93 @@ export class ProviderService {
     adapter: ProviderInterface;
     txn: ProviderTransactionRecord;
     isRetry: boolean;
-  }): Promise<FulfillmentResult | null> {
-    const { orderId, orderItemId, quantity, providerId, adapter, txn, isRetry } =
+  }): Promise<FulfillmentResult> {
+    const { orderId, orderItemId, quantity, providerId, adapter, isRetry } =
       params;
 
-    const checkContext = this.buildCheckContext(txn);
-    if (!checkContext) {
-      return null;
-    }
-
-    this.logger.warn(
-      `Recovering provider transaction requestId=${txn.requestId} status=${txn.status}${isRetry ? ' on admin retry' : ''} — checkTransaction only`,
+    const listed = await this.transactionRepository.findRecoverableAttempts(
+      orderId,
+      providerId,
+      ProviderTransactionAction.BUY_CARD,
     );
+    const candidates = listed.length > 0 ? listed : [params.txn];
 
-    let recovered = await adapter.checkTransaction(txn.requestId, checkContext);
+    let lastChecked: {
+      txn: ProviderTransactionRecord;
+      result: ProviderResult;
+    } | null = null;
 
-    if (
-      recovered.status === ProviderTransactionStatus.TIMEOUT ||
-      recovered.status === ProviderTransactionStatus.PENDING
-    ) {
-      recovered = await this.recoverFromTimeout(adapter, txn, recovered);
+    for (const txn of candidates) {
+      const checkContext = this.buildCheckContext(txn);
+      if (!checkContext) {
+        this.logger.error(
+          `Missing checkTransaction metadata for card requestId=${txn.requestId} — cannot safely recover`,
+        );
+        continue;
+      }
+
+      this.logger.warn(
+        `Recovering provider transaction requestId=${txn.requestId} status=${txn.status}${isRetry ? ' on admin retry' : ''} — checkTransaction only`,
+      );
+
+      let recovered = await adapter.checkTransaction(txn.requestId, checkContext);
+
+      if (
+        recovered.status === ProviderTransactionStatus.TIMEOUT ||
+        recovered.status === ProviderTransactionStatus.PENDING
+      ) {
+        recovered = await this.recoverFromTimeout(adapter, txn, recovered);
+      }
+
+      if (
+        recovered.success &&
+        recovered.status === ProviderTransactionStatus.SUCCESS &&
+        recovered.cards?.length
+      ) {
+        return this.applyProviderResult({
+          orderId,
+          orderItemId,
+          quantity,
+          providerId,
+          txnId: txn.id,
+          requestId: txn.requestId,
+          result: recovered,
+        });
+      }
+
+      lastChecked = {
+        txn,
+        result: {
+          ...recovered,
+          status: ProviderTransactionStatus.TIMEOUT,
+          failureCode: recovered.failureCode ?? 'TIMEOUT',
+          success: false,
+        },
+      };
     }
 
-    if (
-      recovered.success &&
-      recovered.status === ProviderTransactionStatus.SUCCESS &&
-      recovered.cards?.length
-    ) {
+    if (lastChecked) {
       return this.applyProviderResult({
         orderId,
         orderItemId,
         quantity,
         providerId,
-        txnId: txn.id,
-        requestId: txn.requestId,
-        result: recovered,
+        txnId: lastChecked.txn.id,
+        requestId: lastChecked.txn.requestId,
+        result: lastChecked.result,
       });
     }
 
-    return null;
+    await this.orderRepository.updateFulfillmentStatus(
+      orderId,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    await this.notificationService.notifyAdminRetryRequired(orderId);
+    return {
+      orderId,
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      failureCode: 'TIMEOUT',
+    };
   }
 
   private buildCheckContext(

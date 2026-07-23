@@ -67,14 +67,22 @@ export default function OrderDetailPage() {
     }
   }
 
-  async function runAction(label: string, action: () => Promise<unknown>) {
+  async function runAction(label: string, action: () => Promise<{ fulfillmentStatus?: string } | unknown>) {
     if (actionBusy) return;
     setActionBusy(true);
     setError(null);
     setActionMessage(null);
     try {
-      await action();
-      setActionMessage(`${label} — thành công`);
+      const result = await action();
+      const status =
+        result && typeof result === 'object' && 'fulfillmentStatus' in result
+          ? String((result as { fulfillmentStatus?: string }).fulfillmentStatus ?? '')
+          : '';
+      setActionMessage(
+        status && status !== 'COMPLETED'
+          ? `${label} — xong (${status}). Đơn chưa hoàn tất — NCC có thể vẫn đang xử lý.`
+          : `${label} — thành công`,
+      );
       await load(gatewayFilter || undefined);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : `${label} — thất bại`);

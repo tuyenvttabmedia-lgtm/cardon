@@ -34,6 +34,7 @@ function buildTopupContext() {
         providerProductCode: 'viettel:50000',
         priority: 0,
         providerCost: 48000,
+        availability: 'AVAILABLE',
         provider: {
           id: 'provider-esale-1',
           code: 'ESALE',
@@ -48,8 +49,12 @@ function buildTopupContext() {
   const esale = new MockESaleProvider();
   const topupSpy = jest.spyOn(esale, 'topup');
   const checkSpy = jest.spyOn(esale, 'checkTransaction');
+  const runtimeSettings = {
+    isProviderInMaintenance: jest.fn().mockResolvedValue(false),
+  };
   const registry = ProviderRegistryService.withAdapters(
     mappingRepository,
+    runtimeSettings as never,
     esale,
     new MockIMediaProvider(),
   );
@@ -90,6 +95,7 @@ function buildTopupContext() {
     updateResult: jest.fn(),
     findMaxAttempt: jest.fn().mockResolvedValue({ _max: { attempt: 0 } }),
     findLatestRecoverable: jest.fn().mockResolvedValue(null),
+    findRecoverableAttempts: jest.fn().mockResolvedValue([]),
   };
 
   const topupTransactionRepository = {
@@ -248,6 +254,43 @@ describe('TopupService', () => {
     expect(ctx.checkSpy).toHaveBeenCalled();
     expect(result.fulfillmentStatus).toBe(FulfillmentStatus.COMPLETED);
     expect(ctx.topupSpy).not.toHaveBeenCalled();
+  });
+
+  it('admin retry on TIMEOUT only checkTransaction — never opens a new topup', async () => {
+    const ctx = buildTopupContext();
+    const waitingOrder = {
+      ...ctx.paidTopupOrder,
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+    };
+    ctx.orderRepository.findOrderForFulfillment.mockResolvedValue(waitingOrder);
+
+    const timeoutTxn = {
+      id: 'txn-timeout-1',
+      requestId: 'REQ-TIMEOUT-PRIOR',
+      status: ProviderTransactionStatus.TIMEOUT,
+      attempt: 1,
+      providerTransactionDate: '2025-06-21 10:00:00',
+      providerMetadata: { kind: 'TOPUP', requestTime: '1710000000' },
+    };
+    ctx.transactionRepository.findLatestRecoverable.mockResolvedValue(timeoutTxn);
+    ctx.transactionRepository.findRecoverableAttempts = jest
+      .fn()
+      .mockResolvedValue([timeoutTxn]);
+
+    ctx.checkSpy.mockResolvedValue({
+      success: false,
+      status: ProviderTransactionStatus.PENDING,
+      failureCode: 'TIMEOUT',
+      message: 'Processing',
+      rawResponse: { retCode: 2, retMsg: 'Processing' },
+    });
+
+    const result = await ctx.service.retryFulfillment('order-topup-1');
+
+    expect(ctx.topupSpy).not.toHaveBeenCalled();
+    expect(ctx.checkSpy).toHaveBeenCalled();
+    expect(ctx.transactionRepository.create).not.toHaveBeenCalled();
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
   });
 });
 

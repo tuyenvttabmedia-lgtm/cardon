@@ -280,6 +280,24 @@ export class ProviderTransactionRepository {
     });
   }
 
+  /** Oldest-first so recovery can discover an earlier SUCCESS before a later TIMEOUT. */
+  findRecoverableAttempts(
+    orderId: string,
+    providerId: string,
+    action?: ProviderTransactionAction,
+  ) {
+    return this.prisma.providerTransaction.findMany({
+      where: {
+        orderId,
+        providerId,
+        ...(action ? { action } : {}),
+        status: { in: [...RECOVERABLE_PROVIDER_STATUSES] },
+        deletedAt: null,
+      },
+      orderBy: { attempt: 'asc' },
+    });
+  }
+
   findByRequestId(requestId: string) {
     return this.prisma.providerTransaction.findFirst({
       where: { requestId, deletedAt: null },

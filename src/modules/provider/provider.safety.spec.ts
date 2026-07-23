@@ -103,6 +103,7 @@ function buildSafetyContext(overrides?: {
     findMaxAttempt: jest.fn().mockResolvedValue({ _max: { attempt: 0 } }),
     findLatestSuccess: jest.fn().mockResolvedValue(null),
     findLatestRecoverable: jest.fn().mockResolvedValue(null),
+    findRecoverableAttempts: jest.fn().mockResolvedValue([]),
     listByOrderId: jest.fn().mockResolvedValue([]),
   };
 

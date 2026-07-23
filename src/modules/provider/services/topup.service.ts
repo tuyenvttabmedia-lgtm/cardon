@@ -193,7 +193,8 @@ export class TopupService {
       ProviderTransactionAction.TOPUP,
     );
     if (recoverable) {
-      const recovered = await this.tryRecoverPersistedTransaction({
+      // Never open a new topup() while a recoverable attempt exists (TIMEOUT/PENDING).
+      return this.tryRecoverPersistedTransaction({
         orderId,
         orderItemId: orderItem.id,
         phoneNumber,
@@ -204,9 +205,6 @@ export class TopupService {
         txn: recoverable,
         isRetry: options.isRetry,
       });
-      if (recovered) {
-        return recovered;
-      }
     }
 
     const claim = await this.orderRepository.claimFulfillmentProcessing(
@@ -255,7 +253,7 @@ export class TopupService {
       ProviderTransactionAction.TOPUP,
     );
     if (recoverable) {
-      const recovered = await this.tryRecoverPersistedTransaction({
+      return this.tryRecoverPersistedTransaction({
         orderId: params.orderId,
         orderItemId: params.orderItem.id,
         phoneNumber: params.phoneNumber,
@@ -266,12 +264,6 @@ export class TopupService {
         txn: recoverable,
         isRetry: false,
       });
-      if (recovered) {
-        return recovered;
-      }
-      throw new ConflictException(
-        'Could not recover in-flight topup from persisted metadata',
-      );
     }
 
     this.logger.warn(
@@ -431,33 +423,76 @@ export class TopupService {
     adapter: ProviderInterface;
     txn: ProviderTransactionRecord;
     isRetry: boolean;
-  }): Promise<FulfillmentResult | null> {
-    const checkContext = this.buildCheckContext(params.txn);
-    if (!checkContext) {
-      return null;
-    }
-
-    this.logger.warn(
-      `Recovering topup transaction requestId=${params.txn.requestId} status=${params.txn.status}${params.isRetry ? ' on admin retry' : ''} — checkTransaction only`,
+  }): Promise<FulfillmentResult> {
+    const listed = await this.transactionRepository.findRecoverableAttempts(
+      params.orderId,
+      params.providerId,
+      ProviderTransactionAction.TOPUP,
     );
+    const candidates = listed.length > 0 ? listed : [params.txn];
 
-    let recovered = await params.adapter.checkTransaction(
-      params.txn.requestId,
-      checkContext,
-    );
+    let lastChecked: {
+      txn: ProviderTransactionRecord;
+      result: ProviderResult;
+    } | null = null;
 
-    if (
-      recovered.status === ProviderTransactionStatus.TIMEOUT ||
-      recovered.status === ProviderTransactionStatus.PENDING
-    ) {
-      recovered = await this.recoverFromTimeout(
-        params.adapter,
-        params.txn,
-        recovered,
+    for (const txn of candidates) {
+      const checkContext = this.buildCheckContext(txn);
+      if (!checkContext) {
+        this.logger.error(
+          `Missing checkTransaction metadata for topup requestId=${txn.requestId} — cannot safely recover`,
+        );
+        continue;
+      }
+
+      this.logger.warn(
+        `Recovering topup transaction requestId=${txn.requestId} status=${txn.status}${params.isRetry ? ' on admin retry' : ''} — checkTransaction only`,
       );
+
+      let recovered = await params.adapter.checkTransaction(
+        txn.requestId,
+        checkContext,
+      );
+
+      if (
+        recovered.status === ProviderTransactionStatus.TIMEOUT ||
+        recovered.status === ProviderTransactionStatus.PENDING
+      ) {
+        recovered = await this.recoverFromTimeout(
+          params.adapter,
+          txn,
+          recovered,
+        );
+      }
+
+      if (
+        recovered.success &&
+        recovered.status === ProviderTransactionStatus.SUCCESS
+      ) {
+        return this.applyTopupResult({
+          orderId: params.orderId,
+          orderItemId: params.orderItemId,
+          phoneNumber: params.phoneNumber,
+          amount: params.amount,
+          telco: params.telco,
+          providerId: params.providerId,
+          txnId: txn.id,
+          requestId: txn.requestId,
+          result: recovered,
+        });
+      }
+
+      lastChecked = {
+        txn,
+        result: {
+          ...recovered,
+          status: ProviderTransactionStatus.TIMEOUT,
+          failureCode: recovered.failureCode ?? 'TIMEOUT',
+        },
+      };
     }
 
-    if (recovered.success && recovered.status === ProviderTransactionStatus.SUCCESS) {
+    if (lastChecked) {
       return this.applyTopupResult({
         orderId: params.orderId,
         orderItemId: params.orderItemId,
@@ -465,13 +500,22 @@ export class TopupService {
         amount: params.amount,
         telco: params.telco,
         providerId: params.providerId,
-        txnId: params.txn.id,
-        requestId: params.txn.requestId,
-        result: recovered,
+        txnId: lastChecked.txn.id,
+        requestId: lastChecked.txn.requestId,
+        result: lastChecked.result,
       });
     }
 
-    return null;
+    await this.orderRepository.updateFulfillmentStatus(
+      params.orderId,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    await this.notificationService.notifyAdminRetryRequired(params.orderId);
+    return {
+      orderId: params.orderId,
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      failureCode: 'TIMEOUT',
+    };
   }
 
   private buildCheckContext(
