@@ -32,6 +32,7 @@ function GatewayForm({
 }) {
   const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     setForm(settings);
@@ -61,8 +62,11 @@ function GatewayForm({
 
   async function save() {
     setSaving(true);
+    setSaveError(null);
     try {
       await onSave(form);
+    } catch (err) {
+      setSaveError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     } finally {
       setSaving(false);
     }
@@ -248,12 +252,20 @@ function GatewayForm({
                   <Label>Payment method (PG)</Label>
                   <Select
                     className="mt-1"
-                    value={form.paymentMethod ?? 'BANK_TRANSFER'}
-                    onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                    value={
+                      form.paymentMethod === 'NAPAS_BANK_TRANSFER'
+                        ? 'NAPAS_BANK_TRANSFER'
+                        : 'BANK_TRANSFER'
+                    }
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        paymentMethod: e.target.value as 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER',
+                      })
+                    }
                   >
                     <option value="BANK_TRANSFER">BANK_TRANSFER</option>
-                    <option value="SEPAY_QR">SEPAY_QR</option>
-                    <option value="CARD">CARD</option>
+                    <option value="NAPAS_BANK_TRANSFER">NAPAS_BANK_TRANSFER</option>
                   </Select>
                 </div>
               </>
@@ -319,9 +331,12 @@ function GatewayForm({
           <Input className="mt-1" value={form.webhookUrl ?? ''} onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })} />
         </div>
       </div>
-      <Button onClick={() => void save()} disabled={saving}>
-        {saving ? vi.app.loading : vi.app.save}
-      </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <Button onClick={() => void save()} disabled={saving}>
+          {saving ? vi.app.loading : vi.app.save}
+        </Button>
+        {saveError ? <p className="text-sm text-red-600">{saveError}</p> : null}
+      </div>
     </Card>
   );
 }
