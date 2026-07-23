@@ -37,6 +37,28 @@ function GatewayForm({
     setForm(settings);
   }, [settings]);
 
+  const sepayRuntime = useMemo(() => {
+    if (fields !== 'sepay') return null;
+    const mode = form.integrationMode ?? 'legacy_qr';
+    const env = form.environment ?? 'production';
+    if (mode === 'legacy_qr') {
+      return {
+        host: 'qr.sepay.vn',
+        hint:
+          env === 'sandbox'
+            ? 'Đang bật Sandbox nhưng chế độ vẫn là VietQR/chuyển khoản — QR luôn gọi qr.sepay.vn (không có sandbox QR). Muốn test sandbox: chọn SePay Payment Gateway và dùng merchant/IPN sandbox.'
+            : 'Chế độ VietQR/chuyển khoản — QR tạo tại qr.sepay.vn, tiền về STK đã cấu hình.',
+        warn: env === 'sandbox',
+      };
+    }
+    const host = env === 'sandbox' ? 'pay-sandbox.sepay.vn' : 'pay.sepay.vn';
+    return {
+      host,
+      hint: `Payment Gateway ${env} — checkout qua ${host}. Cần merchantId + secret + IPN secret đúng môi trường.`,
+      warn: false,
+    };
+  }, [fields, form.environment, form.integrationMode]);
+
   async function save() {
     setSaving(true);
     try {
@@ -80,6 +102,12 @@ function GatewayForm({
             <option value="sandbox">{vi.app.sandbox}</option>
             <option value="production">{vi.app.production}</option>
           </Select>
+          {fields === 'sepay' ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              Chỉ áp dụng khi chế độ = <strong>SePay Payment Gateway</strong>. VietQR không có endpoint
+              sandbox.
+            </p>
+          ) : null}
         </div>
         {fields === 'megapay' && (
           <>
@@ -150,10 +178,24 @@ function GatewayForm({
         )}
         {fields === 'sepay' && (
           <>
+            {sepayRuntime && (
+              <div
+                className={`md:col-span-2 rounded-lg border p-3 text-sm ${
+                  sepayRuntime.warn
+                    ? 'border-amber-300 bg-amber-50 text-amber-900'
+                    : 'border-sky-200 bg-sky-50 text-sky-900'
+                }`}
+              >
+                <p className="font-medium">Runtime: {sepayRuntime.host}</p>
+                <p className="mt-1">{sepayRuntime.hint}</p>
+              </div>
+            )}
             <div className="md:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-sm text-zinc-600">
-              Webhook bank-transfer (my.sepay.vn): dùng <strong>HMAC-SHA256</strong> → điền Secret Key vào
-              ô Webhook Secret bên dưới. Ô API Key chỉ cần khi webhook SePay chọn xác thực API Key (không
-              bắt buộc với HMAC). Nội dung CK dùng mã <code>DH…</code> khớp bộ lọc tiền tố DH.
+              <strong>VietQR / CK:</strong> webhook HMAC (my.sepay.vn) → ô Webhook Secret. API Key chỉ khi
+              SePay dùng auth API Key. Nội dung CK tiền tố <code>DH…</code>.
+              <br />
+              <strong>Payment Gateway:</strong> checkout hosted + IPN — dùng merchant sandbox/production
+              riêng; môi trường Sandbox → <code>pay-sandbox.sepay.vn</code>.
             </div>
             <div>
               <Label>Chế độ tích hợp</Label>
@@ -171,30 +213,105 @@ function GatewayForm({
                 <option value="payment_gateway">SePay Payment Gateway (checkout + IPN)</option>
               </Select>
             </div>
-            <div>
-              <Label>{vi.settings.apiKey} (tùy chọn — auth API Key)</Label>
-              <Input className="mt-1 font-mono" type="password" value={form.apiKey ?? ''} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} />
-            </div>
-            <div>
-              <Label>{vi.settings.webhookSecret} (HMAC Secret Key)</Label>
-              <Input className="mt-1 font-mono" type="password" value={form.webhookSecret ?? ''} onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })} placeholder="whsec_…" />
-            </div>
-            <div>
-              <Label>{vi.settings.bankAccount}</Label>
-              <Input className="mt-1" value={form.bankAccount ?? ''} onChange={(e) => setForm({ ...form, bankAccount: e.target.value })} />
-            </div>
-            <div>
-              <Label>{vi.settings.bankCode}</Label>
-              <Input className="mt-1" value={form.bankCode ?? ''} onChange={(e) => setForm({ ...form, bankCode: e.target.value })} />
-            </div>
-            <div>
-              <Label>{vi.settings.accountName}</Label>
-              <Input className="mt-1" value={form.accountName ?? ''} onChange={(e) => setForm({ ...form, accountName: e.target.value })} />
-            </div>
-            <div>
-              <Label>{vi.settings.qrTemplate}</Label>
-              <Input className="mt-1" value={form.qrTemplate ?? ''} onChange={(e) => setForm({ ...form, qrTemplate: e.target.value })} />
-            </div>
+            {(form.integrationMode ?? 'legacy_qr') === 'payment_gateway' ? (
+              <>
+                <div>
+                  <Label>Merchant ID (PG)</Label>
+                  <Input
+                    className="mt-1"
+                    value={form.merchantId ?? ''}
+                    onChange={(e) => setForm({ ...form, merchantId: e.target.value })}
+                    placeholder="SP-TEST-…"
+                  />
+                </div>
+                <div>
+                  <Label>Merchant Secret Key (PG)</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    type="password"
+                    value={form.secretKey ?? ''}
+                    onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
+                    placeholder="********"
+                  />
+                </div>
+                <div>
+                  <Label>IPN Secret Key</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    type="password"
+                    value={form.webhookSecret ?? ''}
+                    onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
+                    placeholder="IPN secret sandbox/production"
+                  />
+                </div>
+                <div>
+                  <Label>Payment method (PG)</Label>
+                  <Select
+                    className="mt-1"
+                    value={form.paymentMethod ?? 'BANK_TRANSFER'}
+                    onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                  >
+                    <option value="BANK_TRANSFER">BANK_TRANSFER</option>
+                    <option value="SEPAY_QR">SEPAY_QR</option>
+                    <option value="CARD">CARD</option>
+                  </Select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label>{vi.settings.apiKey} (tùy chọn — auth API Key)</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    type="password"
+                    value={form.apiKey ?? ''}
+                    onChange={(e) => setForm({ ...form, apiKey: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>{vi.settings.webhookSecret} (HMAC Secret Key)</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    type="password"
+                    value={form.webhookSecret ?? ''}
+                    onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
+                    placeholder="whsec_…"
+                  />
+                </div>
+                <div>
+                  <Label>{vi.settings.bankAccount}</Label>
+                  <Input
+                    className="mt-1"
+                    value={form.bankAccount ?? ''}
+                    onChange={(e) => setForm({ ...form, bankAccount: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>{vi.settings.bankCode}</Label>
+                  <Input
+                    className="mt-1"
+                    value={form.bankCode ?? ''}
+                    onChange={(e) => setForm({ ...form, bankCode: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>{vi.settings.accountName}</Label>
+                  <Input
+                    className="mt-1"
+                    value={form.accountName ?? ''}
+                    onChange={(e) => setForm({ ...form, accountName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>{vi.settings.qrTemplate}</Label>
+                  <Input
+                    className="mt-1"
+                    value={form.qrTemplate ?? ''}
+                    onChange={(e) => setForm({ ...form, qrTemplate: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
         <div className="md:col-span-2">

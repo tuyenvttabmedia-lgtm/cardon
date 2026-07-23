@@ -484,6 +484,37 @@ export class SettingsStoreService implements OnModuleInit {
       source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_SEPAY)
         ? 'database'
         : 'environment',
+      ...this.buildSepayRuntimeHint(stored, config),
+    };
+  }
+
+  private buildSepayRuntimeHint(
+    stored: StoredPaymentGateway | null | undefined,
+    config: SepayConfig | null,
+  ): { runtimeHint: string; effectiveCheckoutHost: string } {
+    const mode =
+      stored?.integrationMode ??
+      config?.mode ??
+      (stored?.merchantId ? 'payment_gateway' : 'legacy_qr');
+    const env =
+      stored?.environment === 'sandbox' || config?.environment === 'sandbox'
+        ? 'sandbox'
+        : 'production';
+
+    if (mode === 'legacy_qr') {
+      return {
+        effectiveCheckoutHost: 'qr.sepay.vn',
+        runtimeHint:
+          env === 'sandbox'
+            ? 'Đang bật Sandbox nhưng chế độ vẫn là VietQR/chuyển khoản — QR luôn gọi qr.sepay.vn (không có sandbox QR). Muốn test sandbox: chọn SePay Payment Gateway và dùng merchant/IPN sandbox.'
+            : 'Chế độ VietQR/chuyển khoản — QR tạo tại qr.sepay.vn, tiền về STK đã cấu hình.',
+      };
+    }
+
+    const host = env === 'sandbox' ? 'pay-sandbox.sepay.vn' : 'pay.sepay.vn';
+    return {
+      effectiveCheckoutHost: host,
+      runtimeHint: `Payment Gateway ${env} — checkout qua ${host}. Cần merchantId + secret + IPN secret đúng môi trường.`,
     };
   }
 
