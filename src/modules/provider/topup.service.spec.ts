@@ -109,6 +109,12 @@ function buildTopupContext() {
     countTopupTimeoutLogs: jest.fn().mockResolvedValue(99),
   };
 
+  const topupQueue = {
+    enqueueDelayedCheck: jest.fn().mockResolvedValue('job-1'),
+    enqueueRetry: jest.fn(),
+    enqueueFulfillment: jest.fn(),
+  };
+
   const providerAudit = {
     recordAttempt: jest.fn(),
     recordSuccess: jest.fn(),
@@ -134,7 +140,7 @@ function buildTopupContext() {
     topupTransactionRepository as never,
     providerAudit as never,
     notificationService as never,
-    { enqueueDelayedCheck: jest.fn(), enqueueRetry: jest.fn(), enqueueFulfillment: jest.fn() } as never,
+    topupQueue as never,
   );
 
   return {
@@ -143,6 +149,8 @@ function buildTopupContext() {
     orderRepository,
     transactionRepository,
     topupTransactionRepository,
+    providerRepository,
+    topupQueue,
     topupSpy,
     checkSpy,
     notificationService,
@@ -176,22 +184,16 @@ describe('TopupService', () => {
     );
   });
 
-  it('recovers from TIMEOUT via checkTransaction without blind retry', async () => {
+  it('schedules checkTransaction ≥5m after Processing — does not check immediately', async () => {
     const ctx = buildTopupContext();
     MockESaleProvider.topupBehavior = 'TIMEOUT';
-    MockESaleProvider.timeoutRecovery.set('mock-request', {
-      success: true,
-      status: ProviderTransactionStatus.SUCCESS,
-      providerTransactionId: 'ESALE-RECOVERED',
-      providerReference: 'mock-request',
-      rawResponse: { recovered: true },
-    });
 
     ctx.transactionRepository.create.mockImplementation(async (data) => ({
       id: 'txn-topup-timeout',
       requestId: 'REQ-TIMEOUT-1',
       providerTransactionDate: '2025-06-21 10:00:00',
       providerMetadata: { kind: 'TOPUP', requestTime: '1710000000' },
+      createdAt: new Date(),
       ...data,
     }));
 
@@ -199,20 +201,57 @@ describe('TopupService', () => {
       success: false,
       status: ProviderTransactionStatus.TIMEOUT,
       failureCode: 'TIMEOUT',
-      message: 'timeout',
-      rawResponse: { requestId: params.requestId },
+      message: 'Processing',
+      rawResponse: { retCode: 2, retMsg: 'Processing', requestId: params.requestId },
     }));
+
+    ctx.providerRepository.countTopupTimeoutLogs.mockResolvedValue(1);
+
+    const result = await ctx.service.fulfillOrder('order-topup-1');
+
+    expect(ctx.checkSpy).not.toHaveBeenCalled();
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
+    expect(result.scheduledRetry).toBe(true);
+    expect(ctx.topupQueue.enqueueDelayedCheck).toHaveBeenCalledWith(
+      'order-topup-1',
+      1,
+      5 * 60_000,
+    );
+  });
+
+  it('recovers SUCCESS via checkTransaction after min delay window', async () => {
+    const ctx = buildTopupContext();
+    const waitingOrder = {
+      ...ctx.paidTopupOrder,
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+    };
+    ctx.orderRepository.findOrderForFulfillment.mockResolvedValue(waitingOrder);
+
+    const agedTxn = {
+      id: 'txn-timeout-1',
+      requestId: 'REQ-TIMEOUT-PRIOR',
+      status: ProviderTransactionStatus.TIMEOUT,
+      attempt: 1,
+      providerTransactionDate: '2025-06-21 10:00:00',
+      providerMetadata: { kind: 'TOPUP', requestTime: '1710000000' },
+      createdAt: new Date(Date.now() - 6 * 60_000),
+    };
+    ctx.transactionRepository.findLatestRecoverable.mockResolvedValue(agedTxn);
+    ctx.transactionRepository.findRecoverableAttempts = jest
+      .fn()
+      .mockResolvedValue([agedTxn]);
 
     ctx.checkSpy.mockResolvedValue({
       success: true,
       status: ProviderTransactionStatus.SUCCESS,
       providerTransactionId: 'ESALE-RECOVERED',
-      providerReference: 'REQ-TIMEOUT-1',
-      rawResponse: { recovered: true },
+      providerReference: 'REQ-TIMEOUT-PRIOR',
+      rawResponse: { retCode: 1, recovered: true },
     });
 
-    const result = await ctx.service.fulfillOrder('order-topup-1');
+    const result = await ctx.service.retryFulfillment('order-topup-1');
 
+    expect(ctx.topupSpy).not.toHaveBeenCalled();
     expect(ctx.checkSpy).toHaveBeenCalled();
     expect(result.fulfillmentStatus).toBe(FulfillmentStatus.COMPLETED);
   });
@@ -244,6 +283,7 @@ describe('TopupService', () => {
       status: ProviderTransactionStatus.PROCESSING,
       providerTransactionDate: '2025-06-21 10:00:00',
       providerMetadata: { kind: 'TOPUP', requestTime: '1710000000' },
+      createdAt: new Date(Date.now() - 6 * 60_000),
     });
 
     ctx.checkSpy.mockResolvedValue({
@@ -276,6 +316,7 @@ describe('TopupService', () => {
       attempt: 1,
       providerTransactionDate: '2025-06-21 10:00:00',
       providerMetadata: { kind: 'TOPUP', requestTime: '1710000000' },
+      createdAt: new Date(Date.now() - 6 * 60_000),
     };
     ctx.transactionRepository.findLatestRecoverable.mockResolvedValue(timeoutTxn);
     ctx.transactionRepository.findRecoverableAttempts = jest

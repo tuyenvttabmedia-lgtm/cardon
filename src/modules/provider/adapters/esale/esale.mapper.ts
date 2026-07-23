@@ -9,6 +9,7 @@ const ESALE_FAIL_CODES = new Set([
   -3002, -3004, -4000,
 ]);
 
+/** Topup Fail codes — eSale V3 table (sandbox = production). Any other retCode = Processing. */
 const ESALE_TOPUP_FAIL_CODES = new Set([
   -1, -1000, -1001, -1002, -1003, -1004, -1005, -2000, -2001, -3000, -3002,
   -3003, -3005, -4000,

@@ -56,19 +56,41 @@ sig = SHA256(agencyCode + "|" + transId + "|" + transDate + "|" + time + "|" + S
 
 ## Mã lỗi (retCode)
 
-| retCode | Mô tả | CardOn mapping |
-|---------|--------|----------------|
-| `1` | Successful | SUCCESS |
-| `-1` | Fail | FAILED |
-| `-1000` ~ `-1005` | Request/auth/signature | Reject |
-| `-2000` | transId existed | Duplicate |
-| `-2001` | transId not existed | Not found |
-| `-3000` | Balance not enough | **LOW_BALANCE** |
-| `-3002` | Account invalid | FAILED |
-| `-3003` | Phone invalid | FAILED |
-| `-3005` | Amount invalid | FAILED |
-| `-4000` | Maintenance | UNKNOWN |
-| Khác | Processing | **PENDING** → checkTransaction |
+Sandbox và production **cùng bảng mã**. Nguồn eSale Integration V3 Topup:
+
+| retCode | Mô tả | Result | CardOn mapping |
+|---------|--------|--------|----------------|
+| `1` | Successful | Successful | **SUCCESS** |
+| `-1` | Fail | Fail | **FAILED** |
+| `-1000` | Request is invalid | Fail | Reject / UNKNOWN |
+| `-1001` | Client is invalid | Fail | Auth error |
+| `-1002` | Request params is invalid | Fail | INVALID params |
+| `-1003` | Agency code is invalid | Fail | Auth error |
+| `-1004` | Authentication fail | Fail | Auth error |
+| `-1005` | Verify signature fail | Fail | Signature reject |
+| `-2000` | Transaction id is existed | Fail | Duplicate transId |
+| `-2001` | Transaction id is not existed | Fail | Not found (check) |
+| `-3000` | Agency's balance is not enough | Fail | **LOW_BALANCE** |
+| `-3002` | Account is invalid | Fail | FAILED |
+| `-3003` | Phone number is invalid | Fail | FAILED |
+| `-3005` | Amount of transaction is invalid | Fail | FAILED |
+| `-4000` | Service under maintenance | Fail | MAINTENANCE / UNKNOWN |
+| **Other** | Processing (mã không xác định) | **Processing** | **PENDING** → chỉ `checktransaction` |
+
+### Rule đối soát / hoàn tiền (eSale, 2026-07)
+
+| Tình huống | Ví NCC (eSale) | Khách CardOn |
+|------------|----------------|--------------|
+| `retCode=1` SUCCESS | Đã trừ | Giao hàng / hoàn tất đơn |
+| `retCode=-1` (và fail xác định khác) | Đã trừ; eSale **tự hoàn** (một số case hoàn T+1 sau đối soát, chậm nhất ngày làm việc hôm sau) | **Không** auto-refund; admin xử lý theo đối soát |
+| **Other / Processing** (mã không xác định) | Có thể đã trừ; giữ **pending** | **Giữ PENDING / PROCESSING**, **không hoàn tiền khách** đến khi eSale chốt Success/Fail |
+| Timeout HTTP / chưa rõ | — | Không gọi lại `/topup` — chỉ `checktransaction` |
+
+### `checktransaction` timing (bắt buộc)
+
+Gọi API check trạng thái **ít nhất 5 phút** sau khi gọi `/topup` (tránh check đến trước khi GD topup kịp ghi nhận phía eSale).
+
+CardOn: `TOPUP_CHECK_MIN_DELAY_MS = 5 phút`; vòng check tự động 5m → 10m → 15m → 30m.
 
 ### providerCode (topup `data` — khác Buy Card)
 
@@ -82,8 +104,8 @@ sig = SHA256(agencyCode + "|" + transId + "|" + transDate + "|" + time + "|" + S
 | `5` | Số trả sau |
 | `6` | Giao dịch thất bại |
 
-**SUCCESS thực tế sandbox:** `retCode=1` + `data.providerCode=1` + `eSaleTransId` + `totalAmount`.  
-**Processing:** `retCode=2` + `providerCode=0` (có thể đã trừ `totalAmount`) → chỉ `checktransaction`, không gọi lại `/topup`.
+**SUCCESS:** `retCode=1` + `data.providerCode=1` + `eSaleTransId` + `totalAmount`.  
+**Processing:** mọi `retCode` không nằm bảng Fail ở trên (thường `2`) + `providerCode=0` → PENDING, không gọi lại `/topup`.
 
 **Response SUCCESS `data` fields (topup):** `transId`, `eSaleTransId`, `discount`, `totalAmount`, `monthYear`, `topupType` (`TT`/`TS`), `provider`, `providerCode`, `providerMessage` — không có `cardsList` như Buy Card.
 
@@ -144,7 +166,7 @@ sig = SHA256(agencyCode + "|" + transId + "|" + transDate + "|" + time + "|" + S
 | `time` | Yes |
 | `sig` | Yes |
 
-Timeout recovery: **không gọi lại `/topup`** — chỉ `/checktransaction`.
+Timeout recovery: **không gọi lại `/topup`** — chỉ `/checktransaction`, và **không sớm hơn 5 phút** sau lần topup.
 
 ---
 

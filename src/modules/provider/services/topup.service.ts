@@ -42,7 +42,12 @@ import { ProviderAuditService } from './provider-audit.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { FulfillmentResult } from './provider.service';
 import { TopupQueueProducer } from './topup-queue.producer';
-import { PROVIDER_RETRY_DELAYS_MS } from '../entities/provider-retry.backoff';
+import {
+  TOPUP_CHECK_MIN_DELAY_MS,
+  TOPUP_CHECK_RETRY_DELAYS_MS,
+  msUntilTopupCheckAllowed,
+  topupCheckBackoffDelay,
+} from '../entities/provider-retry.backoff';
 import { isProviderPendingRetry } from '../entities/provider-failover.rules';
 import {
   validateDataProviderExecution,
@@ -397,11 +402,17 @@ export class TopupService {
       providerRequestTime,
     });
 
+    // eSale: do NOT checkTransaction immediately after Processing/timeout —
+    // wait ≥ 5 minutes (scheduled in applyTopupResult).
     if (
       result.status === ProviderTransactionStatus.TIMEOUT ||
       result.status === ProviderTransactionStatus.PENDING
     ) {
-      result = await this.recoverFromTimeout(selection.adapter, txn, result);
+      result = {
+        ...result,
+        status: ProviderTransactionStatus.TIMEOUT,
+        failureCode: result.failureCode ?? 'TIMEOUT',
+      };
     }
 
     return this.applyTopupResult({
@@ -449,25 +460,40 @@ export class TopupService {
         continue;
       }
 
+      const waitMs = msUntilTopupCheckAllowed(txn.createdAt);
+      if (waitMs > 0) {
+        this.logger.warn(
+          `Deferring topup checkTransaction requestId=${txn.requestId} — eSale requires ≥${TOPUP_CHECK_MIN_DELAY_MS}ms after topup (waitMs=${waitMs})`,
+        );
+        await this.orderRepository.updateFulfillmentStatus(
+          params.orderId,
+          FulfillmentStatus.PROCESSING,
+        );
+        const timeoutLogs = await this.providerRepository.countTopupTimeoutLogs(
+          params.orderId,
+        );
+        const round = Math.max(1, timeoutLogs);
+        await this.topupQueue.enqueueDelayedCheck(
+          params.orderId,
+          round,
+          waitMs,
+        );
+        return {
+          orderId: params.orderId,
+          fulfillmentStatus: FulfillmentStatus.PROCESSING,
+          failureCode: 'TIMEOUT',
+          scheduledRetry: true,
+        };
+      }
+
       this.logger.warn(
         `Recovering topup transaction requestId=${txn.requestId} status=${txn.status}${params.isRetry ? ' on admin retry' : ''} — checkTransaction only`,
       );
 
-      let recovered = await params.adapter.checkTransaction(
+      const recovered = await params.adapter.checkTransaction(
         txn.requestId,
         checkContext,
       );
-
-      if (
-        recovered.status === ProviderTransactionStatus.TIMEOUT ||
-        recovered.status === ProviderTransactionStatus.PENDING
-      ) {
-        recovered = await this.recoverFromTimeout(
-          params.adapter,
-          txn,
-          recovered,
-        );
-      }
 
       if (
         recovered.success &&
@@ -486,14 +512,22 @@ export class TopupService {
         });
       }
 
-      lastChecked = {
-        txn,
-        result: {
-          ...recovered,
-          status: ProviderTransactionStatus.TIMEOUT,
-          failureCode: recovered.failureCode ?? 'TIMEOUT',
-        },
-      };
+      // Keep definitive Fail as Fail; only normalize still-pending to TIMEOUT for retry scheduling
+      if (
+        recovered.status === ProviderTransactionStatus.FAILED ||
+        !isProviderPendingRetry(recovered.failureCode)
+      ) {
+        lastChecked = { txn, result: recovered };
+      } else {
+        lastChecked = {
+          txn,
+          result: {
+            ...recovered,
+            status: ProviderTransactionStatus.TIMEOUT,
+            failureCode: recovered.failureCode ?? 'TIMEOUT',
+          },
+        };
+      }
     }
 
     if (lastChecked) {
@@ -560,28 +594,6 @@ export class TopupService {
     }
 
     throw new ConflictException(`Order ${orderId} cannot be claimed for topup fulfillment`);
-  }
-
-  private async recoverFromTimeout(
-    adapter: ProviderInterface,
-    txn: ProviderTransactionRecord,
-    timeoutResult: ProviderResult,
-  ): Promise<ProviderResult> {
-    const checkContext = this.buildCheckContext(txn);
-    this.logger.warn(
-      `Topup timeout for request_id=${txn.requestId} — calling checkTransaction`,
-    );
-
-    const recovered = await adapter.checkTransaction(txn.requestId, checkContext);
-    if (recovered.success && recovered.status === ProviderTransactionStatus.SUCCESS) {
-      return recovered;
-    }
-
-    return {
-      ...timeoutResult,
-      status: ProviderTransactionStatus.TIMEOUT,
-      failureCode: timeoutResult.failureCode ?? 'TIMEOUT',
-    };
   }
 
   private async applyTopupResult(params: {
@@ -677,11 +689,11 @@ export class TopupService {
       };
     }
 
-    // Processing / TIMEOUT: auto checkTransaction with backoff before admin alert
+    // Processing / TIMEOUT: auto checkTransaction with backoff (≥5m) before admin alert
     if (isProviderPendingRetry(result.failureCode)) {
       const timeoutLogs = await this.providerRepository.countTopupTimeoutLogs(orderId);
-      if (timeoutLogs <= PROVIDER_RETRY_DELAYS_MS.length) {
-        const delay = PROVIDER_RETRY_DELAYS_MS[timeoutLogs - 1] ?? PROVIDER_RETRY_DELAYS_MS[0];
+      if (timeoutLogs <= TOPUP_CHECK_RETRY_DELAYS_MS.length) {
+        const delay = topupCheckBackoffDelay(timeoutLogs);
         await this.topupTransactionRepository.upsertFailed(
           {
             orderId,
@@ -700,7 +712,7 @@ export class TopupService {
         );
         await this.topupQueue.enqueueDelayedCheck(orderId, timeoutLogs, delay);
         this.logger.warn(
-          `Scheduled topup checkTransaction order=${orderId} round=${timeoutLogs} delayMs=${delay}`,
+          `Scheduled topup checkTransaction order=${orderId} round=${timeoutLogs} delayMs=${delay} (min=${TOPUP_CHECK_MIN_DELAY_MS})`,
         );
         return {
           orderId,

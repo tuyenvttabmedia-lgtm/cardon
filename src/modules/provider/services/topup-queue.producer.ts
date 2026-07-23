@@ -52,7 +52,7 @@ export class TopupQueueProducer {
       TOPUP_QUEUE_JOB.RETRY,
       { orderId, triggeredBy: 'manual', attempt },
       {
-        jobId: `topup-check-${orderId}-${attempt}`,
+        jobId: `topup-check-${orderId}-${attempt}-${Date.now()}`,
         delay: delayMs,
       },
     );
