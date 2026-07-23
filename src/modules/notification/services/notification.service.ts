@@ -312,13 +312,116 @@ export class NotificationService {
     }
   }
 
-  async notifyAdminRetryRequired(orderId: string) {
+  async notifyAdminRetryRequired(
+    orderId: string,
+    context?: {
+      failureCode?: string;
+      message?: string;
+      requestId?: string;
+      providerTransactionId?: string;
+      rawResponse?: Record<string, unknown>;
+      phoneNumber?: string;
+      telco?: string;
+      amount?: number;
+    },
+  ) {
     const order = await this.repository.findOrderForEmail(orderId);
     const time = new Date().toISOString();
     const orderCode = order?.orderCode ?? orderId;
-    const title = `Manual review order: ${orderCode}`;
-    const body = `Order ${orderCode} requires admin fulfillment retry.\nTime: ${time}`;
-    const metadata = { orderId, orderCode, time };
+    const item = order?.orderItems?.[0];
+    const latestTxn = (
+      order as {
+        providerTransactions?: Array<{
+          requestId: string;
+          status: string;
+          providerTransactionId: string | null;
+          responsePayload: unknown;
+          errorCode: string | null;
+          errorMessage: string | null;
+          action: string | null;
+          attempt: number;
+        }>;
+      } | null
+    )?.providerTransactions?.[0];
+    const variantType = item?.variant?.type ?? 'UNKNOWN';
+    const variantSku = item?.variant?.sku ?? item?.variant?.name ?? '—';
+    const faceValue = item?.variant
+      ? Number((item.variant as { faceValue?: unknown }).faceValue)
+      : undefined;
+    const phone =
+      context?.phoneNumber ??
+      order?.guestPhone ??
+      order?.customerNote?.match(/Nạp số:\s*(\d+)/i)?.[1] ??
+      '—';
+    const raw = (context?.rawResponse ??
+      (latestTxn?.responsePayload as Record<string, unknown> | undefined)) as
+      | {
+          retCode?: number;
+          retMsg?: string;
+          data?: {
+            eSaleTransId?: string;
+            totalAmount?: number;
+            providerCode?: number;
+            providerMessage?: string;
+            topupType?: string;
+            provider?: string;
+            amount?: number;
+          };
+        }
+      | undefined;
+    const data = raw?.data;
+    const esaleId =
+      context?.providerTransactionId ??
+      data?.eSaleTransId ??
+      latestTxn?.providerTransactionId ??
+      '—';
+    const retCode = raw?.retCode;
+    const retMsg =
+      raw?.retMsg ?? context?.message ?? latestTxn?.errorMessage ?? '—';
+    const providerCode = data?.providerCode;
+    const providerMessage = data?.providerMessage?.trim() || '—';
+    const totalAmount = data?.totalAmount;
+    const amount = context?.amount ?? data?.amount ?? faceValue;
+    const telco = context?.telco ?? data?.provider ?? '—';
+    const requestId = context?.requestId ?? latestTxn?.requestId ?? '—';
+    const failureCode =
+      context?.failureCode ?? latestTxn?.errorCode ?? '—';
+    const attempt = latestTxn?.attempt;
+
+    const title = `Cần xử lý đơn: ${orderCode}`;
+    const lines = [
+      `Loại: ${variantType} | SKU: ${variantSku}`,
+      `Mã đơn: ${orderCode}`,
+      `Thanh toán: ${order?.paymentStatus ?? '—'} | Giao hàng: ${order?.fulfillmentStatus ?? 'WAITING_ADMIN_RETRY'}`,
+      `SĐT nạp: ${phone} | Nhà mạng: ${telco}${amount != null && !Number.isNaN(amount) ? ` | Mệnh giá: ${amount}đ` : ''}`,
+      `NCC: ESALE | Lỗi CardOn: ${failureCode}${attempt != null ? ` | Lần thử NCC: ${attempt}` : ''}`,
+      `Request ID: ${requestId}`,
+      `eSaleTransId: ${esaleId}`,
+      `retCode: ${retCode ?? '—'} | retMsg: ${retMsg}`,
+      `providerCode: ${providerCode ?? '—'} | providerMessage: ${providerMessage}`,
+      totalAmount != null ? `Đã trừ ví NCC (totalAmount): ${totalAmount}đ` : null,
+      data?.topupType ? `topupType: ${data.topupType}` : null,
+      `Thời gian: ${time}`,
+      variantType === 'TOPUP' || variantType === 'DATA'
+        ? 'Hành động: Admin → Đơn hàng → Giao lại (chỉ checkTransaction, không gọi nạp lại).'
+        : 'Hành động: Admin → Đơn hàng → Giao lại / kiểm tra NCC.',
+    ].filter(Boolean);
+
+    const body = lines.join('\n');
+    const metadata = {
+      orderId,
+      orderCode,
+      time,
+      failureCode,
+      requestId,
+      providerTransactionId: esaleId,
+      retCode,
+      providerCode,
+      phone,
+      amount,
+      telco,
+      totalAmount,
+    };
     const jobBase = `operation-manual-${orderId}-${Date.now()}`;
 
     await this.producer.enqueueSystemAdminAlert({
@@ -333,7 +436,7 @@ export class NotificationService {
       {
         channel: NOTIFICATION_CHANNEL.TELEGRAM,
         title,
-        body: `<b>MANUAL_REVIEW_ORDER</b>\n${body.replace(/\n/g, '\n')}`,
+        body: `<b>CẦN XỬ LÝ ĐƠN</b>\n${body}`,
         payload: metadata,
       },
       `${jobBase}-telegram`,
@@ -341,9 +444,9 @@ export class NotificationService {
 
     return this.producer.enqueueSystemAdminAlert({
       systemType: SYSTEM_NOTIFICATION_TYPE.ADMIN_RETRY_REQUIRED,
-      title: `Fulfillment retry required: ${orderCode}`,
-      body: `Order ${orderCode} requires admin fulfillment retry.`,
-      metadata: { orderId, orderCode },
+      title: `Cần giao lại: ${orderCode}`,
+      body,
+      metadata: { orderId, orderCode, failureCode, requestId },
       jobId: `system-admin-retry-${orderId}`,
     });
   }

@@ -84,6 +84,21 @@ export class ProviderRepository {
     });
   }
 
+  countTopupTimeoutLogs(orderId: string) {
+    return this.prisma.providerLog.count({
+      where: {
+        orderId,
+        action: ProviderTransactionAction.TOPUP,
+        status: {
+          in: [
+            ProviderTransactionStatus.TIMEOUT,
+            ProviderTransactionStatus.PENDING,
+          ],
+        },
+      },
+    });
+  }
+
   createNotification(params: {
     type: string;
     title: string;
@@ -222,6 +237,7 @@ export class ProviderTransactionRepository {
       status: ProviderTransactionStatus;
       providerTransactionId?: string;
       providerReference?: string;
+      providerCost?: Prisma.Decimal | number;
       responsePayload?: Prisma.InputJsonValue;
       errorCode?: string;
       errorMessage?: string;
@@ -236,6 +252,9 @@ export class ProviderTransactionRepository {
         status: data.status,
         providerTransactionId: data.providerTransactionId,
         providerReference: data.providerReference,
+        ...(data.providerCost !== undefined
+          ? { providerCost: data.providerCost }
+          : {}),
         responsePayload: data.responsePayload,
         errorCode: data.errorCode,
         errorMessage: data.errorMessage,

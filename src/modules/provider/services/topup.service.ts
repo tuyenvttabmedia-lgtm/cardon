@@ -41,6 +41,9 @@ import { NotificationService } from '../../notification/services/notification.se
 import { ProviderAuditService } from './provider-audit.service';
 import { ProviderRegistryService } from './provider-registry.service';
 import { FulfillmentResult } from './provider.service';
+import { TopupQueueProducer } from './topup-queue.producer';
+import { PROVIDER_RETRY_DELAYS_MS } from '../entities/provider-retry.backoff';
+import { isProviderPendingRetry } from '../entities/provider-failover.rules';
 import {
   validateDataProviderExecution,
   validateTopupProviderExecution,
@@ -59,6 +62,7 @@ export class TopupService {
     private readonly topupTransactionRepository: TopupTransactionRepository,
     private readonly providerAudit: ProviderAuditService,
     private readonly notificationService: NotificationService,
+    private readonly topupQueue: TopupQueueProducer,
   ) {}
 
   async fulfillOrder(orderId: string): Promise<FulfillmentResult> {
@@ -607,7 +611,12 @@ export class TopupService {
       status: result.status,
       providerTransactionId: result.providerTransactionId,
       providerReference: result.providerReference ?? requestId,
+      ...(extractTopupCost(result) !== undefined
+        ? { providerCost: extractTopupCost(result) }
+        : {}),
       responsePayload: (result.rawResponse ?? {}) as Prisma.InputJsonValue,
+      errorCode: result.failureCode,
+      errorMessage: result.message,
     });
 
     await this.providerRepository.createProviderLog({
@@ -668,6 +677,41 @@ export class TopupService {
       };
     }
 
+    // Processing / TIMEOUT: auto checkTransaction with backoff before admin alert
+    if (isProviderPendingRetry(result.failureCode)) {
+      const timeoutLogs = await this.providerRepository.countTopupTimeoutLogs(orderId);
+      if (timeoutLogs <= PROVIDER_RETRY_DELAYS_MS.length) {
+        const delay = PROVIDER_RETRY_DELAYS_MS[timeoutLogs - 1] ?? PROVIDER_RETRY_DELAYS_MS[0];
+        await this.topupTransactionRepository.upsertFailed(
+          {
+            orderId,
+            orderItemId,
+            phoneNumber,
+            telco,
+            amount,
+            providerReference: result.providerTransactionId ?? requestId,
+            resultMessage: result.message ?? 'Processing',
+          },
+          TopupTransactionStatus.PENDING,
+        );
+        await this.orderRepository.updateFulfillmentStatus(
+          orderId,
+          FulfillmentStatus.PROCESSING,
+        );
+        await this.topupQueue.enqueueDelayedCheck(orderId, timeoutLogs, delay);
+        this.logger.warn(
+          `Scheduled topup checkTransaction order=${orderId} round=${timeoutLogs} delayMs=${delay}`,
+        );
+        return {
+          orderId,
+          fulfillmentStatus: FulfillmentStatus.PROCESSING,
+          providerTransactionId: result.providerTransactionId,
+          failureCode: result.failureCode,
+          scheduledRetry: true,
+        };
+      }
+    }
+
     const failureStatus = resolveFulfillmentStatusForFailure(result.failureCode);
 
     await this.topupTransactionRepository.upsertFailed(
@@ -696,7 +740,16 @@ export class TopupService {
     });
 
     if (failureStatus === FulfillmentStatus.WAITING_ADMIN_RETRY) {
-      await this.notificationService.notifyAdminRetryRequired(orderId);
+      await this.notificationService.notifyAdminRetryRequired(orderId, {
+        failureCode: result.failureCode,
+        message: result.message,
+        requestId,
+        providerTransactionId: result.providerTransactionId,
+        rawResponse: result.rawResponse,
+        phoneNumber,
+        telco,
+        amount,
+      });
     }
 
     return {
@@ -710,4 +763,16 @@ export class TopupService {
     const agg = await this.transactionRepository.findMaxAttempt(orderId, providerId);
     return (agg._max.attempt ?? 0) + 1;
   }
+}
+
+function extractTopupCost(result: ProviderResult): number | undefined {
+  const raw = result.rawResponse as
+    | { data?: { totalAmount?: number | string } }
+    | undefined;
+  const value = raw?.data?.totalAmount;
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
 }

@@ -39,7 +39,9 @@ export class NotificationRepository {
         user: { select: { id: true, email: true } },
         orderItems: {
           include: {
-            variant: { select: { sku: true, name: true, type: true } },
+            variant: {
+              select: { sku: true, name: true, type: true, faceValue: true },
+            },
             cardRecords: {
               select: {
                 id: true,
@@ -47,6 +49,21 @@ export class NotificationRepository {
                 encryptedPin: true,
               },
             },
+          },
+        },
+        providerTransactions: {
+          where: { deletedAt: null },
+          orderBy: { attempt: 'desc' },
+          take: 1,
+          select: {
+            requestId: true,
+            status: true,
+            providerTransactionId: true,
+            responsePayload: true,
+            errorCode: true,
+            errorMessage: true,
+            action: true,
+            attempt: true,
           },
         },
       },

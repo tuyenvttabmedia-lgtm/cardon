@@ -70,15 +70,22 @@ sig = SHA256(agencyCode + "|" + transId + "|" + transDate + "|" + time + "|" + S
 | `-4000` | Maintenance | UNKNOWN |
 | Khác | Processing | **PENDING** → checkTransaction |
 
-### providerCode (topup fail detail)
+### providerCode (topup `data` — khác Buy Card)
 
 | providerCode | Ý nghĩa |
 |--------------|---------|
+| `0` | Đang xử lý tại nhà mạng |
+| `1` | Nạp thành công (`providerMessage` thường `"Nap tien thanh cong"`) |
 | `2` | Thuê bao chưa kích hoạt |
 | `3` | Thuê bao không tồn tại |
 | `4` | Thuê bao bị khóa |
 | `5` | Số trả sau |
 | `6` | Giao dịch thất bại |
+
+**SUCCESS thực tế sandbox:** `retCode=1` + `data.providerCode=1` + `eSaleTransId` + `totalAmount`.  
+**Processing:** `retCode=2` + `providerCode=0` (có thể đã trừ `totalAmount`) → chỉ `checktransaction`, không gọi lại `/topup`.
+
+**Response SUCCESS `data` fields (topup):** `transId`, `eSaleTransId`, `discount`, `totalAmount`, `monthYear`, `topupType` (`TT`/`TS`), `provider`, `providerCode`, `providerMessage` — không có `cardsList` như Buy Card.
 
 ---
 

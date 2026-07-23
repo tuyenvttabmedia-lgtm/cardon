@@ -41,4 +41,24 @@ export class TopupQueueProducer {
     );
     return String(job.id);
   }
+
+  /** Delayed checkTransaction-only recovery (never opens a new topup). */
+  async enqueueDelayedCheck(
+    orderId: string,
+    attempt: number,
+    delayMs: number,
+  ): Promise<string> {
+    const job = await this.topupQueue.add(
+      TOPUP_QUEUE_JOB.RETRY,
+      { orderId, triggeredBy: 'manual', attempt },
+      {
+        jobId: `topup-check-${orderId}-${attempt}`,
+        delay: delayMs,
+      },
+    );
+    this.logger.log(
+      `Enqueued delayed topup check jobId=${job.id} orderId=${orderId} attempt=${attempt} delayMs=${delayMs}`,
+    );
+    return String(job.id);
+  }
 }

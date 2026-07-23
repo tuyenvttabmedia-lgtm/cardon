@@ -17,7 +17,9 @@ import { EsaleCardAdapter } from './esale-card.adapter';
 import { EsaleTopupAdapter } from './esale-topup.adapter';
 import {
   buildFailedResult,
+  describeEsaleTopupProviderCode,
   isCard3gDataProviderCode,
+  isEsaleTopupCarrierFailure,
   isEsaleTopupProcessingRetCode,
   parseProviderProductCode,
   parseTopupProductCode,
@@ -218,23 +220,55 @@ export class ESaleProvider implements ProviderInterface {
   ): ProviderResult {
     const rawResponse = response as Record<string, unknown>;
     const data = response.data;
+    const providerCode = data?.providerCode;
+    const providerMessage = data?.providerMessage?.trim();
+    const carrierLabel = describeEsaleTopupProviderCode(providerCode);
+    const carrierFailed = isEsaleTopupCarrierFailure(providerCode);
 
-    if (response.retCode === 1 && data) {
+    // Topup SUCCESS: retCode=1 + data (carrier usually providerCode=1 "Nap tien thanh cong")
+    if (response.retCode === 1 && data && !carrierFailed) {
       return {
         success: true,
         status: ProviderTransactionStatus.SUCCESS,
         providerTransactionId: data.eSaleTransId,
         providerReference: requestId,
+        message: providerMessage || response.retMsg || carrierLabel,
+        rawResponse,
+      };
+    }
+
+    // Carrier rejected (providerCode 2–6) — topup-specific, not Buy Card fields
+    if (carrierFailed) {
+      return {
+        success: false,
+        status: ProviderTransactionStatus.FAILED,
+        failureCode: 'UNKNOWN',
+        message:
+          providerMessage ||
+          carrierLabel ||
+          response.retMsg ||
+          'Topup rejected by carrier',
+        providerTransactionId: data?.eSaleTransId,
         rawResponse,
       };
     }
 
     if (isEsaleTopupProcessingRetCode(response.retCode)) {
+      const parts = [
+        response.retMsg || 'Processing',
+        typeof providerCode === 'number' ? `providerCode=${providerCode}` : null,
+        carrierLabel,
+        providerMessage ? `providerMessage=${providerMessage}` : null,
+        data?.eSaleTransId ? `eSaleTransId=${data.eSaleTransId}` : null,
+        data?.totalAmount != null ? `totalAmount=${data.totalAmount}` : null,
+        data?.topupType ? `topupType=${data.topupType}` : null,
+      ].filter(Boolean);
+
       return {
         success: false,
         status: ProviderTransactionStatus.PENDING,
         failureCode: 'TIMEOUT',
-        message: response.retMsg,
+        message: parts.join(' | '),
         providerTransactionId: data?.eSaleTransId,
         rawResponse,
       };
@@ -242,7 +276,7 @@ export class ESaleProvider implements ProviderInterface {
 
     return buildFailedResult({
       retCode: response.retCode,
-      retMsg: response.retMsg,
+      retMsg: [response.retMsg, providerMessage, carrierLabel].filter(Boolean).join(' | '),
       providerTransactionId: data?.eSaleTransId,
       rawResponse,
     });

@@ -106,6 +106,7 @@ function buildTopupContext() {
 
   const providerRepository = {
     createProviderLog: jest.fn(),
+    countTopupTimeoutLogs: jest.fn().mockResolvedValue(99),
   };
 
   const providerAudit = {
@@ -133,6 +134,7 @@ function buildTopupContext() {
     topupTransactionRepository as never,
     providerAudit as never,
     notificationService as never,
+    { enqueueDelayedCheck: jest.fn(), enqueueRetry: jest.fn(), enqueueFulfillment: jest.fn() } as never,
   );
 
   return {
@@ -222,7 +224,10 @@ describe('TopupService', () => {
     const result = await ctx.service.fulfillOrder('order-topup-1');
 
     expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
-    expect(ctx.notificationService.notifyAdminRetryRequired).toHaveBeenCalledWith('order-topup-1');
+    expect(ctx.notificationService.notifyAdminRetryRequired).toHaveBeenCalledWith(
+      'order-topup-1',
+      expect.objectContaining({ failureCode: 'LOW_BALANCE' }),
+    );
   });
 
   it('recovers worker restart from persisted PROCESSING transaction', async () => {

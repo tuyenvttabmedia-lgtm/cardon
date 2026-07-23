@@ -43,6 +43,28 @@ export function isEsaleTopupProcessingRetCode(retCode: number): boolean {
   return retCode !== 1 && !ESALE_TOPUP_FAIL_CODES.has(retCode);
 }
 
+/** eSale topup `data.providerCode` — carrier-level detail (not Buy Card). */
+export const ESALE_TOPUP_PROVIDER_CODE_LABEL: Record<number, string> = {
+  0: 'Đang xử lý tại nhà mạng',
+  1: 'Nạp thành công',
+  2: 'Thuê bao chưa kích hoạt',
+  3: 'Thuê bao không tồn tại',
+  4: 'Thuê bao bị khóa',
+  5: 'Số trả sau',
+  6: 'Giao dịch thất bại',
+};
+
+export function isEsaleTopupCarrierFailure(providerCode?: number): boolean {
+  return typeof providerCode === 'number' && providerCode >= 2 && providerCode <= 6;
+}
+
+export function describeEsaleTopupProviderCode(providerCode?: number): string | undefined {
+  if (typeof providerCode !== 'number') {
+    return undefined;
+  }
+  return ESALE_TOPUP_PROVIDER_CODE_LABEL[providerCode] ?? `providerCode=${providerCode}`;
+}
+
 export function buildFailedResult(params: {
   retCode: number;
   retMsg: string;

@@ -811,7 +811,13 @@ export class ProviderService {
         orderId,
         FulfillmentStatus.NEED_MANUAL_REVIEW,
       );
-      await this.notificationService.notifyAdminRetryRequired(orderId);
+      await this.notificationService.notifyAdminRetryRequired(orderId, {
+        failureCode: result.failureCode,
+        message: result.message,
+        requestId,
+        providerTransactionId: result.providerTransactionId,
+        rawResponse: result.rawResponse,
+      });
       return {
         orderId,
         fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
@@ -831,7 +837,13 @@ export class ProviderService {
     });
 
     if (failureStatus === FulfillmentStatus.WAITING_ADMIN_RETRY) {
-      await this.notificationService.notifyAdminRetryRequired(orderId);
+      await this.notificationService.notifyAdminRetryRequired(orderId, {
+        failureCode: result.failureCode,
+        message: result.message,
+        requestId,
+        providerTransactionId: result.providerTransactionId,
+        rawResponse: result.rawResponse,
+      });
     }
 
     return {
