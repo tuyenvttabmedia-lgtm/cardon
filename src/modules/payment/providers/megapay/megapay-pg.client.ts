@@ -73,18 +73,24 @@ export class MegapayPgHttpClient {
       body,
     });
     const raw = await this.parseBody(response);
+    // trxStatus.do wraps the actual transaction in `data`. The outer resultCd only
+    // confirms that the query itself succeeded; payment status lives in data.resultCd.
+    const transaction =
+      raw.data && typeof raw.data === 'object' && !Array.isArray(raw.data)
+        ? (raw.data as Record<string, unknown>)
+        : raw;
     this.logger.log(
-      `MegaPay trxStatus merTrxId=${merTrxId} http=${response.status} resultCd=${String(raw.resultCd ?? '')}`,
+      `MegaPay trxStatus merTrxId=${merTrxId} http=${response.status} resultCd=${String(transaction.resultCd ?? raw.resultCd ?? '')}`,
     );
     return {
-      resultCd: asString(raw.resultCd),
-      resultMsg: asString(raw.resultMsg),
-      trxId: asString(raw.trxId),
-      merId: asString(raw.merId),
-      merTrxId: asString(raw.merTrxId) ?? merTrxId,
-      invoiceNo: asString(raw.invoiceNo),
-      amount: asString(raw.amount),
-      payType: asString(raw.payType),
+      resultCd: asString(transaction.resultCd ?? raw.resultCd),
+      resultMsg: asString(transaction.resultMsg ?? raw.resultMsg),
+      trxId: asString(transaction.trxId),
+      merId: asString(transaction.merId ?? raw.merId),
+      merTrxId: asString(transaction.merTrxId ?? raw.merTrxId) ?? merTrxId,
+      invoiceNo: asString(transaction.invoiceNo),
+      amount: asString(transaction.amount),
+      payType: asString(transaction.payType),
       raw,
     };
   }
