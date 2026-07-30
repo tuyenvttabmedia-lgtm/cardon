@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi, refreshAccessToken } from '@/services/api-client';
+import { ApiClientError, authApi } from '@/services/api-client';
 import {
   clearAuthSession,
   getAccessToken,
@@ -54,27 +54,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUser(me);
       return me;
-    } catch {
-      if (getRefreshToken()) {
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          try {
-            const me = await authApi.me();
-            setAuthSession({
-              accessToken: newToken,
-              refreshToken: getRefreshToken() ?? '',
-              user: me,
-            });
-            setUser(me);
-            return me;
-          } catch {
-            /* fall through */
-          }
-        }
+    } catch (error) {
+      // apiRequest đã tự làm mới token khi gặp 401, nên tới đây chỉ còn hai khả năng:
+      // phiên thật sự hết hiệu lực, hoặc lỗi tạm thời không được phép đăng xuất.
+      if (!hasAuthSession()) {
+        setUser(null);
+        return null;
       }
-      clearAuthSession();
-      setUser(null);
-      return null;
+      if (error instanceof ApiClientError && error.status === 401) {
+        clearAuthSession();
+        setUser(null);
+        return null;
+      }
+      setUser(stored);
+      return stored;
     }
   }, []);
 

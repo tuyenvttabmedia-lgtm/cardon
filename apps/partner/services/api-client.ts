@@ -62,18 +62,41 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload.data;
 }
 
-async function refreshAccessToken(): Promise<string | null> {
+let refreshInFlight: Promise<string | null> | null = null;
+
+/**
+ * API thu hồi refresh token cũ ngay khi cấp token mới, nên nhiều request 401 cùng lúc
+ * phải dùng chung một lượt làm mới — nếu không, request chậm chân sẽ gửi token đã bị
+ * thu hồi và làm người dùng bị đăng xuất giữa phiên.
+ */
+function refreshAccessToken(): Promise<string | null> {
+  refreshInFlight ??= requestNewAccessToken().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+async function requestNewAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Mất mạng tạm thời: giữ phiên để lần gọi sau thử lại.
+    return null;
+  }
 
   if (!response.ok) {
-    clearAuthSession();
+    // Chỉ khi API từ chối danh tính mới coi là hết phiên; lỗi máy chủ thì giữ nguyên.
+    if (response.status === 401 || response.status === 403) {
+      clearAuthSession();
+    }
     return null;
   }
 
