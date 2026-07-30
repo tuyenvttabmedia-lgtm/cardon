@@ -1,7 +1,9 @@
 import {
+  FinancialTransactionStatus,
   FulfillmentStatus,
   OrderChannel,
   OrderPaymentStatus,
+  ProductVariantType,
   SystemNotificationSeverity,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -13,6 +15,7 @@ describe('PaidOrderWatchdogService', () => {
   const now = new Date('2026-07-31T00:00:00.000Z');
   let repository: {
     findAnomalies: jest.Mock;
+    findPaymentSuccessOrderNotPaid: jest.Mock;
     hasRecentAlert: jest.Mock;
   };
   let notifications: { dispatch: jest.Mock };
@@ -20,7 +23,8 @@ describe('PaidOrderWatchdogService', () => {
 
   beforeEach(() => {
     repository = {
-      findAnomalies: jest.fn(),
+      findAnomalies: jest.fn().mockResolvedValue([]),
+      findPaymentSuccessOrderNotPaid: jest.fn().mockResolvedValue([]),
       hasRecentAlert: jest.fn().mockResolvedValue(false),
     };
     notifications = { dispatch: jest.fn() };
@@ -41,6 +45,7 @@ describe('PaidOrderWatchdogService', () => {
       pendingBefore: new Date('2026-07-30T23:50:00.000Z'),
       processingBefore: new Date('2026-07-30T23:45:00.000Z'),
       manualActionBefore: new Date('2026-07-30T23:55:00.000Z'),
+      paymentSuccessBefore: new Date('2026-07-30T23:50:00.000Z'),
       take: 100,
     });
     expect(notifications.dispatch).toHaveBeenCalledWith(
@@ -55,7 +60,12 @@ describe('PaidOrderWatchdogService', () => {
         }),
       }),
     );
-    expect(result).toEqual({ scanned: 1, alerted: 1, suppressed: 0 });
+    expect(result).toEqual({
+      scanned: 1,
+      alerted: 1,
+      suppressed: 0,
+      skipped: 0,
+    });
   });
 
   it('raises a critical alert for a paid order needing manual review', async () => {
@@ -87,10 +97,88 @@ describe('PaidOrderWatchdogService', () => {
       new Date('2026-07-30T18:00:00.000Z'),
     );
     expect(notifications.dispatch).not.toHaveBeenCalled();
-    expect(result).toEqual({ scanned: 1, alerted: 0, suppressed: 1 });
+    expect(result).toEqual({
+      scanned: 1,
+      alerted: 0,
+      suppressed: 1,
+      skipped: 0,
+    });
+  });
+
+  it('skips agent failures after the hold was released', async () => {
+    repository.findAnomalies.mockResolvedValue([
+      {
+        ...buildOrder(FulfillmentStatus.FAILED, 30),
+        channel: OrderChannel.AGENT,
+        financialTransaction: {
+          status: FinancialTransactionStatus.RELEASED,
+        },
+      },
+    ]);
+
+    const result = await service.scan(now);
+
+    expect(notifications.dispatch).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      scanned: 1,
+      alerted: 0,
+      suppressed: 0,
+      skipped: 1,
+    });
+  });
+
+  it('uses a softer alert when a paid order has no dispatchable item', async () => {
+    repository.findAnomalies.mockResolvedValue([
+      {
+        ...buildOrder(FulfillmentStatus.PENDING, 40),
+        orderItems: [{ variant: { type: 'UNKNOWN' } }],
+      },
+    ]);
+
+    await service.scan(now);
+
+    expect(notifications.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: SystemNotificationSeverity.WARNING,
+        resource: 'order_fulfillment_no_dispatchable_item',
+      }),
+    );
+  });
+
+  it('alerts when payment is SUCCESS but the order is still not PAID', async () => {
+    repository.findPaymentSuccessOrderNotPaid.mockResolvedValue([
+      {
+        id: 'pay-1',
+        paymentReference: 'PAY-TEST-1',
+        paidAt: new Date(now.getTime() - 15 * 60_000),
+        amount: new Decimal(100_000),
+        methodCode: 'VNPAYQR',
+        order: {
+          id: 'order-orphan-1',
+          orderCode: 'ORD-20260731-ORPHAN',
+          channel: OrderChannel.B2C,
+          paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+          fulfillmentStatus: FulfillmentStatus.PENDING,
+          paymentMethodCode: 'VNPAYQR',
+          createdAt: new Date(now.getTime() - 20 * 60_000),
+        },
+      },
+    ]);
+
+    const result = await service.scan(now);
+
+    expect(notifications.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        severity: SystemNotificationSeverity.CRITICAL,
+        resource: 'payment_success_order_not_paid',
+        resourceId: 'order-orphan-1',
+      }),
+    );
+    expect(result.alerted).toBe(1);
   });
 
   function buildOrder(status: FulfillmentStatus, ageMinutes: number) {
+    const paidAt = new Date(now.getTime() - ageMinutes * 60_000);
     return {
       id: 'order-1',
       orderCode: 'ORD-20260731-TEST01',
@@ -99,7 +187,11 @@ describe('PaidOrderWatchdogService', () => {
       paymentMethodCode: 'VNPAYQR',
       paymentStatus: OrderPaymentStatus.PAID,
       fulfillmentStatus: status,
-      updatedAt: new Date(now.getTime() - ageMinutes * 60_000),
+      createdAt: paidAt,
+      updatedAt: paidAt,
+      financialTransaction: { status: FinancialTransactionStatus.PENDING },
+      activePayment: { paidAt },
+      orderItems: [{ variant: { type: ProductVariantType.CARD } }],
       providerTransactions: [
         {
           requestId: 'PRV-TEST-1',
@@ -107,6 +199,7 @@ describe('PaidOrderWatchdogService', () => {
           errorCode: 'TIMEOUT',
           errorMessage: 'Provider timeout',
           providerReference: 'ESALE-1',
+          createdAt: paidAt,
         },
       ],
     };

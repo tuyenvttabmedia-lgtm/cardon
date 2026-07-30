@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  FinancialTransactionStatus,
   FulfillmentStatus,
+  OrderChannel,
+  ProductVariantType,
   SystemActivitySource,
   SystemNotificationSeverity,
   SystemNotificationType,
@@ -13,6 +16,7 @@ const MINUTE_MS = 60 * 1000;
 const PENDING_GRACE_MS = 10 * MINUTE_MS;
 const PROCESSING_GRACE_MS = 15 * MINUTE_MS;
 const MANUAL_ACTION_GRACE_MS = 5 * MINUTE_MS;
+const PAYMENT_SUCCESS_GRACE_MS = 10 * MINUTE_MS;
 const ALERT_COOLDOWN_MS = 6 * 60 * MINUTE_MS;
 const SCAN_LIMIT = 100;
 
@@ -20,23 +24,46 @@ interface PaidOrderAnomaly {
   id: string;
   orderCode: string;
   fulfillmentStatus: FulfillmentStatus;
+  createdAt: Date;
   updatedAt: Date;
   totalAmount: { toString(): string };
   paymentMethodCode: string | null;
-  channel: string;
+  channel: OrderChannel | string;
+  financialTransaction: { status: FinancialTransactionStatus } | null;
+  activePayment: { paidAt: Date | null } | null;
+  orderItems: Array<{ variant: { type: ProductVariantType | string } }>;
   providerTransactions: Array<{
     requestId: string;
     status: string;
     errorCode: string | null;
     errorMessage: string | null;
     providerReference: string | null;
+    createdAt: Date;
   }>;
+}
+
+interface PaymentSuccessOrphan {
+  id: string;
+  paymentReference: string;
+  paidAt: Date | null;
+  amount: { toString(): string };
+  methodCode: string | null;
+  order: {
+    id: string;
+    orderCode: string;
+    channel: OrderChannel | string;
+    paymentStatus: string;
+    fulfillmentStatus: FulfillmentStatus | string;
+    paymentMethodCode: string | null;
+    createdAt: Date;
+  };
 }
 
 export interface PaidOrderWatchdogResult {
   scanned: number;
   alerted: number;
   suppressed: number;
+  skipped: number;
 }
 
 @Injectable()
@@ -49,19 +76,31 @@ export class PaidOrderWatchdogService {
   ) {}
 
   async scan(now = new Date()): Promise<PaidOrderWatchdogResult> {
-    const orders = await this.repository.findAnomalies({
+    const thresholds = {
       pendingBefore: new Date(now.getTime() - PENDING_GRACE_MS),
       processingBefore: new Date(now.getTime() - PROCESSING_GRACE_MS),
       manualActionBefore: new Date(now.getTime() - MANUAL_ACTION_GRACE_MS),
+      paymentSuccessBefore: new Date(now.getTime() - PAYMENT_SUCCESS_GRACE_MS),
       take: SCAN_LIMIT,
-    });
+    };
+
+    const [orders, paymentOrphans] = await Promise.all([
+      this.repository.findAnomalies(thresholds),
+      this.repository.findPaymentSuccessOrderNotPaid(thresholds),
+    ]);
 
     let alerted = 0;
     let suppressed = 0;
+    let skipped = 0;
     const cooldownStart = new Date(now.getTime() - ALERT_COOLDOWN_MS);
 
     for (const order of orders as PaidOrderAnomaly[]) {
-      const alert = this.describe(order, now);
+      if (this.shouldSkipReleasedAgentFailure(order)) {
+        skipped += 1;
+        continue;
+      }
+
+      const alert = this.describePaidOrder(order, now);
       const duplicate = await this.repository.hasRecentAlert(
         order.id,
         alert.resource,
@@ -100,19 +139,99 @@ export class PaidOrderWatchdogService {
       alerted += 1;
     }
 
-    if (alerted > 0) {
+    for (const payment of paymentOrphans as PaymentSuccessOrphan[]) {
+      const ageMinutes = Math.max(
+        0,
+        Math.floor(
+          (now.getTime() -
+            (payment.paidAt ?? payment.order.createdAt).getTime()) /
+            MINUTE_MS,
+        ),
+      );
+      const resource = 'payment_success_order_not_paid';
+      const duplicate = await this.repository.hasRecentAlert(
+        payment.order.id,
+        resource,
+        cooldownStart,
+      );
+      if (duplicate) {
+        suppressed += 1;
+        continue;
+      }
+
+      this.notifications.dispatch({
+        title: `Đã thu tiền nhưng đơn chưa PAID: ${payment.order.orderCode}`,
+        message: `Payment ${payment.paymentReference} SUCCESS ${ageMinutes} phút nhưng order.paymentStatus=${payment.order.paymentStatus}. Fulfillment sẽ không tự chạy cho đến khi đơn được đánh PAID.`,
+        notificationType: SystemNotificationType.ORDER,
+        severity: SystemNotificationSeverity.CRITICAL,
+        source: SystemActivitySource.CRON,
+        resource,
+        resourceId: payment.order.id,
+        resourceDisplay: payment.order.orderCode,
+        targetRoles: [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPPORT],
+        metadata: {
+          watchdog: 'payment-success-order-not-paid',
+          orderCode: payment.order.orderCode,
+          paymentReference: payment.paymentReference,
+          paymentStatus: payment.order.paymentStatus,
+          fulfillmentStatus: payment.order.fulfillmentStatus,
+          paymentMethodCode:
+            payment.methodCode ?? payment.order.paymentMethodCode,
+          ageMinutes,
+        },
+      });
+      alerted += 1;
+    }
+
+    const scanned = orders.length + paymentOrphans.length;
+    if (alerted > 0 || skipped > 0) {
       this.logger.warn(
-        `Paid-order watchdog alerted=${alerted} suppressed=${suppressed} scanned=${orders.length}`,
+        `Paid-order watchdog alerted=${alerted} suppressed=${suppressed} skipped=${skipped} scanned=${scanned}`,
       );
     }
 
-    return { scanned: orders.length, alerted, suppressed };
+    return { scanned, alerted, suppressed, skipped };
   }
 
-  private describe(order: PaidOrderAnomaly, now: Date) {
+  private shouldSkipReleasedAgentFailure(order: PaidOrderAnomaly): boolean {
+    return (
+      order.fulfillmentStatus === FulfillmentStatus.FAILED &&
+      order.channel === OrderChannel.AGENT &&
+      order.financialTransaction?.status === FinancialTransactionStatus.RELEASED
+    );
+  }
+
+  private hasDispatchableItem(order: PaidOrderAnomaly): boolean {
+    return order.orderItems.some((item) => {
+      const type = item.variant.type;
+      return (
+        type === ProductVariantType.CARD ||
+        type === ProductVariantType.TOPUP ||
+        type === ProductVariantType.DATA ||
+        type === 'CARD' ||
+        type === 'TOPUP' ||
+        type === 'DATA'
+      );
+    });
+  }
+
+  private resolveAgeAnchor(order: PaidOrderAnomaly): Date {
+    if (order.fulfillmentStatus === FulfillmentStatus.PROCESSING) {
+      return (
+        order.providerTransactions[0]?.createdAt ??
+        order.activePayment?.paidAt ??
+        order.createdAt
+      );
+    }
+    return order.activePayment?.paidAt ?? order.createdAt;
+  }
+
+  private describePaidOrder(order: PaidOrderAnomaly, now: Date) {
     const ageMinutes = Math.max(
       0,
-      Math.floor((now.getTime() - order.updatedAt.getTime()) / MINUTE_MS),
+      Math.floor(
+        (now.getTime() - this.resolveAgeAnchor(order).getTime()) / MINUTE_MS,
+      ),
     );
     const latest = order.providerTransactions[0];
     const providerDetail = [
@@ -123,6 +242,19 @@ export class PaidOrderWatchdogService {
       .filter(Boolean)
       .join(' · ');
     const suffix = providerDetail ? ` NCC: ${providerDetail}.` : '';
+
+    if (
+      order.fulfillmentStatus === FulfillmentStatus.PENDING &&
+      !this.hasDispatchableItem(order)
+    ) {
+      return {
+        resource: 'order_fulfillment_no_dispatchable_item',
+        severity: SystemNotificationSeverity.WARNING,
+        title: `Đơn đã thu tiền không có item giao được: ${order.orderCode}`,
+        message: `Đơn PAID + PENDING ${ageMinutes} phút nhưng không có item CARD/TOPUP/DATA để đẩy fulfillment.`,
+        ageMinutes,
+      };
+    }
 
     switch (order.fulfillmentStatus) {
       case FulfillmentStatus.PENDING:
