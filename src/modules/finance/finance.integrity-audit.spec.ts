@@ -343,6 +343,8 @@ describe('Phase 4B.1 — CHECK 7: CSV export security', () => {
         }),
       } as never,
       { generate: jest.fn() } as never,
+      {} as never,
+      {} as never,
     );
 
     const csv = await service.exportProfitCsv({

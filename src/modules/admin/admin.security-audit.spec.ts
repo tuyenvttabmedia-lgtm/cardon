@@ -177,6 +177,7 @@ describe('Phase 4A.1 — CHECK 2: Manual payment approval safety', () => {
       {} as never,
       fulfillmentDispatchService as never,
       { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+      { dispatch: jest.fn() } as never,
     );
 
     await expect(paymentService.approveManualReview('pay-1', 'admin-1')).rejects.toBeInstanceOf(

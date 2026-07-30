@@ -20,6 +20,7 @@
     "start:prod": "node dist/main",
     "start:worker": "node dist/worker",
     "test": "jest",
+    "test:money": "jest --config jest.money.config.js --runInBand",
     "test:auth": "jest --testPathPattern=\"(auth|permission-cache)\"",
     "test:product": "jest --testPathPattern=product",
     "test:order": "jest --testPathPattern=order",

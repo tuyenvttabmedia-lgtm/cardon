@@ -137,8 +137,9 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
         ),
         orderService as never,
         paymentAuditService as never,
-        { enqueueFulfillment: jest.fn() } as never,
+        { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
         { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+        { dispatch: jest.fn() } as never,
       );
 
       const payload = {
@@ -189,8 +190,9 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
         ),
         {} as never,
         {} as never,
-        { enqueueFulfillment: jest.fn() } as never,
+        { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
         { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+        { dispatch: jest.fn() } as never,
       );
 
       const payload = {
@@ -238,8 +240,9 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
           ),
           { markPaidInTransaction: jest.fn() } as never,
           {} as never,
-          { enqueueFulfillment: jest.fn() } as never,
+          { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
           { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+          { dispatch: jest.fn() } as never,
         ),
         payment,
       };

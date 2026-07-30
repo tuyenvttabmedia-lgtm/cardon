@@ -30,6 +30,7 @@ import {
 } from './guards/agent-api-auth.guard';
 import { AgentApiAuthService } from './services/agent-api-auth.service';
 import { AgentApiBuyService } from './services/agent-api-buy.service';
+import { AgentApiTelemetryService } from '../agent-security-center/services/agent-api-telemetry.service';
 
 const TEST_AMOUNT = new Decimal(100_000);
 
@@ -84,6 +85,7 @@ function buildInMemoryLedger(initialBalance = TEST_AMOUNT) {
     ledgerRepository as never,
     { notifyAgentLowBalance: jest.fn() } as never,
     { get: () => 100_000 } as never,
+    { dispatch: jest.fn() } as never,
   );
 
   return { ledgerService, state, entries, prisma };
@@ -177,6 +179,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
         ledgerService as never,
         providerService as never,
         { decrypt: jest.fn() } as never,
+        { scheduleForOrder: jest.fn() } as never,
       );
     });
 
@@ -261,6 +264,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
         ledgerService as never,
         { fulfillOrder: jest.fn() } as never,
         { decrypt: jest.fn((v: string) => v) } as never,
+        { scheduleForOrder: jest.fn() } as never,
       );
 
       await buyService.buyCard(
@@ -425,6 +429,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
           method: 'GET',
           path,
           rawBody: '',
+          clientIp: null,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.INVALID_SIGNATURE });
     });
@@ -442,6 +447,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
           method: 'GET',
           path,
           rawBody: '',
+          clientIp: null,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.AGENT_INACTIVE });
     });
@@ -462,6 +468,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
           method: 'GET',
           path,
           rawBody: '',
+          clientIp: null,
         }),
       ).rejects.toMatchObject({ code: ErrorCode.AGENT_SUSPENDED });
     });
@@ -469,7 +476,10 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
 
   describe('CHECK 8: Rate limit', () => {
     it('enforces per-agent limit', () => {
-      const guard = new AgentApiRateLimitGuard();
+      const guard = new AgentApiRateLimitGuard(
+        new AgentApiTelemetryService({ record: jest.fn() } as never),
+        { recordAuthFailure: jest.fn() } as never,
+      );
       const ctx = {
         agent: { id: 'agent-rate', rateLimit: 2 },
         requestId: 'r1',
@@ -502,6 +512,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
       const buyService = new AgentApiBuyService(
         {} as never,
         repository as never,
+        {} as never,
         {} as never,
         {} as never,
         {} as never,
@@ -595,6 +606,7 @@ function buildBuyServiceForFailure(failureCode: string) {
       }),
     } as never,
     { decrypt: jest.fn() } as never,
+    { scheduleForOrder: jest.fn() } as never,
   );
 
   return { buyService, ledger };

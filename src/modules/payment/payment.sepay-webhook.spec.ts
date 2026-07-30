@@ -52,8 +52,9 @@ function buildSePayService(deps: {
       recordPaymentSuccess: jest.fn(),
       recordPaymentFailed: jest.fn(),
     }) as never,
-    { enqueueFulfillment: jest.fn() } as never,
+    { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
     { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+    { dispatch: jest.fn() } as never,
   );
 }
 

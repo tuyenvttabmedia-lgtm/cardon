@@ -155,6 +155,7 @@ function buildService() {
     cardRecordRepository,
     providerAudit,
     cardEncryption,
+    queueProducer,
     paidCardOrder,
   };
 }
@@ -326,12 +327,19 @@ describe('ProviderService', () => {
     expect(result.providerTransactionId).toBe('RECOVERED-TXN');
   });
 
-  it('sets WAITING_ADMIN_RETRY when TIMEOUT and checkTransaction not found', async () => {
+  it('schedules a delayed retry when TIMEOUT and checkTransaction not found', async () => {
     MockESaleProvider.buyCardBehavior = 'TIMEOUT';
-    const { service } = buildService();
+    const { service, queueProducer, orderRepository } = buildService();
 
     const result = await service.fulfillOrder('order-1');
-    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
+
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.PROCESSING);
+    expect(result.scheduledRetry).toBe(true);
+    expect(queueProducer.enqueueDelayedRetry).toHaveBeenCalled();
+    expect(orderRepository.updateFulfillmentStatus).toHaveBeenCalledWith(
+      'order-1',
+      FulfillmentStatus.PROCESSING,
+    );
   });
 
   it('manual retry creates new provider_transaction attempt', async () => {
@@ -377,6 +385,7 @@ describe('ProviderRegistryService', () => {
           id: 'map-high',
           providerProductCode: 'SKU-A',
           priority: 0,
+          availability: 'AVAILABLE',
           provider: {
             id: 'p1',
             code: 'ESALE',
@@ -388,6 +397,7 @@ describe('ProviderRegistryService', () => {
           id: 'map-low',
           providerProductCode: 'SKU-B',
           priority: 1,
+          availability: 'AVAILABLE',
           provider: {
             id: 'p2',
             code: 'IMEDIA',
@@ -417,6 +427,7 @@ describe('ProviderRegistryService', () => {
           id: 'map-degraded',
           providerProductCode: 'SKU-D',
           priority: 0,
+          availability: 'AVAILABLE',
           provider: {
             id: 'p-degraded',
             code: 'ESALE',
@@ -428,6 +439,7 @@ describe('ProviderRegistryService', () => {
           id: 'map-active',
           providerProductCode: 'SKU-B',
           priority: 1,
+          availability: 'AVAILABLE',
           provider: {
             id: 'p2',
             code: 'IMEDIA',

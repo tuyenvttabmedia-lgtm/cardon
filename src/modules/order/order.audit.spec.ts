@@ -36,7 +36,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         getCustomerPrice: jest.fn().mockResolvedValue('100000.00'),
       };
       const variantRepository = {
-        findActiveById: jest.fn().mockResolvedValue({ id: 'var-1' }),
+        findActiveById: jest
+          .fn()
+          .mockResolvedValue({ id: 'var-1', faceValue: '100000.00' }),
       };
       const orderRepository = {
         createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'txn-1' }),
@@ -101,6 +103,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
             customerMaxOrderAmount: 0,
           }),
           resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+          getPublicPaymentMethods: jest
+            .fn()
+            .mockReturnValue([{ methodCode: 'VIETQR' }]),
         } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
@@ -209,6 +214,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
             customerMaxOrderAmount: 0,
           }),
           resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+          getPublicPaymentMethods: jest
+            .fn()
+            .mockReturnValue([{ methodCode: 'VIETQR' }]),
         } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
@@ -252,6 +260,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
             customerMaxOrderAmount: 0,
           }),
           resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+          getPublicPaymentMethods: jest
+            .fn()
+            .mockReturnValue([{ methodCode: 'VIETQR' }]),
         } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,
@@ -352,7 +363,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
         createOrderItem: jest.fn(),
       };
       const variantRepository = {
-        findActiveById: jest.fn().mockResolvedValue({ id: 'v1' }),
+        findActiveById: jest
+          .fn()
+          .mockResolvedValue({ id: 'v1', faceValue: '99000.00' }),
       };
       const pricingService = {
         getCustomerPrice: jest.fn().mockResolvedValue('99000.00'),
@@ -408,6 +421,9 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
             customerMaxOrderAmount: 0,
           }),
           resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+          getPublicPaymentMethods: jest
+            .fn()
+            .mockReturnValue([{ methodCode: 'VIETQR' }]),
         } as never,
         { recordOrderCreated: jest.fn() } as never,
         { decrypt: jest.fn() } as never,

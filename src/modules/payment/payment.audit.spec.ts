@@ -56,8 +56,9 @@ describe('Phase 2E.1 Payment Safety Audit', () => {
         testRegistry(),
         { markPaidInTransaction: jest.fn() } as never,
         paymentAuditService as never,
-        { enqueueFulfillment: jest.fn() } as never,
+        { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
         { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+        { dispatch: jest.fn() } as never,
       );
 
       const payload = { paymentReference: 'PAY-1', status: 'SUCCESS' };
@@ -113,8 +114,9 @@ describe('Phase 2E.1 Payment Safety Audit', () => {
         testRegistry(),
         {} as never,
         {} as never,
-        { enqueueFulfillment: jest.fn() } as never,
+        { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
         { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+        { dispatch: jest.fn() } as never,
       );
       await expect(
         service.handleWebhook(
@@ -133,8 +135,9 @@ describe('Phase 2E.1 Payment Safety Audit', () => {
         testRegistry(),
         {} as never,
         {} as never,
-        { enqueueFulfillment: jest.fn() } as never,
+        { enqueueFulfillment: jest.fn(), dispatchOrderFulfillment: jest.fn().mockResolvedValue([]) } as never,
         { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+        { dispatch: jest.fn() } as never,
       );
       const payload = { paymentReference: 'UNKNOWN', status: 'SUCCESS' };
       await expect(

@@ -36,6 +36,7 @@ function buildPipelineContext() {
         providerProductCode: 'GARENA|100000|Card',
         priority: 0,
         providerCost: 95000,
+        availability: 'AVAILABLE',
         provider: {
           id: 'provider-esale-1',
           code: 'ESALE',
@@ -51,6 +52,7 @@ function buildPipelineContext() {
   const buyCardSpy = jest.spyOn(esale, 'buyCard');
   const registry = ProviderRegistryService.withAdapters(
     mappingRepository,
+    { isProviderInMaintenance: jest.fn().mockResolvedValue(false) } as never,
     esale,
     new MockIMediaProvider(),
   );
@@ -133,6 +135,14 @@ function buildPipelineContext() {
     cardEncryption,
     providerAudit as never,
     notificationService as never,
+    {
+      enqueueDelayedRetry: jest.fn().mockResolvedValue('job-1'),
+      enqueueFulfillment: jest.fn(),
+      enqueueRetry: jest.fn(),
+    } as never,
+    { recordApiCall: jest.fn() } as never,
+    { evaluateProvider: jest.fn().mockResolvedValue(false) } as never,
+    { record: jest.fn() } as never,
   );
 
   return {

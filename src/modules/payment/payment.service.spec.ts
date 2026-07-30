@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Phase 2E â€” Payment Core Tests
  */
 import {
@@ -432,6 +432,7 @@ describe('OrderService.markPaid integration', () => {
       findByIdWithPaymentFields: jest.fn(),
       updatePaymentStatus: jest.fn(),
       linkActivePayment: jest.fn(),
+      completeB2cFinancialTransaction: jest.fn(),
     };
     const tx = {
       order: {

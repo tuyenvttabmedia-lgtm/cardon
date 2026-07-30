@@ -15,6 +15,8 @@ import { MockIMediaProvider } from './adapters/mock-imedia.provider';
 import { ESaleProvider } from './adapters/esale/esale.provider';
 import { EsaleConfigService } from './adapters/esale/esale.config';
 import { EsaleHttpClient } from './adapters/esale/esale.client';
+import { EsaleCardAdapter } from './adapters/esale/esale-card.adapter';
+import { EsaleTopupAdapter } from './adapters/esale/esale-topup.adapter';
 import { ProviderMappingRepository } from '../product/repositories/provider-mapping.repository';
 import {
   CardRecordRepository,
@@ -46,6 +48,7 @@ function buildSafetyContext(overrides?: {
         providerProductCode: 'VIETTEL:35',
         priority: 0,
         providerCost: 9000,
+        availability: 'AVAILABLE',
         provider: {
           id: 'provider-esale-1',
           code: 'ESALE',
@@ -63,6 +66,7 @@ function buildSafetyContext(overrides?: {
 
   const registry = ProviderRegistryService.withAdapters(
     mappingRepository,
+    { isProviderInMaintenance: jest.fn().mockResolvedValue(false) } as never,
     esale,
     new MockIMediaProvider(),
   );
@@ -154,6 +158,14 @@ function buildSafetyContext(overrides?: {
     cardEncryption,
     providerAudit as never,
     { notifyCardDelivery: jest.fn(), notifyAdminRetryRequired: jest.fn() } as never,
+    {
+      enqueueDelayedRetry: jest.fn().mockResolvedValue('job-1'),
+      enqueueFulfillment: jest.fn(),
+      enqueueRetry: jest.fn(),
+    } as never,
+    { recordApiCall: jest.fn() } as never,
+    { evaluateProvider: jest.fn().mockResolvedValue(false) } as never,
+    { record: jest.fn() } as never,
   );
 
   return {
@@ -342,10 +354,17 @@ describe('Phase 2F.2 Provider Safety Audit', () => {
         ctx.registry,
         ctx.providerRepository as never,
         {
+          ensureForProvider: jest
+            .fn()
+            .mockResolvedValue({ balance: 100_000, lowBalanceThreshold: 500_000 }),
+          updateSyncResult: jest.fn(),
+        } as never,
+        {
           get: (key: string) =>
             key === 'provider.lowBalanceThreshold' ? 500_000 : undefined,
         } as ConfigService,
         notificationService as never,
+        { dispatch: jest.fn() } as never,
       );
 
       const result = await health.syncProviderBalance('provider-esale-1');
@@ -382,9 +401,22 @@ describe('Phase 2F.2 Provider Safety Audit', () => {
         isConfigured: () => true,
       } as EsaleConfigService;
 
+      const client = new EsaleHttpClient(mockConfig, fetchMock);
       const provider = new ESaleProvider(
         mockConfig,
-        new EsaleHttpClient(mockConfig, fetchMock),
+        client,
+        new EsaleCardAdapter(mockConfig, client),
+        new EsaleTopupAdapter(mockConfig, client),
+        {
+          syncEsaleCardCatalog: jest
+            .fn()
+            .mockImplementation((_code: string, catalog: unknown[]) =>
+              Promise.resolve({
+                synced: catalog.length,
+                message: 'Catalog pricing stays admin-driven',
+              }),
+            ),
+        } as never,
       );
 
       const sync = await provider.syncProducts();

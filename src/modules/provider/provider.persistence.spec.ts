@@ -37,6 +37,7 @@ function buildPersistenceContext() {
         providerProductCode: 'VIETTEL:35',
         priority: 0,
         providerCost: 9000,
+        availability: 'AVAILABLE',
         provider: {
           id: 'provider-esale-1',
           code: 'ESALE',
@@ -54,6 +55,7 @@ function buildPersistenceContext() {
 
   const registry = ProviderRegistryService.withAdapters(
     mappingRepository,
+    { isProviderInMaintenance: jest.fn().mockResolvedValue(false) } as never,
     esale,
     new MockIMediaProvider(),
   );
@@ -131,6 +133,14 @@ function buildPersistenceContext() {
     cardEncryption,
     providerAudit as never,
     { notifyCardDelivery: jest.fn(), notifyAdminRetryRequired: jest.fn() } as never,
+    {
+      enqueueDelayedRetry: jest.fn().mockResolvedValue('job-1'),
+      enqueueFulfillment: jest.fn(),
+      enqueueRetry: jest.fn(),
+    } as never,
+    { recordApiCall: jest.fn() } as never,
+    { evaluateProvider: jest.fn().mockResolvedValue(false) } as never,
+    { record: jest.fn() } as never,
   );
 
   return {
