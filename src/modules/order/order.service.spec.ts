@@ -30,6 +30,10 @@ describe('OrderService', () => {
     findByCodeForGuest: jest.Mock;
     findById: jest.Mock;
     updateCustomerNote: jest.Mock;
+    updatePaymentStatus: jest.Mock;
+    linkActivePayment: jest.Mock;
+    completeB2cFinancialTransaction: jest.Mock;
+    failB2cFinancialTransaction: jest.Mock;
   };
   let variantRepository: { findActiveById: jest.Mock };
   let pricingService: { getCustomerPrice: jest.Mock };
@@ -77,6 +81,10 @@ describe('OrderService', () => {
       findByCodeForGuest: jest.fn(),
       findById: jest.fn(),
       updateCustomerNote: jest.fn(),
+      updatePaymentStatus: jest.fn(),
+      linkActivePayment: jest.fn(),
+      completeB2cFinancialTransaction: jest.fn(),
+      failB2cFinancialTransaction: jest.fn(),
     };
     variantRepository = { findActiveById: jest.fn() };
     pricingService = { getCustomerPrice: jest.fn() };
@@ -406,24 +414,105 @@ describe('OrderService', () => {
       service.lookupGuestOrder('ORD-20250618-GUEST1', 'attacker@evil.com'),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  describe('B2C ledger settlement', () => {
+    function txWithOrder(order: {
+      paymentStatus: OrderPaymentStatus;
+      paymentExpiresAt?: Date | null;
+    }) {
+      return {
+        order: {
+          findFirst: jest.fn().mockResolvedValue({
+            paymentExpiresAt: null,
+            ...order,
+          }),
+        },
+      };
+    }
+
+    it('marks the transaction COMPLETED when payment succeeds', async () => {
+      const tx = txWithOrder({
+        paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+        paymentExpiresAt: new Date(Date.now() + 60_000),
+      });
+
+      await service.markPaidInTransaction(tx as never, 'order-1', 'pay-1');
+
+      expect(orderRepository.updatePaymentStatus).toHaveBeenCalledWith(
+        'order-1',
+        OrderPaymentStatus.PAID,
+        tx,
+      );
+      expect(
+        orderRepository.completeB2cFinancialTransaction,
+      ).toHaveBeenCalledWith('order-1', tx);
+    });
+
+    it('marks the transaction COMPLETED after admin manual review', async () => {
+      const tx = txWithOrder({ paymentStatus: OrderPaymentStatus.EXPIRED });
+
+      await service.markPaidAfterManualReviewInTransaction(
+        tx as never,
+        'order-2',
+        'pay-2',
+      );
+
+      expect(
+        orderRepository.completeB2cFinancialTransaction,
+      ).toHaveBeenCalledWith('order-2', tx);
+    });
+
+    it('does not re-settle an order that is already paid', async () => {
+      const tx = txWithOrder({ paymentStatus: OrderPaymentStatus.PAID });
+
+      await service.markPaidAfterManualReviewInTransaction(
+        tx as never,
+        'order-3',
+        'pay-3',
+      );
+
+      expect(
+        orderRepository.completeB2cFinancialTransaction,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('marks the transaction FAILED when payment fails', async () => {
+      const tx = txWithOrder({
+        paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+      });
+
+      await service.markPaymentFailedInTransaction(tx as never, 'order-4');
+
+      expect(orderRepository.failB2cFinancialTransaction).toHaveBeenCalledWith(
+        'order-4',
+        tx,
+      );
+    });
+  });
 });
 
 describe('OrderExpirationService', () => {
-  it('expires WAITING_PAYMENT order past payment_expires_at', async () => {
+  function setup(
+    paymentStatus: OrderPaymentStatus = OrderPaymentStatus.WAITING_PAYMENT,
+  ) {
+    const txOrderUpdate = jest.fn();
     const prisma = {
       order: {
         findUnique: jest.fn().mockResolvedValue({
           id: 'order-1',
           orderCode: 'ORD-EXP',
-          paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+          paymentStatus,
           paymentExpiresAt: new Date('2020-01-01T00:00:00Z'),
           deletedAt: null,
         }),
-        update: jest.fn(),
       },
+      $transaction: jest.fn(async (cb) =>
+        cb({ order: { update: txOrderUpdate } }),
+      ),
     };
     const orderRepository = {
       findWaitingPaymentExpired: jest.fn(),
+      failB2cFinancialTransaction: jest.fn(),
     };
     const orderAuditService = {
       recordOrderExpired: jest.fn(),
@@ -435,14 +524,36 @@ describe('OrderExpirationService', () => {
       orderAuditService as never,
     );
 
+    return { service, prisma, orderRepository, orderAuditService, txOrderUpdate };
+  }
+
+  it('expires WAITING_PAYMENT order past payment_expires_at', async () => {
+    const { service, orderRepository, orderAuditService, txOrderUpdate } = setup();
+
     const expired = await service.expireOrder('order-1');
 
     expect(expired).toBe(true);
-    expect(prisma.order.update).toHaveBeenCalledWith({
+    expect(txOrderUpdate).toHaveBeenCalledWith({
       where: { id: 'order-1' },
       data: { paymentStatus: OrderPaymentStatus.EXPIRED },
     });
     expect(orderAuditService.recordOrderExpired).toHaveBeenCalled();
+    expect(orderRepository.failB2cFinancialTransaction).toHaveBeenCalledWith(
+      'order-1',
+      expect.anything(),
+    );
+  });
+
+  it('leaves ledger untouched when the order is already paid', async () => {
+    const { service, orderRepository, txOrderUpdate } = setup(
+      OrderPaymentStatus.PAID,
+    );
+
+    const expired = await service.expireOrder('order-1');
+
+    expect(expired).toBe(false);
+    expect(txOrderUpdate).not.toHaveBeenCalled();
+    expect(orderRepository.failB2cFinancialTransaction).not.toHaveBeenCalled();
   });
 });
 

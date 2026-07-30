@@ -293,6 +293,7 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
 
   describe('CHECK 6: Payment expiration', () => {
     it('WAITING_PAYMENT past expires_at → EXPIRED', async () => {
+      const orderUpdate = jest.fn();
       const prisma = {
         order: {
           findUnique: jest.fn().mockResolvedValue({
@@ -302,19 +303,27 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
             paymentExpiresAt: new Date('2020-01-01'),
             deletedAt: null,
           }),
-          update: jest.fn(),
         },
+        $transaction: jest.fn(async (cb) => cb({ order: { update: orderUpdate } })),
       };
+      const failB2cFinancialTransaction = jest.fn();
       const service = new OrderExpirationService(
         prisma as never,
-        { findWaitingPaymentExpired: jest.fn() } as never,
+        {
+          findWaitingPaymentExpired: jest.fn(),
+          failB2cFinancialTransaction,
+        } as never,
         { recordOrderExpired: jest.fn() } as never,
       );
       await service.expireOrder('order-1');
-      expect(prisma.order.update).toHaveBeenCalledWith({
+      expect(orderUpdate).toHaveBeenCalledWith({
         where: { id: 'order-1' },
         data: { paymentStatus: OrderPaymentStatus.EXPIRED },
       });
+      expect(failB2cFinancialTransaction).toHaveBeenCalledWith(
+        'order-1',
+        expect.anything(),
+      );
     });
 
     it('EXPIRED order cannot become PAID', () => {

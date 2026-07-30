@@ -36,9 +36,12 @@ export class OrderExpirationService {
       return false;
     }
 
-    await this.prisma.order.update({
-      where: { id: orderId },
-      data: { paymentStatus: OrderPaymentStatus.EXPIRED },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.order.update({
+        where: { id: orderId },
+        data: { paymentStatus: OrderPaymentStatus.EXPIRED },
+      });
+      await this.orderRepository.failB2cFinancialTransaction(orderId, tx);
     });
 
     await this.orderAuditService.recordOrderExpired({

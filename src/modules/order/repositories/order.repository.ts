@@ -287,6 +287,48 @@ export class OrderRepository {
     });
   }
 
+  /**
+   * B2C ledger settlement. Scoped to B2C_CHECKOUT so agent HOLD/RELEASE rows
+   * can never be touched from the retail payment path.
+   */
+  private settleB2cFinancialTransaction(
+    orderId: string,
+    status: FinancialTransactionStatus,
+    fromStatuses: FinancialTransactionStatus[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.financialTransaction.updateMany({
+      where: {
+        type: FinancialTransactionType.B2C_CHECKOUT,
+        status: { in: fromStatuses },
+        deletedAt: null,
+        orders: { some: { id: orderId } },
+      },
+      data: { status },
+    });
+  }
+
+  /** Customer money received. A later fulfillment failure does not reverse this. */
+  completeB2cFinancialTransaction(orderId: string, tx?: Prisma.TransactionClient) {
+    return this.settleB2cFinancialTransaction(
+      orderId,
+      FinancialTransactionStatus.COMPLETED,
+      [FinancialTransactionStatus.PENDING, FinancialTransactionStatus.FAILED],
+      tx,
+    );
+  }
+
+  /** Payment failed or the payment window expired — no money was collected. */
+  failB2cFinancialTransaction(orderId: string, tx?: Prisma.TransactionClient) {
+    return this.settleB2cFinancialTransaction(
+      orderId,
+      FinancialTransactionStatus.FAILED,
+      [FinancialTransactionStatus.PENDING],
+      tx,
+    );
+  }
+
   createOrderItem(tx: Prisma.TransactionClient, input: CreateOrderItemRecordInput) {
     return tx.orderItem.create({
       data: {

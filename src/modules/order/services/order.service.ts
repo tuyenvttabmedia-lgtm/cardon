@@ -418,6 +418,7 @@ export class OrderService {
       tx,
     );
     await this.orderRepository.linkActivePayment(orderId, paymentId, tx);
+    await this.orderRepository.completeB2cFinancialTransaction(orderId, tx);
   }
 
   /** Admin manual review — allow EXPIRED or late WAITING_PAYMENT orders. */
@@ -453,6 +454,7 @@ export class OrderService {
       tx,
     );
     await this.orderRepository.linkActivePayment(orderId, paymentId, tx);
+    await this.orderRepository.completeB2cFinancialTransaction(orderId, tx);
   }
 
   async markPaymentFailed(orderId: string): Promise<void> {
@@ -479,6 +481,7 @@ export class OrderService {
       OrderPaymentStatus.FAILED,
       tx,
     );
+    await this.orderRepository.failB2cFinancialTransaction(orderId, tx);
   }
 
   private resolvePaymentMethod(code?: string) {
