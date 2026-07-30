@@ -4,6 +4,7 @@ import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { SystemHealthModule } from './modules/admin/system-health.module';
+import { PaidOrderWatchdogModule } from './modules/operations-center/paid-order-watchdog.module';
 import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ProductModule } from './modules/product/product.module';
@@ -29,6 +30,7 @@ import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
     PaymentModule,
     ProviderModule,
     NotificationModule,
+    PaidOrderWatchdogModule,
     SystemHealthModule,
     WebhookDeliveryModule,
   ],
