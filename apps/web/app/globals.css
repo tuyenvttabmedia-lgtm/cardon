@@ -39,3 +39,16 @@ body {
     @apply flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cardon-blue text-sm font-bold text-white;
   }
 }
+
+/**
+ * Safari iOS tự phóng to trang khi focus ô nhập có cỡ chữ dưới 16px và giữ nguyên mức
+ * zoom đó sau khi điều hướng, nên trang chủ bị vượt khung sau khi đăng nhập.
+ * Chỉ nâng các ô đang nhỏ hơn 16px, ô đã đặt cỡ lớn hơn giữ nguyên.
+ */
+@media (max-width: 767.98px) {
+  input:not([type='checkbox']):not([type='radio']):not(.text-lg):not(.text-xl),
+  textarea:not([hidden]):not(.text-lg):not(.text-xl),
+  select:not([hidden]):not(.text-lg):not(.text-xl) {
+    font-size: 16px;
+  }
+}
