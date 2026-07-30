@@ -9,27 +9,61 @@ export type MegapayPgPayType = 'VA' | 'QR' | 'EW';
 
 export type MegapayPgEnvironment = 'sandbox' | 'production';
 
+/** Doc V1.4.6 §16.4 — enduser đã trả tiền, được phép giao hàng. */
+const PG_SUCCESS_CODES = new Set(['00_000', '00']);
+
+/**
+ * Doc V1.4.6 §5.3 — chỉ áp dụng payType=VA: đã gán tài khoản Mã nộp tiền nhưng
+ * enduser CHƯA nộp tiền. Tuyệt đối không giao hàng, chờ IPN 00_000.
+ */
+export const MEGAPAY_VA_AWAITING_TRANSFER_CODE = '00_005';
+
+/** vaEndDt phải sau vaStartDt tối thiểu 30 phút (doc V1.4.6). */
+export const MEGAPAY_VA_MIN_WINDOW_MS = 30 * 60_000;
+
+export function isMegapayPgSuccessCode(resultCd?: string | null): boolean {
+  return PG_SUCCESS_CODES.has((resultCd ?? '').trim().toUpperCase());
+}
+
+export function isMegapayVaAwaitingTransferCode(
+  resultCd?: string | null,
+): boolean {
+  return (
+    (resultCd ?? '').trim().toUpperCase() === MEGAPAY_VA_AWAITING_TRANSFER_CODE
+  );
+}
+
 const PG_DOMAINS: Record<MegapayPgEnvironment, string> = {
   sandbox: 'https://sandbox.megapay.vn',
-  production: 'https://payment.megapay.vn',
+  /** Official production host from MegaPay go-live pack (CARDON0001). */
+  production: 'https://pg.megapay.vn',
 };
 
 const PG_JS: Record<MegapayPgEnvironment, string> = {
   sandbox: 'https://sandbox.megapay.vn/pg_was/js/payment/layer/paymentClient.js',
-  production: 'https://payment.megapay.vn/pg_was/js/payment/layer/paymentClient.js',
+  production: 'https://pg.megapay.vn/pg_was/js/payment/layer/paymentClient.js',
 };
 
 const PG_CSS: Record<MegapayPgEnvironment, string> = {
   sandbox: 'https://sandbox.megapay.vn/pg_was/css/payment/layer/paymentClient.css',
-  production: 'https://payment.megapay.vn/pg_was/css/payment/layer/paymentClient.css',
+  production: 'https://pg.megapay.vn/pg_was/css/payment/layer/paymentClient.css',
 };
+
+export function getMegapayPgApiUrls(environment: MegapayPgEnvironment) {
+  const domain = PG_DOMAINS[environment];
+  return {
+    domain,
+    trxStatusUrl: `${domain}/pg_was/order/trxStatus.do`,
+    paymentCancelUrl: `${domain}/pg_was/cancel/paymentCancel.do`,
+  };
+}
 
 /** CardOn methodCode → MegaPay payType (+ optional bankCode for EW). */
 export function mapMethodCodeToMegapayPg(methodCode?: string | null): {
   payType: MegapayPgPayType;
   bankCode?: string;
 } | null {
-  const code = (methodCode ?? '').toUpperCase();
+  const code = (methodCode ?? '').trim().toUpperCase();
   if (code === 'DEPOSIT_CODE' || code === 'VIETQR' || code === 'MEGAPAY_ATM') {
     return { payType: 'VA' };
   }
@@ -64,6 +98,50 @@ export function buildMegapayPgRequestToken(params: {
 }): string {
   const raw = `${params.timeStamp}${params.merTrxId}${params.merId}${params.amount}${params.encodeKey}`;
   return createHash('sha256').update(raw, 'utf8').digest('hex');
+}
+
+/**
+ * Check trx status by merTrxId (samplePage examine):
+ * Sha256(timeStamp + merTrxId + merId + payToken + encodeKey) — payToken often empty.
+ */
+export function buildMegapayPgStatusToken(params: {
+  timeStamp: string;
+  merTrxId: string;
+  merId: string;
+  encodeKey: string;
+  payToken?: string;
+}): string {
+  const payToken = params.payToken ?? '';
+  const raw = `${params.timeStamp}${params.merTrxId}${params.merId}${payToken}${params.encodeKey}`;
+  return createHash('sha256').update(raw, 'utf8').digest('hex');
+}
+
+/**
+ * Cancel/refund:
+ * merchantToken = Sha256(timeStamp + merTrxId + trxId + merId + amount + payToken + encodeKey)
+ * hash = Sha256(merTrxId + refundData + encodeKey) where refundData = API refund password
+ */
+export function buildMegapayPgCancelTokens(params: {
+  timeStamp: string;
+  merTrxId: string;
+  trxId: string;
+  merId: string;
+  amount: string;
+  encodeKey: string;
+  refundPassword: string;
+  payToken?: string;
+}): { merchantToken: string; hash: string } {
+  const payToken = params.payToken ?? '';
+  const merchantToken = createHash('sha256')
+    .update(
+      `${params.timeStamp}${params.merTrxId}${params.trxId}${params.merId}${params.amount}${payToken}${params.encodeKey}`,
+      'utf8',
+    )
+    .digest('hex');
+  const hash = createHash('sha256')
+    .update(`${params.merTrxId}${params.refundPassword}${params.encodeKey}`, 'utf8')
+    .digest('hex');
+  return { merchantToken, hash };
 }
 
 /**
@@ -154,10 +232,13 @@ export function buildMegapayPgCheckoutForm(
 
   if (params.payType === 'VA') {
     const start = new Date();
-    const end =
-      params.expiresAt && params.expiresAt.getTime() > start.getTime() + 30 * 60_000
-        ? params.expiresAt
-        : new Date(start.getTime() + 24 * 60 * 60_000);
+    // Bám sát cửa sổ thanh toán của đơn để tiền về muộn không rơi vào đơn đã hết hạn.
+    const earliestEnd = start.getTime() + MEGAPAY_VA_MIN_WINDOW_MS;
+    const end = new Date(
+      params.expiresAt && params.expiresAt.getTime() > earliestEnd
+        ? params.expiresAt.getTime()
+        : earliestEnd,
+    );
     fields.vaStartDt = formatVaDate(start);
     fields.vaEndDt = formatVaDate(end);
     fields.vaContent = sanitizeMegapayText(params.invoiceNo, 50);

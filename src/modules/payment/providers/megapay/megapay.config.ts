@@ -2,8 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { SettingsStoreService } from '../../../settings/services/settings-store.service';
 
 export interface MegapayConfig {
-  /** DepositCode merchant_code / PG merId */
+  /** DepositCode merchant_code / fallback PG merId */
   merchantId: string;
+  /**
+   * MegaPay PG merId (V1.4.6). When unset, falls back to merchantId.
+   * Allows DepositCode sandbox (VAP001) and PG production (CARDON0001) to coexist.
+   */
+  pgMerchantId: string;
   /** TripleDES encode key (24 chars) for DepositCode registerVA */
   secretKey: string;
   /**
@@ -11,6 +16,8 @@ export interface MegapayConfig {
    * Falls back to secretKey when PG encode key is not set separately.
    */
   pgEncodeKey: string;
+  /** API refund password for paymentCancel.do (hash + cancelPw/refundData) */
+  pgRefundPassword: string;
   /** sandbox | production — PG domain / JS assets */
   pgEnvironment: 'sandbox' | 'production';
   /** Full registerVA URL (DepositCode) */

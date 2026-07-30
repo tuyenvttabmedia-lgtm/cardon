@@ -22,7 +22,9 @@ import { AdminOrderQueryDto } from '../dto/admin-order-query.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { UpdateOrderNoteDto } from '../dto/update-order.dto';
 import {
+  BANK_TRANSFER_MIN_TIMEOUT_MINUTES,
   DEFAULT_PAYMENT_TIMEOUT_MINUTES,
+  isBankTransferMethod,
 } from '../entities/order.constants';
 import {
   generateOrderCode,
@@ -134,7 +136,14 @@ export class OrderService {
       );
     }
 
-    const paymentTimeoutMinutes = await this.getPaymentTimeoutMinutes();
+    const paymentTimeoutMinutes = Math.max(
+      await this.getPaymentTimeoutMinutes(),
+      // Mã nộp tiền (VA) yêu cầu hiệu lực tối thiểu 30 phút bên MegaPay; đơn phải sống
+      // ít nhất bằng tài khoản VA, nếu không tiền về muộn sẽ rơi vào đơn đã hết hạn.
+      isBankTransferMethod(paymentMethod.methodCode)
+        ? BANK_TRANSFER_MIN_TIMEOUT_MINUTES
+        : 0,
+    );
     const paymentExpiresAt = new Date(
       Date.now() + paymentTimeoutMinutes * 60_000,
     );

@@ -14,6 +14,19 @@ export type OrderAuditAction =
 
 export const DEFAULT_PAYMENT_TIMEOUT_MINUTES = 15;
 
+/** Chuyển khoản/mã nộp tiền cần thời gian thao tác ở app ngân hàng (MegaPay yêu cầu tối thiểu 30 phút). */
+export const BANK_TRANSFER_MIN_TIMEOUT_MINUTES = 30;
+
+const BANK_TRANSFER_METHOD_CODES = new Set([
+  'DEPOSIT_CODE',
+  'VIETQR',
+  'MEGAPAY_ATM',
+]);
+
+export function isBankTransferMethod(methodCode?: string | null): boolean {
+  return BANK_TRANSFER_METHOD_CODES.has((methodCode ?? '').trim().toUpperCase());
+}
+
 export const SYSTEM_AUDIT_ACTOR_EMAIL = 'superadmin@cardon.vn';
 
 export function isPaymentExpired(params: {

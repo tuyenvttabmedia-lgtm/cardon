@@ -154,6 +154,11 @@ function CheckoutShellInner({
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [orderLimitError, setOrderLimitError] = useState<OrderAmountLimitDetails | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [paidOrderMeta, setPaidOrderMeta] = useState<{
+    orderId: string;
+    orderCode: string;
+    email: string;
+  } | null>(null);
 
   const {
     methods: paymentMethods,
@@ -252,6 +257,7 @@ function CheckoutShellInner({
     setCheckoutError(null);
     setOrderLimitError(null);
     setPayment(null);
+    setPaidOrderMeta(null);
   }, []);
 
   const handleProductChange = useCallback((p: Product) => {
@@ -496,6 +502,7 @@ function CheckoutShellInner({
     setCheckoutError(null);
     setOrderLimitError(null);
     setPayment(null);
+    setPaidOrderMeta(null);
 
     try {
       let order;
@@ -522,6 +529,11 @@ function CheckoutShellInner({
 
       const pay = await paymentApi.create({ orderId: order.id, gateway }, generateIdempotencyKey());
       setPayment(pay);
+      setPaidOrderMeta({
+        orderId: order.id,
+        orderCode: order.orderCode,
+        email: user.email,
+      });
       storeOrderGuestEmail(order.id, user.email);
 
       if (isInlineQrPayment(pay)) {
@@ -595,6 +607,20 @@ function CheckoutShellInner({
         );
   const payDisabled = !canPay || isOverOrderLimit || checkoutLoading;
 
+  const megapayResumeHref = useMemo(() => {
+    if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
+    if (mode === 'DATA') return `/nap-data#${anchorId}`;
+    if (product?.slug && variant?.id) {
+      const q = new URLSearchParams({
+        slug: product.slug,
+        variantId: variant.id,
+        quantity: String(orderQuantity),
+      });
+      return `/checkout?${q.toString()}`;
+    }
+    return `/?section=buy-card&category=${encodeURIComponent(category)}#${anchorId}`;
+  }, [mode, anchorId, product?.slug, variant?.id, orderQuantity, category]);
+
   const showMobileBar = Boolean(variant);
   const gridClass =
     mode === 'CARD'
@@ -658,7 +684,10 @@ function CheckoutShellInner({
                     value={phone}
                     onChange={(e) => {
                       setPhone(e.target.value);
-                      if (mode === 'TOPUP') setCarrierManual(false);
+                      // Keep manual carrier override (sandbox test numbers often use mismatched prefixes).
+                      if (mode === 'TOPUP' && !e.target.value.trim()) {
+                        setCarrierManual(false);
+                      }
                     }}
                     placeholder="0912345678"
                   />
@@ -838,6 +867,12 @@ function CheckoutShellInner({
                   <MegapayPgCheckoutOpen
                     checkoutFormFields={payment.checkoutFormFields}
                     checkoutClient={payment.checkoutClient}
+                    orderId={paidOrderMeta?.orderId ?? payment.orderId}
+                    orderCode={paidOrderMeta?.orderCode}
+                    email={paidOrderMeta?.email}
+                    paymentReference={payment.paymentReference}
+                    resumeHref={megapayResumeHref}
+                    amount={payment.amount}
                   />
                 )}
             </aside>
@@ -882,6 +917,12 @@ function CheckoutShellInner({
           <MegapayPgCheckoutOpen
             checkoutFormFields={payment.checkoutFormFields}
             checkoutClient={payment.checkoutClient}
+            orderId={paidOrderMeta?.orderId ?? payment.orderId}
+            orderCode={paidOrderMeta?.orderCode}
+            email={paidOrderMeta?.email}
+            paymentReference={payment.paymentReference}
+            resumeHref={megapayResumeHref}
+            amount={payment.amount}
           />
         )}
     </div>

@@ -15,8 +15,10 @@ const { publicKey, privateKey } = generateKeyPairSync('rsa', {
 
 const TEST_CONFIG = {
   merchantId: 'VAP001',
+  pgMerchantId: 'VAP001',
   secretKey: '31feae316de0a42520ef5ec4',
   pgEncodeKey: 'pg-encode-key-for-tests-only',
+  pgRefundPassword: 'pg-refund-password-for-tests-only',
   pgEnvironment: 'sandbox' as const,
   endpoint:
     'https://sandboxva.ecollect.vn:10003/ApiResf_VirtualAccount/services/registerVA',
@@ -28,13 +30,28 @@ const TEST_CONFIG = {
   reqDomain: 'https://cardon.vn',
 };
 
-function buildProvider(fetchMock: jest.Mock): MegaPayProvider {
+interface PgClientMock {
+  queryByMerTrxId: jest.Mock;
+  cancelPayment: jest.Mock;
+}
+
+function buildProvider(fetchMock: jest.Mock): {
+  provider: MegaPayProvider;
+  pgClient: PgClientMock;
+} {
   const configService = {
     getConfig: () => TEST_CONFIG,
     isConfigured: () => true,
   } as unknown as MegapayConfigService;
   const httpClient = new DepositCodeHttpClient(configService, fetchMock);
-  return new MegaPayProvider(configService, httpClient);
+  const pgClient: PgClientMock = {
+    queryByMerTrxId: jest.fn(),
+    cancelPayment: jest.fn(),
+  };
+  return {
+    provider: new MegaPayProvider(configService, httpClient, pgClient as never),
+    pgClient,
+  };
 }
 
 function signNotify(fields: {
@@ -64,30 +81,16 @@ function signNotify(fields: {
 describe('MegaPayProvider (DepositCode VA)', () => {
   let fetchMock: jest.Mock;
   let provider: MegaPayProvider;
+  let pgClient: PgClientMock;
 
   beforeEach(() => {
     fetchMock = jest.fn();
-    provider = buildProvider(fetchMock);
+    ({ provider, pgClient } = buildProvider(fetchMock));
   });
 
   describe('createPayment', () => {
-    it('registers VA and returns QR paymentUrl + bank_info', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        text: async () =>
-          JSON.stringify({
-            response_code: '00',
-            message: 'Thanh cong',
-            account_no: '902000229207',
-            account_name: 'VNEP VAP001 CARDON',
-            bank_code: 'WOORIBANK',
-            bank_name: 'WOORIBANK',
-            map_id: 'PAY-REF-001',
-            qr_code: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
-            qr_url: 'http://42.113.207.131:5005/transaction/Dcodeabc',
-            amount: 100000,
-          }),
-      });
+    it('builds MegaPay PG layer form for VietQR/DepositCode (payType=VA)', async () => {
+      const expiresAt = new Date(Date.now() + 45 * 60_000);
 
       const result = await provider.createPayment({
         paymentReference: 'PAY-REF-001',
@@ -95,24 +98,48 @@ describe('MegaPayProvider (DepositCode VA)', () => {
         orderId: 'order-1',
         gateway: PaymentGatewayCode.MEGAPAY,
         methodCode: 'DEPOSIT_CODE',
+        expiresAt,
       });
 
-      expect(result.paymentUrl).toMatch(/^data:image\/png;base64,/);
-      expect(result.providerReference).toBe('902000229207');
-      expect(result.rawResponse.displayMode).toBe('qr_inline');
-      expect(result.rawResponse.bank_info).toEqual({
-        bankCode: 'WOORIBANK',
-        bankName: 'WOORIBANK',
-        accountNumber: '902000229207',
-        accountName: 'VNEP VAP001 CARDON',
+      // Không được gọi registerVA nữa (API cũ chạy credential sandbox).
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(result.rawResponse.integrationMode).toBe('megapay_pg_v146');
+      expect(result.rawResponse.displayMode).toBe('open_payment');
+      expect(result.rawResponse.payType).toBe('VA');
+
+      const fields = result.rawResponse.checkoutFormFields as Record<string, string>;
+      expect(fields.payType).toBe('VA');
+      expect(fields.merId).toBe('VAP001');
+      expect(fields.vaContent).toBe('PAY-REF-001');
+      expect(fields.vaStartDt).toMatch(/^\d{14}$/);
+      expect(fields.vaEndDt).toMatch(/^\d{14}$/);
+      expect(Number(fields.vaEndDt)).toBeGreaterThan(Number(fields.vaStartDt));
+    });
+
+    it('keeps VA window at least 30 minutes when the order expires sooner', async () => {
+      const result = await provider.createPayment({
+        paymentReference: 'PAY-REF-002',
+        amount: '100000',
+        orderId: 'order-1b',
+        gateway: PaymentGatewayCode.MEGAPAY,
+        methodCode: 'DEPOSIT_CODE',
+        expiresAt: new Date(Date.now() + 5 * 60_000),
       });
 
-      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect(url).toContain('registerVA');
-      const body = JSON.parse(init.body as string) as Record<string, unknown>;
-      expect(body.pcode).toBe('9000');
-      expect(body.merchant_code).toBe('VAP001');
-      expect(typeof body.data).toBe('string');
+      const fields = result.rawResponse.checkoutFormFields as Record<string, string>;
+      const parse = (v: string) =>
+        new Date(
+          Number(v.slice(0, 4)),
+          Number(v.slice(4, 6)) - 1,
+          Number(v.slice(6, 8)),
+          Number(v.slice(8, 10)),
+          Number(v.slice(10, 12)),
+          Number(v.slice(12, 14)),
+        ).getTime();
+
+      expect(parse(fields.vaEndDt) - parse(fields.vaStartDt)).toBeGreaterThanOrEqual(
+        30 * 60_000 - 1000,
+      );
     });
 
     it('builds MegaPay PG layer form for VNPAYQR (payType=QR)', async () => {
@@ -228,6 +255,82 @@ describe('MegaPayProvider (DepositCode VA)', () => {
       expect(result.status).toBe('SUCCESS');
       expect(result.paymentReference).toBe('PAY-PG-001');
       expect(result.amount).toBe('100000.00');
+    });
+
+    it('treats VA result 00_005 (assigned, not transferred) as PENDING', async () => {
+      const { buildMegapayPgIpnToken } = await import('./megapay-pg');
+      const payload = {
+        resultCd: '00_005',
+        resultMsg: 'Assign Dcode success',
+        timeStamp: '1600065260940',
+        merTrxId: 'PAY-VA-001',
+        trxId: 'EPAYTRX002',
+        merId: 'VAP001',
+        amount: '100000',
+        invoiceNo: 'PAY-VA-001',
+        payType: 'VA',
+      };
+      const merchantToken = buildMegapayPgIpnToken({
+        ...payload,
+        encodeKey: TEST_CONFIG.pgEncodeKey,
+      });
+
+      const result = await provider.verifyWebhook({ ...payload, merchantToken }, {});
+
+      expect(result.valid).toBe(true);
+      expect(result.status).toBe('PENDING');
+      expect(result.paymentReference).toBe('PAY-VA-001');
+    });
+  });
+
+  describe('queryTransaction', () => {
+    it('returns PENDING for VA result 00_005', async () => {
+      pgClient.queryByMerTrxId.mockResolvedValue({
+        resultCd: '00_005',
+        resultMsg: 'Assign Dcode success',
+        merTrxId: 'PAY-VA-001',
+        trxId: 'EPAYTRX002',
+        amount: '100000',
+        payType: 'VA',
+      });
+
+      const result = await provider.queryTransaction('PAY-VA-001');
+
+      expect(result.status).toBe('PENDING');
+    });
+  });
+
+  describe('refund', () => {
+    it('refuses to cancel a VA (deposit code) transaction', async () => {
+      pgClient.queryByMerTrxId.mockResolvedValue({
+        resultCd: '00_000',
+        merTrxId: 'PAY-VA-001',
+        trxId: 'EPAYTRX002',
+        amount: '100000',
+        payType: 'VA',
+      });
+
+      const result = await provider.refund('PAY-VA-001');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain('mã nộp tiền');
+      expect(pgClient.cancelPayment).not.toHaveBeenCalled();
+    });
+
+    it('still cancels a QR transaction', async () => {
+      pgClient.queryByMerTrxId.mockResolvedValue({
+        resultCd: '00_000',
+        merTrxId: 'PAY-QR-001',
+        trxId: 'EPAYTRX003',
+        amount: '50000',
+        payType: 'QR',
+      });
+      pgClient.cancelPayment.mockResolvedValue({ resultCd: '00_000' });
+
+      const result = await provider.refund('PAY-QR-001');
+
+      expect(result.success).toBe(true);
+      expect(pgClient.cancelPayment).toHaveBeenCalledTimes(1);
     });
   });
 });

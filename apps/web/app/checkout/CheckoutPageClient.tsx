@@ -48,6 +48,11 @@ export default function CheckoutPageClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payment, setPayment] = useState<Awaited<ReturnType<typeof paymentApi.create>> | null>(null);
+  const [paidOrderMeta, setPaidOrderMeta] = useState<{
+    orderId: string;
+    orderCode: string;
+    email: string;
+  } | null>(null);
 
   useEffect(() => {
     setQuantity(initialQuantity);
@@ -92,10 +97,15 @@ export default function CheckoutPageClient() {
         generateIdempotencyKey(),
       );
 
-      setPayment(pay);
-      storeOrderGuestEmail(order.id, email ?? order.guestEmail ?? '');
-
       const resolvedEmail = email ?? order.guestEmail ?? '';
+      setPayment(pay);
+      setPaidOrderMeta({
+        orderId: order.id,
+        orderCode: order.orderCode,
+        email: resolvedEmail,
+      });
+      storeOrderGuestEmail(order.id, resolvedEmail);
+
       if (isInlineQrPayment(pay)) {
         router.push(
           persistAndPathForQrPayment({
@@ -222,6 +232,16 @@ export default function CheckoutPageClient() {
             <MegapayPgCheckoutOpen
               checkoutFormFields={payment.checkoutFormFields}
               checkoutClient={payment.checkoutClient}
+              orderId={paidOrderMeta?.orderId ?? payment.orderId}
+              orderCode={paidOrderMeta?.orderCode}
+              email={paidOrderMeta?.email}
+              paymentReference={payment.paymentReference}
+              resumeHref={`/checkout?${new URLSearchParams({
+                slug: slug || product?.slug || '',
+                variantId: variant.id,
+                quantity: String(quantity),
+              }).toString()}`}
+              amount={payment.amount}
             />
           )}
       </div>

@@ -9,6 +9,7 @@ import { PaymentController } from './controllers/payment.controller';
 import { PaymentMethodsController } from './controllers/payment-methods.controller';
 import { MegapayConfigService } from './providers/megapay/megapay.config';
 import { DepositCodeHttpClient } from './providers/megapay/depositcode.client';
+import { MegapayPgHttpClient } from './providers/megapay/megapay-pg.client';
 import { MegaPayProvider } from './providers/megapay/megapay.provider';
 import { SePayProvider } from './providers/sepay/sepay.provider';
 import { SepayConfigService } from './providers/sepay/sepay.config';
@@ -17,6 +18,7 @@ import {
   PaymentRepository,
   WebhookLogRepository,
 } from './repositories/payment.repository';
+import { ExpirationCronService } from './services/expiration-cron.service';
 import { PaymentAuditService } from './services/payment-audit.service';
 import { PaymentExpirationService } from './services/payment-expiration.service';
 import { PaymentService } from './services/payment.service';
@@ -36,6 +38,7 @@ import { PaymentService } from './services/payment.service';
     WebhookLogRepository,
     MegapayConfigService,
     DepositCodeHttpClient,
+    MegapayPgHttpClient,
     MegaPayProvider,
     SepayConfigService,
     SePayProvider,
@@ -43,6 +46,7 @@ import { PaymentService } from './services/payment.service';
     PaymentService,
     PaymentAuditService,
     PaymentExpirationService,
+    ExpirationCronService,
   ],
   exports: [PaymentService, PaymentExpirationService, PaymentProviderRegistry, WebhookLogRepository],
 })

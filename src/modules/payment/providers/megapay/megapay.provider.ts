@@ -18,30 +18,13 @@ import {
   buildMegapayPgCheckoutForm,
   buildMegapayPgIpnToken,
   isMegapayPgIpnPayload,
+  isMegapayPgSuccessCode,
+  isMegapayVaAwaitingTransferCode,
   mapMethodCodeToMegapayPg,
+  type MegapayPgPayType,
 } from './megapay-pg';
+import { MegapayPgHttpClient } from './megapay-pg.client';
 import { MegapayConfigService } from './megapay.config';
-
-/** Prefer embeddable QR image; EPAY sandbox qr_url often points at an unreachable host page. */
-export function resolveDepositCodeQrImage(response: {
-  qr_code?: string;
-  qr_url?: string;
-}): string | undefined {
-  const code = response.qr_code?.trim();
-  if (code) {
-    return code.startsWith('data:') ? code : `data:image/png;base64,${code}`;
-  }
-
-  const url = response.qr_url?.trim();
-  if (!url) return undefined;
-
-  // Hosted transaction pages (sandbox :5005 /transaction/...) are not QR images and are often unreachable.
-  if (/\/transaction\//i.test(url) || /:5005\b/.test(url)) {
-    return undefined;
-  }
-
-  return url;
-}
 
 @Injectable()
 export class MegaPayProvider implements PaymentProviderInterface {
@@ -50,87 +33,30 @@ export class MegaPayProvider implements PaymentProviderInterface {
   constructor(
     private readonly configService: MegapayConfigService,
     private readonly httpClient: DepositCodeHttpClient,
+    private readonly pgClient: MegapayPgHttpClient,
   ) {}
 
   async createPayment(
     params: CreateProviderPaymentParams,
   ): Promise<ProviderPaymentResult> {
     const mapped = mapMethodCodeToMegapayPg(params.methodCode);
-    // VietQR / DepositCode stays on registerVA (inline QR). PG layer for VNPAYQR + ZaloPay.
-    if (!mapped || mapped.payType === 'VA') {
-      return this.createDepositCodePayment(params);
-    }
-    return this.createPgLayerPayment(params, mapped.payType, mapped.bankCode);
-  }
-
-  private async createDepositCodePayment(
-    params: CreateProviderPaymentParams,
-  ): Promise<ProviderPaymentResult> {
-    const amountInt = Math.round(parseFloat(params.amount));
-    const customerName = `CARDON ${params.paymentReference}`.slice(0, 50);
-
-    const response = await this.httpClient.registerVirtualAccount({
-      mapId: params.paymentReference,
-      amount: amountInt,
-      customerName,
-      expiresAt: params.expiresAt,
-      email: params.guestEmail,
-    });
-
-    if (response.response_code !== '00') {
-      throw new Error(
-        `DepositCode register failed: ${response.response_code} ${response.message ?? ''}`.trim(),
-      );
-    }
-
-    const qrImage = resolveDepositCodeQrImage(response);
-    if (!qrImage) {
-      throw new Error('DepositCode register succeeded but no QR image returned');
-    }
-
-    const expiredAt =
-      params.expiresAt?.toISOString() ??
-      new Date(Date.now() + 24 * 60 * 60_000).toISOString();
-
-    return {
-      paymentUrl: qrImage,
-      providerReference: response.account_no ?? params.paymentReference,
-      rawResponse: {
-        integrationMode: 'deposit_code_va',
-        displayMode: 'qr_inline',
-        methodCode: params.methodCode ?? 'DEPOSIT_CODE',
-        response_code: response.response_code,
-        map_id: response.map_id ?? params.paymentReference,
-        account_no: response.account_no,
-        account_name: response.account_name,
-        bank_code: response.bank_code,
-        bank_name: response.bank_name,
-        qr_url: response.qr_url,
-        qr_code: response.qr_code,
-        qr_dataRaw: response.qr_dataRaw,
-        bank_info: {
-          bankCode: response.bank_code,
-          bankName: response.bank_name,
-          accountNumber: response.account_no,
-          accountName: response.account_name,
-        },
-        amount: amountInt,
-        transferContent: response.account_no,
-        expired_at: expiredAt,
-        gateway: this.gateway,
-      },
-    };
+    // Toàn bộ bán lẻ đi qua PG V1.4.6: VietQR = payType VA (mã nộp tiền), VNPAYQR = QR, ZaloPay = EW.
+    return this.createPgLayerPayment(
+      params,
+      mapped?.payType ?? 'VA',
+      mapped?.bankCode,
+    );
   }
 
   private createPgLayerPayment(
     params: CreateProviderPaymentParams,
-    payType: 'QR' | 'EW',
+    payType: MegapayPgPayType,
     bankCode?: string,
   ): ProviderPaymentResult {
     const config = this.configService.getConfig();
     const amountInt = Math.round(parseFloat(params.amount));
     const { checkoutFormFields, assets, timeStamp } = buildMegapayPgCheckoutForm({
-      merId: config.merchantId,
+      merId: config.pgMerchantId || config.merchantId,
       encodeKey: config.pgEncodeKey,
       environment: config.pgEnvironment,
       amount: amountInt,
@@ -277,9 +203,11 @@ export class MegaPayProvider implements PaymentProviderInterface {
 
     const valid =
       expected.toLowerCase() === merchantToken.toLowerCase() &&
-      merId === config.merchantId;
+      (merId === config.pgMerchantId || merId === config.merchantId);
 
-    const success = resultCd === '00_000' || resultCd === '00';
+    const success = isMegapayPgSuccessCode(resultCd);
+    // 00_005: mới gán mã nộp tiền, khách chưa chuyển tiền → giữ PENDING, chờ IPN 00_000.
+    const awaitingTransfer = isMegapayVaAwaitingTransferCode(resultCd);
     const amountNum = parseFloat(amountRaw);
     const amount =
       Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
@@ -287,7 +215,12 @@ export class MegaPayProvider implements PaymentProviderInterface {
     return {
       valid,
       paymentReference,
-      status: valid && success ? 'SUCCESS' : valid ? 'FAILED' : 'PENDING',
+      status:
+        valid && success
+          ? 'SUCCESS'
+          : valid && !awaitingTransfer
+            ? 'FAILED'
+            : 'PENDING',
       amount,
       providerTransactionId: trxId,
       rawPayload: {
@@ -299,6 +232,23 @@ export class MegaPayProvider implements PaymentProviderInterface {
   }
 
   async queryTransaction(reference: string): Promise<ProviderTransactionStatus> {
+    // Prefer PG trxStatus for PAY-* / PG layer references.
+    if (reference.toUpperCase().startsWith('PAY-')) {
+      const pg = await this.pgClient.queryByMerTrxId(reference);
+      const cd = (pg.resultCd ?? '').toUpperCase();
+      const success = isMegapayPgSuccessCode(cd);
+      const failed =
+        cd.length > 0 &&
+        !success &&
+        !isMegapayVaAwaitingTransferCode(cd) &&
+        !cd.startsWith('99');
+      return {
+        paymentReference: pg.merTrxId ?? reference,
+        status: success ? 'SUCCESS' : failed ? 'FAILED' : 'PENDING',
+        amount: pg.amount ?? '0',
+      };
+    }
+
     // DepositCode status API only confirms VA mapping — payment success is notify-driven.
     const result = await this.httpClient.checkStatusByMapId(reference);
     return {
@@ -308,11 +258,57 @@ export class MegaPayProvider implements PaymentProviderInterface {
     };
   }
 
-  async refund(_reference: string): Promise<RefundResult> {
+  async refund(
+    reference: string,
+    amount?: string,
+  ): Promise<RefundResult> {
+    const config = this.configService.getConfig();
+    if (!config.pgRefundPassword) {
+      return {
+        success: false,
+        message:
+          'MegaPay refund password is not configured — set MEGAPAY_PG_REFUND_PASSWORD',
+      };
+    }
+
+    // Need MegaPay trxId from a prior status check / stored provider reference.
+    const status = await this.pgClient.queryByMerTrxId(reference);
+
+    // Doc V1.4.6 §7: chuyển khoản qua Mã nộp tiền không được phép hủy/hoàn tiền.
+    if ((status.payType ?? '').trim().toUpperCase() === 'VA') {
+      return {
+        success: false,
+        message:
+          'MegaPay không hỗ trợ hoàn tiền cho chuyển khoản qua mã nộp tiền (payType=VA) — cần hoàn thủ công qua ngân hàng.',
+      };
+    }
+
+    const trxId = status.trxId;
+    if (!trxId) {
+      return {
+        success: false,
+        message: `MegaPay trxId not found for ${reference} — cannot cancel`,
+      };
+    }
+    const cancelAmount = amount ?? status.amount;
+    if (!cancelAmount) {
+      return {
+        success: false,
+        message: `MegaPay amount missing for ${reference} — cannot cancel`,
+      };
+    }
+
+    const result = await this.pgClient.cancelPayment({
+      merTrxId: reference,
+      trxId,
+      amount: cancelAmount,
+      payType: status.payType,
+    });
+    const cd = (result.resultCd ?? '').toUpperCase();
+    const success = isMegapayPgSuccessCode(cd);
     return {
-      success: false,
-      message:
-        'MegaPay refund is not automated — handle via MegaPay portal / DepositCode cancel mapping',
+      success,
+      message: result.resultMsg ?? (success ? 'Cancelled' : `Cancel failed (${cd || 'unknown'})`),
     };
   }
 }
