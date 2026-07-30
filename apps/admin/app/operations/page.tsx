@@ -92,7 +92,7 @@ export default function OperationsHubPage() {
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-zinc-100" />
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
           ))}
         </div>
       ) : cards ? (
@@ -108,13 +108,13 @@ export default function OperationsHubPage() {
             <StatCard label={vi.operations.avgResolution} value={formatDuration(cards.avgResolutionMs)} />
           </div>
           {dashboard.asOf && (
-            <p className="text-xs text-zinc-400">Cập nhật: {formatDateTime(dashboard.asOf)}</p>
+            <p className="text-xs text-slate-400">Cập nhật: {formatDateTime(dashboard.asOf)}</p>
           )}
         </>
       ) : null}
 
       <Card className="p-4">
-        <p className="text-sm font-medium text-zinc-700">{vi.app.search}</p>
+        <p className="text-sm font-medium text-slate-700">{vi.app.search}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <Input
             className="min-w-[240px] flex-1"
@@ -140,7 +140,7 @@ export default function OperationsHubPage() {
             ].map((group) =>
               group.items.length > 0 ? (
                 <div key={group.key}>
-                  <p className="text-xs font-semibold uppercase text-zinc-500">{group.label}</p>
+                  <p className="text-xs font-semibold uppercase text-slate-500">{group.label}</p>
                   <ul className="mt-1 space-y-1">
                     {group.items.map((item) => (
                       <li key={item.id}>
@@ -151,7 +151,7 @@ export default function OperationsHubPage() {
                           {item.label}
                         </Link>
                         {'status' in item && (
-                          <span className="ml-2 text-xs text-zinc-400">{item.status}</span>
+                          <span className="ml-2 text-xs text-slate-400">{item.status}</span>
                         )}
                       </li>
                     ))}
@@ -169,7 +169,7 @@ export default function OperationsHubPage() {
             <Card className="h-full transition hover:border-admin-200 hover:shadow-sm">
               <div className="text-2xl">{card.icon}</div>
               <h2 className="mt-2 text-lg font-semibold">{card.title}</h2>
-              <p className="mt-1 text-sm text-zinc-500">{card.description}</p>
+              <p className="mt-1 text-sm text-slate-500">{card.description}</p>
             </Card>
           </Link>
         ))}

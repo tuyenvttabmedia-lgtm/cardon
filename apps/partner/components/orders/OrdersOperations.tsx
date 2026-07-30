@@ -42,7 +42,6 @@ export function OrdersDataTable({
               <th className="px-4 py-3">Trạng thái</th>
               <th className="px-4 py-3">Thời gian</th>
               <th className="px-4 py-3">Độ trễ</th>
-              <th className="px-4 py-3">Provider</th>
               <th className="px-4 py-3" />
             </tr>
           </thead>
@@ -67,47 +66,53 @@ export function OrdersDataTable({
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-left text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-          <tr>
-            <th className="px-4 py-3">Request ID</th>
-            <th className="px-4 py-3">Order ID</th>
-            {!compact && <th className="px-4 py-3">Gateway</th>}
-            <th className="px-4 py-3">Sản phẩm</th>
-            <th className="px-4 py-3">Giá bán</th>
-            {!compact && <th className="px-4 py-3">Lợi nhuận</th>}
-            <th className="px-4 py-3">Trạng thái</th>
-            <th className="px-4 py-3">Tạo lúc</th>
-            <th className="px-4 py-3">Độ trễ</th>
-            {!compact && <th className="px-4 py-3">Provider</th>}
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id} className="border-t border-slate-100 dark:border-slate-800">
-              <td className="px-4 py-3 font-mono text-xs">{order.requestId || '—'}</td>
-              <td className="px-4 py-3 font-mono text-xs">{order.orderId}</td>
-              {!compact && <td className="px-4 py-3">{order.gateway}</td>}
-              <td className="px-4 py-3">{order.productName || order.product}</td>
-              <td className="px-4 py-3">{formatVnd(order.sellPrice)}</td>
-              {!compact && <td className="px-4 py-3">{formatVnd(order.profit)}</td>}
-              <td className="px-4 py-3">
-                <Badge tone={statusToBadgeTone(order.status)}>{transactionStatusLabel(order.status)}</Badge>
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(order.createdAt)}</td>
-              <td className="px-4 py-3">{order.latencyMs != null ? `${order.latencyMs}ms` : '—'}</td>
-              {!compact && <td className="px-4 py-3 text-xs">{order.provider ?? '—'}</td>}
-              <td className="px-4 py-3">
-                <Link href={`/orders/${order.id}`} className="text-indigo-600 hover:underline dark:text-indigo-400">
-                  Chi tiết
-                </Link>
-              </td>
+            <tr>
+              <th className="px-4 py-3">Request ID</th>
+              <th className="px-4 py-3">Order ID</th>
+              {!compact && <th className="px-4 py-3">Môi trường</th>}
+              <th className="px-4 py-3">Sản phẩm</th>
+              <th className="px-4 py-3">Mệnh giá</th>
+              <th className="px-4 py-3">Số trừ hạn mức</th>
+              <th className="px-4 py-3">Trạng thái</th>
+              <th className="px-4 py-3">Tạo lúc</th>
+              <th className="px-4 py-3">Độ trễ</th>
+              <th className="px-4 py-3" />
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id} className="border-t border-slate-100 dark:border-slate-800">
+                <td className="px-4 py-3 font-mono text-xs">{order.requestId || '—'}</td>
+                <td className="px-4 py-3 font-mono text-xs">{order.orderId}</td>
+                {!compact && (
+                  <td className="px-4 py-3">
+                    {order.isSandbox ? (
+                      <Badge tone="warning">Sandbox</Badge>
+                    ) : (
+                      <Badge tone="success">Live</Badge>
+                    )}
+                  </td>
+                )}
+                <td className="px-4 py-3">{order.productName || order.product}</td>
+                <td className="px-4 py-3">{formatVnd(order.faceValue)}</td>
+                <td className="px-4 py-3 font-medium">{formatVnd(order.sellPrice)}</td>
+                <td className="px-4 py-3">
+                  <Badge tone={statusToBadgeTone(order.status)}>{transactionStatusLabel(order.status)}</Badge>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">{formatDateTime(order.createdAt)}</td>
+                <td className="px-4 py-3">{order.latencyMs != null ? `${order.latencyMs}ms` : '—'}</td>
+                <td className="px-4 py-3">
+                  <Link href={`/orders/${order.id}`} className="text-indigo-600 hover:underline dark:text-indigo-400">
+                    Chi tiết
+                  </Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
 export function OrdersChartBars({
   title,

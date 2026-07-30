@@ -84,6 +84,16 @@ On webhook success:
 - `pendingDeposit` — sum of AWAITING_PAYMENT deposits
 - `depositedToday` / `depositedMonth` — credited deposit net amounts
 
+### Per-transaction limits
+
+Configurable in **Admin → Cấu hình → Hệ thống** (`agentDepositMinAmount` / `agentDepositMaxAmount`).
+
+| Default min | Default max | Absolute floor | Absolute ceiling |
+|-------------|-------------|----------------|------------------|
+| 5.000.000đ | 300.000.000đ | 10.000đ | 500.000.000đ |
+
+Partner UI reads limits from `GET /agents/me/finance/deposits` (`minAmount` / `maxAmount`).
+
 ---
 
 ## Data Model
@@ -96,7 +106,7 @@ On webhook success:
 | AWAITING_PAYMENT | Đang chờ thanh toán |
 | PAID | Đã thanh toán |
 | RECORDED | Đã ghi nhận |
-| CREDITED | Đã cộng ví |
+| CREDITED | Đã cộng hạn mức |
 | EXPIRED | Hết hạn |
 | FAILED | Thất bại |
 | CANCELLED | Đã hủy |

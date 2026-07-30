@@ -53,7 +53,7 @@ export default function OrganizationPageClient() {
           <p className="mt-1 text-lg font-semibold">{org.userCount}</p>
         </Card>
         <Card>
-          <p className="text-xs uppercase text-slate-500">Số dư ví</p>
+          <p className="text-xs uppercase text-slate-500">Số dư</p>
           <p className="mt-1 text-lg font-semibold">{formatVnd(org.walletBalance)}</p>
         </Card>
         <Card>

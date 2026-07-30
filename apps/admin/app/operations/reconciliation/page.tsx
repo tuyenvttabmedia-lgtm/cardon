@@ -4,6 +4,11 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Card, ErrorMessage, StatCard } from '@/components/ui/Display';
 import { Button, Input, Label } from '@/components/ui/Form';
+import {
+  mismatchDescription,
+  mismatchTypeLabel,
+  severityLabel,
+} from '@/lib/operations-labels';
 import { vi } from '@/lib/i18n/vi';
 import { cn, formatDateTime } from '@/lib/utils';
 import {
@@ -22,16 +27,12 @@ function SeverityBadge({ severity }: { severity: string }) {
         ? 'bg-orange-100 text-orange-800'
         : severity === 'MEDIUM'
           ? 'bg-yellow-100 text-yellow-800'
-          : 'bg-zinc-100 text-zinc-700';
-  const label =
-    severity === 'CRITICAL'
-      ? vi.operations.severityCritical
-      : severity === 'HIGH'
-        ? vi.operations.severityHigh
-        : severity === 'MEDIUM'
-          ? vi.operations.severityMedium
-          : vi.operations.severityLow;
-  return <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', cls)}>{label}</span>;
+          : 'bg-slate-100 text-slate-700';
+  return (
+    <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', cls)}>
+      {severityLabel(severity)}
+    </span>
+  );
 }
 
 export default function ReconciliationPage() {
@@ -70,6 +71,10 @@ export default function ReconciliationPage() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-slate-500">
+        Quét lệch dữ liệu giữa thanh toán → đơn → NCC → webhook (khoảng 7 ngày gần đây). Bấm mã đơn để mở
+        chi tiết và xử lý. Đây không phải báo cáo kế toán.
+      </p>
       {error && <ErrorMessage message={error} />}
 
       {summary && (
@@ -87,7 +92,7 @@ export default function ReconciliationPage() {
           <div>
             <Label className="text-xs">{vi.operations.severity}</Label>
             <select
-              className="mt-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="mt-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={severity}
               onChange={(e) => {
                 setSkip(0);
@@ -97,7 +102,7 @@ export default function ReconciliationPage() {
               <option value="">{vi.app.all}</option>
               {SEVERITIES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {severityLabel(s)}
                 </option>
               ))}
             </select>
@@ -111,7 +116,14 @@ export default function ReconciliationPage() {
               placeholder={vi.operations.orderCode}
             />
           </div>
-          <Button onClick={() => { setSkip(0); void load(); }}>{vi.app.filter}</Button>
+          <Button
+            onClick={() => {
+              setSkip(0);
+              void load();
+            }}
+          >
+            {vi.app.filter}
+          </Button>
         </div>
       </Card>
 
@@ -119,14 +131,14 @@ export default function ReconciliationPage() {
         {loading ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-zinc-100" />
+              <div key={i} className="h-10 animate-pulse rounded bg-slate-100" />
             ))}
           </div>
         ) : !data?.items.length ? (
-          <p className="p-6 text-center text-sm text-zinc-500">{vi.operations.noItems}</p>
+          <p className="p-6 text-center text-sm text-slate-500">{vi.operations.noItems}</p>
         ) : (
           <table className="min-w-full text-sm">
-            <thead className="border-b border-zinc-100 bg-zinc-50 text-left text-xs uppercase text-zinc-500">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">{vi.operations.severity}</th>
                 <th className="px-4 py-3">{vi.operations.description}</th>
@@ -137,13 +149,13 @@ export default function ReconciliationPage() {
             </thead>
             <tbody>
               {data.items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-50 hover:bg-zinc-50/50">
+                <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                   <td className="px-4 py-3">
                     <SeverityBadge severity={row.severity} />
                   </td>
                   <td className="px-4 py-3">
-                    <p>{row.description}</p>
-                    <p className="text-xs text-zinc-400">{row.type}</p>
+                    <p>{mismatchDescription(row.description, row.type)}</p>
+                    <p className="text-xs text-slate-400">{mismatchTypeLabel(row.type)}</p>
                   </td>
                   <td className="px-4 py-3">
                     {row.orderId ? (
@@ -155,7 +167,7 @@ export default function ReconciliationPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{row.paymentReference ?? '—'}</td>
-                  <td className="px-4 py-3 text-zinc-500">{formatDateTime(row.detectedAt)}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDateTime(row.detectedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -163,20 +175,24 @@ export default function ReconciliationPage() {
         )}
       </Card>
 
-      {data && data.total > take && (
+      {data && data.total > 0 && (
         <div className="flex justify-center gap-2">
-          <Button variant="secondary" disabled={skip === 0} onClick={() => setSkip(Math.max(0, skip - take))}>
-            Trước
+          <Button
+            variant="secondary"
+            disabled={skip === 0 || loading}
+            onClick={() => setSkip(Math.max(0, skip - take))}
+          >
+            {vi.common.prev}
           </Button>
-          <span className="self-center text-sm text-zinc-500">
+          <span className="self-center text-sm text-slate-500">
             {skip + 1}–{Math.min(skip + take, data.total)} / {data.total}
           </span>
           <Button
             variant="secondary"
-            disabled={skip + take >= data.total}
+            disabled={skip + take >= data.total || loading}
             onClick={() => setSkip(skip + take)}
           >
-            Sau
+            {vi.common.next}
           </Button>
         </div>
       )}

@@ -114,9 +114,9 @@ export function renderEmailTemplate(
       };
     case 'PROVIDER_LOW_BALANCE':
       return {
-        subject: `Provider low balance: ${String(data.providerCode ?? '')}`,
-        html: `<p>Provider ${escapeHtml(String(data.providerName ?? ''))} balance is ${escapeHtml(String(data.balance ?? ''))} VND.</p>`,
-        text: `Provider ${String(data.providerCode ?? '')} low balance ${String(data.balance ?? '')}`,
+        subject: `Số dư NCC thấp: ${String(data.providerName ?? data.providerCode ?? '')}`,
+        html: `<p>NCC <strong>${escapeHtml(String(data.providerName ?? ''))}</strong> còn ${escapeHtml(String(data.balance ?? ''))} VND (ngưỡng ${escapeHtml(String(data.threshold ?? ''))} VND).</p><p>Cần nạp ví trước khi giao đơn mới.</p>`,
+        text: `Số dư NCC thấp: ${String(data.providerName ?? data.providerCode ?? '')} — ${String(data.balance ?? '')} VND (ngưỡng ${String(data.threshold ?? '')} VND)`,
       };
     case 'CONTACT_FORM':
       return {

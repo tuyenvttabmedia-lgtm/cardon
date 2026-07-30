@@ -258,6 +258,91 @@ export class LedgerService {
     return this.ledgerRepository.listByAgentId(agentId);
   }
 
+  async getSandboxBalance(agentId: string): Promise<AgentBalanceSnapshot> {
+    const agent = await this.agentRepository.findById(agentId);
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+    return this.toSnapshot(agent.sandboxBalance, agent.sandboxHeldBalance);
+  }
+
+  /**
+   * Sandbox HOLD/DEBIT/RELEASE — updates sandbox_* balances only.
+   * No ledger_entries (keeps live finance statements clean).
+   */
+  async holdSandboxInTransaction(
+    tx: Prisma.TransactionClient,
+    agentId: string,
+    amount: Decimal,
+  ) {
+    this.assertPositive(amount, 'Hold amount must be positive');
+    await this.agentRepository.lockForUpdate(agentId, tx);
+    const agent = await this.agentRepository.findByIdInTransaction(agentId, tx);
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+    const available = agent.sandboxBalance.sub(agent.sandboxHeldBalance);
+    if (available.lt(amount)) {
+      throw new BadRequestException('INSUFFICIENT_BALANCE');
+    }
+    await this.agentRepository.updateSandboxBalancesInTransaction(
+      agentId,
+      {
+        sandboxBalance: agent.sandboxBalance,
+        sandboxHeldBalance: agent.sandboxHeldBalance.add(amount),
+      },
+      tx,
+    );
+  }
+
+  async debitSandboxFromHoldInTransaction(
+    tx: Prisma.TransactionClient,
+    agentId: string,
+    amount: Decimal,
+  ) {
+    this.assertPositive(amount, 'Debit amount must be positive');
+    await this.agentRepository.lockForUpdate(agentId, tx);
+    const agent = await this.agentRepository.findByIdInTransaction(agentId, tx);
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+    if (agent.sandboxHeldBalance.lt(amount)) {
+      throw new BadRequestException('Insufficient held balance for debit');
+    }
+    await this.agentRepository.updateSandboxBalancesInTransaction(
+      agentId,
+      {
+        sandboxBalance: agent.sandboxBalance.sub(amount),
+        sandboxHeldBalance: agent.sandboxHeldBalance.sub(amount),
+      },
+      tx,
+    );
+  }
+
+  async releaseSandboxInTransaction(
+    tx: Prisma.TransactionClient,
+    agentId: string,
+    amount: Decimal,
+  ) {
+    this.assertPositive(amount, 'Release amount must be positive');
+    await this.agentRepository.lockForUpdate(agentId, tx);
+    const agent = await this.agentRepository.findByIdInTransaction(agentId, tx);
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
+    if (agent.sandboxHeldBalance.lt(amount)) {
+      throw new BadRequestException('Insufficient held balance for release');
+    }
+    await this.agentRepository.updateSandboxBalancesInTransaction(
+      agentId,
+      {
+        sandboxBalance: agent.sandboxBalance,
+        sandboxHeldBalance: agent.sandboxHeldBalance.sub(amount),
+      },
+      tx,
+    );
+  }
+
   private async maybeNotifyLowBalance(agentId: string): Promise<void> {
     const snapshot = await this.getBalance(agentId);
     const available = new Decimal(snapshot.availableBalance);

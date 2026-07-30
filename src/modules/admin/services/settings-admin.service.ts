@@ -229,6 +229,7 @@ export class SettingsAdminService {
       returnUrl: dto.returnUrl ?? current.returnUrl,
       callbackUrl: dto.callbackUrl ?? current.callbackUrl,
       webhookUrl: dto.webhookUrl ?? current.webhookUrl,
+      bankCode: dto.bankCode ?? current.bankCode,
       secretKeyEnc: this.mergeSecretField(
         dto.secretKey,
         current.secretKeyEnc,
@@ -237,10 +238,19 @@ export class SettingsAdminService {
         dto.webhookSecret,
         current.webhookSecretEnc,
       ),
+      notifyPublicKeyEnc: this.mergeSecretField(
+        dto.notifyPublicKey,
+        current.notifyPublicKeyEnc,
+      ),
       pgEncodeKeyEnc: this.mergeSecretField(
         dto.pgEncodeKey,
         current.pgEncodeKeyEnc,
       ),
+      pgRefundPasswordEnc: this.mergeSecretField(
+        dto.pgRefundPassword,
+        current.pgRefundPasswordEnc,
+      ),
+      pgMerchantId: dto.pgMerchantId ?? current.pgMerchantId,
       pgEnvironment: dto.pgEnvironment ?? current.pgEnvironment,
       reqDomain: dto.reqDomain ?? current.reqDomain,
     };
@@ -253,9 +263,13 @@ export class SettingsAdminService {
       'returnUrl',
       'callbackUrl',
       'webhookUrl',
+      'bankCode',
       'secretKey',
       'webhookSecret',
+      'notifyPublicKey',
       'pgEncodeKey',
+      'pgRefundPassword',
+      'pgMerchantId',
       'pgEnvironment',
       'reqDomain',
     ]);
@@ -395,7 +409,25 @@ export class SettingsAdminService {
         dto.customerTopupEnabled ?? current.customerTopupEnabled ?? false,
       customerDataEnabled:
         dto.customerDataEnabled ?? current.customerDataEnabled ?? false,
+      auditLogRetentionDays:
+        dto.auditLogRetentionDays ??
+        current.auditLogRetentionDays ??
+        360,
+      agentDepositMinAmount:
+        dto.agentDepositMinAmount ?? current.agentDepositMinAmount,
+      agentDepositMaxAmount:
+        dto.agentDepositMaxAmount ?? current.agentDepositMaxAmount,
     };
+
+    if (
+      next.agentDepositMinAmount != null &&
+      next.agentDepositMaxAmount != null &&
+      next.agentDepositMaxAmount < next.agentDepositMinAmount
+    ) {
+      throw new BadRequestException(
+        'agentDepositMaxAmount must be greater than or equal to agentDepositMinAmount',
+      );
+    }
 
     await this.persist(adminId, SETTINGS_KEYS.SYSTEM, next as Prisma.InputJsonValue, [
       'siteName',
@@ -405,6 +437,9 @@ export class SettingsAdminService {
       'agentRegistrationMode',
       'customerTopupEnabled',
       'customerDataEnabled',
+      'auditLogRetentionDays',
+      'agentDepositMinAmount',
+      'agentDepositMaxAmount',
     ]);
     return this.getSystem();
   }

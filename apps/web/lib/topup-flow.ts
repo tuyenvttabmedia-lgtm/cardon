@@ -15,30 +15,47 @@ export function detectTelcoFromPhone(input: string): string | null {
   const vinaphone = new Set(['081', '082', '083', '084', '085', '088', '091', '094']);
   const vietnamobile = new Set(['052', '056', '058', '092']);
 
+  // Vietnamobile before Viettel: "vietnamobile" must not be claimed by viettel substring checks elsewhere.
+  if (vietnamobile.has(prefix3) || prefix4 === '0920') return 'vietnamobile';
   if (viettel.has(prefix3)) return 'viettel';
   if (mobifone.has(prefix3)) return 'mobifone';
   if (vinaphone.has(prefix3)) return 'vinaphone';
-  if (vietnamobile.has(prefix3) || prefix4 === '0920') return 'vietnamobile';
 
   return null;
 }
 
 export const TOPUP_CARRIERS = [
-  { id: 'viettel', label: 'Viettel', match: /viettel/i },
-  { id: 'mobifone', label: 'Mobifone', match: /mobifone|mobiphone|mobi/i },
-  { id: 'vinaphone', label: 'Vinaphone', match: /vinaphone|vina/i },
-  { id: 'vietnamobile', label: 'Vietnamobile', match: /vietnamobile|vnmobile/i },
+  { id: 'viettel', label: 'Viettel' },
+  { id: 'mobifone', label: 'Mobifone' },
+  { id: 'vinaphone', label: 'Vinaphone' },
+  { id: 'vietnamobile', label: 'Vietnamobile' },
 ] as const;
 
 export const DATA_CARRIERS = TOPUP_CARRIERS.filter((c) => c.id !== 'vietnamobile');
 
 export type TopupFlowCategory = 'topup' | 'data';
 
+/**
+ * Match product ↔ carrier.
+ * Important: "vietnamobile" contains "viettel" and "vina" — never use naive substring regex.
+ */
 export function matchCarrier(product: { slug: string; name: string }, carrierId: string): boolean {
-  const hint = TOPUP_CARRIERS.find((c) => c.id === carrierId);
-  if (!hint) return true;
-  const text = `${product.slug} ${product.name}`;
-  return hint.match.test(text);
+  const slug = product.slug.toLowerCase();
+  const name = product.name.toLowerCase();
+  const text = `${slug} ${name}`;
+
+  switch (carrierId) {
+    case 'vietnamobile':
+      return /vietnamobile|vnmobile/.test(text);
+    case 'viettel':
+      return /viettel/.test(text) && !/vietnamobile|vnmobile/.test(text);
+    case 'vinaphone':
+      return /vinaphone/.test(text) || (/(^|[^a-z])vina([^a-z]|$)/.test(text) && !/vietnamobile/.test(text));
+    case 'mobifone':
+      return /mobifone|mobiphone/.test(text) || /(^|[^a-z])mobi([^a-z]|$)/.test(text);
+    default:
+      return true;
+  }
 }
 
 export function carrierLabel(carrierId: string | null | undefined): string | undefined {

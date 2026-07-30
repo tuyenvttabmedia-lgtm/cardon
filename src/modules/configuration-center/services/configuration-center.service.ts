@@ -151,11 +151,29 @@ export class ConfigurationCenterService {
     const started = Date.now();
     try {
       const res = await fetch(endpoint, { method: 'HEAD', signal: AbortSignal.timeout(10_000) });
+      const latencyMs = Date.now() - started;
+      // Many MegaPay APIs reject HEAD (405) / unknown path (404) but host is reachable.
+      if (res.ok) {
+        return {
+          ok: true,
+          latencyMs,
+          httpStatus: res.status,
+          message: `MegaPay: kết nối endpoint OK (HTTP ${res.status})`,
+        };
+      }
+      if (res.status === 405 || res.status === 404) {
+        return {
+          ok: true,
+          latencyMs,
+          httpStatus: res.status,
+          message: `MegaPay: máy chủ phản hồi (HTTP ${res.status}). URL reachable; endpoint không hỗ trợ HEAD — chưa kiểm tra xác thực API.`,
+        };
+      }
       return {
-        ok: res.ok || res.status === 405 || res.status === 404,
-        latencyMs: Date.now() - started,
+        ok: false,
+        latencyMs,
         httpStatus: res.status,
-        message: res.ok ? 'Kết nối endpoint thành công' : `Endpoint phản hồi HTTP ${res.status}`,
+        message: `MegaPay: endpoint phản hồi HTTP ${res.status}`,
       };
     } catch (err) {
       throw new BadRequestException(
@@ -182,23 +200,34 @@ export class ConfigurationCenterService {
         headers: { Authorization: `Basic ${auth}` },
         signal: AbortSignal.timeout(15_000),
       });
+      const latencyMs = Date.now() - started;
+      const envLabel = config.environment === 'sandbox' ? 'sandbox' : 'production';
+      if (res.ok || res.status === 404) {
+        return {
+          ok: true,
+          message: `SePay Cổng thanh toán (${envLabel}): kết nối OK (HTTP ${res.status})`,
+          latencyMs,
+          httpStatus: res.status,
+        };
+      }
       return {
-        ok: res.ok || res.status === 404,
-        message:
-          res.ok || res.status === 404
-            ? `SePay PG ${config.environment} kết nối OK (HTTP ${res.status})`
-            : `SePay PG phản hồi HTTP ${res.status}`,
-        latencyMs: Date.now() - started,
+        ok: false,
+        message: `SePay Cổng thanh toán (${envLabel}): HTTP ${res.status} — kiểm tra merchantId / secret`,
+        latencyMs,
         httpStatus: res.status,
       };
     }
-    const view = this.settingsStore.getSepayAdminView() as { bankAccount?: string; configured?: boolean };
-    if (!view.bankAccount?.trim()) {
-      throw new BadRequestException('SePay bank account chưa cấu hình');
+
+    const hasBank = Boolean(config.bankAccount?.trim() && config.bankCode?.trim());
+    const hasHmac = Boolean(config.webhookSecret?.trim() || config.apiKey?.trim());
+    if (!hasBank || !hasHmac) {
+      throw new BadRequestException(
+        'SePay VietQR thiếu STK/ngân hàng hoặc Webhook Secret (HMAC)',
+      );
     }
     return {
       ok: true,
-      message: 'SePay credentials hợp lệ (bank account configured)',
+      message: `SePay VietQR: cấu hình OK (STK ${config.bankCode} ···${String(config.bankAccount).slice(-4)} + HMAC). Webhook chỉ xác nhận khi có giao dịch thật.`,
       latencyMs: 0,
     };
   }

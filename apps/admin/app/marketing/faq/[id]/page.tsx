@@ -175,7 +175,7 @@ export default function FaqEditPage() {
   if (loading) {
     return (
       <RequirePermission permission="cms.manage">
-        <p className="text-zinc-500">{vi.app.loading}</p>
+        <p className="text-slate-500">{vi.app.loading}</p>
       </RequirePermission>
     );
   }
@@ -188,9 +188,9 @@ export default function FaqEditPage() {
             <Link href="/marketing/faq" className="text-sm text-admin-600 hover:underline">
               ← Quay lại danh sách
             </Link>
-            <h1 className="mt-1 text-2xl font-bold">{isNew ? 'Thêm FAQ' : 'Sửa FAQ'}</h1>
+            <h1 className="admin-page-title mt-1">{isNew ? 'Thêm FAQ' : 'Sửa FAQ'}</h1>
             {isNew && (
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Thứ tự hiển thị tự động theo danh mục. Sau khi xuất bản, form reset để thêm tiếp.
               </p>
             )}
@@ -216,7 +216,7 @@ export default function FaqEditPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
           <Card className="space-y-4 p-4">
             <div>
-              <label className="text-xs text-zinc-500">Câu hỏi</label>
+              <label className="text-xs text-slate-500">Câu hỏi</label>
               <Input
                 id="faq-question-input"
                 value={question}
@@ -224,7 +224,7 @@ export default function FaqEditPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-500">Slug URL</label>
+              <label className="text-xs text-slate-500">Slug URL</label>
               <Input
                 value={slug}
                 onChange={(e) => {
@@ -234,14 +234,14 @@ export default function FaqEditPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-zinc-500">Câu trả lời</label>
+              <label className="text-xs text-slate-500">Câu trả lời</label>
               <FaqLiteEditor key={formKey} value={answer} onChange={setAnswer} />
             </div>
           </Card>
 
           <Card className="space-y-4 p-4">
             <div>
-              <label className="text-xs text-zinc-500">Danh mục</label>
+              <label className="text-xs text-slate-500">Danh mục</label>
               <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -251,7 +251,7 @@ export default function FaqEditPage() {
               </Select>
             </div>
             <div>
-              <label className="text-xs text-zinc-500">Trạng thái</label>
+              <label className="text-xs text-slate-500">Trạng thái</label>
               <Select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as typeof status)}
@@ -263,19 +263,19 @@ export default function FaqEditPage() {
             </div>
             {!isNew && (
               <div>
-                <label className="text-xs text-zinc-500">Thứ tự hiển thị</label>
+                <label className="text-xs text-slate-500">Thứ tự hiển thị</label>
                 <Input
                   type="number"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(Number(e.target.value) || 0)}
                 />
-                <p className="mt-1 text-xs text-zinc-400">
+                <p className="mt-1 text-xs text-slate-400">
                   Số nhỏ hiển thị trước. Chỉnh khi cần đổi vị trí thủ công.
                 </p>
               </div>
             )}
             <div>
-              <p className="mb-2 text-xs text-zinc-500">Vị trí hiển thị</p>
+              <p className="mb-2 text-xs text-slate-500">Vị trí hiển thị</p>
               {POSITION_OPTIONS.map((opt) => (
                 <label key={opt.value} className="mb-1 flex items-center gap-2 text-sm">
                   <input

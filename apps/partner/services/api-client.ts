@@ -464,6 +464,8 @@ export const financeApi = {
       items: import('@/types/platform').FinanceDepositRow[];
       total: number;
       gateways?: import('@/types/platform').FinanceDepositGateway[];
+      minAmount?: number;
+      maxAmount?: number;
       readOnly?: boolean;
     }>(`/agents/me/finance/deposits${walletQuery(filters as Record<string, string | number | undefined>)}`);
   },
@@ -526,11 +528,16 @@ export const securityApi = {
   getApiKeys() {
     return apiRequest<import('@/types/platform').AgentSecurityApiKeys>('/agents/me/security/api-keys');
   },
-  rotateApiKey() {
-    return apiRequest<{ apiKey: string; secretKey: string; message: string }>(
-      '/agents/me/security/api-keys/rotate',
-      { method: 'POST' },
-    );
+  rotateApiKey(environment: 'SANDBOX' | 'PRODUCTION' = 'SANDBOX') {
+    return apiRequest<{
+      apiKey: string;
+      secretKey: string;
+      message: string;
+      environment?: 'SANDBOX' | 'PRODUCTION';
+    }>('/agents/me/security/api-keys/rotate', {
+      method: 'POST',
+      body: { environment },
+    });
   },
   disableApiKey() {
     return apiRequest<{ ok: boolean }>('/agents/me/security/api-keys/disable', { method: 'POST' });

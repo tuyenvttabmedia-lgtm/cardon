@@ -9,7 +9,7 @@ const GROUPS = [
   { id: 'wallet', label: 'Số dư' },
   { id: 'api', label: 'API' },
   { id: 'webhook', label: 'Webhook' },
-  { id: 'provider', label: 'Provider' },
+  { id: 'fulfillment', label: 'Xử lý đơn' },
   { id: 'system', label: 'Hệ thống' },
 ] as const;
 
@@ -17,8 +17,8 @@ function inferGroup(title?: string): (typeof GROUPS)[number]['id'] {
   const t = (title ?? '').toLowerCase();
   if (t.includes('webhook')) return 'webhook';
   if (t.includes('api') || t.includes('key')) return 'api';
-  if (t.includes('provider')) return 'provider';
-  if (t.includes('nạp') || t.includes('ví') || t.includes('wallet')) return 'wallet';
+  if (t.includes('provider') || t.includes('fulfill') || t.includes('xử lý đơn')) return 'fulfillment';
+  if (t.includes('nạp') || t.includes('hạn mức') || t.includes('ví') || t.includes('wallet')) return 'wallet';
   return 'system';
 }
 
@@ -47,7 +47,7 @@ export default function NotificationsPageClient() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Thông báo</h1>
-        <p className="mt-1 text-sm text-slate-600">Nhóm theo Số dư, API, Webhook, Provider và Hệ thống.</p>
+        <p className="mt-1 text-sm text-slate-600">Nhóm theo Số dư, API, Webhook, Xử lý đơn và Hệ thống.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">

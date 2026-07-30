@@ -193,7 +193,10 @@ export class ESaleProvider implements ProviderInterface {
 
   async syncProducts(): Promise<ProductSyncResult> {
     const catalog = await this.cardAdapter.getCardList();
-    return this.productSyncService.syncEsaleCardCatalog(this.code, catalog);
+    const config = this.configService.getConfig();
+    return this.productSyncService.syncEsaleCardCatalog(this.code, catalog, {
+      updateCosts: config.environment === 'production',
+    });
   }
 
   private resolveRequestContext(params: {

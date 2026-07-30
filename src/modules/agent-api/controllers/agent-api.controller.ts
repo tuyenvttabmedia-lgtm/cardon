@@ -42,7 +42,7 @@ export class AgentApiController {
 
   @Get('balance')
   getBalance(@Req() request: AgentApiRequest) {
-    return this.buyService.getBalance(getAgentApiContext(request).agent.id);
+    return this.buyService.getBalance(getAgentApiContext(request));
   }
 
   @Get('transactions/:request_id')

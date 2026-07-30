@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { SettingsStoreService } from '../../../settings/services/settings-store.service';
 
 export interface EsaleConfig {
+  environment: 'sandbox' | 'production';
   cardApiUrl: string;
   topupApiUrl: string;
   agencyCode: string;

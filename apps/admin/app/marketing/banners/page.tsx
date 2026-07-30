@@ -11,7 +11,11 @@ import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsBanner } from '@/types/api';
 
 const POSITIONS: Array<{ value: string; label: string; hint: string }> = [
-  { value: 'HOME_HERO', label: 'HOME_HERO', hint: 'Banner đầu trang chủ (hero)' },
+  {
+    value: 'HOME_HERO',
+    label: 'HOME_HERO',
+    hint: 'Hero trang chủ / nạp thẻ / nạp cước — nhiều banner ACTIVE sẽ chạy slide (carousel), sắp xếp theo Sort order',
+  },
   { value: 'HOME_PROMOTION', label: 'HOME_PROMOTION', hint: 'Khuyến mãi trên trang chủ' },
   { value: 'SIDEBAR', label: 'SIDEBAR', hint: 'Cột phụ trang chủ / danh mục' },
   { value: 'MOBILE_HOME', label: 'MOBILE_HOME', hint: 'Banner mobile trang chủ' },
@@ -107,7 +111,11 @@ export default function BannersPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">{vi.cms.bannersTitle}</h1>
+        <h1 className="admin-page-title">{vi.cms.bannersTitle}</h1>
+        <p className="text-sm text-slate-500">
+          Vị trí <span className="font-medium text-slate-700">HOME_HERO</span>: tạo nhiều banner ACTIVE
+          (khác Sort order) để hiện slide mũi tên trên trang chủ / nạp thẻ / nạp cước.
+        </p>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
 
@@ -127,7 +135,7 @@ export default function BannersPage() {
                   </option>
                 ))}
               </Select>
-              {positionHint && <p className="mt-1 text-xs text-zinc-500">{positionHint}</p>}
+              {positionHint && <p className="mt-1 text-xs text-slate-500">{positionHint}</p>}
             </div>
             <MediaImageField
               label={vi.cms.bannerImage}
@@ -164,7 +172,7 @@ export default function BannersPage() {
         <Card>
           <ul className="space-y-2 text-sm">
             {banners.map((b) => (
-              <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-zinc-50 p-3">
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-3">
                 <span>
                   {b.title} · {b.position} · sort {b.sortOrder}
                 </span>

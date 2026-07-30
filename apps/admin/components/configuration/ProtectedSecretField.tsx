@@ -25,7 +25,7 @@ export function ProtectedSecretField({
 
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-zinc-700">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
       <div className="flex gap-2">
         <Input
           type={revealed && isSuperAdmin && !masked ? 'text' : 'password'}

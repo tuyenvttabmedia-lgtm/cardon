@@ -173,7 +173,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
         repository as never,
         { lockForUpdate: jest.fn() } as never,
         { findBySku: jest.fn() } as never,
-        { getAgentPrice: jest.fn() } as never,
+        { getAgentPrice: jest.fn(), resolveAgentPrice: jest.fn().mockResolvedValue({ sellingPrice: '100000', providerCost: '0' }) } as never,
         ledgerService as never,
         providerService as never,
         { decrypt: jest.fn() } as never,
@@ -388,12 +388,19 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
       return new AgentApiAuthService(
         {
           findByApiKeyLookup: jest.fn().mockResolvedValue(agent),
+          findBySandboxApiKeyLookup: jest.fn().mockResolvedValue(null),
           touchLastUsedAt: jest.fn(),
         } as never,
         {
           verifyApiKey: jest.fn().mockReturnValue(true),
           decryptSecretKey: jest.fn().mockReturnValue(secretKey),
         } as unknown as AgentCredentialService,
+        {
+          parseSecurityConfig: jest.fn().mockReturnValue({}),
+          checkIpWhitelist: jest.fn().mockReturnValue(true),
+          recordAuthFailure: jest.fn(),
+          validateApiAccess: jest.fn(),
+        } as never,
       );
     }
 
@@ -404,6 +411,8 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
       secretKeyEncrypted: 'enc',
       status: AgentStatus.ACTIVE,
       apiEnabled: true,
+      liveApiEnabled: true,
+      securityConfig: {},
     };
 
     it('rejects invalid signature', async () => {
@@ -562,6 +571,7 @@ function buildBuyServiceForFailure(failureCode: string) {
     type: ProductVariantType.CARD,
     status: ProductVariantStatus.ACTIVE,
     deletedAt: null,
+    faceValue: new Decimal(100000),
   };
 
   const buyService = new AgentApiBuyService(
@@ -573,7 +583,7 @@ function buildBuyServiceForFailure(failureCode: string) {
     repository as never,
     { lockForUpdate: jest.fn() } as never,
     { findBySku: jest.fn().mockResolvedValue(variant) } as never,
-    { getAgentPrice: jest.fn().mockResolvedValue('100000.00') } as never,
+    { getAgentPrice: jest.fn().mockResolvedValue('100000.00'), resolveAgentPrice: jest.fn().mockResolvedValue({ sellingPrice: '100000.00', providerCost: '90000.00' }) } as never,
     ledger as never,
     {
       fulfillOrder: jest.fn().mockResolvedValue({

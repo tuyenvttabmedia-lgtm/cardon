@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { mediaFullUrl } from '@/components/marketing/MediaLibraryPicker';
+import { Dialog } from '@/components/ui/Dialog';
 import { Button, Input, Select } from '@/components/ui/Form';
 import type { CmsCategory, CmsPage, CmsTag } from '@/types/api';
 import {
@@ -76,10 +77,10 @@ function ThumbnailCell({ src, title }: { src: string | null | undefined; title: 
         // eslint-disable-next-line @next/next/no-img-element
         <img src={url} alt="" className="h-[45px] w-20 rounded object-cover" />
       ) : (
-        <div className="flex h-[45px] w-20 items-center justify-center rounded bg-zinc-100 text-xs text-zinc-400">—</div>
+        <div className="flex h-[45px] w-20 items-center justify-center rounded bg-slate-100 text-xs text-slate-400">—</div>
       )}
       {hover && url && (
-        <div className="absolute left-full top-0 z-30 ml-2 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl">
+        <div className="absolute left-full top-0 z-30 ml-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={url} alt={title} className="max-h-48 max-w-xs object-contain" />
         </div>
@@ -92,7 +93,7 @@ function MediaIcons({ content }: { content: string }) {
   const m = analyzeMediaCounts(content);
   if (!m.images && !m.videos && !m.tables) return null;
   return (
-    <span className="inline-flex gap-1 text-[10px] text-zinc-400">
+    <span className="inline-flex gap-1 text-[10px] text-slate-400">
       {m.images > 0 && <span title={`${m.images} ảnh`}>🖼{m.images}</span>}
       {m.videos > 0 && <span title={`${m.videos} video`}>▶{m.videos}</span>}
       {m.tables > 0 && <span title={`${m.tables} bảng`}>⊞{m.tables}</span>}
@@ -115,27 +116,31 @@ function QuickEditModal({
   const [status, setStatus] = useState(page.status);
   const [categoryId, setCategoryId] = useState(page.categoryId ?? page.categoryRel?.id ?? '');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white p-4 shadow-xl">
-        <h3 className="font-semibold">Quick Edit</h3>
-        <div className="mt-3 space-y-3">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề" />
-          <Select value={status} onChange={(e) => setStatus(e.target.value as CmsPage['status'])}>
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="ARCHIVED">Archived</option>
-          </Select>
-          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— Danh mục —</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-        </div>
-        <div className="mt-4 flex justify-end gap-2">
+    <Dialog
+      open
+      onClose={onClose}
+      title="Quick Edit"
+      size="sm"
+      footer={
+        <>
           <Button variant="ghost" onClick={onClose}>Hủy</Button>
           <Button onClick={() => onSave({ title, status, categoryId })}>Lưu</Button>
-        </div>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Tiêu đề" />
+        <Select value={status} onChange={(e) => setStatus(e.target.value as CmsPage['status'])}>
+          <option value="DRAFT">Draft</option>
+          <option value="PUBLISHED">Published</option>
+          <option value="ARCHIVED">Archived</option>
+        </Select>
+        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <option value="">— Danh mục —</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </Select>
       </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -293,8 +298,8 @@ export const ArticleListTable = memo(function ArticleListTable({
 
   if (items.filter((p) => !isInTrash(p.id) && p.status !== 'ARCHIVED').length === 0 && filters.quickFilter === 'all') {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-zinc-300 py-16 text-center">
-        <p className="text-lg font-medium text-zinc-700">Bạn chưa có bài viết.</p>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 py-16 text-center">
+        <p className="text-lg font-medium text-slate-700">Bạn chưa có bài viết.</p>
         <Button className="mt-4" onClick={onCreate}>Tạo bài đầu tiên</Button>
       </div>
     );
@@ -328,7 +333,7 @@ export const ArticleListTable = memo(function ArticleListTable({
             type="button"
             onClick={() => setFilter({ quickFilter: qf.id })}
             className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              filters.quickFilter === qf.id ? 'bg-admin-600 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+              filters.quickFilter === qf.id ? 'bg-admin-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             {qf.label}
@@ -355,7 +360,7 @@ export const ArticleListTable = memo(function ArticleListTable({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-600">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600">
         <div className="flex items-center gap-2">
           <span>Showing {total === 0 ? 0 : pageStart + 1}–{pageEnd} / {total}</span>
           <Select className="text-sm" value={filters.pageSize} onChange={(e) => setFilter({ pageSize: Number(e.target.value) as 20 | 50 | 100, page: 1 })}>
@@ -380,14 +385,14 @@ export const ArticleListTable = memo(function ArticleListTable({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-200">
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
         <div
           ref={scrollRef}
           className={useVirtual ? 'max-h-[70vh] overflow-y-auto' : undefined}
           onScroll={useVirtual ? (e) => setScrollTop((e.target as HTMLDivElement).scrollTop) : undefined}
         >
           <table className="min-w-full text-left text-sm">
-            <thead className="sticky top-0 z-10 bg-zinc-50 text-xs uppercase text-zinc-500">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-2 py-2"><input type="checkbox" checked={allSelected} onChange={(e) => setSelected(e.target.checked ? new Set(paged.map((p) => p.id)) : new Set())} /></th>
                 <th className="px-2 py-2">Ảnh</th>
@@ -412,7 +417,7 @@ export const ArticleListTable = memo(function ArticleListTable({
                 const inTrash = isInTrash(p.id);
                 const views = viewsMap[p.id] ?? 0;
                 return (
-                  <tr key={p.id} className="group border-t border-zinc-100 hover:bg-zinc-50/80" style={{ height: ROW_HEIGHT }}>
+                  <tr key={p.id} className="group border-t border-slate-100 hover:bg-slate-50/80" style={{ height: ROW_HEIGHT }}>
                     <td className="px-2 py-1">
                       <input type="checkbox" checked={selected.has(p.id)} onChange={(e) => {
                         const next = new Set(selected);
@@ -425,20 +430,20 @@ export const ArticleListTable = memo(function ArticleListTable({
                       <div className="truncate font-medium">{p.title}</div>
                       <MediaIcons content={p.content} />
                     </td>
-                    <td className="hidden px-2 py-1 text-zinc-600 md:table-cell">{p.categoryRel?.name ?? '—'}</td>
-                    <td className="hidden max-w-[100px] truncate px-2 py-1 text-xs text-zinc-500 lg:table-cell">
+                    <td className="hidden px-2 py-1 text-slate-600 md:table-cell">{p.categoryRel?.name ?? '—'}</td>
+                    <td className="hidden max-w-[100px] truncate px-2 py-1 text-xs text-slate-500 lg:table-cell">
                       {p.pageTags?.map((pt) => pt.tag.name).join(', ') || '—'}
                     </td>
                     <td className="hidden px-2 py-1 text-xs xl:table-cell">{author}</td>
-                    <td className="px-2 py-1 text-zinc-500">
+                    <td className="px-2 py-1 text-slate-500">
                       <span title="Views">{views}</span>
-                      <span className="ml-1 text-[10px] text-zinc-300" title="Comments (placeholder)">💬—</span>
-                      <span className="text-[10px] text-zinc-300" title="Shares (placeholder)">↗—</span>
+                      <span className="ml-1 text-[10px] text-slate-300" title="Comments (placeholder)">💬—</span>
+                      <span className="text-[10px] text-slate-300" title="Shares (placeholder)">↗—</span>
                     </td>
                     <td className="px-2 py-1"><SeoScoreBadge score={score} showLabel={false} /></td>
                     <td className="px-2 py-1"><CmsStatusBadge status={p.status} scheduledAt={scheduled} /></td>
-                    <td className="hidden px-2 py-1 text-xs text-zinc-500 lg:table-cell">{new Date(p.updatedAt).toLocaleDateString('vi-VN')}</td>
-                    <td className="hidden px-2 py-1 text-xs text-zinc-500 md:table-cell">{p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('vi-VN') : '—'}</td>
+                    <td className="hidden px-2 py-1 text-xs text-slate-500 lg:table-cell">{new Date(p.updatedAt).toLocaleDateString('vi-VN')}</td>
+                    <td className="hidden px-2 py-1 text-xs text-slate-500 md:table-cell">{p.publishedAt ? new Date(p.publishedAt).toLocaleDateString('vi-VN') : '—'}</td>
                     <td className="px-2 py-1">
                       <div className="flex gap-0.5 opacity-100 transition group-hover:opacity-100 lg:opacity-0">
                         <Button size="sm" variant="secondary" onClick={() => onEdit(p)}>Sửa</Button>
@@ -465,7 +470,7 @@ export const ArticleListTable = memo(function ArticleListTable({
             </tbody>
           </table>
         </div>
-        {paged.length === 0 && <p className="py-8 text-center text-sm text-zinc-500">Không có bài viết phù hợp</p>}
+        {paged.length === 0 && <p className="py-8 text-center text-sm text-slate-500">Không có bài viết phù hợp</p>}
       </div>
 
       {quickEditPage && (

@@ -88,7 +88,8 @@ export class PricingResolutionService {
     const label = PRODUCT_GROUP_LABELS[homeService];
 
     if (providerCost != null) {
-      let price = computeMarginPrice(providerCost, rule, config.roundTo);
+      const faceValue = Number(variant.faceValue);
+      let price = computeMarginPrice(providerCost, faceValue, rule, config.roundTo);
       if (price < providerCost && !options?.allowBelowCost) {
         price = providerCost;
       }

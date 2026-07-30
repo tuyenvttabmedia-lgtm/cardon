@@ -22,7 +22,7 @@ export function FeaturedImageField({
       <button
         type="button"
         onClick={onReplace}
-        className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-50 py-8 text-sm text-zinc-500 hover:border-admin-400 hover:bg-admin-50/50"
+        className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-8 text-sm text-slate-500 hover:border-admin-400 hover:bg-admin-50/50"
       >
         <span className="text-2xl">🖼</span>
         <span className="mt-2 font-medium">Chọn ảnh đại diện</span>
@@ -32,7 +32,7 @@ export function FeaturedImageField({
 
   return (
     <div className="space-y-2">
-      <div className="overflow-hidden rounded-xl border border-zinc-200">
+      <div className="overflow-hidden rounded-xl border border-slate-200">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={url} alt="Featured" className="aspect-video w-full object-cover" />
       </div>
@@ -55,11 +55,11 @@ export const PanelCard = memo(function PanelCard({
   defaultOpen?: boolean;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold uppercase tracking-wide text-zinc-600 marker:content-none">
+    <details open={defaultOpen} className="group rounded-xl border border-slate-200 bg-white shadow-sm">
+      <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600 marker:content-none">
         {title}
       </summary>
-      <div className="border-t border-zinc-100 px-4 pb-4 pt-3">{children}</div>
+      <div className="border-t border-slate-100 px-4 pb-4 pt-3">{children}</div>
     </details>
   );
 });

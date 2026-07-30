@@ -188,7 +188,7 @@ export class AdminAgentWalletService {
     this.assertCreditRole(admin.role);
     const agent = await this.requireAgent(agentId);
     if (agent.status !== AgentStatus.ACTIVE) {
-      throw new BadRequestException('Đại lý phải ACTIVE để nạp ví');
+      throw new BadRequestException('Đại lý phải ACTIVE để nạp hạn mức');
     }
 
     const amount = parseVndAmount(dto.amount);
@@ -218,7 +218,7 @@ export class AdminAgentWalletService {
         resource: SystemAuditResource.PRICING,
         action: SystemAuditAction.CREATE,
         resourceId: record.id,
-        resourceName: `Yêu cầu nạp ví ${agent.companyName}`,
+        resourceName: `Yêu cầu nạp hạn mức ${agent.companyName}`,
         fieldName: 'agent_manual_credit',
         newValue: { amount: amount.toFixed(2), status: 'PENDING_APPROVAL' },
         performedBy: admin.id,
@@ -298,7 +298,7 @@ export class AdminAgentWalletService {
     admin: { id: string; email: string; role?: UserRole },
   ) {
     if (admin.role !== UserRole.SUPER_ADMIN) {
-      throw new ForbiddenException('Chỉ SUPER_ADMIN được trừ ví thủ công');
+      throw new ForbiddenException('Chỉ SUPER_ADMIN được trừ số dư thủ công');
     }
     const agent = await this.requireAgent(agentId);
     if (agent.status !== AgentStatus.ACTIVE) {
@@ -343,7 +343,7 @@ export class AdminAgentWalletService {
       resource: SystemAuditResource.PRICING,
       action: SystemAuditAction.CREATE,
       resourceId: record.id,
-      resourceName: `Trừ ví ${agent.companyName}`,
+      resourceName: `Trừ số dư ${agent.companyName}`,
       fieldName: 'agent_manual_debit',
       newValue: { amount: amount.toFixed(2) },
       performedBy: admin.id,
@@ -450,7 +450,7 @@ export class AdminAgentWalletService {
       performedBy: admin.id,
       performedEmail: admin.email,
       performedRole: admin.role ?? UserRole.ADMIN,
-      reason: 'Duyệt nạp ví đại lý',
+      reason: 'Duyệt nạp hạn mức đại lý',
     });
 
     const balance = await this.ledgerService.getBalance(record.agentId);
@@ -500,7 +500,7 @@ export class AdminAgentWalletService {
       role !== UserRole.ACCOUNTANT &&
       role !== UserRole.SUPER_ADMIN
     ) {
-      throw new ForbiddenException('Không có quyền nạp ví');
+      throw new ForbiddenException('Không có quyền nạp hạn mức');
     }
   }
 

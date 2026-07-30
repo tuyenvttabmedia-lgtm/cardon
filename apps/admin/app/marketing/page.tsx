@@ -2,6 +2,7 @@
 
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RequirePermission } from '@/components/layout/AdminShell';
+import { StatCard as SharedStatCard } from '@/components/ui/Display';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { cmsAdminApi, faqAdminApi } from '@/services/api-client';
@@ -10,13 +11,7 @@ import { buildSeoChecklist, computeSeoScore, emptyCmsForm } from '@/lib/cms-edit
 import { isInTrash, listDeletedForeverIds } from '@/lib/cms-revisions';
 
 function StatCard({ label, value, href }: { label: string; value: number; href?: string }) {
-  const inner = (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-admin-300">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-zinc-900">{value}</p>
-    </div>
-  );
-  return href ? <Link href={href}>{inner}</Link> : inner;
+  return <SharedStatCard label={label} value={value} href={href} />;
 }
 
 export default function MarketingDashboardPage() {
@@ -72,7 +67,7 @@ export default function MarketingDashboardPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Marketing Dashboard</h1>
+        <h1 className="admin-page-title">Marketing Dashboard</h1>
         <MarketingNav />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -97,12 +92,12 @@ export default function MarketingDashboardPage() {
               <li>Bài cần cập nhật (&gt;30 ngày): <strong>{stats.stale}</strong> bài</li>
             </ul>
           </div>
-          <div className="rounded-xl border border-zinc-200 bg-white p-4">
-            <h2 className="font-semibold text-zinc-900">Quick Actions</h2>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <h2 className="font-semibold text-slate-900">Quick Actions</h2>
             <div className="mt-3 flex flex-wrap gap-2">
               <Link href="/marketing/articles" className="rounded-lg bg-admin-600 px-3 py-2 text-sm font-medium text-white hover:bg-admin-700">+ Bài viết mới</Link>
-              <Link href="/marketing/media" className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">Upload Media</Link>
-              <Link href="/marketing/seo" className="rounded-lg bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-200">SEO Settings</Link>
+              <Link href="/marketing/media" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">Upload Media</Link>
+              <Link href="/marketing/seo" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">SEO Settings</Link>
             </div>
           </div>
         </div>

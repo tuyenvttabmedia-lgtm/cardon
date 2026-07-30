@@ -1,5 +1,6 @@
 import {
   FulfillmentStatus,
+  OrderChannel,
   OrderPaymentStatus,
   Prisma,
   ProductVariantType,
@@ -50,6 +51,17 @@ export function mapDeliveryFilter(
 export function buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhereInput {
   const where: Prisma.OrderWhereInput = {};
 
+  const channel = query.channel ?? 'B2C';
+  if (channel === 'B2C') {
+    where.channel = OrderChannel.B2C;
+  } else if (channel === 'AGENT') {
+    where.channel = OrderChannel.AGENT;
+  }
+
+  if (query.agentId) {
+    where.agentId = query.agentId;
+  }
+
   const paymentStatus = query.paymentStatus ?? mapPaymentFilter(query.paymentFilter);
   if (paymentStatus) {
     where.paymentStatus = paymentStatus;
@@ -80,10 +92,12 @@ export function buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhe
   if (search) {
     where.OR = [
       { orderCode: { contains: search, mode: 'insensitive' } },
+      { agentRequestId: { contains: search, mode: 'insensitive' } },
       { guestEmail: { contains: search, mode: 'insensitive' } },
       { guestPhone: { contains: search, mode: 'insensitive' } },
       { user: { is: { email: { contains: search, mode: 'insensitive' } } } },
       { user: { is: { phone: { contains: search, mode: 'insensitive' } } } },
+      { agent: { is: { companyName: { contains: search, mode: 'insensitive' } } } },
       {
         payments: {
           some: {

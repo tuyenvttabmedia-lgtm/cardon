@@ -33,7 +33,7 @@ export default function OperationsInvoicesPage() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-slate-500">
         Nền tảng tra cứu hóa đơn — không bao gồm logic kế toán. Dùng Finance để quản lý chi tiết.
       </p>
 
@@ -43,14 +43,14 @@ export default function OperationsInvoicesPage() {
         {loading ? (
           <div className="space-y-2 p-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-10 animate-pulse rounded bg-zinc-100" />
+              <div key={i} className="h-10 animate-pulse rounded bg-slate-100" />
             ))}
           </div>
         ) : !items.length ? (
-          <p className="p-6 text-center text-sm text-zinc-500">{vi.operations.noItems}</p>
+          <p className="p-6 text-center text-sm text-slate-500">{vi.operations.noItems}</p>
         ) : (
           <table className="min-w-full text-sm">
-            <thead className="border-b border-zinc-100 bg-zinc-50 text-left text-xs uppercase text-zinc-500">
+            <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">{vi.operations.invoiceNumber}</th>
                 <th className="px-4 py-3">{vi.operations.invoiceStatus}</th>
@@ -61,7 +61,7 @@ export default function OperationsInvoicesPage() {
             </thead>
             <tbody>
               {items.map((inv) => (
-                <tr key={inv.id} className="border-b border-zinc-50 hover:bg-zinc-50/50">
+                <tr key={inv.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                   <td className="px-4 py-3 font-mono text-xs">{inv.invoiceNumber}</td>
                   <td className="px-4 py-3">
                     <span
@@ -70,7 +70,7 @@ export default function OperationsInvoicesPage() {
                         inv.status === 'ISSUED'
                           ? 'bg-green-100 text-green-800'
                           : inv.status === 'VOID'
-                            ? 'bg-zinc-100 text-zinc-600'
+                            ? 'bg-slate-100 text-slate-600'
                             : 'bg-yellow-100 text-yellow-800',
                       )}
                     >
@@ -78,8 +78,8 @@ export default function OperationsInvoicesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">{formatVnd(inv.amount)}</td>
-                  <td className="px-4 py-3 text-zinc-500">{inv.type ?? '—'}</td>
-                  <td className="px-4 py-3 text-zinc-500">{formatDateTime(inv.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-500">{inv.type ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{formatDateTime(inv.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -23,7 +23,12 @@ export class CategoryService {
   ) {}
 
   async ensureRootCategories() {
+    const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
     for (const service of Object.values(HomeServiceType)) {
+      // DATA has no eSale API yet — do not recreate root when feature is off.
+      if (service === HomeServiceType.DATA && !dataEnabled) {
+        continue;
+      }
       const slug = HOME_SERVICE_ROOT_SLUGS[service];
       const existing = await this.categoryRepository.findBySlug(slug);
       if (!existing) {
@@ -158,8 +163,18 @@ export class CategoryService {
       throw new NotFoundException('Category not found');
     }
 
-    if (Object.values(HOME_SERVICE_ROOT_SLUGS).includes(category.slug)) {
-      throw new ConflictException('Cannot disable homepage service root categories');
+    const isRoot = Object.values(HOME_SERVICE_ROOT_SLUGS).includes(category.slug);
+    // Allow disabling empty DATA root when Nạp data is turned off (no eSale API).
+    if (isRoot && category.homeService !== HomeServiceType.DATA) {
+      throw new ConflictException(
+        'Không thể tắt danh mục gốc trang chủ (Thẻ game / Thẻ ĐT / Nạp cước)',
+      );
+    }
+    if (isRoot && category.homeService === HomeServiceType.DATA) {
+      const productCount = await this.usage.categoryProductCount(id);
+      if (productCount > 0) {
+        throw new ConflictException('Danh mục Nạp Data còn sản phẩm — xóa/tắt sản phẩm trước');
+      }
     }
 
     const updated = await this.categoryRepository.disable(id);
@@ -193,17 +208,32 @@ export class CategoryService {
       throw new NotFoundException('Category not found');
     }
 
-    if (Object.values(HOME_SERVICE_ROOT_SLUGS).includes(category.slug)) {
-      throw new ConflictException('Cannot delete homepage service root categories');
+    const isRoot = Object.values(HOME_SERVICE_ROOT_SLUGS).includes(category.slug);
+    const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
+    // DATA root may be removed when feature is off and catalog is empty (no eSale data API).
+    const allowDeleteDataRoot =
+      isRoot &&
+      category.homeService === HomeServiceType.DATA &&
+      !dataEnabled;
+
+    if (isRoot && !allowDeleteDataRoot) {
+      if (category.homeService === HomeServiceType.DATA && dataEnabled) {
+        throw new ConflictException(
+          'Tắt “Cho phép khách hàng mua Nạp data” trong Cấu hình hệ thống trước khi xóa danh mục này',
+        );
+      }
+      throw new ConflictException(
+        'Không thể xóa danh mục gốc trang chủ (Thẻ game / Thẻ ĐT / Nạp cước)',
+      );
     }
 
     const productCount = await this.usage.categoryProductCount(id);
     if (productCount > 0) {
-      throw new ConflictException('Category has products — remove products first');
+      throw new ConflictException('Danh mục còn sản phẩm — xóa sản phẩm trước');
     }
 
     if (await this.usage.categoryHasUsage(id)) {
-      throw new ConflictException('Category was used in orders — disable only');
+      throw new ConflictException('Danh mục đã dùng trong đơn hàng — chỉ được tắt, không xóa cứng');
     }
 
     await this.categoryRepository.hardDelete(id);

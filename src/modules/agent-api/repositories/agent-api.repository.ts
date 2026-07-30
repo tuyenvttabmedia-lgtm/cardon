@@ -84,9 +84,15 @@ export class AgentApiRepository {
       quantity: number;
       unitPrice: Prisma.Decimal;
       totalAmount: Prisma.Decimal;
+      faceValue: Prisma.Decimal;
+      sellAmount: Prisma.Decimal;
+      providerCost: Prisma.Decimal;
+      profit: Prisma.Decimal;
+      customerPaid: Prisma.Decimal;
       orderCode: string;
       transactionCode: string;
       financialTransactionId: string;
+      isSandbox?: boolean;
     },
   ) {
     return tx.order.create({
@@ -99,7 +105,16 @@ export class AgentApiRepository {
         isGuestOrder: false,
         invoiceRequired: false,
         invoiceMetadata: {},
+        clientTrace: input.isSandbox ? { sandbox: true } : {},
         totalAmount: input.totalAmount,
+        faceValue: input.faceValue,
+        sellAmount: input.sellAmount,
+        providerCost: input.providerCost,
+        profit: input.profit,
+        customerPaid: input.customerPaid,
+        paymentMethodCode: input.isSandbox ? 'AGENT_SANDBOX' : 'AGENT_WALLET',
+        methodDisplayName: input.isSandbox ? 'Sandbox hạn mức' : 'Hạn mức đại lý',
+        paymentGateway: input.isSandbox ? 'sandbox' : 'wallet',
         paymentStatus: OrderPaymentStatus.PAID,
         fulfillmentStatus: FulfillmentStatus.PENDING,
         orderItems: {

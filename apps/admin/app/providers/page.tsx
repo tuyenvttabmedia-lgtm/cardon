@@ -105,8 +105,8 @@ export default function ProvidersPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{vi.providers.title}</h1>
-            <p className="text-sm text-zinc-500">Giám sát nhà cung cấp · CardOn 6O25.2</p>
+            <h1 className="admin-page-title">{vi.providers.title}</h1>
+            <p className="text-sm text-slate-500">Giám sát nhà cung cấp · CardOn 6O25.2</p>
           </div>
           <Button variant="secondary" onClick={() => void refresh()} disabled={loading}>
             {loading ? vi.app.loading : vi.app.refresh}
@@ -129,25 +129,25 @@ export default function ProvidersPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h2 className="text-lg font-semibold">{p.name}</h2>
-                    <p className="text-sm text-zinc-500 font-mono">{p.code}</p>
+                    <p className="text-sm text-slate-500 font-mono">{p.code}</p>
                   </div>
                   <Badge tone={healthBadgeTone(label)}>{label}</Badge>
                 </div>
                 <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
-                  <div className="rounded-lg bg-zinc-50 p-3">
-                    <dt className="text-xs text-zinc-500">{vi.providers.balance}</dt>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">{vi.providers.balance}</dt>
                     <dd className="mt-1 text-lg font-bold">{formatVnd(p.balance)}</dd>
                   </div>
-                  <div className="rounded-lg bg-zinc-50 p-3">
-                    <dt className="text-xs text-zinc-500">Thành công hôm nay</dt>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">Thành công hôm nay</dt>
                     <dd className="mt-1 text-lg font-bold text-emerald-700">{p.todaySuccess ?? 0}</dd>
                   </div>
-                  <div className="rounded-lg bg-zinc-50 p-3">
-                    <dt className="text-xs text-zinc-500">Tỷ lệ lỗi</dt>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">Tỷ lệ lỗi</dt>
                     <dd className="mt-1 text-lg font-bold">{errorRate}</dd>
                   </div>
-                  <div className="rounded-lg bg-zinc-50 p-3">
-                    <dt className="text-xs text-zinc-500">Response time</dt>
+                  <div className="rounded-lg bg-slate-50 p-3">
+                    <dt className="text-xs text-slate-500">Response time</dt>
                     <dd className="mt-1 text-lg font-bold">{p.avgLatencyMs != null ? `${p.avgLatencyMs}ms` : '—'}</dd>
                   </div>
                 </dl>
@@ -162,11 +162,11 @@ export default function ProvidersPage() {
                   </p>
                 )}
                 {testResults[p.id] && (
-                  <p className="mt-3 text-xs text-zinc-500">
+                  <p className="mt-3 text-xs text-slate-500">
                     Kiểm tra: {testResults[p.id].success ? 'OK' : 'Lỗi'} · {testResults[p.id].responseTimeMs ?? '—'}ms
                   </p>
                 )}
-                <div className="mt-5 flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
+                <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                   <Button size="sm" variant="secondary" disabled={busyId === p.id} onClick={() => void testConnection(p.id)}>
                     Kiểm tra kết nối
                   </Button>

@@ -85,7 +85,12 @@ function buildProvider(
   const topupAdapter = new EsaleTopupAdapter(configService, client);
   const cardAdapter = new EsaleCardAdapter(configService, client);
   const productSyncService = {
-    syncEsaleCardCatalog: jest.fn().mockResolvedValue({ synced: 0, message: 'mock' }),
+    syncEsaleCardCatalog: jest
+      .fn()
+      .mockImplementation(
+        (_providerCode: string, catalog: unknown[]) =>
+          Promise.resolve({ synced: catalog.length, message: 'mock' }),
+      ),
   } as unknown as import('../../services/provider-product-sync.service').ProviderProductSyncService;
   return new ESaleProvider(configService, client, cardAdapter, topupAdapter, productSyncService);
 }

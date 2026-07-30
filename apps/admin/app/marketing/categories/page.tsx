@@ -81,7 +81,7 @@ export default function CategoriesPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Danh mục bài viết</h1>
+        <h1 className="admin-page-title">Danh mục bài viết</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -138,14 +138,14 @@ export default function CategoriesPage() {
           <Card>
             <h2 className="font-semibold">Danh sách</h2>
             {loading ? (
-              <p className="mt-3 text-zinc-500">{vi.app.loading}</p>
+              <p className="mt-3 text-slate-500">{vi.app.loading}</p>
             ) : (
               <ul className="mt-3 space-y-2 text-sm">
                 {items.map((c) => (
-                  <li key={c.id} className="flex items-center justify-between rounded border border-zinc-100 p-2">
+                  <li key={c.id} className="flex items-center justify-between rounded border border-slate-100 p-2">
                     <div>
                       <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-zinc-500">/tin-tuc/{c.slug}</p>
+                      <p className="text-xs text-slate-500">/tin-tuc/{c.slug}</p>
                     </div>
                     <div className="flex gap-2">
                       <Button

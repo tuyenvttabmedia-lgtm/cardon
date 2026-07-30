@@ -40,7 +40,7 @@ function DetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
           </Button>
         </div>
         {!detail ? (
-          <p className="p-4 text-sm text-zinc-500">{vi.app.loading}</p>
+          <p className="p-4 text-sm text-slate-500">{vi.app.loading}</p>
         ) : (
           <>
             <div className="flex gap-2 border-b px-4 py-2">
@@ -50,7 +50,7 @@ function DetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                   type="button"
                   className={cn(
                     'rounded px-3 py-1 text-sm',
-                    tab === t.id ? 'bg-admin-100 font-medium text-admin-800' : 'text-zinc-600',
+                    tab === t.id ? 'bg-admin-100 font-medium text-admin-800' : 'text-slate-600',
                   )}
                   onClick={() => setTab(t.id)}
                 >
@@ -61,29 +61,29 @@ function DetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
             <div className="flex-1 overflow-y-auto p-4 text-sm">
               {tab === 'summary' && (
                 <dl className="grid grid-cols-2 gap-3">
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.time}</dt><dd>{formatDateTime(detail.at)}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.method}</dt><dd>{detail.method}</dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-500">{vi.partnerApiLogs.endpoint}</dt><dd className="font-mono text-xs">{detail.path}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.httpStatus}</dt><dd>{detail.httpStatus}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.latency}</dt><dd>{detail.latencyMs != null ? `${detail.latencyMs} ms` : '—'}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.ip}</dt><dd>{detail.ip ?? '—'}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.partnerApiLogs.type}</dt><dd>{detail.type}</dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-500">{vi.monitoringHub.requestId}</dt><dd className="font-mono text-xs">{detail.requestId ?? '—'}</dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-500">{vi.monitoringHub.orderId}</dt><dd className="font-mono text-xs">{detail.orderId ?? '—'}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.time}</dt><dd>{formatDateTime(detail.at)}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.method}</dt><dd>{detail.method}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-500">{vi.partnerApiLogs.endpoint}</dt><dd className="font-mono text-xs">{detail.path}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.httpStatus}</dt><dd>{detail.httpStatus}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.latency}</dt><dd>{detail.latencyMs != null ? `${detail.latencyMs} ms` : '—'}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.ip}</dt><dd>{detail.ip ?? '—'}</dd></div>
+                  <div><dt className="text-slate-500">{vi.partnerApiLogs.type}</dt><dd>{detail.type}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-500">{vi.monitoringHub.requestId}</dt><dd className="font-mono text-xs">{detail.requestId ?? '—'}</dd></div>
+                  <div className="col-span-2"><dt className="text-slate-500">{vi.monitoringHub.orderId}</dt><dd className="font-mono text-xs">{detail.orderId ?? '—'}</dd></div>
                 </dl>
               )}
               {tab === 'headers' && (
-                <pre className="overflow-x-auto rounded bg-zinc-50 p-3 text-xs">
+                <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
                   {JSON.stringify({ request: detail.requestHeaders, response: detail.responseHeaders }, null, 2)}
                 </pre>
               )}
               {tab === 'request' && (
-                <pre className="overflow-x-auto rounded bg-zinc-50 p-3 text-xs">
+                <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
                   {JSON.stringify(detail.requestBody, null, 2)}
                 </pre>
               )}
               {tab === 'response' && (
-                <pre className="overflow-x-auto rounded bg-zinc-50 p-3 text-xs">
+                <pre className="overflow-x-auto rounded bg-slate-50 p-3 text-xs">
                   {JSON.stringify(detail.responseBody, null, 2)}
                 </pre>
               )}
@@ -181,7 +181,7 @@ function ApiLogsPageInner() {
         ) : (
           <Card className="overflow-x-auto p-0">
             <table className="min-w-full text-sm">
-              <thead className="border-b bg-zinc-50 text-left text-xs uppercase text-zinc-500">
+              <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2">{vi.partnerApiLogs.time}</th>
                   <th className="px-3 py-2">{vi.monitoringHub.requestId}</th>
@@ -195,7 +195,7 @@ function ApiLogsPageInner() {
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row.id} className="border-t border-zinc-100">
+                  <tr key={row.id} className="border-t border-slate-100">
                     <td className="px-3 py-2 whitespace-nowrap">{formatDateTime(row.at)}</td>
                     <td className="px-3 py-2 font-mono text-xs">{row.requestId ?? '—'}</td>
                     <td className="max-w-[180px] truncate px-3 py-2 font-mono text-xs">{row.method} {row.path}</td>
@@ -216,7 +216,7 @@ function ApiLogsPageInner() {
         )}
 
         {!loading && total > 20 && (
-          <div className="flex items-center justify-between text-sm text-zinc-500">
+          <div className="flex items-center justify-between text-sm text-slate-500">
             <span>{vi.common.page} {page} · {total} {vi.monitoringHub.records}</span>
             <div className="flex gap-2">
               <Button type="button" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

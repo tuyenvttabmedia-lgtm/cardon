@@ -35,11 +35,11 @@ export default function AccountPage() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="text-2xl font-bold text-zinc-900">{vi.account.title}</h1>
-      <p className="mt-1 text-sm text-zinc-600">{vi.account.changePasswordHint}</p>
+      <h1 className="admin-page-title">{vi.account.title}</h1>
+      <p className="mt-1 text-sm text-slate-600">{vi.account.changePasswordHint}</p>
 
-      <form className="mt-6 space-y-4 rounded-2xl border border-zinc-200 bg-white p-6" onSubmit={(e) => void handleSubmit(e)}>
-        <h2 className="text-lg font-semibold text-zinc-900">{vi.account.changePassword}</h2>
+      <form className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6" onSubmit={(e) => void handleSubmit(e)}>
+        <h2 className="text-lg font-semibold text-slate-900">{vi.account.changePassword}</h2>
         <div>
           <Label htmlFor="oldPassword">{vi.account.oldPassword}</Label>
           <Input

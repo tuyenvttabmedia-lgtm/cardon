@@ -13,7 +13,7 @@ import {
   MonitoringActionBar,
   MonitoringSectionHeader,
 } from '@/components/monitoring/MonitoringUi';
-import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Card, ErrorMessage, StatCard as SharedStatCard } from '@/components/ui/Display';
 import { Button, Input } from '@/components/ui/Form';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
@@ -49,15 +49,12 @@ const HISTORY_RANGES = [
 type QueueTab = 'jobs' | 'statistics' | 'history' | 'failed' | 'delayed' | 'completed' | 'worker' | 'config';
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: 'ok' | 'warn' | 'error' }) {
-  const toneClass =
-    tone === 'ok' ? 'text-green-700' : tone === 'warn' ? 'text-yellow-700' : tone === 'error' ? 'text-red-700' : 'text-admin-700';
   return (
-    <Card className="text-center">
-      <p className={cn('text-2xl font-bold', toneClass)}>
-        {typeof value === 'number' ? value.toLocaleString('vi-VN') : value}
-      </p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
-    </Card>
+    <SharedStatCard
+      label={label}
+      value={typeof value === 'number' ? value.toLocaleString('vi-VN') : value}
+      tone={tone === 'ok' ? 'success' : tone === 'warn' ? 'warning' : tone === 'error' ? 'danger' : 'accent'}
+    />
   );
 }
 
@@ -80,22 +77,22 @@ function JobDetailDrawer({
   return (
     <>
       <button type="button" className="fixed inset-0 z-40 bg-black/30" aria-label={vi.common.close} onClick={onClose} />
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-zinc-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-xl flex-col border-l border-slate-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h3 className="text-lg font-semibold">{vi.queueMonitor.jobDetail}</h3>
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-zinc-500 hover:bg-zinc-100">{vi.common.close}</button>
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-slate-500 hover:bg-slate-100">{vi.common.close}</button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           <JobTimelineView steps={job.timeline} />
           <dl className="grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-zinc-500">Job ID</dt><dd className="font-mono text-xs">{job.id}</dd></div>
-            <div><dt className="text-zinc-500">Attempts</dt><dd>{job.attempts}{job.maxAttempts != null ? ` / ${job.maxAttempts}` : ''}</dd></div>
-            {job.orderId && <div><dt className="text-zinc-500">Order ID</dt><dd className="font-mono text-xs">{job.orderId}</dd></div>}
-            {job.paymentId && <div><dt className="text-zinc-500">Payment ID</dt><dd className="font-mono text-xs">{job.paymentId}</dd></div>}
+            <div><dt className="text-slate-500">Job ID</dt><dd className="font-mono text-xs">{job.id}</dd></div>
+            <div><dt className="text-slate-500">Attempts</dt><dd>{job.attempts}{job.maxAttempts != null ? ` / ${job.maxAttempts}` : ''}</dd></div>
+            {job.orderId && <div><dt className="text-slate-500">Order ID</dt><dd className="font-mono text-xs">{job.orderId}</dd></div>}
+            {job.paymentId && <div><dt className="text-slate-500">Payment ID</dt><dd className="font-mono text-xs">{job.paymentId}</dd></div>}
           </dl>
           <div>
-            <h4 className="mb-2 text-sm font-semibold text-zinc-700">{vi.queueMonitor.payload}</h4>
-            <pre className="max-h-40 overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">{JSON.stringify(job.payload, null, 2)}</pre>
+            <h4 className="mb-2 text-sm font-semibold text-slate-700">{vi.queueMonitor.payload}</h4>
+            <pre className="max-h-40 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">{JSON.stringify(job.payload, null, 2)}</pre>
           </div>
           {job.error && (
             <div>
@@ -104,7 +101,7 @@ function JobDetailDrawer({
             </div>
           )}
           {canManage && (
-            <div className="flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
               {job.status === 'failed' && (
                 <Button type="button" onClick={() => { if (confirmAction(vi.queueMonitor.confirmAction)) void queueMonitorApi.retryJob(job.queue, job.id).then(onAction); }}>{vi.queueMonitor.retry}</Button>
               )}
@@ -252,26 +249,26 @@ function QueueDetailDrawer({
   return (
     <>
       <button type="button" className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-5xl flex-col border-l border-zinc-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-5xl flex-col border-l border-slate-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-3">
             <HealthBadge health={queue.health} />
             <div>
               <h3 className="text-lg font-semibold">{queue.displayName}</h3>
-              <p className="text-xs font-mono text-zinc-500">{queue.name}</p>
+              <p className="text-xs font-mono text-slate-500">{queue.name}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-zinc-500 hover:bg-zinc-100">{vi.common.close}</button>
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-slate-500 hover:bg-slate-100">{vi.common.close}</button>
         </div>
 
-        <div className="flex flex-wrap gap-2 border-b border-zinc-100 px-5 py-3">
+        <div className="flex flex-wrap gap-2 border-b border-slate-100 px-5 py-3">
           {tabs.map((t) => (
-            <button key={t.id} type="button" className={cn('rounded-lg px-3 py-1.5 text-sm', tab === t.id ? 'bg-admin-100 font-medium' : 'text-zinc-600')} onClick={() => setTab(t.id)}>{t.label}</button>
+            <button key={t.id} type="button" className={cn('rounded-lg px-3 py-1.5 text-sm', tab === t.id ? 'bg-admin-100 font-medium' : 'text-slate-600')} onClick={() => setTab(t.id)}>{t.label}</button>
           ))}
         </div>
 
         {(canManage || canExport) && (
-          <div className="flex flex-wrap gap-2 border-b border-zinc-100 px-5 py-3">
+          <div className="flex flex-wrap gap-2 border-b border-slate-100 px-5 py-3">
             {canManage && (
               <>
                 {queue.status === 'running' ? (
@@ -320,8 +317,8 @@ function QueueDetailDrawer({
                 <StatCard label={vi.queueMonitor.successRate} value={`${stats.successRate}%`} tone="ok" />
                 <StatCard label={vi.queueMonitor.retryRate} value={`${stats.retryRate}%`} />
               </div>
-              {stats.longestJob && <p className="text-sm text-zinc-600">Longest job: <span className="font-mono">{stats.longestJob.id}</span> ({stats.longestJob.ms} ms)</p>}
-              {stats.oldestWaiting && <p className="text-sm text-zinc-600">Oldest waiting: <span className="font-mono">{stats.oldestWaiting.id}</span></p>}
+              {stats.longestJob && <p className="text-sm text-slate-600">Longest job: <span className="font-mono">{stats.longestJob.id}</span> ({stats.longestJob.ms} ms)</p>}
+              {stats.oldestWaiting && <p className="text-sm text-slate-600">Oldest waiting: <span className="font-mono">{stats.oldestWaiting.id}</span></p>}
               <QueueMonitorChart title={vi.queueMonitor.hourlyChart} buckets={stats.hourly.map((h) => ({ label: h.hour, completed: h.completed, failed: h.failed, retry: h.retry }))} />
             </div>
           )}
@@ -330,7 +327,7 @@ function QueueDetailDrawer({
             <div className="space-y-4">
               <div className="flex flex-wrap gap-2">
                 {HISTORY_RANGES.map((r) => (
-                  <button key={r.id} type="button" className={cn('rounded-lg px-3 py-1.5 text-sm', historyRange === r.id ? 'bg-admin-100 font-medium' : 'text-zinc-600')} onClick={() => setHistoryRange(r.id)}>{r.label}</button>
+                  <button key={r.id} type="button" className={cn('rounded-lg px-3 py-1.5 text-sm', historyRange === r.id ? 'bg-admin-100 font-medium' : 'text-slate-600')} onClick={() => setHistoryRange(r.id)}>{r.label}</button>
                 ))}
                 {historyRange === 'custom' && (
                   <>
@@ -345,16 +342,16 @@ function QueueDetailDrawer({
 
           {tab === 'worker' && workers && (
             <div className="space-y-4">
-              <p className="text-sm text-zinc-600">Global heartbeat: {workers.globalHeartbeat.at ? formatDateTime(workers.globalHeartbeat.at) : '—'} ({workers.globalHeartbeat.ageMs ?? '—'} ms ago)</p>
+              <p className="text-sm text-slate-600">Global heartbeat: {workers.globalHeartbeat.at ? formatDateTime(workers.globalHeartbeat.at) : '—'} ({workers.globalHeartbeat.ageMs ?? '—'} ms ago)</p>
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-zinc-500">
+                  <tr className="border-b text-left text-slate-500">
                     <th className="py-2">Name</th><th>Status</th><th>Hostname</th><th>Started</th><th>Uptime</th><th>Last HB</th>
                   </tr>
                 </thead>
                 <tbody>
                   {workers.workers.map((w) => (
-                    <tr key={w.name} className="border-b border-zinc-50">
+                    <tr key={w.name} className="border-b border-slate-50">
                       <td className="py-2 font-mono text-xs">{w.name}</td>
                       <td>{w.status}</td>
                       <td>{w.hostname ?? '—'}</td>
@@ -364,7 +361,7 @@ function QueueDetailDrawer({
                     </tr>
                   ))}
                   {workers.workers.length === 0 && (
-                    <tr><td colSpan={6} className="py-4 text-center text-zinc-500">{vi.common.noData}</td></tr>
+                    <tr><td colSpan={6} className="py-4 text-center text-slate-500">{vi.common.noData}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -377,7 +374,7 @@ function QueueDetailDrawer({
             <div className="space-y-4">
               <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {tab === 'jobs' && (
-                  <select className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={jobStatus} onChange={(e) => setJobStatus(e.target.value)}>
+                  <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={jobStatus} onChange={(e) => setJobStatus(e.target.value)}>
                     {JOB_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 )}
@@ -393,14 +390,14 @@ function QueueDetailDrawer({
               <Card className="overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-100 text-left text-zinc-500">
+                    <tr className="border-b border-slate-100 text-left text-slate-500">
                       {canManage && <th className="px-3 py-2"><input type="checkbox" checked={selected.size === jobs.length && jobs.length > 0} onChange={() => setSelected(selected.size === jobs.length ? new Set() : new Set(jobs.map((j) => j.id)))} /></th>}
                       <th className="px-3 py-2">Job ID</th><th>Name</th><th>Status</th><th>Attempts</th><th>Created</th><th>{vi.app.actions}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {jobs.map((row) => (
-                      <tr key={row.id} className="border-b border-zinc-50 hover:bg-zinc-50">
+                      <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50">
                         {canManage && <td className="px-3 py-2"><input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleSelect(row.id)} /></td>}
                         <td className="px-3 py-2 font-mono text-xs">{row.id}</td>
                         <td className="px-3 py-2">{row.name}</td>
@@ -414,7 +411,7 @@ function QueueDetailDrawer({
                 </table>
               </Card>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-500">{jobsPage} / {totalPages}</span>
+                <span className="text-sm text-slate-500">{jobsPage} / {totalPages}</span>
                 <div className="flex gap-2">
                   <Button type="button" variant="secondary" disabled={jobsPage <= 1} onClick={() => setJobsPage((p) => p - 1)}>←</Button>
                   <Button type="button" variant="secondary" disabled={jobsPage >= totalPages} onClick={() => setJobsPage((p) => p + 1)}>→</Button>
@@ -431,7 +428,7 @@ function QueueDetailDrawer({
 
 export default function QueueMonitorPageWrapper() {
   return (
-    <Suspense fallback={<p className="text-zinc-500">{vi.app.loading}</p>}>
+    <Suspense fallback={<p className="text-slate-500">{vi.app.loading}</p>}>
       <QueueMonitorPage />
     </Suspense>
   );
@@ -504,17 +501,17 @@ function QueueMonitorPage() {
             )}
           </div>
           <MonitoringActionBar>
-            <select className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={refreshSec} onChange={(e) => setRefreshSec(Number(e.target.value))}>
+            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={refreshSec} onChange={(e) => setRefreshSec(Number(e.target.value))}>
               {REFRESH_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label === vi.queueMonitor.refreshOff ? o.label : `${vi.queueMonitor.autoRefresh} ${o.label}`}</option>)}
             </select>
-            {refreshSec > 0 && <span className="text-sm text-zinc-500">{vi.queueMonitor.countdown} {countdown}s</span>}
+            {refreshSec > 0 && <span className="text-sm text-slate-500">{vi.queueMonitor.countdown} {countdown}s</span>}
             <Button type="button" onClick={() => void load()} disabled={loading}>{vi.app.refresh}</Button>
           </MonitoringActionBar>
         </div>
 
         {tp && (
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500">{vi.queueMonitor.throughput}</h2>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{vi.queueMonitor.throughput}</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
               <StatCard label={vi.queueMonitor.jobsPerSec} value={tp.jobsPerSec} />
               <StatCard label={vi.queueMonitor.jobsPerMinute} value={tp.jobsPerMinute} />
@@ -542,7 +539,7 @@ function QueueMonitorPage() {
         <Card className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-100 text-left text-zinc-500">
+              <tr className="border-b border-slate-100 text-left text-slate-500">
                 <th className="px-3 py-2">{vi.queueMonitor.queueName}</th>
                 <th className="px-3 py-2">{vi.queueMonitor.health}</th>
                 <th className="px-3 py-2">{vi.queueMonitor.workers}</th>
@@ -553,10 +550,10 @@ function QueueMonitorPage() {
             </thead>
             <tbody>
               {(data?.queues ?? []).map((row) => (
-                <tr key={row.name} className="border-b border-zinc-50 hover:bg-zinc-50">
+                <tr key={row.name} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="px-3 py-2">
                     <p className="font-medium">{row.displayName}</p>
-                    <p className="text-xs font-mono text-zinc-400">{row.name}</p>
+                    <p className="text-xs font-mono text-slate-400">{row.name}</p>
                   </td>
                   <td className="px-3 py-2"><HealthBadge health={row.health} /></td>
                   <td className="px-3 py-2">{row.workerOnline ? `${row.workerCount} online` : 'offline'}</td>

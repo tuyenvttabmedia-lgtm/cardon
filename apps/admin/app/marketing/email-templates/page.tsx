@@ -60,8 +60,8 @@ export default function EmailTemplatesPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Email Templates</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="admin-page-title">Email Templates</h1>
+        <p className="text-sm text-slate-500">
           Biến: {'{{customerName}}'}, {'{{orderCode}}'}, {'{{items}}'}, {'{{total}}'}
         </p>
         <MarketingNav />
@@ -74,7 +74,7 @@ export default function EmailTemplatesPage() {
               <Card key={template.code} className="space-y-3 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h2 className="font-semibold">{template.name}</h2>
-                  <span className="rounded bg-zinc-100 px-2 py-1 text-xs font-mono">{template.code}</span>
+                  <span className="rounded bg-slate-100 px-2 py-1 text-xs font-mono">{template.code}</span>
                 </div>
                 <div>
                   <Label>Tiêu đề</Label>

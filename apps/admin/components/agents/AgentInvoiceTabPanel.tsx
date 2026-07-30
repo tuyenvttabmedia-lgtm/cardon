@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Badge, Card, ErrorMessage, StatCard, statusTone } from '@/components/ui/Display';
 import { Button } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { downloadTextExport } from '@/lib/download-export';
-import { formatDateTime, formatVnd } from '@/lib/utils';
+import { LatestRequestTracker } from '@/lib/latest-request';
+import { formatDateTime, formatDisplayValue, formatVnd } from '@/lib/utils';
 import { vi } from '@/lib/i18n/vi';
 import { agentCenterApi, ApiClientError } from '@/services/api-client';
 
@@ -20,16 +21,36 @@ export function AgentInvoiceTabPanel({
   const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
   const [selected, setSelected] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const listRequestsRef = useRef(new LatestRequestTracker<'list'>());
+  const detailRequestsRef = useRef(new LatestRequestTracker<'detail'>());
 
   const load = useCallback(async () => {
+    const token = listRequestsRef.current.begin('list');
     setError(null);
+    setLoading(true);
     try {
       const inv = await agentCenterApi.invoices(agentId, { skip: 0, take: 50 });
+      if (!listRequestsRef.current.isLatest(token)) return;
       setItems((inv.items as Array<Record<string, unknown>>) ?? []);
     } catch (e) {
+      if (!listRequestsRef.current.isLatest(token)) return;
       setError(e instanceof ApiClientError ? e.message : 'Không tải được hóa đơn');
+    } finally {
+      if (listRequestsRef.current.isLatest(token)) {
+        setLoading(false);
+      }
     }
+  }, [agentId]);
+
+  useEffect(() => {
+    listRequestsRef.current.invalidateAll();
+    detailRequestsRef.current.invalidateAll();
+    setItems([]);
+    setSelected(null);
+    setError(null);
+    setLoading(true);
   }, [agentId]);
 
   useEffect(() => {
@@ -37,10 +58,14 @@ export function AgentInvoiceTabPanel({
   }, [load]);
 
   async function openDetail(invoiceId: string) {
+    const token = detailRequestsRef.current.begin('detail');
+    setSelected(null);
     try {
       const detail = await agentCenterApi.getInvoice(agentId, invoiceId);
+      if (!detailRequestsRef.current.isLatest(token)) return;
       setSelected(detail);
     } catch (e) {
+      if (!detailRequestsRef.current.isLatest(token)) return;
       toast.error(e instanceof ApiClientError ? e.message : 'Không tải chi tiết');
     }
   }
@@ -53,8 +78,11 @@ export function AgentInvoiceTabPanel({
       await load();
       if (selected?.invoice) {
         const inv = selected.invoice as Record<string, unknown>;
+        const token = detailRequestsRef.current.begin('detail');
         const detail = await agentCenterApi.getInvoice(agentId, String(inv.id));
-        setSelected(detail);
+        if (detailRequestsRef.current.isLatest(token)) {
+          setSelected(detail);
+        }
       }
     } catch (e) {
       toast.error(e instanceof ApiClientError ? e.message : 'Thao tác thất bại');
@@ -82,14 +110,15 @@ export function AgentInvoiceTabPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-slate-600">
         Hóa đơn đại lý — liên kết sao kê, không thay VAT engine. Tạo HĐ từ tab Sao kê (dòng LOCKED).
       </p>
       {error && <ErrorMessage message={error} />}
+      {loading && <p className="text-sm text-slate-500">Đang tải hóa đơn…</p>}
 
       <Card className="p-0">
         <table className="min-w-full text-sm">
-          <thead className="border-b bg-zinc-50 text-zinc-500">
+          <thead className="border-b bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">{vi.finance.invoiceNumber}</th>
               <th className="px-4 py-3 text-left">Loại</th>
@@ -104,21 +133,24 @@ export function AgentInvoiceTabPanel({
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-6 text-zinc-500">
+                <td colSpan={8} className="px-4 py-6 text-slate-500">
                   Chưa có hóa đơn — tạo từ sao kê LOCKED ở tab Sao kê.
                 </td>
               </tr>
             ) : (
               items.map((inv) => (
-                <tr key={String(inv.id)} className="border-b border-zinc-50">
-                  <td className="px-4 py-3 font-mono text-xs">{String(inv.invoiceNumber)}</td>
-                  <td className="px-4 py-3">{String(inv.type)}</td>
-                  <td className="px-4 py-3">{formatVnd(String(inv.totalAmount))}</td>
+                <tr key={String(inv.id)} className="border-b border-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs">{formatDisplayValue(inv.invoiceNumber)}</td>
+                  <td className="px-4 py-3">{formatDisplayValue(inv.type)}</td>
+                  <td className="px-4 py-3">{formatVnd(formatDisplayValue(inv.totalAmount))}</td>
                   <td className="px-4 py-3">{formatVnd(String(inv.taxAmount ?? 0))}</td>
                   <td className="px-4 py-3">
-                    <Badge tone={statusTone(String(inv.status))} status={String(inv.status)} />
+                    <Badge
+                      tone={statusTone(formatDisplayValue(inv.status))}
+                      status={formatDisplayValue(inv.status)}
+                    />
                   </td>
-                  <td className="px-4 py-3">{String(inv.paymentStatus ?? 'UNPAID')}</td>
+                  <td className="px-4 py-3">{formatDisplayValue(inv.paymentStatus, 'UNPAID')}</td>
                   <td className="px-4 py-3">
                     {inv.issuedAt ? formatDateTime(String(inv.issuedAt)) : '—'}
                   </td>
@@ -138,10 +170,14 @@ export function AgentInvoiceTabPanel({
         <Card className="space-y-4 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="font-semibold">Hóa đơn {String(invoice.invoiceNumber)}</h3>
-              <p className="mt-1 text-sm text-zinc-600">
-                <Badge tone={statusTone(String(invoice.status))} status={String(invoice.status)} /> · TT:{' '}
-                {String(invoice.paymentStatus)}
+              <h3 className="font-semibold">Hóa đơn {formatDisplayValue(invoice.invoiceNumber)}</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                <Badge
+                  tone={statusTone(formatDisplayValue(invoice.status))}
+                  status={formatDisplayValue(invoice.status)}
+                />{' '}
+                · TT:{' '}
+                {formatDisplayValue(invoice.paymentStatus)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -186,10 +222,11 @@ export function AgentInvoiceTabPanel({
           </div>
 
           {linkedStatement && (
-            <p className="text-sm text-zinc-600">
-              Sao kê kỳ <strong>{String(linkedStatement.periodLabel)}</strong> ·{' '}
-              {String(linkedStatement.status)} · {String(linkedStatement.periodStart).slice(0, 10)} →{' '}
-              {String(linkedStatement.periodEnd).slice(0, 10)}
+            <p className="text-sm text-slate-600">
+              Sao kê kỳ <strong>{formatDisplayValue(linkedStatement.periodLabel)}</strong> ·{' '}
+              {formatDisplayValue(linkedStatement.status)} ·{' '}
+              {formatDisplayValue(linkedStatement.periodStart).slice(0, 10)} →{' '}
+              {formatDisplayValue(linkedStatement.periodEnd).slice(0, 10)}
             </p>
           )}
 
@@ -208,11 +245,11 @@ export function AgentInvoiceTabPanel({
             )}
           </div>
 
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-slate-500">
             Tạo lúc {formatDateTime(String(invoice.createdAt))}
             {invoice.issuedAt ? ` · Phát hành ${formatDateTime(String(invoice.issuedAt))}` : ''}
           </p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-slate-500">
             File HTML có thể mở bằng trình duyệt và in thành PDF (Ctrl+P).
           </p>
         </Card>

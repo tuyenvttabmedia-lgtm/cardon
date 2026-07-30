@@ -58,6 +58,8 @@ export class ProviderProductSyncService {
 
     catalog: EsaleCardCatalogItem[],
 
+    options?: { updateCosts?: boolean },
+
   ): Promise<ProductSyncResult> {
 
     const provider = await this.providerRepository.findProviderByCode(providerCode);
@@ -114,6 +116,12 @@ export class ProviderProductSyncService {
 
       seenCodes.add(mapping.providerProductCode);
 
+      // Card catalog sync must not disable TOPUP/DATA — those use separate eSale APIs.
+      const variantType = mapping.productVariant?.type;
+      if (variantType === 'TOPUP' || variantType === 'DATA') {
+        continue;
+      }
+
 
 
       if (!catalogItem) {
@@ -150,7 +158,10 @@ export class ProviderProductSyncService {
 
       const nextCost = new Decimal(catalogItem.providerCost);
 
-      const costChanged = !mapping.providerCost.equals(nextCost);
+      // Sandbox catalog discounts are test data, not CardOn's commercial
+      // contract. Preserve contract costs while still syncing availability.
+      const costChanged =
+        options?.updateCosts !== false && !mapping.providerCost.equals(nextCost);
 
       const nextAvailability = inMaintenance
 

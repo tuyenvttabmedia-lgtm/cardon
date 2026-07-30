@@ -61,7 +61,7 @@ export default function OrdersSearchPageClient() {
   return (
     <OrdersPageShell
       title="Tra cứu đơn hàng API"
-      description="Tìm theo Request ID, Order ID, Partner Order, Gateway Ref, Provider Ref, API Key, Customer Ref."
+      description="Tìm theo Request ID, Order ID, Partner Order, tham chiếu thanh toán, API Key, Customer Ref."
     >
       <Card className="space-y-4">
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -70,7 +70,7 @@ export default function OrdersSearchPageClient() {
             <Input
               id="search"
               className="mt-1"
-              placeholder="Request ID, Order ID, Partner Order, Provider Ref..."
+              placeholder="Request ID, Order ID, Partner Order…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);

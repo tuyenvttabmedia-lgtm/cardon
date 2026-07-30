@@ -34,8 +34,14 @@ export interface StoredPaymentGateway {
   secretKeyEnc?: string;
   webhookSecretEnc?: string;
   apiKeyEnc?: string;
+  /** MegaPay DepositCode RSA public key (PEM) for notify verify */
+  notifyPublicKeyEnc?: string;
   /** MegaPay PG encodeKey (V1.4.6) — separate from DepositCode 3DES key when provided */
   pgEncodeKeyEnc?: string;
+  /** MegaPay PG refund password for paymentCancel.do */
+  pgRefundPasswordEnc?: string;
+  /** MegaPay PG merId when different from DepositCode merchantId */
+  pgMerchantId?: string;
   /** MegaPay PG environment for domain/JS assets */
   pgEnvironment?: SettingsEnvironment;
   /** Public site URL for MegaPay reqDomain */
@@ -163,7 +169,18 @@ export interface StoredSystem {
   agentRegistrationMode?: 'INVITE_ONLY' | 'PUBLIC_APPROVAL' | 'DISABLED';
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
+  /** Days to keep system_audit_logs + audit_logs. Default 360. */
+  auditLogRetentionDays?: number;
+  /** Min VND per agent deposit transaction (Admin override). */
+  agentDepositMinAmount?: number;
+  /** Max VND per agent deposit transaction (Admin override). */
+  agentDepositMaxAmount?: number;
 }
+
+/** Default / bounds for audit log retention (Admin → Cấu hình hệ thống). */
+export const AUDIT_LOG_RETENTION_DAYS_DEFAULT = 360;
+export const AUDIT_LOG_RETENTION_DAYS_MIN = 30;
+export const AUDIT_LOG_RETENTION_DAYS_MAX = 3650;
 
 export interface StoredOrder {
   guestMaxOrderAmount?: number;

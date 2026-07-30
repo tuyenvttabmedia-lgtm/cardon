@@ -42,11 +42,11 @@ export default function AgentsRegistrationInvitePage() {
           ← {vi.agentCenter.onboardingTitle}
         </Link>
         <h2 className="mt-2 text-lg font-semibold">{vi.agentCenter.registrationInviteTitle}</h2>
-        <p className="text-sm text-zinc-500">{vi.agentCenter.registrationInviteHint}</p>
+        <p className="text-sm text-slate-500">{vi.agentCenter.registrationInviteHint}</p>
       </div>
       {error && <ErrorMessage message={error} />}
       <Card className="max-w-lg space-y-4">
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-slate-600">
           Chế độ đăng ký hiện tại: <strong>{mode}</strong>
         </p>
         <div>
@@ -57,7 +57,7 @@ export default function AgentsRegistrationInvitePage() {
           {loading ? vi.app.loading : vi.agentCenter.createInvite}
         </Button>
         {inviteUrl && (
-          <p className="break-all rounded-lg bg-zinc-50 p-3 text-xs font-mono">{inviteUrl}</p>
+          <p className="break-all rounded-lg bg-slate-50 p-3 text-xs font-mono">{inviteUrl}</p>
         )}
       </Card>
     </div>

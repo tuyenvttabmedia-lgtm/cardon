@@ -12,7 +12,7 @@ import {
   MonitoringFilterBar,
   MonitoringSectionHeader,
 } from '@/components/monitoring/MonitoringUi';
-import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Card, ErrorMessage, StatCard as SharedStatCard } from '@/components/ui/Display';
 import { Button, Input } from '@/components/ui/Form';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
@@ -52,17 +52,12 @@ const SEVERITY_ROW: Record<string, string> = {
 };
 
 function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card className="text-center">
-      <p className="text-2xl font-bold text-admin-700">{value.toLocaleString('vi-VN')}</p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
-    </Card>
-  );
+  return <SharedStatCard label={label} value={value.toLocaleString('vi-VN')} tone="accent" />;
 }
 
 export default function ActivityLogsPageWrapper() {
   return (
-    <Suspense fallback={<p className="text-zinc-500">{vi.app.loading}</p>}>
+    <Suspense fallback={<p className="text-slate-500">{vi.app.loading}</p>}>
       <ActivityLogsPage />
     </Suspense>
   );
@@ -162,7 +157,7 @@ function ActivityLogsPage() {
               onChange={(e) => setKeyword(e.target.value)}
             />
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={severity}
               onChange={(e) => setSeverity(e.target.value)}
             >
@@ -172,7 +167,7 @@ function ActivityLogsPage() {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
             >
@@ -182,7 +177,7 @@ function ActivityLogsPage() {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={source}
               onChange={(e) => setSource(e.target.value)}
             >
@@ -194,7 +189,7 @@ function ActivityLogsPage() {
             <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={sort}
               onChange={(e) => setSort(e.target.value as 'newest' | 'oldest')}
             >
@@ -235,7 +230,7 @@ function ActivityLogsPage() {
 
         <Card>
           {view === 'timeline' ? (
-            <div className="divide-y divide-zinc-100">
+            <div className="divide-y divide-slate-100">
               {logs.map((log) => (
                 <ActivityTimelineItem
                   key={log.id}
@@ -244,14 +239,14 @@ function ActivityLogsPage() {
                 />
               ))}
               {!loading && logs.length === 0 && (
-                <p className="py-8 text-center text-zinc-400">{vi.common.noData}</p>
+                <p className="py-8 text-center text-slate-400">{vi.common.noData}</p>
               )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left text-zinc-500">
+                  <tr className="border-b text-left text-slate-500">
                     <th className="py-2 pr-4">{vi.audit.time}</th>
                     <th className="py-2 pr-4">{vi.activityLog.severity}</th>
                     <th className="py-2 pr-4">{vi.activityLog.category}</th>
@@ -265,7 +260,7 @@ function ActivityLogsPage() {
                   {logs.map((log) => (
                     <tr
                       key={log.id}
-                      className="cursor-pointer border-b border-zinc-50 hover:bg-zinc-50"
+                      className="cursor-pointer border-b border-slate-50 hover:bg-slate-50"
                       onClick={() => setSelected(log)}
                     >
                       <td className="py-3 pr-4 whitespace-nowrap">{formatDateTime(log.createdAt)}</td>
@@ -284,7 +279,7 @@ function ActivityLogsPage() {
                   ))}
                   {!loading && logs.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-zinc-400">
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
                         {vi.common.noData}
                       </td>
                     </tr>
@@ -294,11 +289,11 @@ function ActivityLogsPage() {
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
-            <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500">
               <span>{total.toLocaleString('vi-VN')} {vi.common.results}</span>
               <select
-                className="rounded border border-zinc-200 px-2 py-1"
+                className="rounded border border-slate-200 px-2 py-1"
                 value={limit}
                 onChange={(e) => {
                   setLimit(Number(e.target.value));
@@ -314,7 +309,7 @@ function ActivityLogsPage() {
               <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                 {vi.common.prev}
               </Button>
-              <span className="text-sm text-zinc-500">{vi.common.page} {page}/{totalPages}</span>
+              <span className="text-sm text-slate-500">{vi.common.page} {page}/{totalPages}</span>
               <Button variant="secondary" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
                 {vi.common.next}
               </Button>

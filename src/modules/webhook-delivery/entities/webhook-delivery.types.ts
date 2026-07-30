@@ -51,5 +51,6 @@ export interface PartnerWebhookPayloadV1 {
   amount?: string;
   created_at: string;
   completed_at?: string;
+  environment?: 'SANDBOX' | 'PRODUCTION';
   error?: { code: string; message: string };
 }

@@ -117,7 +117,7 @@ export default function OrderDetailPage() {
 
             </Link>
 
-            <h1 className="text-2xl font-bold">{detail?.overview.orderCode ?? vi.orders.detail}</h1>
+            <h1 className="admin-page-title">{detail?.overview.orderCode ?? vi.orders.detail}</h1>
 
           </div>
 
@@ -202,7 +202,7 @@ export default function OrderDetailPage() {
 
               onClick={() => setTab(t.id)}
 
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === t.id ? 'bg-admin-100 text-admin-800' : 'bg-zinc-100'}`}
+              className={`rounded-lg px-3 py-1.5 text-sm ${tab === t.id ? 'bg-admin-100 text-admin-800' : 'bg-slate-100'}`}
 
             >
 
@@ -279,23 +279,23 @@ export default function OrderDetailPage() {
                 </p>
                 <dl className="mt-3 grid gap-2 md:grid-cols-2">
                   <div>
-                    <dt className="text-zinc-500">Order ID (CardOn)</dt>
+                    <dt className="text-slate-500">Order ID (CardOn)</dt>
                     <dd className="font-mono text-xs">{detail.overview.orderCode}</dd>
                   </div>
                   {detail.paymentTrace.slice(0, 2).map((p) => (
                     <div key={String(p.id)} className="contents">
                       <div>
-                        <dt className="text-zinc-500">Merchant trx Id ≈ paymentReference</dt>
+                        <dt className="text-slate-500">Merchant trx Id ≈ paymentReference</dt>
                         <dd className="font-mono text-xs break-all">{String(p.paymentReference ?? '—')}</dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Transaction ID ≈ gateway</dt>
+                        <dt className="text-slate-500">Transaction ID ≈ gateway</dt>
                         <dd className="font-mono text-xs break-all">
                           {String(p.gatewayTransactionId ?? '—')}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Số tiền / TT payment</dt>
+                        <dt className="text-slate-500">Số tiền / TT payment</dt>
                         <dd>
                           {formatVnd(String(p.amount))} · {String(p.status)}
                           {p.paidAt ? ` · ${formatDateTime(String(p.paidAt))}` : ''}
@@ -309,63 +309,63 @@ export default function OrderDetailPage() {
 
             {detail.overview.pricing && (
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="rounded-lg bg-zinc-50 p-4 text-sm">
+                <div className="rounded-lg bg-slate-50 p-4 text-sm">
                   <h3 className="font-semibold">Khách hàng</h3>
                   <dl className="mt-3 space-y-2">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Mệnh giá</dt>
+                      <dt className="text-slate-500">Mệnh giá</dt>
                       <dd>{formatVnd(detail.overview.pricing.faceValue)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Giảm</dt>
+                      <dt className="text-slate-500">Giảm</dt>
                       <dd>{formatVnd(detail.overview.pricing.discountAmount)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Phương thức</dt>
+                      <dt className="text-slate-500">Phương thức</dt>
                       <dd>{detail.overview.pricing.methodDisplayName ?? detail.overview.pricing.methodCode ?? '—'}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Phí thanh toán</dt>
+                      <dt className="text-slate-500">Phí thanh toán</dt>
                       <dd>{formatVnd(detail.overview.pricing.paymentFeeAmount)}</dd>
                     </div>
-                    <div className="flex justify-between gap-4 border-t border-zinc-200 pt-2 font-semibold">
+                    <div className="flex justify-between gap-4 border-t border-slate-200 pt-2 font-semibold">
                       <dt>Đã trả</dt>
                       <dd>{formatVnd(detail.overview.pricing.customerPaid)}</dd>
                     </div>
                   </dl>
                 </div>
-                <div className="rounded-lg bg-zinc-50 p-4 text-sm">
+                <div className="rounded-lg bg-slate-50 p-4 text-sm">
                   <h3 className="font-semibold">Nội bộ</h3>
                   <dl className="mt-3 space-y-2">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Sell amount</dt>
+                      <dt className="text-slate-500">Sell amount</dt>
                       <dd>{formatVnd(detail.overview.pricing.sellAmount)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Cổng thanh toán</dt>
+                      <dt className="text-slate-500">Cổng thanh toán</dt>
                       <dd>{detail.overview.pricing.gatewayCode ?? detail.overview.pricing.paymentGateway ?? '—'}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Method code</dt>
+                      <dt className="text-slate-500">Method code</dt>
                       <dd className="font-mono text-xs">
                         {detail.overview.pricing.methodCode ?? detail.overview.pricing.paymentMethodCode ?? '—'}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Đối soát nhận tiền</dt>
+                      <dt className="text-slate-500">Đối soát nhận tiền</dt>
                       <dd className="font-mono text-xs">
                         {detail.overview.pricing.settlementType ?? '—'}
                       </dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Gateway fee</dt>
+                      <dt className="text-slate-500">Gateway fee</dt>
                       <dd>{formatVnd(detail.overview.pricing.paymentFeeAmount)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt className="text-zinc-500">Provider cost</dt>
+                      <dt className="text-slate-500">Provider cost</dt>
                       <dd>{formatVnd(detail.overview.pricing.providerCost)}</dd>
                     </div>
-                    <div className="flex justify-between gap-4 border-t border-zinc-200 pt-2 font-semibold text-emerald-700">
+                    <div className="flex justify-between gap-4 border-t border-slate-200 pt-2 font-semibold text-emerald-700">
                       <dt>Profit</dt>
                       <dd>{formatVnd(detail.overview.pricing.profit)}</dd>
                     </div>
@@ -480,7 +480,7 @@ export default function OrderDetailPage() {
 
                 </p>
 
-                <pre className="mt-2 max-h-40 overflow-auto rounded bg-zinc-50 p-2 text-xs">
+                <pre className="mt-2 max-h-40 overflow-auto rounded bg-slate-50 p-2 text-xs">
 
                   {JSON.stringify(p.gatewayRawResponse, null, 2)}
 
@@ -501,7 +501,7 @@ export default function OrderDetailPage() {
           <Card className="space-y-4 p-4">
 
             {detail.providerTrace.length === 0 ? (
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-slate-500">
                 Chưa có giao dịch nhà cung cấp. Thường do đơn chưa thanh toán thành công hoặc chưa bắt đầu giao hàng.
               </p>
             ) : (
@@ -525,7 +525,7 @@ export default function OrderDetailPage() {
 
                 </p>
 
-                <pre className="mt-2 max-h-32 overflow-auto rounded bg-zinc-50 p-2 text-xs">
+                <pre className="mt-2 max-h-32 overflow-auto rounded bg-slate-50 p-2 text-xs">
 
                   {JSON.stringify(tx.responsePayload, null, 2)}
 
@@ -548,25 +548,25 @@ export default function OrderDetailPage() {
               <>
                 <section className="grid gap-3 md:grid-cols-3 text-sm">
                   <div>
-                    <p className="text-xs text-zinc-500">Product</p>
+                    <p className="text-xs text-slate-500">Product</p>
                     <p className="font-medium">{detail.delivery.productName ?? '—'}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-zinc-500">Face value</p>
+                    <p className="text-xs text-slate-500">Face value</p>
                     <p className="font-medium">
                       {detail.delivery.faceValue ? formatVnd(detail.delivery.faceValue) : '—'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-zinc-500">Quantity</p>
+                    <p className="text-xs text-slate-500">Quantity</p>
                     <p className="font-medium">{detail.delivery.quantity ?? '—'}</p>
                   </div>
                 </section>
-                <section className="space-y-4 border-t border-zinc-100 pt-6">
+                <section className="space-y-4 border-t border-slate-100 pt-6">
                   <h3 className="font-semibold">Cards</h3>
                   <CardDeliveryTools orderId={params.id} items={detail.delivery.items} />
                   {detail.delivery.items.length === 0 ? (
-                    <p className="text-sm text-zinc-500">Chưa có thẻ được giao</p>
+                    <p className="text-sm text-slate-500">Chưa có thẻ được giao</p>
                   ) : (
                     detail.delivery.items.map((card, index) => (
                       <div key={card.id} className="space-y-3 rounded border p-4 text-sm">
@@ -579,15 +579,15 @@ export default function OrderDetailPage() {
                           pinMasked={card.pinMasked}
                         />
                         <div>
-                          <p className="text-xs text-zinc-500">Expire</p>
+                          <p className="text-xs text-slate-500">Expire</p>
                           <p>{formatExpire(card.expiredAt)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-zinc-500">Provider</p>
+                          <p className="text-xs text-slate-500">Provider</p>
                           <p>{card.providerName ?? '—'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-zinc-500">Delivered at</p>
+                          <p className="text-xs text-slate-500">Delivered at</p>
                           <p>{card.deliveredAt ? formatDateTime(card.deliveredAt) : '—'}</p>
                         </div>
                       </div>
@@ -601,28 +601,28 @@ export default function OrderDetailPage() {
                   {detail.delivery.type === 'DATA' ? 'Nạp data' : 'Nạp cước'}
                 </h3>
                 {detail.delivery.items.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Chưa có giao dịch nạp</p>
+                  <p className="text-sm text-slate-500">Chưa có giao dịch nạp</p>
                 ) : (
                   detail.delivery.items.map((item) => (
                     <div key={item.id} className="space-y-2 rounded border p-4 text-sm">
                       <div>
-                        <p className="text-xs text-zinc-500">Phone number</p>
+                        <p className="text-xs text-slate-500">Phone number</p>
                         <p className="font-mono">{item.phoneNumber ?? '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-500">Carrier</p>
+                        <p className="text-xs text-slate-500">Carrier</p>
                         <p>{item.telco ?? '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-500">Package</p>
+                        <p className="text-xs text-slate-500">Package</p>
                         <p>{item.packageName ?? item.productName ?? '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-500">Provider transaction id</p>
+                        <p className="text-xs text-slate-500">Provider transaction id</p>
                         <p className="font-mono">{item.providerTransactionId ?? '—'}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-zinc-500">Completed time</p>
+                        <p className="text-xs text-slate-500">Completed time</p>
                         <p>{item.deliveredAt ? formatDateTime(item.deliveredAt) : '—'}</p>
                       </div>
                     </div>
@@ -630,7 +630,7 @@ export default function OrderDetailPage() {
                 )}
               </section>
             )}
-            <p className="border-t border-zinc-100 pt-4 text-xs text-zinc-500">
+            <p className="border-t border-slate-100 pt-4 text-xs text-slate-500">
               {vi.orders.emailDelivery}: {detail.cardDelivery.emailDeliveryStatus}
             </p>
           </Card>
@@ -641,14 +641,14 @@ export default function OrderDetailPage() {
             <section>
               <h3 className="font-semibold">Nhật ký xử lý</h3>
               {(detail.fulfillmentTimeline ?? []).length === 0 ? (
-                <p className="mt-3 text-sm text-zinc-500">Chưa có sự kiện giao hàng</p>
+                <p className="mt-3 text-sm text-slate-500">Chưa có sự kiện giao hàng</p>
               ) : (
                 <div className="mt-4 space-y-4">
                   {detail.fulfillmentTimeline!.map((event) => (
                     <div key={event.id} className="flex gap-3 border-l-2 border-admin-200 pl-4">
                       <div>
                         <p className="text-sm font-semibold">{event.message}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-slate-500">
                           {translateStatus(event.eventType)} · <span className="font-mono">{event.eventType}</span> ·{' '}
                           {formatDateTime(event.createdAt)}
                         </p>
@@ -659,8 +659,8 @@ export default function OrderDetailPage() {
               )}
             </section>
             {detail.auditTimeline.length > 0 && (
-              <section className="border-t border-zinc-100 pt-6">
-                <h3 className="font-semibold text-zinc-700">Nhật ký quản trị</h3>
+              <section className="border-t border-slate-100 pt-6">
+                <h3 className="font-semibold text-slate-700">Nhật ký quản trị</h3>
                 <div className="mt-4 space-y-2">
                   {detail.auditTimeline.map((a) => (
                     <div key={String(a.id)} className="border-b py-2 text-sm">

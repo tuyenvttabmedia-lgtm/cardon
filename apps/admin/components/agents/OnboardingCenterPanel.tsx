@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Badge, Card, ErrorMessage } from '@/components/ui/Display';
 import { Button } from '@/components/ui/Form';
+import { TabStrip } from '@/components/ui/Navigation';
 import { vi } from '@/lib/i18n/vi';
 import { formatDateTime } from '@/lib/utils';
 import { agentCenterApi, ApiClientError } from '@/services/api-client';
@@ -73,11 +74,11 @@ export function OnboardingCenterPanel({ showInvite = true }: { showInvite?: bool
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold">{vi.agentCenter.onboardingTitle}</h2>
-        <p className="text-sm text-zinc-500">{vi.agentCenter.onboardingHint}</p>
+        <p className="text-sm text-slate-500">{vi.agentCenter.onboardingHint}</p>
       </div>
 
       {showInvite && (
-        <Card className="text-sm text-zinc-600">
+        <Card className="text-sm text-slate-600">
           {vi.agentCenter.registrationInviteNote}{' '}
         <Link href="/agents/registration/invite" className="font-medium text-admin-700 underline">
           {vi.agentCenter.navRegistrationInvite}
@@ -87,32 +88,24 @@ export function OnboardingCenterPanel({ showInvite = true }: { showInvite?: bool
 
       {error && <ErrorMessage message={error} />}
 
-      <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => {
-              setTab(t.id);
-              setSkip(0);
-            }}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
-              tab === t.id ? 'bg-admin-600 text-white' : 'text-zinc-600 hover:bg-zinc-100'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <TabStrip
+        ariaLabel="Trạng thái onboarding"
+        items={[...TABS]}
+        active={tab}
+        onSelect={(next) => {
+          setTab(next);
+          setSkip(0);
+        }}
+      />
 
       <Card className="overflow-x-auto p-0">
         {loading ? (
-          <p className="p-4 text-zinc-500">{vi.agentCenter.loading}</p>
+          <p className="p-4 text-slate-500">{vi.agentCenter.loading}</p>
         ) : items.length === 0 ? (
-          <p className="p-4 text-zinc-500">{vi.agentCenter.onboardingEmpty}</p>
+          <p className="p-4 text-slate-500">{vi.agentCenter.onboardingEmpty}</p>
         ) : (
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b bg-zinc-50 text-zinc-500">
+            <thead className="border-b bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-4 py-3">Mã</th>
                 <th className="px-4 py-3">Email</th>
@@ -125,7 +118,7 @@ export function OnboardingCenterPanel({ showInvite = true }: { showInvite?: bool
             </thead>
             <tbody>
               {items.map((row) => (
-                <tr key={row.id} className="border-b border-zinc-50 hover:bg-zinc-50">
+                <tr key={row.id} className="border-b border-slate-50 hover:bg-slate-50">
                   <td className="px-4 py-3 font-mono text-xs">{row.agentCode}</td>
                   <td className="px-4 py-3">{row.userEmail ?? '—'}</td>
                   <td className="px-4 py-3">{accountTypeLabel(row.accountType)}</td>
@@ -135,7 +128,7 @@ export function OnboardingCenterPanel({ showInvite = true }: { showInvite?: bool
                     </Badge>
                   </td>
                   <td className="px-4 py-3">{row.emailVerified === false ? 'Chưa' : 'Đã xác minh'}</td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">{formatDateTime(row.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{formatDateTime(row.createdAt)}</td>
                   <td className="px-4 py-3">
                     {row.id.includes('-') && (
                       <Link
@@ -158,7 +151,7 @@ export function OnboardingCenterPanel({ showInvite = true }: { showInvite?: bool
           <Button disabled={skip <= 0} onClick={() => setSkip((s) => Math.max(0, s - PAGE_SIZE))}>
             Trước
           </Button>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-slate-500">
             Trang {page}/{totalPages} ({total} mục)
           </span>
           <Button

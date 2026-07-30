@@ -134,6 +134,7 @@ export class AdminRepository {
           },
         },
         user: { select: { id: true, email: true, phone: true } },
+        agent: { select: { id: true, companyName: true } },
       },
       orderBy: { createdAt: 'desc' },
       skip: pagination.skip,

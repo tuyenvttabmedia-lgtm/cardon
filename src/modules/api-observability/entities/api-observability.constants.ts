@@ -32,7 +32,7 @@ export const API_ERROR_CODES = [
   },
   {
     code: 'INSUFFICIENT_BALANCE',
-    meaning: 'Số dư ví không đủ',
+    meaning: 'Số dư không đủ',
     cause: 'Available balance thấp hơn giá đơn hàng',
     solution: 'Nạp thêm số dư hoặc giảm số lượng mua',
   },

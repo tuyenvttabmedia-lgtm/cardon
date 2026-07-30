@@ -21,10 +21,10 @@ export function MediaImageField({ value, onChange, folder, label }: MediaImageFi
           <img
             src={mediaFullUrl(value)}
             alt=""
-            className="h-20 w-auto max-w-[160px] rounded border border-zinc-200 object-contain"
+            className="h-20 w-auto max-w-[160px] rounded border border-slate-200 object-contain"
           />
         ) : (
-          <div className="flex h-20 w-32 items-center justify-center rounded border border-dashed border-zinc-300 text-xs text-zinc-400">
+          <div className="flex h-20 w-32 items-center justify-center rounded border border-dashed border-slate-300 text-xs text-slate-400">
             {vi.media.noImage}
           </div>
         )}

@@ -191,6 +191,11 @@ export interface Order {
 export interface AdminOrderListItem {
   id: string;
   orderCode: string;
+  channel?: string;
+  isSandbox?: boolean;
+  agentId?: string | null;
+  agentName?: string | null;
+  agentRequestId?: string | null;
   customerEmail: string | null;
   customerPhone: string | null;
   productType: string;
@@ -1382,10 +1387,17 @@ export interface PaymentGatewaySettings extends SettingsSourceView {
   /** Server-resolved hint for operators (sandbox vs VietQR). */
   runtimeHint?: string;
   effectiveCheckoutHost?: string;
+  /** MegaPay DepositCode RSA public key (masked in admin view) */
+  notifyPublicKey?: string;
   /** MegaPay PG encodeKey (V1.4.6) */
   pgEncodeKey?: string;
+  pgMerchantId?: string;
+  pgRefundPassword?: string;
   pgEnvironment?: 'sandbox' | 'production';
   reqDomain?: string;
+  depositCodeReady?: boolean;
+  pgLayerReady?: boolean;
+  pgRefundReady?: boolean;
 }
 
 export interface PaymentRuntimeSettings extends SettingsSourceView {
@@ -1538,6 +1550,12 @@ export interface SystemSettings extends SettingsSourceView {
   agentRegistrationMode?: 'INVITE_ONLY' | 'PUBLIC_APPROVAL' | 'DISABLED';
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
+  /** Days to keep config/admin audit logs. Default 360. Range 30–3650. */
+  auditLogRetentionDays?: number;
+  /** Min VND per agent deposit (SePay QR). Default 5_000_000. */
+  agentDepositMinAmount?: number;
+  /** Max VND per agent deposit. Default 300_000_000. */
+  agentDepositMaxAmount?: number;
 }
 
 export interface OrderSettings extends SettingsSourceView {

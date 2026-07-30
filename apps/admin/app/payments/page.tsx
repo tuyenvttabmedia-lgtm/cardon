@@ -178,7 +178,7 @@ export default function PaymentsPage() {
 
     <div className="space-y-6">
 
-      <h1 className="text-2xl font-bold">{vi.payments.title}</h1>
+      <h1 className="admin-page-title">{vi.payments.title}</h1>
 
       {error && <ErrorMessage message={error} />}
 
@@ -250,7 +250,7 @@ export default function PaymentsPage() {
 
           {allPayments.length === 0 ? (
 
-            <p className="mt-4 text-sm text-zinc-500">{vi.payments.noPayments}</p>
+            <p className="mt-4 text-sm text-slate-500">{vi.payments.noPayments}</p>
 
           ) : (
 
@@ -260,7 +260,7 @@ export default function PaymentsPage() {
 
                 <thead>
 
-                  <tr className="border-b text-left text-zinc-500">
+                  <tr className="border-b text-left text-slate-500">
 
                     <th className="py-2">{vi.payments.reference}</th>
 
@@ -288,7 +288,7 @@ export default function PaymentsPage() {
 
                   {allPayments.map((p) => (
 
-                    <tr key={p.id} className="border-b border-zinc-50">
+                    <tr key={p.id} className="border-b border-slate-50">
 
                       <td className="py-2 font-mono">{p.paymentReference}</td>
 
@@ -384,7 +384,7 @@ export default function PaymentsPage() {
 
             {payments.length === 0 ? (
 
-              <p className="mt-4 text-sm text-zinc-500">{vi.payments.noReview}</p>
+              <p className="mt-4 text-sm text-slate-500">{vi.payments.noReview}</p>
 
             ) : (
 
@@ -392,7 +392,7 @@ export default function PaymentsPage() {
 
                 {payments.map((p) => (
 
-                  <div key={p.id} className="rounded-xl border border-zinc-100 p-4">
+                  <div key={p.id} className="rounded-xl border border-slate-100 p-4">
 
                     <div className="flex flex-wrap items-start justify-between gap-4">
 
@@ -400,7 +400,7 @@ export default function PaymentsPage() {
 
                         <p className="font-mono text-sm">{p.paymentReference}</p>
 
-                        <p className="text-sm text-zinc-500">
+                        <p className="text-sm text-slate-500">
 
                           {vi.status[p.gateway as keyof typeof vi.status] ?? p.gateway} · {formatVnd(p.amount)} ·{' '}
 
@@ -408,7 +408,7 @@ export default function PaymentsPage() {
 
                         </p>
 
-                        <p className="text-xs text-zinc-400">{formatDateTime(p.updatedAt)}</p>
+                        <p className="text-xs text-slate-400">{formatDateTime(p.updatedAt)}</p>
 
                       </div>
 
@@ -448,7 +448,7 @@ export default function PaymentsPage() {
 
             {webhooks.length === 0 ? (
 
-              <p className="mt-4 text-sm text-zinc-500">{vi.payments.noWebhooks}</p>
+              <p className="mt-4 text-sm text-slate-500">{vi.payments.noWebhooks}</p>
 
             ) : (
 
@@ -456,7 +456,7 @@ export default function PaymentsPage() {
 
                 {webhooks.map((w) => (
 
-                  <li key={w.id} className="rounded-lg bg-zinc-50 p-3">
+                  <li key={w.id} className="rounded-lg bg-slate-50 p-3">
 
                     {w.source} · {w.paymentReference ?? '—'} · {formatDateTime(w.createdAt)}
 

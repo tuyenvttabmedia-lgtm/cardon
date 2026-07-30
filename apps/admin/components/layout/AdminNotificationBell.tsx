@@ -31,7 +31,7 @@ function badgeClass(items: SystemNotification[], unread: number): string {
   );
   if (hasCritical) return 'bg-red-500';
   const hasWarning = items.some((n) => !n.isRead && n.severity === 'WARNING');
-  if (hasWarning) return 'bg-yellow-500 text-zinc-900';
+  if (hasWarning) return 'bg-yellow-500 text-slate-900';
   return 'bg-red-500';
 }
 
@@ -103,8 +103,9 @@ export function AdminNotificationBell() {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="relative rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm hover:bg-zinc-50"
+        className="relative flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm shadow-sm transition-all hover:-translate-y-px hover:border-admin-200 hover:bg-admin-50 hover:shadow active:translate-y-0"
         aria-label="Thông báo"
+        aria-expanded={open}
       >
         🔔
         {unread > 0 && (
@@ -120,9 +121,9 @@ export function AdminNotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 flex w-[24rem] max-h-[32rem] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl">
-          <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-            <h3 className="font-semibold text-zinc-900">Thông báo</h3>
+        <div className="absolute right-0 z-50 mt-2 flex max-h-[32rem] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-panel-hover">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <h3 className="font-semibold text-slate-900">Thông báo</h3>
             <div className="flex gap-2">
               {unread > 0 && (
                 <button
@@ -143,15 +144,17 @@ export function AdminNotificationBell() {
             </div>
           </div>
 
-          <div className="flex gap-1 border-b border-zinc-100 px-2 py-2">
+          <div className="flex gap-1 border-b border-slate-100 px-2 py-2">
             {tabs.map((t) => (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
                 className={cn(
-                  'rounded-md px-2 py-1 text-xs',
-                  tab === t.id ? 'bg-admin-100 font-medium text-admin-800' : 'text-zinc-600 hover:bg-zinc-50',
+                  'rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
+                  tab === t.id
+                    ? 'bg-admin-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                 )}
               >
                 {t.label}
@@ -161,25 +164,25 @@ export function AdminNotificationBell() {
 
           <div className="flex-1 overflow-y-auto">
             {items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-zinc-500">Không có thông báo</p>
+              <p className="px-4 py-8 text-center text-sm text-slate-500">Không có thông báo</p>
             ) : (
               items.map((n) => (
                 <div
                   key={n.id}
                   className={cn(
-                    'border-b border-zinc-50 border-l-4 px-4 py-3',
-                    SEVERITY_COLOR[n.severity] ?? 'border-l-zinc-300',
-                    n.isRead ? 'bg-white opacity-80' : 'bg-zinc-50/80',
+                    'border-b border-slate-100 border-l-4 px-4 py-3 transition-colors hover:bg-slate-50',
+                    SEVERITY_COLOR[n.severity] ?? 'border-l-slate-300',
+                    n.isRead ? 'bg-white opacity-80' : 'bg-slate-50/80',
                   )}
                 >
                   <div className="flex items-start gap-2">
                     <span className="text-base leading-none">{SEVERITY_ICON[n.severity] ?? '•'}</span>
                     <div className="min-w-0 flex-1">
-                      <p className={cn('text-sm', n.isRead ? 'text-zinc-600' : 'font-medium text-zinc-900')}>
+                      <p className={cn('text-sm', n.isRead ? 'text-slate-600' : 'font-medium text-slate-900')}>
                         {n.title}
                       </p>
-                      <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{n.message}</p>
-                      <p className="mt-1 text-xs text-zinc-400">
+                      <p className="mt-1 line-clamp-2 text-xs text-slate-500">{n.message}</p>
+                      <p className="mt-1 text-xs text-slate-400">
                         {formatDateTime(n.createdAt)}
                         {n.source ? ` · ${n.source}` : ''}
                         {n.resourceDisplay ? ` · ${n.resourceDisplay}` : ''}
@@ -205,7 +208,7 @@ export function AdminNotificationBell() {
                         )}
                         <button
                           type="button"
-                          className="text-xs text-zinc-500 hover:underline"
+                          className="text-xs text-slate-500 hover:underline"
                           onClick={() => void dismiss(n.id)}
                         >
                           Ẩn

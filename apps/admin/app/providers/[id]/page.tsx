@@ -98,8 +98,8 @@ export default function ProviderDetailPage() {
           <Link href="/providers" className="text-sm text-admin-600 hover:underline">
             ← {vi.providers.title}
           </Link>
-          <h1 className="text-2xl font-bold">{detail?.name ?? 'NCC'}</h1>
-          <p className="text-sm text-zinc-500">Phase 6O24 · Chi tiết vận hành</p>
+          <h1 className="admin-page-title">{detail?.name ?? 'NCC'}</h1>
+          <p className="text-sm text-slate-500">Phase 6O24 · Chi tiết vận hành</p>
         </div>
 
         {error && <ErrorMessage message={error} />}
@@ -114,19 +114,19 @@ export default function ProviderDetailPage() {
               </div>
               <dl className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Mã</dt>
+                  <dt className="text-slate-500">Mã</dt>
                   <dd>{detail.code}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">{vi.providers.balance}</dt>
+                  <dt className="text-slate-500">{vi.providers.balance}</dt>
                   <dd className="font-semibold">{formatVnd(detail.balance)}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Success rate</dt>
+                  <dt className="text-slate-500">Success rate</dt>
                   <dd>{detail.successRate != null ? `${detail.successRate}%` : '—'}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Latency TB</dt>
+                  <dt className="text-slate-500">Latency TB</dt>
                   <dd>{detail.avgLatencyMs != null ? `${detail.avgLatencyMs}ms` : '—'}</dd>
                 </div>
               </dl>
@@ -152,7 +152,7 @@ export default function ProviderDetailPage() {
                       <p className="font-semibold">Kết nối thất bại</p>
                       <p className="mt-1 font-mono text-xs">{testResult.errorCode}</p>
                       <p>{testResult.message}</p>
-                      <p className="mt-1 text-xs text-zinc-600">{testResult.responseTimeMs}ms</p>
+                      <p className="mt-1 text-xs text-slate-600">{testResult.responseTimeMs}ms</p>
                     </>
                   )}
                 </div>
@@ -161,7 +161,7 @@ export default function ProviderDetailPage() {
 
             <Card>
               <h2 className="font-semibold">Tạm dừng NCC (bảo trì)</h2>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Khi bật, hệ thống bỏ qua NCC này khi routing đơn hàng.
               </p>
               <div className="mt-4 space-y-3">
@@ -228,7 +228,7 @@ export default function ProviderDetailPage() {
             {alertSettings && (
               <Card>
                 <h2 className="font-semibold">Alert Settings</h2>
-                <p className="mt-1 text-sm text-zinc-500">Cấu hình ngưỡng và kênh cảnh báo NCC.</p>
+                <p className="mt-1 text-sm text-slate-500">Cấu hình ngưỡng và kênh cảnh báo NCC.</p>
                 <div className="mt-4 space-y-3">
                   <div>
                     <Label>Low balance threshold (VND)</Label>

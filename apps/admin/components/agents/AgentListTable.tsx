@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 import { Button, Input, Label, Select } from '@/components/ui/Form';
+import { Table, THead, TBody, TR, TH, TD, TableEmpty, TableSkeleton } from '@/components/ui/Table';
 import { vi } from '@/lib/i18n/vi';
 import { cn, formatDateTime, formatVnd } from '@/lib/utils';
 import { agentCenterApi, ApiClientError, type AgentCenterListItem } from '@/services/api-client';
@@ -121,60 +122,60 @@ export function AgentListTable({
         </div>
       </Card>
 
-      <Card className="overflow-x-auto p-0">
-        {loading ? (
-          <p className="p-6 text-zinc-500">{vi.agentCenter.loading}</p>
-        ) : items.length === 0 ? (
-          <p className="p-6 text-zinc-500">{vi.agentCenter.empty}</p>
-        ) : (
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b bg-zinc-50 text-zinc-500">
-              <tr>
-                <th className="px-4 py-3">{vi.agentCenter.colAgentCode}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colCompany}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colStatus}</th>
-                <th className="px-4 py-3">{vi.agents.kyc}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colWallet}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colTodayOrders}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colApiStatus}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colWebhookStatus}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colMembers}</th>
-                <th className="px-4 py-3">{vi.agentCenter.colLastActivity}</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((a) => (
-                <tr key={a.id} className="border-b border-zinc-50 hover:bg-zinc-50">
-                  <td className="px-4 py-3 font-mono text-xs">{a.agentCode}</td>
-                  <td className="px-4 py-3 font-medium">{a.companyName}</td>
-                  <td className="px-4 py-3">
+      <Card className="p-0">
+        <Table className="min-w-full">
+          <THead>
+            <TR>
+              <TH>{vi.agentCenter.colAgentCode}</TH>
+              <TH>{vi.agentCenter.colCompany}</TH>
+              <TH>{vi.agentCenter.colStatus}</TH>
+              <TH>{vi.agents.kyc}</TH>
+              <TH>{vi.agentCenter.colWallet}</TH>
+              <TH>{vi.agentCenter.colTodayOrders}</TH>
+              <TH>{vi.agentCenter.colApiStatus}</TH>
+              <TH>{vi.agentCenter.colWebhookStatus}</TH>
+              <TH>{vi.agentCenter.colMembers}</TH>
+              <TH>{vi.agentCenter.colLastActivity}</TH>
+              <TH />
+            </TR>
+          </THead>
+          <TBody>
+            {loading ? (
+              <TableSkeleton colSpan={11} />
+            ) : items.length === 0 ? (
+              <TableEmpty colSpan={11} message={vi.agentCenter.empty} />
+            ) : (
+              items.map((a) => (
+                <TR key={a.id}>
+                  <TD className="font-mono text-xs">{a.agentCode}</TD>
+                  <TD className="font-medium">{a.companyName}</TD>
+                  <TD>
                     <Badge tone={statusTone(a.status)} status={a.status} />
-                  </td>
-                  <td className="px-4 py-3">
+                  </TD>
+                  <TD>
                     {a.kycStatus ? <Badge tone={statusTone(a.kycStatus)} status={a.kycStatus} /> : '—'}
-                  </td>
-                  <td className="px-4 py-3">{formatVnd(a.walletBalance)}</td>
-                  <td className="px-4 py-3">{a.todayOrders}</td>
-                  <td className="px-4 py-3">{a.apiStatus}</td>
-                  <td className="px-4 py-3">{a.webhookStatus}</td>
-                  <td className="px-4 py-3">{a.memberCount}</td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">
+                  </TD>
+                  <TD>{formatVnd(a.walletBalance)}</TD>
+                  <TD>{a.todayOrders}</TD>
+                  <TD>{a.apiStatus}</TD>
+                  <TD>{a.webhookStatus}</TD>
+                  <TD>{a.memberCount}</TD>
+                  <TD className="text-xs text-slate-500">
                     {a.lastActivityAt ? formatDateTime(a.lastActivityAt) : '—'}
-                  </td>
-                  <td className="px-4 py-3">
+                  </TD>
+                  <TD>
                     <Link href={`/agents/${a.id}?tab=overview`} className="text-admin-600 hover:underline">
                       {vi.common.detail}
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                  </TD>
+                </TR>
+              ))
+            )}
+          </TBody>
+        </Table>
       </Card>
 
-      <div className="flex items-center justify-between text-sm text-zinc-600">
+      <div className="flex items-center justify-between text-sm text-slate-600">
         <span>
           {total.toLocaleString('vi-VN')} bản ghi · Trang {page}/{totalPages}
         </span>

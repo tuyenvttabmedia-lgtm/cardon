@@ -18,7 +18,7 @@ export default function LoginPage() {
 
   if (authLoading || isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-900 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-900 text-white">
         Đang tải...
       </div>
     );
@@ -40,10 +40,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-900 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="text-2xl font-bold">{vi.app.name}</h1>
-        <p className="mt-2 text-sm text-zinc-600">{vi.login.subtitle}</p>
+        <h1 className="admin-page-title">{vi.app.name}</h1>
+        <p className="mt-2 text-sm text-slate-600">{vi.login.subtitle}</p>
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
             <Label htmlFor="email">{vi.login.email}</Label>

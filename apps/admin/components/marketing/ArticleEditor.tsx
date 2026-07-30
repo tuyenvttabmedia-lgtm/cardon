@@ -32,7 +32,7 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       className={`rounded px-2 py-1 text-xs font-medium ${
-        active ? 'bg-admin-600 text-white' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+        active ? 'bg-admin-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
       }`}
     >
       {children}
@@ -58,7 +58,7 @@ export function ArticleEditor({ value, onChange, onPickImage }: Props) {
     editorProps: {
       attributes: {
         class:
-          'cms-prose max-w-none min-h-[200px] rounded-b-lg border border-t-0 border-zinc-200 px-3 py-2 focus:outline-none',
+          'cms-prose max-w-none min-h-[200px] rounded-b-lg border border-t-0 border-slate-200 px-3 py-2 focus:outline-none',
       },
     },
   });
@@ -95,7 +95,7 @@ export function ArticleEditor({ value, onChange, onPickImage }: Props) {
 
   return (
     <div>
-      <div className="flex flex-wrap gap-1 rounded-t-lg border border-b-0 border-zinc-200 bg-zinc-50 p-2">
+      <div className="flex flex-wrap gap-1 rounded-t-lg border border-b-0 border-slate-200 bg-slate-50 p-2">
         <ToolbarButton
           active={editor.isActive('heading', { level: 2 })}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
@@ -147,11 +147,11 @@ interface GooglePreviewProps {
 export function GooglePreview({ title, description, url }: GooglePreviewProps) {
   const displayUrl = url || buildPublicPageUrl('/tin-tuc/danh-muc/...');
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <p className="text-xs font-medium text-zinc-500">Xem trước Google</p>
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
+      <p className="text-xs font-medium text-slate-500">Xem trước Google</p>
       <p className="mt-2 truncate text-lg text-[#1a0dab]">{title || 'Tiêu đề SEO'}</p>
       <p className="truncate text-sm text-[#006621]">{displayUrl}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-zinc-600">
+      <p className="mt-1 line-clamp-2 text-sm text-slate-600">
         {description || 'Mô tả SEO sẽ hiển thị tại đây.'}
       </p>
     </div>

@@ -173,22 +173,22 @@ export default function SystemHealthPage() {
         {summary && (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
-              <p className="text-sm text-zinc-500">Production Readiness</p>
+              <p className="text-sm text-slate-500">Production Readiness</p>
               <p className="mt-1 text-2xl font-bold">{summary.productionLabel ?? 'Production Ready'}</p>
               <p className="mt-2 text-4xl font-bold">{summary.healthScore}%</p>
               <Badge tone={SEVERITY_TONE[summary.status]}>{summary.status.toUpperCase()}</Badge>
             </Card>
             <Card>
-              <p className="text-sm text-zinc-500">Last Scan</p>
+              <p className="text-sm text-slate-500">Last Scan</p>
               <p className="mt-1 text-lg font-semibold">{summary.lastScanAt ? formatDateTime(summary.lastScanAt) : 'Chưa quét'}</p>
-              <p className="text-sm text-zinc-500">{scanning ? 'Scan đang chạy…' : formatRelative(summary.lastScanAt)}</p>
+              <p className="text-sm text-slate-500">{scanning ? 'Scan đang chạy…' : formatRelative(summary.lastScanAt)}</p>
             </Card>
             <Card>
-              <p className="text-sm text-zinc-500">Warnings</p>
+              <p className="text-sm text-slate-500">Warnings</p>
               <p className="mt-1 text-3xl font-bold text-amber-600">{summary.summary.warning}</p>
             </Card>
             <Card>
-              <p className="text-sm text-zinc-500">Errors</p>
+              <p className="text-sm text-slate-500">Errors</p>
               <p className="mt-1 text-3xl font-bold text-red-600">{summary.summary.error}</p>
             </Card>
           </div>
@@ -224,7 +224,7 @@ export default function SystemHealthPage() {
             <OpsSection title="Payment Strategy">
               <div className="space-y-3">
                 {ops.payment.map((g) => (
-                  <div key={g.id} className="rounded-lg border border-zinc-100 px-3 py-3 text-sm">
+                  <div key={g.id} className="rounded-lg border border-slate-100 px-3 py-3 text-sm">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">
                         {!g.comingSoon && g.priorityLabel ? `${g.priorityLabel} ` : ''}
@@ -239,10 +239,10 @@ export default function SystemHealthPage() {
                       )}
                     </div>
                     {g.checks?.map((check) => (
-                      <p key={check} className="text-zinc-600">✓ {check}</p>
+                      <p key={check} className="text-slate-600">✓ {check}</p>
                     ))}
                     {g.lastCheckAt && !g.comingSoon && (
-                      <p className="mt-1 text-xs text-zinc-500">
+                      <p className="mt-1 text-xs text-slate-500">
                         Last Check: {formatRelative(g.lastCheckAt)}
                       </p>
                     )}
@@ -254,14 +254,14 @@ export default function SystemHealthPage() {
             <OpsSection title="Providers">
               <div className="space-y-3">
                 {ops.providers.map((p) => (
-                  <div key={p.id} className="rounded-lg border border-zinc-100 px-3 py-2 text-sm">
+                  <div key={p.id} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">{p.name}</span>
                       <Badge tone={p.healthStatus === 'ONLINE' ? 'success' : 'warning'}>{p.healthStatus}</Badge>
                     </div>
-                    <p className="text-zinc-600">Balance: {p.balance ? formatVnd(p.balance) : '—'}</p>
-                    <p className="text-zinc-600">Last Sync: {formatRelative(p.lastSyncAt)}</p>
-                    <p className="text-zinc-600">API: {p.apiLatencyMs != null ? `${p.apiLatencyMs} ms` : '—'}</p>
+                    <p className="text-slate-600">Balance: {p.balance ? formatVnd(p.balance) : '—'}</p>
+                    <p className="text-slate-600">Last Sync: {formatRelative(p.lastSyncAt)}</p>
+                    <p className="text-slate-600">API: {p.apiLatencyMs != null ? `${p.apiLatencyMs} ms` : '—'}</p>
                   </div>
                 ))}
               </div>
@@ -309,7 +309,7 @@ export default function SystemHealthPage() {
               <p className="text-sm">Cron Running: {ops.cron.running ? 'Yes' : 'No'}</p>
               <p className="text-sm">Last Run: {formatRelative(ops.cron.lastRunAt)}</p>
               <p className="text-sm">Next Run: {ops.cron.nextRunAt ? formatDateTime(ops.cron.nextRunAt) : '—'}</p>
-              <p className="text-sm text-zinc-500">{ops.cron.schedule}</p>
+              <p className="text-sm text-slate-500">{ops.cron.schedule}</p>
             </OpsSection>
 
             <OpsSection title="Telegram">
@@ -324,7 +324,7 @@ export default function SystemHealthPage() {
           <OpsSection title="Production Checklist">
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {ops.checklist.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-2 text-sm">
+                <div key={item.id} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
                   <span>{item.label}</span>
                   <Badge tone={SEVERITY_TONE[CHECKLIST_TONE[item.status]]}>{item.status.toUpperCase()}</Badge>
                 </div>
@@ -342,7 +342,7 @@ export default function SystemHealthPage() {
                     <h3 className="font-semibold">{domain.label}</h3>
                     <Badge tone={SEVERITY_TONE[domain.status]}>{domain.status}</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-slate-600">
                     OK {domain.okCount} · ⚠ {domain.warningCount} · ✕ {domain.errorCount}
                   </p>
                 </Card>
@@ -350,13 +350,13 @@ export default function SystemHealthPage() {
             </div>
 
             <Card>
-              <div className="flex flex-wrap gap-2 border-b border-zinc-100 pb-3">
+              <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-3">
                 {(['all', 'error', 'warning', 'ok'] as FilterSeverity[]).map((value) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => setFilter(value)}
-                    className={`rounded-full px-3 py-1 text-sm ${filter === value ? 'bg-admin-600 text-white' : 'bg-zinc-100'}`}
+                    className={`rounded-full px-3 py-1 text-sm ${filter === value ? 'bg-admin-600 text-white' : 'bg-slate-100'}`}
                   >
                     {value === 'all' ? 'All' : value.charAt(0).toUpperCase() + value.slice(1)}
                   </button>
@@ -364,17 +364,17 @@ export default function SystemHealthPage() {
               </div>
               <div className="mt-4 space-y-3">
                 {filteredFindings.length === 0 ? (
-                  <p className="text-sm text-zinc-500">Không có mục nào cho bộ lọc này.</p>
+                  <p className="text-sm text-slate-500">Không có mục nào cho bộ lọc này.</p>
                 ) : (
                   filteredFindings.map((finding) => (
-                    <div key={finding.id} className="rounded-lg border border-zinc-100 px-4 py-3">
+                    <div key={finding.id} className="rounded-lg border border-slate-100 px-4 py-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span>{finding.severity === 'error' ? '❌' : finding.severity === 'warning' ? '⚠' : '✓'}</span>
                         <Badge tone={SEVERITY_TONE[finding.severity]}>{finding.entityType}</Badge>
                         <span className="font-medium">{finding.entityLabel}</span>
                         {finding.autoFixable && <Badge tone="info">Auto Fix</Badge>}
                       </div>
-                      <p className="mt-1 text-sm text-zinc-600">{finding.message}</p>
+                      <p className="mt-1 text-sm text-slate-600">{finding.message}</p>
                     </div>
                   ))
                 )}
@@ -383,7 +383,7 @@ export default function SystemHealthPage() {
           </>
         )}
 
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-slate-400">
           Cron quét tự động lúc 03:00. Telegram alert khi Health Score &lt; 90% hoặc có Error.
         </p>
       </div>

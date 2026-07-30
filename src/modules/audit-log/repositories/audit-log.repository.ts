@@ -137,4 +137,16 @@ export class AuditLogRepository {
 
     return { today, yesterday, thisMonth, total };
   }
+
+  async purgeOlderThan(before: Date): Promise<{ systemAudit: number; audit: number }> {
+    const [systemAudit, audit] = await Promise.all([
+      this.prisma.systemAuditLog.deleteMany({
+        where: { createdAt: { lt: before } },
+      }),
+      this.prisma.auditLog.deleteMany({
+        where: { createdAt: { lt: before } },
+      }),
+    ]);
+    return { systemAudit: systemAudit.count, audit: audit.count };
+  }
 }

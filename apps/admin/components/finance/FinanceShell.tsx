@@ -1,13 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, StatCard } from '@/components/ui/Display';
 import { Button, Input, Label } from '@/components/ui/Form';
+import { SectionNav } from '@/components/ui/Navigation';
 import { vi } from '@/lib/i18n/vi';
-import { cn, formatVnd } from '@/lib/utils';
+import { formatVnd } from '@/lib/utils';
 import { financeApi } from '@/services/api-client';
 import type { ProfitReport } from '@/types/api';
 import { FinanceDateProvider, useFinanceDates } from './FinanceDateContext';
@@ -80,25 +80,15 @@ function FinanceNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-      {SECTIONS.map((item) => {
+    <SectionNav
+      ariaLabel="Điều hướng tài chính"
+      items={SECTIONS.map((item) => {
         const active = item.exact
           ? pathname === item.href
           : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-medium',
-              active ? 'bg-admin-100 text-admin-800' : 'text-zinc-600 hover:bg-zinc-50',
-            )}
-          >
-            {vi.finance[item.labelKey]}
-          </Link>
-        );
+        return { href: item.href, label: vi.finance[item.labelKey], active };
       })}
-    </nav>
+    />
   );
 }
 
@@ -106,8 +96,8 @@ function FinanceShellInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{vi.finance.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{vi.finance.subtitle}</p>
+        <h1 className="admin-page-title">{vi.finance.title}</h1>
+        <p className="admin-page-subtitle">{vi.finance.subtitle}</p>
       </div>
       <FinanceNav />
       <Card className="p-4">

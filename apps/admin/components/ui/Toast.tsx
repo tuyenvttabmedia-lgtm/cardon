@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               'pointer-events-auto rounded-xl px-4 py-3 text-sm font-medium shadow-lg',
               item.tone === 'success' && 'bg-emerald-600 text-white',
               item.tone === 'error' && 'bg-red-600 text-white',
-              item.tone === 'info' && 'bg-zinc-800 text-white',
+              item.tone === 'info' && 'bg-slate-800 text-white',
             )}
           >
             {item.message}

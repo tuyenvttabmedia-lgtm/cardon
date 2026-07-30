@@ -111,6 +111,16 @@ export class ProviderService {
       throw new NotFoundException('Order not found');
     }
 
+    const trace =
+      order.clientTrace && typeof order.clientTrace === 'object' && !Array.isArray(order.clientTrace)
+        ? (order.clientTrace as Record<string, unknown>)
+        : {};
+    if (trace.sandbox === true) {
+      throw new BadRequestException(
+        'Sandbox orders must not call provider fulfillment — use agent-api mock path',
+      );
+    }
+
     if (order.paymentStatus !== OrderPaymentStatus.PAID) {
       throw new BadRequestException('Order is not paid');
     }

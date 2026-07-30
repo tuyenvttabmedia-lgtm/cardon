@@ -10,4 +10,10 @@ export const AGENT_AUDIT_ACTIONS = {
 } as const;
 
 export const AGENT_API_KEY_PREFIX = 'ak_';
+/** Sandbox partner keys (issued after KYC). */
+export const AGENT_API_KEY_SANDBOX_PREFIX = 'ak_test_';
+/** Production partner keys (after live enable). */
+export const AGENT_API_KEY_LIVE_PREFIX = 'ak_live_';
 export const AGENT_SECRET_KEY_PREFIX = 'sk_';
+/** Seeded sandbox balance after KYC (VND). */
+export const AGENT_SANDBOX_SEED_BALANCE = 10_000_000;

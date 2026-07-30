@@ -7,6 +7,7 @@ import {
 
 export type AgentOrderWithDetails = Order & {
   financialTransaction: FinancialTransaction | null;
+  clientTrace?: unknown;
   orderItems: Array<{
     id: string;
     quantity: number;
@@ -126,4 +127,6 @@ export interface AgentApiContext {
   agent: Agent;
   requestId: string;
   secretKey: string;
+  /** Which credential authenticated this request. */
+  environment: 'SANDBOX' | 'PRODUCTION';
 }

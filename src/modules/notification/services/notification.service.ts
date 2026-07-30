@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OrderEventType } from '@prisma/client';
 import { AGENT_LOW_BALANCE_THRESHOLD, CUSTOMER_NOTIFICATION_TYPE, EMAIL_TEMPLATE, NOTIFICATION_CHANNEL, SYSTEM_NOTIFICATION_TYPE } from '../entities/notification.constants';
+import {
+  displayProviderName,
+  formatAdminRetryTelegram,
+  formatProviderLowBalanceTelegram,
+  formatVndAmount,
+} from '../entities/telegram-ops-alerts';
 import { NotificationRepository } from '../repositories/notification.repository';
 import { NotificationQueueProducer } from './notification-queue.producer';
 import { OrderEventService } from '../../order/services/order-event.service';
@@ -223,9 +229,27 @@ export class NotificationService {
     },
   ) {
     const time = new Date().toISOString();
-    const metadata = { providerId, providerCode, providerName, balance, threshold, time };
-    const title = `Low balance: ${providerCode}`;
-    const body = `Provider: ${providerName}\nCurrent balance: ${balance}\nThreshold: ${threshold}\nTime: ${time}`;
+    const displayName = displayProviderName(providerName, providerCode);
+    const metadata = {
+      providerId,
+      providerCode,
+      providerName: displayName,
+      balance,
+      threshold,
+      time,
+    };
+    const { title, body: telegramBody } = formatProviderLowBalanceTelegram({
+      providerName: displayName,
+      providerCode,
+      balance,
+      threshold,
+    });
+    const body = [
+      `NCC: ${displayName}`,
+      `Số dư: ${formatVndAmount(balance)}`,
+      `Ngưỡng cảnh báo: ${formatVndAmount(threshold)}`,
+      `→ Cần nạp ví ${displayName} trước khi giao đơn mới`,
+    ].join('\n');
     const jobBase = `operation-low-${providerId}-${Date.now()}`;
 
     if (channels.admin !== false) {
@@ -243,7 +267,7 @@ export class NotificationService {
         {
           channel: NOTIFICATION_CHANNEL.TELEGRAM,
           title,
-          body: `<b>LOW_BALANCE</b>\n${body.replace(/\n/g, '\n')}`,
+          body: telegramBody,
           payload: metadata,
         },
         `${jobBase}-telegram`,
@@ -261,7 +285,7 @@ export class NotificationService {
             payload: {
               providerId,
               providerCode,
-              providerName,
+              providerName: displayName,
               balance: balance.toFixed(2),
               threshold: threshold.toFixed(2),
             },
@@ -284,9 +308,16 @@ export class NotificationService {
     },
   ) {
     const time = new Date().toISOString();
-    const metadata = { providerId, providerCode, providerName, errorMessage, time };
-    const title = `Provider error: ${providerCode}`;
-    const body = `Provider: ${providerName}\nError: ${errorMessage}\nTime: ${time}`;
+    const displayName = displayProviderName(providerName, providerCode);
+    const metadata = {
+      providerId,
+      providerCode,
+      providerName: displayName,
+      errorMessage,
+      time,
+    };
+    const title = `Lỗi NCC: ${displayName}`;
+    const body = `NCC: ${displayName}\nLỗi: ${errorMessage}`;
     const jobBase = `operation-error-${providerId}-${Date.now()}`;
 
     if (channels.admin !== false) {
@@ -304,7 +335,7 @@ export class NotificationService {
         {
           channel: NOTIFICATION_CHANNEL.TELEGRAM,
           title,
-          body: `<b>PROVIDER_ERROR</b>\n${body.replace(/\n/g, '\n')}`,
+          body: `<b>LỖI NCC</b>\n${body}`,
           payload: metadata,
         },
         `${jobBase}-telegram`,
@@ -388,26 +419,25 @@ export class NotificationService {
       context?.failureCode ?? latestTxn?.errorCode ?? '—';
     const attempt = latestTxn?.attempt;
 
-    const title = `Cần xử lý đơn: ${orderCode}`;
-    const lines = [
-      `Loại: ${variantType} | SKU: ${variantSku}`,
-      `Mã đơn: ${orderCode}`,
-      `Thanh toán: ${order?.paymentStatus ?? '—'} | Giao hàng: ${order?.fulfillmentStatus ?? 'WAITING_ADMIN_RETRY'}`,
-      `SĐT nạp: ${phone} | Nhà mạng: ${telco}${amount != null && !Number.isNaN(amount) ? ` | Mệnh giá: ${amount}đ` : ''}`,
-      `NCC: ESALE | Lỗi CardOn: ${failureCode}${attempt != null ? ` | Lần thử NCC: ${attempt}` : ''}`,
-      `Request ID: ${requestId}`,
-      `eSaleTransId: ${esaleId}`,
-      `retCode: ${retCode ?? '—'} | retMsg: ${retMsg}`,
-      `providerCode: ${providerCode ?? '—'} | providerMessage: ${providerMessage}`,
-      totalAmount != null ? `Đã trừ ví NCC (totalAmount): ${totalAmount}đ` : null,
-      data?.topupType ? `topupType: ${data.topupType}` : null,
-      `Thời gian: ${time}`,
-      variantType === 'TOPUP' || variantType === 'DATA'
-        ? 'Hành động: Admin → Đơn hàng → Giao lại (chỉ checkTransaction, không gọi nạp lại).'
-        : 'Hành động: Admin → Đơn hàng → Giao lại / kiểm tra NCC.',
-    ].filter(Boolean);
-
-    const body = lines.join('\n');
+    const { title, body: telegramBody } = formatAdminRetryTelegram({
+      orderCode,
+      variantType,
+      paymentStatus: order?.paymentStatus,
+      fulfillmentStatus: order?.fulfillmentStatus,
+      phone,
+      telco,
+      amount: amount != null && !Number.isNaN(amount) ? Number(amount) : undefined,
+      failureCode,
+      retCode: retCode != null ? Number(retCode) : undefined,
+      retMsg,
+      providerMessage,
+      totalAmount: totalAmount != null ? Number(totalAmount) : undefined,
+      requestId,
+      esaleId,
+      attempt: attempt != null ? Number(attempt) : undefined,
+    });
+    // Plain-text twin for admin inbox (no HTML tags).
+    const body = telegramBody.replace(/<\/?b>/g, '');
     const metadata = {
       orderId,
       orderCode,
@@ -421,6 +451,7 @@ export class NotificationService {
       amount,
       telco,
       totalAmount,
+      variantSku,
     };
     const jobBase = `operation-manual-${orderId}-${Date.now()}`;
 
@@ -436,7 +467,7 @@ export class NotificationService {
       {
         channel: NOTIFICATION_CHANNEL.TELEGRAM,
         title,
-        body: `<b>CẦN XỬ LÝ ĐƠN</b>\n${body}`,
+        body: telegramBody,
         payload: metadata,
       },
       `${jobBase}-telegram`,
@@ -444,7 +475,7 @@ export class NotificationService {
 
     return this.producer.enqueueSystemAdminAlert({
       systemType: SYSTEM_NOTIFICATION_TYPE.ADMIN_RETRY_REQUIRED,
-      title: `Cần giao lại: ${orderCode}`,
+      title,
       body,
       metadata: { orderId, orderCode, failureCode, requestId },
       jobId: `system-admin-retry-${orderId}`,
@@ -576,8 +607,8 @@ export class NotificationService {
     return this.notifyCustomerInApp({
       userId,
       type: CUSTOMER_NOTIFICATION_TYPE.AGENT_DEPOSIT_CREDITED,
-      title: 'Có tiền vào ví',
-      body: `Đã cộng ${amount} VND vào ví. Mã giao dịch: ${paymentReference}`,
+      title: 'Có tiền vào hạn mức',
+      body: `Đã cộng ${amount} VND vào hạn mức. Mã giao dịch: ${paymentReference}`,
       metadata: { depositId, paymentReference, amount },
       jobId: `agent-deposit-credited-${depositId}`,
     });

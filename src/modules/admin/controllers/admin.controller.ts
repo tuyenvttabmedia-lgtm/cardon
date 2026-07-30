@@ -355,6 +355,17 @@ export class AdminController {
     return this.agentService.deleteAgent(user.id, id);
   }
 
+  @Post('agents/:id/enable-live-api')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @Permissions('agents.manage')
+  enableLiveApi(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.agentService.enableLiveApi(user.id, id);
+  }
+
   @Post('agents/:id/enable-api')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)

@@ -185,10 +185,10 @@ export async function ensurePermissions() {
 async function ensureDemoCatalog() {
   const provider = await prisma.provider.upsert({
     where: { code: DEMO_CATALOG.providerCode },
-    update: { status: 'ACTIVE', name: 'eSale (Mock Local)' },
+    update: { status: 'ACTIVE', name: 'eSale' },
     create: {
       code: DEMO_CATALOG.providerCode,
-      name: 'eSale (Mock Local)',
+      name: 'eSale',
       status: 'ACTIVE',
       apiCredentials: '{}',
     },

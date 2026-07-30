@@ -9,22 +9,22 @@ Reverts BUILD 6034.1 (Pricing & Discount Center) in favor of a simpler margin mo
 | Item | Detail |
 |------|--------|
 | Rollback | Drops pricing groups, discount rules, pricing history tables |
-| Margin | Per `HomeServiceType`: **% + fixed amount** |
+| Margin | Per `HomeServiceType`: **% of face value** or **fixed VND** |
 | Rounding | **100đ** (configurable via `roundTo`) |
-| Formula | `Giá đại lý = round(Giá vốn NCC × (1 + %/100) + fixed)` |
+| Formula | `CK_ĐL = CK_NCC − biên_LN`; `Giá ĐL = round(mệnh giá × (1 − CK_ĐL))` ≡ `vốn NCC + biên LN` |
 | Admin UI | **Đại lý → Cấu hình lợi nhuận** + pricing tab on agent detail |
 | Partner UI | **Giá mua (CardOn)** only — no NCC/esale cost |
 
 ## Default margins
 
-| Service | % | Fixed |
-|---------|---|-------|
-| Thẻ game (`GAME_CARD`) | 0.5% | 500đ |
-| Thẻ ĐT (`PHONE_CARD`) | 0.5% | 500đ |
-| Nạp cước (`TOPUP`) | 0.3% | 300đ |
-| Nạp data (`DATA`) | 0.3% | 300đ |
+| Service | Biên LN (% mệnh giá) |
+|---------|----------------------|
+| Thẻ game (`GAME_CARD`) | 0.5% |
+| Thẻ ĐT (`PHONE_CARD`) | 0.5% |
+| Nạp cước (`TOPUP`) | 0.3% |
+| Nạp data (`DATA`) | 0.3% |
 
-Example: NCC cost 96,500đ → 96,500 × 1.005 + 500 = 97,482.5 → **97,500đ** (rounded to 100đ).
+Example: mệnh giá 10,000đ, NCC 9,700đ (CK NCC 3%), biên LN CardOn 1% → CK ĐL 2% → giá ĐL **9,800đ**.
 
 ## Resolution order
 

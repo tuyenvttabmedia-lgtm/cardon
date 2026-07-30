@@ -3,9 +3,13 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import {
+  AGENT_API_KEY_LIVE_PREFIX,
   AGENT_API_KEY_PREFIX,
+  AGENT_API_KEY_SANDBOX_PREFIX,
   AGENT_SECRET_KEY_PREFIX,
 } from '../entities/agent.constants';
+
+export type AgentCredentialEnvironment = 'SANDBOX' | 'PRODUCTION';
 
 export interface GeneratedAgentCredentials {
   apiKey: string;
@@ -13,6 +17,7 @@ export interface GeneratedAgentCredentials {
   apiKeyHash: string;
   apiKeyLookup: string;
   secretKeyEncrypted: string;
+  environment: AgentCredentialEnvironment;
 }
 
 export function hashApiKeyForLookup(apiKey: string): string {
@@ -23,8 +28,14 @@ export function hashApiKeyForLookup(apiKey: string): string {
 export class AgentCredentialService {
   constructor(private readonly configService: ConfigService) {}
 
-  generateCredentials(): GeneratedAgentCredentials {
-    const apiKey = `${AGENT_API_KEY_PREFIX}${randomBytes(24).toString('hex')}`;
+  generateCredentials(
+    environment: AgentCredentialEnvironment = 'PRODUCTION',
+  ): GeneratedAgentCredentials {
+    const prefix =
+      environment === 'SANDBOX'
+        ? AGENT_API_KEY_SANDBOX_PREFIX
+        : AGENT_API_KEY_LIVE_PREFIX;
+    const apiKey = `${prefix}${randomBytes(24).toString('hex')}`;
     const secretKey = `${AGENT_SECRET_KEY_PREFIX}${randomBytes(32).toString('hex')}`;
     const apiKeyHash = bcrypt.hashSync(apiKey, 12);
 
@@ -34,6 +45,21 @@ export class AgentCredentialService {
       apiKeyHash,
       apiKeyLookup: hashApiKeyForLookup(apiKey),
       secretKeyEncrypted: this.encrypt(secretKey),
+      environment,
+    };
+  }
+
+  /** Legacy helper — production key with historical `ak_` prefix (tests / migration only). */
+  generateLegacyProductionCredentials(): GeneratedAgentCredentials {
+    const apiKey = `${AGENT_API_KEY_PREFIX}${randomBytes(24).toString('hex')}`;
+    const secretKey = `${AGENT_SECRET_KEY_PREFIX}${randomBytes(32).toString('hex')}`;
+    return {
+      apiKey,
+      secretKey,
+      apiKeyHash: bcrypt.hashSync(apiKey, 12),
+      apiKeyLookup: hashApiKeyForLookup(apiKey),
+      secretKeyEncrypted: this.encrypt(secretKey),
+      environment: 'PRODUCTION',
     };
   }
 

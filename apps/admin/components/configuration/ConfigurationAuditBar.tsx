@@ -21,22 +21,22 @@ export function ConfigurationAuditBar({ module }: { module: ConfigurationModuleI
   if (!meta) return null;
 
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm">
-      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-zinc-600">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+      <dl className="flex flex-wrap gap-x-6 gap-y-1 text-slate-600">
         <div>
-          <dt className="inline text-zinc-500">{vi.configuration.lastModified}: </dt>
+          <dt className="inline text-slate-500">{vi.configuration.lastModified}: </dt>
           <dd className="inline">{meta.lastModifiedAt ? formatDateTime(meta.lastModifiedAt) : '—'}</dd>
         </div>
         <div>
-          <dt className="inline text-zinc-500">{vi.configuration.modifiedBy}: </dt>
+          <dt className="inline text-slate-500">{vi.configuration.modifiedBy}: </dt>
           <dd className="inline">{meta.modifiedBy ?? '—'}</dd>
         </div>
         <div>
-          <dt className="inline text-zinc-500">{vi.configuration.source}: </dt>
+          <dt className="inline text-slate-500">{vi.configuration.source}: </dt>
           <dd className="inline capitalize">{meta.source ?? '—'}</dd>
         </div>
         <div>
-          <dt className="inline text-zinc-500">{vi.configuration.secretsProtected}: </dt>
+          <dt className="inline text-slate-500">{vi.configuration.secretsProtected}: </dt>
           <dd className="inline">{vi.configuration.yes}</dd>
         </div>
       </dl>

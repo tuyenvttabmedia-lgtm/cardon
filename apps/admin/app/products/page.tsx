@@ -8,6 +8,8 @@ import { RequirePermission } from '@/components/layout/AdminShell';
 
 import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 
+import { Dialog } from '@/components/ui/Dialog';
+
 import { Button, Input, Label, Select } from '@/components/ui/Form';
 
 import { useToast } from '@/components/ui/Toast';
@@ -663,9 +665,9 @@ export default function ProductsPage() {
 
       <div className="space-y-6">
 
-        <h1 className="text-2xl font-bold">{vi.products.title}</h1>
+        <h1 className="admin-page-title">{vi.products.title}</h1>
 
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-slate-600">
 
           Quy trình: Danh mục → Sản phẩm → Biến thể → Mapping nhà cung cấp. Ví dụ: Garena → Thẻ Garena →
 
@@ -705,7 +707,7 @@ export default function ProductsPage() {
 
                 {categories.map((c) => (
 
-                  <li key={c.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
+                  <li key={c.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
 
                     <span>
 
@@ -844,9 +846,9 @@ export default function ProductsPage() {
 
                       type="button"
 
-                      className={`w-full rounded-lg px-3 py-2 text-left hover:bg-zinc-100 ${
+                      className={`w-full rounded-lg px-3 py-2 text-left hover:bg-slate-100 ${
 
-                        selectedProduct?.id === p.id ? 'bg-admin-50 ring-1 ring-admin-200' : 'bg-zinc-50'
+                        selectedProduct?.id === p.id ? 'bg-admin-50 ring-1 ring-admin-200' : 'bg-slate-50'
 
                       }`}
 
@@ -916,7 +918,7 @@ export default function ProductsPage() {
 
               {selectedProduct && (
 
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
+                <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
 
                   <Button
 
@@ -1012,7 +1014,7 @@ export default function ProductsPage() {
 
             {!selectedProduct ? (
 
-              <p className="text-zinc-500">{vi.products.selectProduct}</p>
+              <p className="text-slate-500">{vi.products.selectProduct}</p>
 
             ) : (
 
@@ -1024,7 +1026,7 @@ export default function ProductsPage() {
 
                 </h2>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-1 text-sm text-slate-500">
 
                   Nhập SKU IN HOA (GARENA_10K, GARENA_20K…). Sau khi lưu, chọn Mapping để gán mã nhà cung cấp.
 
@@ -1040,7 +1042,7 @@ export default function ProductsPage() {
 
                       className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm ${
 
-                        selectedVariantId === v.id ? 'border-admin-300 bg-admin-50' : 'border-zinc-100'
+                        selectedVariantId === v.id ? 'border-admin-300 bg-admin-50' : 'border-slate-100'
 
                       }`}
 
@@ -1262,7 +1264,7 @@ export default function ProductsPage() {
 
             {!selectedVariantId ? (
 
-              <p className="text-zinc-500">{vi.products.selectVariant}</p>
+              <p className="text-slate-500">{vi.products.selectVariant}</p>
 
             ) : (
 
@@ -1274,7 +1276,7 @@ export default function ProductsPage() {
 
                   {mappings.map((m) => (
 
-                    <li key={m.id} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                    <li key={m.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
 
                       {editMapping?.id === m.id ? (
 
@@ -1360,13 +1362,13 @@ export default function ProductsPage() {
 
                           <div className="space-y-1">
 
-                            <p className="font-medium text-zinc-900">
+                            <p className="font-medium text-slate-900">
 
                               {m.provider?.name ?? m.provider?.code ?? m.providerId}
 
                             </p>
 
-                            <p className="text-zinc-600">
+                            <p className="text-slate-600">
 
                               SKU: {m.providerProductCode} · {formatVnd(m.providerCost)} · Ưu tiên {m.priority}
 
@@ -1593,51 +1595,35 @@ export default function ProductsPage() {
 
         {editCat && (
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-            <Card className="w-full max-w-md space-y-4">
-
-              <h2 className="font-semibold">{vi.products.editCategory}</h2>
-
-              <div>
-
-                <Label>{vi.products.name}</Label>
-
-                <Input className="mt-1" value={editCat.name} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} />
-
-              </div>
-
-              <MediaImageField
-
-                label="Icon danh mục"
-
-                folder="products"
-
-                value={editCat.iconUrl ?? ''}
-
-                onChange={(url) => setEditCat({ ...editCat, iconUrl: url || null })}
-
-              />
-
-              <div className="flex gap-2">
-
-                <Button size="sm" onClick={() => void saveEditCategory()}>
-
-                  {vi.app.save}
-
-                </Button>
-
+          <Dialog
+            open
+            onClose={() => setEditCat(null)}
+            title={vi.products.editCategory}
+            size="sm"
+            footer={
+              <>
                 <Button size="sm" variant="ghost" onClick={() => setEditCat(null)}>
-
                   {vi.app.cancel}
-
                 </Button>
-
+                <Button size="sm" onClick={() => void saveEditCategory()}>
+                  {vi.app.save}
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <div>
+                <Label>{vi.products.name}</Label>
+                <Input className="mt-1" value={editCat.name} onChange={(e) => setEditCat({ ...editCat, name: e.target.value })} />
               </div>
-
-            </Card>
-
-          </div>
+              <MediaImageField
+                label="Icon danh mục"
+                folder="products"
+                value={editCat.iconUrl ?? ''}
+                onChange={(url) => setEditCat({ ...editCat, iconUrl: url || null })}
+              />
+            </div>
+          </Dialog>
 
         )}
 
@@ -1645,91 +1631,55 @@ export default function ProductsPage() {
 
         {editProduct && (
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-            <Card className="w-full max-w-md space-y-4">
-
-              <h2 className="font-semibold">{vi.products.editProduct}</h2>
-
-              <div>
-
-                <Label>{vi.products.name}</Label>
-
-                <Input className="mt-1" value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
-
-              </div>
-
-              <div>
-
-                <Label>{vi.products.selectCategory}</Label>
-
-                <Select
-
-                  className="mt-1"
-
-                  value={editProduct.categoryId}
-
-                  onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}
-
-                >
-
-                  {categories.filter((c) => c.status === 'ACTIVE').map((c) => (
-
-                    <option key={c.id} value={c.id}>
-
-                      {categoryOptionLabel(c)}
-
-                    </option>
-
-                  ))}
-
-                </Select>
-
-              </div>
-
-              <MediaImageField
-
-                label="Logo sản phẩm"
-
-                folder="products"
-
-                value={editProduct.logoUrl ?? ''}
-
-                onChange={(url) => setEditProduct({ ...editProduct, logoUrl: url || null })}
-
-              />
-
-              <MediaImageField
-
-                label="Banner sản phẩm (tuỳ chọn)"
-
-                folder="banners"
-
-                value={editProduct.bannerUrl ?? ''}
-
-                onChange={(url) => setEditProduct({ ...editProduct, bannerUrl: url || null })}
-
-              />
-
-              <div className="flex gap-2">
-
-                <Button size="sm" onClick={() => void saveEditProduct()}>
-
-                  {vi.app.save}
-
-                </Button>
-
+          <Dialog
+            open
+            onClose={() => setEditProduct(null)}
+            title={vi.products.editProduct}
+            size="sm"
+            footer={
+              <>
                 <Button size="sm" variant="ghost" onClick={() => setEditProduct(null)}>
-
                   {vi.app.cancel}
-
                 </Button>
-
+                <Button size="sm" onClick={() => void saveEditProduct()}>
+                  {vi.app.save}
+                </Button>
+              </>
+            }
+          >
+            <div className="space-y-4">
+              <div>
+                <Label>{vi.products.name}</Label>
+                <Input className="mt-1" value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} />
               </div>
-
-            </Card>
-
-          </div>
+              <div>
+                <Label>{vi.products.selectCategory}</Label>
+                <Select
+                  className="mt-1"
+                  value={editProduct.categoryId}
+                  onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}
+                >
+                  {categories.filter((c) => c.status === 'ACTIVE').map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {categoryOptionLabel(c)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <MediaImageField
+                label="Logo sản phẩm"
+                folder="products"
+                value={editProduct.logoUrl ?? ''}
+                onChange={(url) => setEditProduct({ ...editProduct, logoUrl: url || null })}
+              />
+              <MediaImageField
+                label="Banner sản phẩm (tuỳ chọn)"
+                folder="banners"
+                value={editProduct.bannerUrl ?? ''}
+                onChange={(url) => setEditProduct({ ...editProduct, bannerUrl: url || null })}
+              />
+            </div>
+          </Dialog>
 
         )}
 
@@ -1737,12 +1687,21 @@ export default function ProductsPage() {
 
         {editVariant && (
 
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-            <Card className="w-full max-w-lg space-y-4">
-
-              <h2 className="font-semibold">{vi.products.editVariant}</h2>
-
+          <Dialog
+            open
+            onClose={() => setEditVariant(null)}
+            title={vi.products.editVariant}
+            footer={
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setEditVariant(null)}>
+                  {vi.app.cancel}
+                </Button>
+                <Button size="sm" onClick={() => void saveEditVariant()}>
+                  {vi.app.save}
+                </Button>
+              </>
+            }
+          >
               <div className="grid gap-3 sm:grid-cols-2">
 
                 <div>
@@ -1823,26 +1782,7 @@ export default function ProductsPage() {
                 )}
 
               </div>
-
-              <div className="flex gap-2">
-
-                <Button size="sm" onClick={() => void saveEditVariant()}>
-
-                  {vi.app.save}
-
-                </Button>
-
-                <Button size="sm" variant="ghost" onClick={() => setEditVariant(null)}>
-
-                  {vi.app.cancel}
-
-                </Button>
-
-              </div>
-
-            </Card>
-
-          </div>
+          </Dialog>
 
         )}
 

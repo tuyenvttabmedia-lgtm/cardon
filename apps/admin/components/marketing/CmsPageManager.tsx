@@ -186,7 +186,7 @@ export function CmsPageManager({ pageType, title }: Props) {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">{title}</h1>
+        <h1 className="admin-page-title">{title}</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
 
@@ -254,7 +254,7 @@ export function CmsPageManager({ pageType, title }: Props) {
                           className={`rounded-full px-2 py-0.5 text-xs ${
                             form.tagIds.includes(t.id)
                               ? 'bg-admin-600 text-white'
-                              : 'bg-zinc-100 text-zinc-700'
+                              : 'bg-slate-100 text-slate-700'
                           }`}
                         >
                           {t.name}
@@ -264,7 +264,7 @@ export function CmsPageManager({ pageType, title }: Props) {
                   </div>
                 </>
               )}
-              <div className="rounded-lg border border-zinc-100 bg-zinc-50 p-3 space-y-3">
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-3">
                 <p className="text-sm font-semibold">SEO</p>
                 <div>
                   <Label>Focus keyword</Label>
@@ -322,12 +322,12 @@ export function CmsPageManager({ pageType, title }: Props) {
             <h2 className="font-semibold">Danh sách</h2>
             <ul className="mt-3 max-h-[48rem] space-y-2 overflow-y-auto text-sm">
               {items.map((p) => (
-                <li key={p.id} className="rounded-lg border border-zinc-100 p-3">
+                <li key={p.id} className="rounded-lg border border-slate-100 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium">{p.title}</span>
                     <Badge tone={statusTone(p.status)} status={p.status} />
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">/{p.slug}</p>
+                  <p className="mt-1 text-xs text-slate-500">/{p.slug}</p>
                   <div className="mt-2 flex gap-2">
                     <Button size="sm" variant="secondary" onClick={() => startEdit(p)}>{vi.app.edit}</Button>
                     {p.status !== 'PUBLISHED' && (

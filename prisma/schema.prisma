@@ -572,9 +572,15 @@ model Agent {
   companyName          String      @map("company_name") @db.VarChar(255)
   balance              Decimal     @default(0) @db.Decimal(18, 2)
   heldBalance          Decimal     @default(0) @map("held_balance") @db.Decimal(18, 2)
+  sandboxBalance       Decimal     @default(0) @map("sandbox_balance") @db.Decimal(18, 2)
+  sandboxHeldBalance   Decimal     @default(0) @map("sandbox_held_balance") @db.Decimal(18, 2)
   apiKeyHash           String?     @map("api_key_hash") @db.VarChar(255)
   apiKeyLookup         String?     @unique @map("api_key_lookup") @db.VarChar(64)
   secretKeyEncrypted   String?     @map("secret_key_encrypted") @db.Text
+  sandboxApiKeyHash         String? @map("sandbox_api_key_hash") @db.VarChar(255)
+  sandboxApiKeyLookup       String? @unique @map("sandbox_api_key_lookup") @db.VarChar(64)
+  sandboxSecretKeyEncrypted String? @map("sandbox_secret_key_encrypted") @db.Text
+  liveApiEnabled       Boolean     @default(false) @map("live_api_enabled")
   lastUsedAt           DateTime?   @map("last_used_at") @db.Timestamptz(6)
   contactEmail         String?     @map("contact_email") @db.VarChar(255)
   rateLimit            Int         @default(100) @map("rate_limit")

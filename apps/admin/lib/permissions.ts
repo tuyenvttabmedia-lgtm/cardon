@@ -29,6 +29,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/dashboard', label: vi.nav.dashboard, permission: 'admin.dashboard' },
 
   { href: '/orders', label: vi.nav.orders, permission: 'orders.read' },
+  { href: '/orders/agent', label: 'Đơn đại lý', permission: 'orders.read' },
 
   { href: '/products', label: vi.nav.products, permission: 'products.manage' },
 
@@ -103,7 +104,7 @@ const ROLE_NAV_ALLOWLIST: Record<string, string[]> = {
 
   MARKETING: ['/marketing'],
 
-  SUPPORT: ['/dashboard', '/orders', '/payments', '/customers', '/support', '/monitoring', '/operations', '/agents'],
+  SUPPORT: ['/dashboard', '/orders', '/orders/agent', '/payments', '/customers', '/support', '/monitoring', '/operations', '/agents'],
 
 };
 

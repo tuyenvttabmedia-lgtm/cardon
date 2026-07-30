@@ -11,11 +11,11 @@ import { SeoScoreBadge } from './CmsBadges';
 
 export function GooglePreview({ title, description, url }: { title: string; description: string; url: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-      <p className="text-[10px] font-medium uppercase text-zinc-400">Google Preview</p>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <p className="text-[10px] font-medium uppercase text-slate-400">Google Preview</p>
       <p className="mt-2 truncate text-lg text-[#1a0dab]">{title || 'Tiêu đề SEO'}</p>
       <p className="truncate text-sm text-[#006621]">{url}</p>
-      <p className="mt-1 line-clamp-2 text-sm text-zinc-600">{description || 'Mô tả meta…'}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-slate-600">{description || 'Mô tả meta…'}</p>
     </div>
   );
 }
@@ -36,16 +36,16 @@ export const SeoPanel = memo(function SeoPanel({
   const previewUrl = form.canonicalUrl || buildPublicPageUrl(previewPath);
 
   return (
-    <div className={compact ? 'space-y-3' : 'space-y-4 border-t border-zinc-200 pt-4'}>
+    <div className={compact ? 'space-y-3' : 'space-y-4 border-t border-slate-200 pt-4'}>
       {!compact && (
         <div className="flex items-center justify-between">
-          <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">SEO</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">SEO</p>
           <SeoScoreBadge score={score} />
         </div>
       )}
       {compact && (
         <div className="flex items-center justify-between">
-          <span className="text-xs text-zinc-500">SEO Score</span>
+          <span className="text-xs text-slate-500">SEO Score</span>
           <SeoScoreBadge score={score} />
         </div>
       )}
@@ -98,9 +98,9 @@ export const SeoPanel = memo(function SeoPanel({
 
       <ul className="space-y-1 text-xs">
         {checklist.map((item) => (
-          <li key={item.id} className={item.ok ? 'text-emerald-600' : 'text-zinc-500'}>
+          <li key={item.id} className={item.ok ? 'text-emerald-600' : 'text-slate-500'}>
             {item.ok ? '✓' : '○'} {item.label}
-            {!item.ok && item.hint && <span className="text-zinc-400"> — {item.hint}</span>}
+            {!item.ok && item.hint && <span className="text-slate-400"> — {item.hint}</span>}
           </li>
         ))}
       </ul>

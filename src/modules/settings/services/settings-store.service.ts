@@ -22,6 +22,7 @@ import {
   createDefaultMaintenanceConfig,
   StoredMaintenance,
   MaintenanceMode,
+  AUDIT_LOG_RETENTION_DAYS_DEFAULT,
 } from '../entities/settings.constants';
 import {
   DEFAULT_PAYMENT_GATEWAY,
@@ -140,11 +141,19 @@ export class SettingsStoreService implements OnModuleInit {
       stored?.bankCode ??
       this.configService.get<string>('megapay.bankCode') ??
       'WOORIBANK';
-    const notifyPublicKeyRaw =
-      this.configService.get<string>('megapay.notifyPublicKey') ??
-      webhookSecret;
+
+    const notifyFromDb = stored?.notifyPublicKeyEnc
+      ? this.decryptField(stored.notifyPublicKeyEnc)
+      : undefined;
+    const notifyFromEnv = this.configService.get<string>('megapay.notifyPublicKey');
+    // Legacy: some ops pasted RSA PEM into webhookSecret — only use if it looks like PEM.
+    const notifyFromWebhook =
+      webhookSecret.includes('BEGIN') ? webhookSecret : undefined;
     const notifyPublicKey =
-      normalizePem(notifyPublicKeyRaw) ?? '';
+      normalizePem(notifyFromDb) ??
+      normalizePem(notifyFromEnv) ??
+      normalizePem(notifyFromWebhook) ??
+      '';
 
     const pgEncodeKey =
       (stored?.pgEncodeKeyEnc
@@ -152,6 +161,17 @@ export class SettingsStoreService implements OnModuleInit {
         : undefined) ??
       this.configService.get<string>('megapay.pgEncodeKey') ??
       secretKey;
+    const pgMerchantId =
+      stored?.pgMerchantId ??
+      this.configService.get<string>('megapay.pgMerchantId') ??
+      merchantId ??
+      '';
+    const pgRefundPassword =
+      (stored?.pgRefundPasswordEnc
+        ? this.decryptField(stored.pgRefundPasswordEnc)
+        : undefined) ??
+      this.configService.get<string>('megapay.pgRefundPassword') ??
+      '';
     const pgEnvironmentRaw =
       stored?.pgEnvironment ??
       this.configService.get<string>('megapay.pgEnvironment') ??
@@ -164,9 +184,14 @@ export class SettingsStoreService implements OnModuleInit {
       this.configService.get<string>('appPublicUrl') ??
       'https://cardon.vn';
 
-    if (!merchantId || !secretKey || !endpoint || !notifyPublicKey) {
+    const hasDepositCode =
+      !!merchantId && !!secretKey && !!endpoint && !!notifyPublicKey;
+    const hasPgLayer =
+      !!(pgMerchantId || merchantId) && !!(pgEncodeKey || secretKey);
+
+    if (!hasDepositCode && !hasPgLayer) {
       throw new Error(
-        'VNPT ePay DepositCode is not configured. Set MEGAPAY_MERCHANT_ID, MEGAPAY_SECRET_KEY (3DES), MEGAPAY_ENDPOINT, MEGAPAY_NOTIFY_PUBLIC_KEY.',
+        'MegaPay is not configured. Set merchantId + (DepositCode: secretKey/endpoint/notifyPublicKey) and/or (PG: pgEncodeKey).',
       );
     }
 
@@ -176,11 +201,13 @@ export class SettingsStoreService implements OnModuleInit {
       this.buildMegapayCallbackUrl();
 
     return {
-      merchantId,
-      secretKey,
-      pgEncodeKey: pgEncodeKey || secretKey,
+      merchantId: merchantId!,
+      pgMerchantId: pgMerchantId || merchantId!,
+      secretKey: secretKey ?? pgEncodeKey ?? '',
+      pgEncodeKey: pgEncodeKey || secretKey || '',
+      pgRefundPassword,
       pgEnvironment,
-      endpoint: endpoint.replace(/\/$/, ''),
+      endpoint: (endpoint ?? '').replace(/\/$/, ''),
       returnUrl,
       webhookSecret: webhookSecret || 'depositcode-rsa',
       callbackUrl,
@@ -210,20 +237,44 @@ export class SettingsStoreService implements OnModuleInit {
       config = null;
     }
 
+    const notifyPlain =
+      (stored?.notifyPublicKeyEnc
+        ? this.decryptField(stored.notifyPublicKeyEnc)
+        : undefined) ??
+      this.configService.get<string>('megapay.notifyPublicKey') ??
+      config?.notifyPublicKey;
+
     return {
       enabled: stored?.enabled ?? false,
       environment: stored?.environment ?? 'production',
       merchantId: config?.merchantId ?? stored?.merchantId ?? '',
+      pgMerchantId: config?.pgMerchantId ?? stored?.pgMerchantId ?? '',
       endpoint: config?.endpoint ?? stored?.endpoint ?? '',
       returnUrl: config?.returnUrl ?? stored?.returnUrl ?? '',
       callbackUrl: config?.callbackUrl ?? stored?.callbackUrl ?? '',
       webhookUrl: stored?.webhookUrl ?? config?.callbackUrl ?? '',
+      bankCode: config?.bankCode ?? stored?.bankCode ?? '',
       secretKey: this.encryption.maskSecret(config?.secretKey),
       webhookSecret: this.encryption.maskSecret(config?.webhookSecret),
+      notifyPublicKey: this.encryption.maskSecret(notifyPlain),
       pgEncodeKey: this.encryption.maskSecret(config?.pgEncodeKey),
+      pgRefundPassword: this.encryption.maskSecret(config?.pgRefundPassword),
       pgEnvironment: config?.pgEnvironment ?? stored?.pgEnvironment ?? 'sandbox',
       reqDomain: config?.reqDomain ?? stored?.reqDomain ?? '',
       configured: !!config,
+      depositCodeReady: !!(
+        (config?.merchantId || stored?.merchantId) &&
+        (config?.secretKey || stored?.secretKeyEnc) &&
+        (config?.endpoint || stored?.endpoint) &&
+        notifyPlain
+      ),
+      pgLayerReady: !!(
+        (config?.pgMerchantId || config?.merchantId || stored?.pgMerchantId || stored?.merchantId) &&
+        (config?.pgEncodeKey || config?.secretKey || stored?.pgEncodeKeyEnc || stored?.secretKeyEnc)
+      ),
+      pgRefundReady: !!(
+        config?.pgRefundPassword || stored?.pgRefundPasswordEnc
+      ),
       source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_MEGAPAY)
         ? 'database'
         : 'environment',
@@ -566,6 +617,7 @@ export class SettingsStoreService implements OnModuleInit {
     }
 
     return {
+      environment: stored?.environment ?? 'production',
       cardApiUrl: cardApiUrl.replace(/\/$/, '') + '/',
       topupApiUrl: topupApiUrl.replace(/\/$/, '') + '/',
       agencyCode,
@@ -697,7 +749,32 @@ export class SettingsStoreService implements OnModuleInit {
       agentRegistrationMode,
       customerTopupEnabled: stored?.customerTopupEnabled ?? false,
       customerDataEnabled: stored?.customerDataEnabled ?? false,
+      auditLogRetentionDays:
+        stored?.auditLogRetentionDays ?? AUDIT_LOG_RETENTION_DAYS_DEFAULT,
+      agentDepositMinAmount:
+        stored?.agentDepositMinAmount ??
+        this.configService.get<number>('agent.depositMinAmount') ??
+        5_000_000,
+      agentDepositMaxAmount:
+        stored?.agentDepositMaxAmount ??
+        this.configService.get<number>('agent.depositMaxAmount') ??
+        300_000_000,
     };
+  }
+
+  /** Effective per-transaction agent deposit limits (VND integers). */
+  resolveAgentDepositLimits(): { minAmount: number; maxAmount: number } {
+    const system = this.resolveSystemConfig();
+    let minAmount = Math.floor(Number(system.agentDepositMinAmount ?? 5_000_000));
+    let maxAmount = Math.floor(Number(system.agentDepositMaxAmount ?? 300_000_000));
+    if (!Number.isFinite(minAmount) || minAmount < 10_000) minAmount = 10_000;
+    if (!Number.isFinite(maxAmount) || maxAmount > 500_000_000) {
+      maxAmount = 500_000_000;
+    }
+    if (maxAmount < minAmount) {
+      maxAmount = minAmount;
+    }
+    return { minAmount, maxAmount };
   }
 
   getSystemAdminView(): Record<string, unknown> {

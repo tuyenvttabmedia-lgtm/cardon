@@ -20,7 +20,7 @@ export function SettingsRuntimeBadges({
       )}
       <Badge tone="default">{vi.settings.runtimeConfiguration}</Badge>
       {isSettingsDeveloperMode() && source && (
-        <span className="text-xs text-zinc-400">
+        <span className="text-xs text-slate-400">
           {source === 'database' ? vi.app.sourceDatabase : vi.app.sourceEnvironment}
         </span>
       )}

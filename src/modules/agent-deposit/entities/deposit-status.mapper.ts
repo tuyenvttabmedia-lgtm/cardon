@@ -5,7 +5,7 @@ export const DEPOSIT_STATUS_LABELS: Record<AgentDepositStatus, string> = {
   AWAITING_PAYMENT: 'Đang chờ thanh toán',
   PAID: 'Đã thanh toán',
   RECORDED: 'Đã ghi nhận',
-  CREDITED: 'Đã cộng ví',
+  CREDITED: 'Đã cộng hạn mức',
   EXPIRED: 'Hết hạn',
   FAILED: 'Thất bại',
   CANCELLED: 'Đã hủy',

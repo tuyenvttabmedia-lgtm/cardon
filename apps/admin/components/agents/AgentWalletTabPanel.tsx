@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Card, ErrorMessage, StatCard, statusTone } from '@/components/ui/Display';
+import { Dialog } from '@/components/ui/Dialog';
 import { Button, Input, Label } from '@/components/ui/Form';
+import { TabStrip } from '@/components/ui/Navigation';
 import { useToast } from '@/components/ui/Toast';
+import { LatestRequestTracker } from '@/lib/latest-request';
 import { formatVndDigits, parseVndDigits, validateVndAmount } from '@/lib/vnd-input';
-import { formatDateTime, formatVnd } from '@/lib/utils';
+import { formatDateTime, formatDisplayValue, formatVnd } from '@/lib/utils';
 import { agentCenterApi, ApiClientError } from '@/services/api-client';
 
 const CREDIT_CATEGORIES = [
@@ -43,8 +46,11 @@ export function AgentWalletTabPanel({
   const [manualOps, setManualOps] = useState<Array<Record<string, unknown>>>([]);
   const [section, setSection] = useState<WalletSection>('ledger');
   const [ledgerFilter, setLedgerFilter] = useState('');
+  const [ledgerQuery, setLedgerQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const loadRequestsRef = useRef(new LatestRequestTracker<'wallet'>());
 
   const [creditOpen, setCreditOpen] = useState(false);
   const [debitOpen, setDebitOpen] = useState(false);
@@ -61,22 +67,50 @@ export function AgentWalletTabPanel({
   const approvalThreshold = limits.approvalThreshold ?? 50_000_000;
 
   const load = useCallback(async () => {
+    const token = loadRequestsRef.current.begin('wallet');
     setError(null);
+    setLoading(true);
     try {
       const [sum, led, dep, man] = await Promise.all([
         agentCenterApi.walletSummary(agentId),
-        agentCenterApi.walletLedger(agentId, { skip: 0, take: 50, q: ledgerFilter || undefined }),
+        agentCenterApi.walletLedger(agentId, { skip: 0, take: 50, q: ledgerQuery || undefined }),
         agentCenterApi.walletDeposits(agentId, { skip: 0, take: 20 }),
         agentCenterApi.walletManualOperations(agentId, { skip: 0, take: 30 }),
       ]);
+      if (!loadRequestsRef.current.isLatest(token)) return;
       setSummary(sum);
       setLedger((led.items as Array<Record<string, unknown>>) ?? []);
       setDeposits((dep.items as Array<Record<string, unknown>>) ?? []);
       setManualOps((man.items as Array<Record<string, unknown>>) ?? []);
     } catch (e) {
-      setError(e instanceof ApiClientError ? e.message : 'Không tải được ví đại lý');
+      if (!loadRequestsRef.current.isLatest(token)) return;
+      setError(e instanceof ApiClientError ? e.message : 'Không tải được số dư đại lý');
+    } finally {
+      if (loadRequestsRef.current.isLatest(token)) {
+        setLoading(false);
+      }
     }
-  }, [agentId, ledgerFilter]);
+  }, [agentId, ledgerQuery]);
+
+  useEffect(() => {
+    loadRequestsRef.current.invalidateAll();
+    setSummary(null);
+    setLedger([]);
+    setDeposits([]);
+    setManualOps([]);
+    setLedgerFilter('');
+    setLedgerQuery('');
+    setSection('ledger');
+    setCreditOpen(false);
+    setDebitOpen(false);
+    setDepositOpen(false);
+    resetForm();
+  }, [agentId]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setLedgerQuery(ledgerFilter.trim()), 350);
+    return () => window.clearTimeout(timeout);
+  }, [ledgerFilter]);
 
   useEffect(() => {
     void load();
@@ -112,12 +146,12 @@ export function AgentWalletTabPanel({
         referenceCode: referenceCode.trim() || undefined,
       });
       if (res.message) toast.success(String(res.message));
-      else toast.success('Đã nạp ví thành công');
+      else toast.success('Đã nạp hạn mức thành công');
       setCreditOpen(false);
       resetForm();
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiClientError ? e.message : 'Nạp ví thất bại');
+      toast.error(e instanceof ApiClientError ? e.message : 'Nạp hạn mức thất bại');
     } finally {
       setBusy(false);
     }
@@ -126,7 +160,7 @@ export function AgentWalletTabPanel({
   async function submitDebit() {
     if (amountError || !reason.trim() || parsedAmount < 10_000) return;
     if (confirmText.trim().toUpperCase() !== 'TRU VI') {
-      toast.error('Nhập TRU VI để xác nhận trừ ví');
+      toast.error('Nhập TRU VI để xác nhận trừ số dư');
       return;
     }
     setBusy(true);
@@ -137,12 +171,12 @@ export function AgentWalletTabPanel({
         reason: reason.trim(),
         referenceCode: referenceCode.trim() || undefined,
       });
-      toast.success('Đã trừ ví');
+      toast.success('Đã trừ số dư');
       setDebitOpen(false);
       resetForm();
       await load();
     } catch (e) {
-      toast.error(e instanceof ApiClientError ? e.message : 'Trừ ví thất bại');
+      toast.error(e instanceof ApiClientError ? e.message : 'Trừ số dư thất bại');
     } finally {
       setBusy(false);
     }
@@ -168,7 +202,7 @@ export function AgentWalletTabPanel({
     setBusy(true);
     try {
       await agentCenterApi.walletApproveCredit(agentId, id);
-      toast.success('Đã duyệt nạp ví');
+      toast.success('Đã duyệt nạp hạn mức');
       await load();
     } catch (e) {
       toast.error(e instanceof ApiClientError ? e.message : 'Duyệt thất bại');
@@ -196,10 +230,11 @@ export function AgentWalletTabPanel({
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm text-slate-600">
         Quản lý số dư đại lý — nạp thủ công tách biệt với nạp cổng (SePay/MegaPay) và sao kê.
       </p>
       {error && <ErrorMessage message={error} />}
+      {loading && <p className="text-sm text-slate-500">Đang tải dữ liệu ví…</p>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Số dư" value={formatVnd(String(summary?.balance ?? '0'))} />
@@ -212,7 +247,7 @@ export function AgentWalletTabPanel({
         <Card className="flex flex-wrap gap-2 p-4">
           {canCredit && (
             <Button onClick={() => { resetForm(); setCreditOpen(true); }} disabled={busy}>
-              Nạp ví thủ công
+              Nạp hạn mức thủ công
             </Button>
           )}
           {canDepositOnBehalf && (
@@ -222,7 +257,7 @@ export function AgentWalletTabPanel({
           )}
           {canDebit && (
             <Button variant="danger" disabled={busy} onClick={() => { resetForm(); setDebitOpen(true); }}>
-              Trừ ví (SUPER_ADMIN)
+              Trừ số dư (SUPER_ADMIN)
             </Button>
           )}
           {pendingApprovals > 0 && (
@@ -231,18 +266,16 @@ export function AgentWalletTabPanel({
         </Card>
       )}
 
-      <div className="flex flex-wrap gap-2 border-b border-zinc-200 pb-2">
-        {(['ledger', 'deposits', 'manual'] as WalletSection[]).map((s) => (
-          <Button
-            key={s}
-            size="sm"
-            variant={section === s ? 'primary' : 'ghost'}
-            onClick={() => setSection(s)}
-          >
-            {s === 'ledger' ? 'Sổ cái' : s === 'deposits' ? 'Nạp cổng' : 'Thao tác Admin'}
-          </Button>
-        ))}
-      </div>
+      <TabStrip
+        ariaLabel="Khu vực ví đại lý"
+        items={[
+          { id: 'ledger', label: 'Sổ cái' },
+          { id: 'deposits', label: 'Nạp cổng' },
+          { id: 'manual', label: 'Thao tác Admin' },
+        ]}
+        active={section}
+        onSelect={setSection}
+      />
 
       {section === 'ledger' && (
         <Card className="overflow-x-auto p-0">
@@ -253,11 +286,13 @@ export function AgentWalletTabPanel({
               placeholder="Tìm ref, mô tả..."
               value={ledgerFilter}
               onChange={(e) => setLedgerFilter(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && void load()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') setLedgerQuery(ledgerFilter.trim());
+              }}
             />
           </div>
           <table className="min-w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500">
+            <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-3 py-2 text-left">Thời gian</th>
                 <th className="px-3 py-2 text-left">Loại</th>
@@ -269,15 +304,15 @@ export function AgentWalletTabPanel({
             </thead>
             <tbody>
               {ledger.map((e) => (
-                <tr key={String(e.id)} className="border-b border-zinc-50">
-                  <td className="px-3 py-2">{formatDateTime(String(e.createdAt))}</td>
-                  <td className="px-3 py-2">{String(e.type)}</td>
-                  <td className="px-3 py-2">{formatVnd(String(e.amount))}</td>
-                  <td className="px-3 py-2">{formatVnd(String(e.afterBalance))}</td>
+                <tr key={String(e.id)} className="border-b border-slate-50">
+                  <td className="px-3 py-2">{formatDateTime(formatDisplayValue(e.createdAt))}</td>
+                  <td className="px-3 py-2">{formatDisplayValue(e.type)}</td>
+                  <td className="px-3 py-2">{formatVnd(formatDisplayValue(e.amount))}</td>
+                  <td className="px-3 py-2">{formatVnd(formatDisplayValue(e.afterBalance))}</td>
                   <td className="px-3 py-2 font-mono text-xs">
-                    {String(e.referenceType ?? '—')} / {String(e.referenceId ?? '').slice(0, 8)}
+                    {formatDisplayValue(e.referenceType)} / {formatDisplayValue(e.referenceId, '').slice(0, 8)}
                   </td>
-                  <td className="px-3 py-2 text-xs">{String(e.createdByEmail ?? 'Hệ thống')}</td>
+                  <td className="px-3 py-2 text-xs">{formatDisplayValue(e.createdByEmail, 'Hệ thống')}</td>
                 </tr>
               ))}
             </tbody>
@@ -288,7 +323,7 @@ export function AgentWalletTabPanel({
       {section === 'deposits' && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500">
+            <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-3 py-2 text-left">Mã</th>
                 <th className="px-3 py-2 text-left">Số tiền</th>
@@ -300,20 +335,23 @@ export function AgentWalletTabPanel({
             <tbody>
               {deposits.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-zinc-500">
+                  <td colSpan={5} className="px-3 py-6 text-slate-500">
                     Chưa có giao dịch nạp cổng.
                   </td>
                 </tr>
               ) : (
                 deposits.map((d) => (
-                  <tr key={String(d.id)} className="border-b border-zinc-50">
-                    <td className="px-3 py-2 font-mono text-xs">{String(d.paymentReference)}</td>
-                    <td className="px-3 py-2">{formatVnd(String(d.amount))}</td>
+                  <tr key={String(d.id)} className="border-b border-slate-50">
+                    <td className="px-3 py-2 font-mono text-xs">{formatDisplayValue(d.paymentReference)}</td>
+                    <td className="px-3 py-2">{formatVnd(formatDisplayValue(d.amount))}</td>
                     <td className="px-3 py-2">
-                      <Badge tone={statusTone(String(d.status))} status={String(d.status)} />
+                      <Badge
+                        tone={statusTone(formatDisplayValue(d.status))}
+                        status={formatDisplayValue(d.status)}
+                      />
                     </td>
-                    <td className="px-3 py-2">{String(d.gateway)}</td>
-                    <td className="px-3 py-2">{formatDateTime(String(d.createdAt))}</td>
+                    <td className="px-3 py-2">{formatDisplayValue(d.gateway)}</td>
+                    <td className="px-3 py-2">{formatDateTime(formatDisplayValue(d.createdAt))}</td>
                   </tr>
                 ))
               )}
@@ -325,7 +363,7 @@ export function AgentWalletTabPanel({
       {section === 'manual' && (
         <Card className="overflow-x-auto p-0">
           <table className="min-w-full text-sm">
-            <thead className="bg-zinc-50 text-zinc-500">
+            <thead className="bg-slate-50 text-slate-500">
               <tr>
                 <th className="px-3 py-2 text-left">Thời gian</th>
                 <th className="px-3 py-2 text-left">Loại</th>
@@ -338,15 +376,18 @@ export function AgentWalletTabPanel({
             </thead>
             <tbody>
               {manualOps.map((m) => (
-                <tr key={String(m.id)} className="border-b border-zinc-50">
-                  <td className="px-3 py-2">{formatDateTime(String(m.createdAt))}</td>
-                  <td className="px-3 py-2">{String(m.type)}</td>
-                  <td className="px-3 py-2">{String(m.categoryLabel ?? m.category)}</td>
-                  <td className="px-3 py-2">{formatVnd(String(m.amount))}</td>
+                <tr key={String(m.id)} className="border-b border-slate-50">
+                  <td className="px-3 py-2">{formatDateTime(formatDisplayValue(m.createdAt))}</td>
+                  <td className="px-3 py-2">{formatDisplayValue(m.type)}</td>
+                  <td className="px-3 py-2">{formatDisplayValue(m.categoryLabel ?? m.category)}</td>
+                  <td className="px-3 py-2">{formatVnd(formatDisplayValue(m.amount))}</td>
                   <td className="px-3 py-2">
-                    <Badge tone={statusTone(String(m.status))} status={String(m.status)} />
+                    <Badge
+                      tone={statusTone(formatDisplayValue(m.status))}
+                      status={formatDisplayValue(m.status)}
+                    />
                   </td>
-                  <td className="px-3 py-2 text-xs">{String(m.requestedByEmail)}</td>
+                  <td className="px-3 py-2 text-xs">{formatDisplayValue(m.requestedByEmail)}</td>
                   <td className="px-3 py-2">
                     {canApprove && m.status === 'PENDING_APPROVAL' && (
                       <div className="flex gap-1">
@@ -367,7 +408,7 @@ export function AgentWalletTabPanel({
       )}
 
       {creditOpen && (
-        <WalletModal title={`Nạp ví — ${agentName}`} onClose={() => setCreditOpen(false)}>
+        <WalletModal title={`Nạp hạn mức — ${agentName}`} onClose={() => setCreditOpen(false)}>
           <WalletFormFields
             amountRaw={amountRaw}
             setAmountRaw={setAmountRaw}
@@ -396,7 +437,7 @@ export function AgentWalletTabPanel({
       )}
 
       {debitOpen && (
-        <WalletModal title={`Trừ ví — ${agentName}`} onClose={() => setDebitOpen(false)}>
+        <WalletModal title={`Trừ số dư — ${agentName}`} onClose={() => setDebitOpen(false)}>
           <WalletFormFields
             amountRaw={amountRaw}
             setAmountRaw={setAmountRaw}
@@ -433,7 +474,7 @@ export function AgentWalletTabPanel({
               />
               {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
             </div>
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-slate-500">
               Tạo yêu cầu SePay/MegaPay — đại lý thanh toán qua QR/chuyển khoản. Số dư cộng sau webhook.
             </p>
           </div>
@@ -457,17 +498,9 @@ function WalletModal({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-5 shadow-xl">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-lg font-semibold text-zinc-900">{title}</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Đóng
-          </Button>
-        </div>
-        <div className="mt-4">{children}</div>
-      </div>
-    </div>
+    <Dialog open onClose={onClose} title={title}>
+      {children}
+    </Dialog>
   );
 }
 
@@ -513,14 +546,14 @@ function WalletFormFields({
           placeholder="10.000.000"
         />
         {!amountError && parsedAmount > 0 && (
-          <p className="mt-1 text-xs text-zinc-500">{formatVnd(String(parsedAmount))}</p>
+          <p className="mt-1 text-xs text-slate-500">{formatVnd(String(parsedAmount))}</p>
         )}
         {amountError && <p className="mt-1 text-xs text-red-600">{amountError}</p>}
       </div>
       <div>
         <Label>Loại nạp</Label>
         <select
-          className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           value={category}
           onChange={(e) => setCategory(e.target.value)}
         >
@@ -541,7 +574,7 @@ function WalletFormFields({
         <Label>{confirmLabel}</Label>
         <Input className="mt-1 font-mono" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
       </div>
-      <p className="text-xs text-zinc-500">{hint}</p>
+      <p className="text-xs text-slate-500">{hint}</p>
     </div>
   );
 }

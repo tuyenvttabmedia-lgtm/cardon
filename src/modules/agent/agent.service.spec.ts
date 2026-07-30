@@ -29,6 +29,7 @@ describe('AgentService (Phase 3A)', () => {
     create: jest.Mock;
     updateStatus: jest.Mock;
     saveApiCredentials: jest.Mock;
+    saveSandboxCredentials: jest.Mock;
   };
   let kycRepository: { upsertSubmitted: jest.Mock; approve: jest.Mock; reject: jest.Mock; requestMoreInfo: jest.Mock };
   let userRepository: {
@@ -100,6 +101,7 @@ describe('AgentService (Phase 3A)', () => {
       create: jest.fn(),
       updateStatus: jest.fn(),
       saveApiCredentials: jest.fn(),
+      saveSandboxCredentials: jest.fn(),
     };
     kycRepository = {
       upsertSubmitted: jest.fn(),
@@ -203,17 +205,19 @@ describe('AgentService (Phase 3A)', () => {
     expect(agentRepository.updateStatus).toHaveBeenCalledWith(
       agentId,
       AgentStatus.ACTIVE,
+      expect.objectContaining({ companyName: 'Test Co' }),
     );
-    expect(agentRepository.saveApiCredentials).toHaveBeenCalledWith(
+    expect(agentRepository.saveSandboxCredentials).toHaveBeenCalledWith(
       agentId,
       expect.objectContaining({
-        apiKeyHash: 'hash-api',
-        apiKeyLookup: 'lookup-api',
-        secretKeyEncrypted: 'enc-secret',
+        sandboxApiKeyHash: 'hash-api',
+        sandboxApiKeyLookup: 'lookup-api',
+        sandboxSecretKeyEncrypted: 'enc-secret',
         apiEnabled: true,
       }),
     );
     expect(userRepository.promoteToAgent).toHaveBeenCalledWith(userId);
+    expect(result.environment).toBe('SANDBOX');
     expect(result.apiKey).toContain(AGENT_API_KEY_PREFIX);
     expect(result.secretKey).toContain(AGENT_SECRET_KEY_PREFIX);
     expect(agentAudit.recordKycApproved).toHaveBeenCalled();
@@ -351,6 +355,7 @@ describe('LedgerService balance', () => {
       ledgerRepository as never,
       { notifyAgentLowBalance: jest.fn() } as never,
       { get: () => 100_000 } as never,
+      { dispatch: jest.fn() } as never,
     );
   });
 
@@ -396,13 +401,18 @@ describe('AgentCredentialService', () => {
       get: jest.fn().mockReturnValue('test-encryption-key-32chars-min!!'),
     };
     const svc = new AgentCredentialService(config as never);
-    const creds = svc.generateCredentials();
+    const creds = svc.generateCredentials('PRODUCTION');
 
-    expect(creds.apiKey).toMatch(/^ak_/);
+    expect(creds.apiKey).toMatch(/^ak_live_/);
     expect(creds.secretKey).toMatch(/^sk_/);
+    expect(creds.environment).toBe('PRODUCTION');
     expect(creds.apiKeyHash).toBeTruthy();
     expect(creds.secretKeyEncrypted).toContain(':');
     expect(svc.verifyApiKey(creds.apiKey, creds.apiKeyHash)).toBe(true);
     expect(svc.decryptSecretKey(creds.secretKeyEncrypted)).toBe(creds.secretKey);
+
+    const sandbox = svc.generateCredentials('SANDBOX');
+    expect(sandbox.apiKey).toMatch(/^ak_test_/);
+    expect(sandbox.environment).toBe('SANDBOX');
   });
 });

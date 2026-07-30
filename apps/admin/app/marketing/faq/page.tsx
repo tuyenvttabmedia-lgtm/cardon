@@ -158,8 +158,8 @@ export default function FaqListPage() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">Quản lý FAQ</h1>
-            <p className="text-sm text-zinc-500">Trang chủ hiển thị tối đa 10 FAQ nổi bật (⭐)</p>
+            <h1 className="admin-page-title">Quản lý FAQ</h1>
+            <p className="text-sm text-slate-500">Trang chủ hiển thị tối đa 10 FAQ nổi bật (⭐)</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" onClick={() => void migrateLegacy()} disabled={migrating}>
@@ -246,11 +246,11 @@ export default function FaqListPage() {
             )}
 
             {loading ? (
-              <p className="text-zinc-500">{vi.app.loading}</p>
+              <p className="text-slate-500">{vi.app.loading}</p>
             ) : (
               <Card className="overflow-x-auto p-0">
                 <table className="min-w-full text-sm">
-                  <thead className="border-b bg-zinc-50 text-left text-xs uppercase text-zinc-500">
+                  <thead className="border-b bg-slate-50 text-left text-xs uppercase text-slate-500">
                     <tr>
                       <th className="px-3 py-2">
                         <input
@@ -269,7 +269,7 @@ export default function FaqListPage() {
                   </thead>
                   <tbody>
                     {items.map((item) => (
-                      <tr key={item.id} className="border-b hover:bg-zinc-50">
+                      <tr key={item.id} className="border-b hover:bg-slate-50">
                         <td className="px-3 py-2">
                           <input
                             type="checkbox"
@@ -298,7 +298,7 @@ export default function FaqListPage() {
                     ))}
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-3 py-8 text-center text-zinc-500">
+                        <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
                           Chưa có FAQ.{' '}
                           <button
                             type="button"
@@ -325,7 +325,7 @@ export default function FaqListPage() {
                 >
                   ← Trước
                 </Button>
-                <span className="text-sm text-zinc-600">
+                <span className="text-sm text-slate-600">
                   Trang {page}/{totalPages}
                 </span>
                 <Button
@@ -393,7 +393,7 @@ function FaqCategoriesPanel({
           <li key={cat.id} className="flex items-center justify-between py-2 text-sm">
             <span>
               <strong>{cat.name}</strong>{' '}
-              <span className="text-zinc-400">/{cat.slug}</span> — {cat.faqCount} FAQ
+              <span className="text-slate-400">/{cat.slug}</span> — {cat.faqCount} FAQ
             </span>
             <Button size="sm" variant="danger" onClick={() => void removeCategory(cat.id, cat.faqCount)}>
               Xóa

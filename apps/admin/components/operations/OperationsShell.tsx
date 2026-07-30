@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { SectionNav } from '@/components/ui/Navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
-import { cn } from '@/lib/utils';
 
 const SECTIONS = [
   { href: '/operations', label: vi.operations.navOverview, exact: true },
@@ -18,32 +17,22 @@ function OperationsNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-      {SECTIONS.map((item) => {
+    <SectionNav
+      ariaLabel="Điều hướng vận hành"
+      items={SECTIONS.map((item) => {
         const active = item.exact
           ? pathname === item.href
           : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-medium',
-              active ? 'bg-admin-100 text-admin-800' : 'text-zinc-600 hover:bg-zinc-50',
-            )}
-          >
-            {item.label}
-          </Link>
-        );
+        return { href: item.href, label: item.label, active };
       })}
-    </nav>
+    />
   );
 }
 
 export function OperationsShell({ children }: { children: React.ReactNode }) {
   const { can, loading } = useAuth();
 
-  if (loading) return <p className="text-zinc-500">{vi.operations.loading}</p>;
+  if (loading) return <p className="text-slate-500">{vi.operations.loading}</p>;
 
   if (!can('reconciliation.read') && !can('finance.view')) {
     return (
@@ -57,8 +46,8 @@ export function OperationsShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">{vi.operations.title}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{vi.operations.subtitle}</p>
+        <h1 className="admin-page-title">{vi.operations.title}</h1>
+        <p className="admin-page-subtitle">{vi.operations.subtitle}</p>
       </div>
       <OperationsNav />
       {children}

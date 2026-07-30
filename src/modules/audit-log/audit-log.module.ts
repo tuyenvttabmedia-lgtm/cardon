@@ -7,6 +7,7 @@ import { RbacModule } from '../rbac/rbac.module';
 import { AuditLogController } from './controllers/audit-log.controller';
 import { AuditInterceptor } from './interceptors/audit.interceptor';
 import { AuditLogRepository } from './repositories/audit-log.repository';
+import { AuditLogRetentionService } from './services/audit-log-retention.service';
 import { AuditLogService } from './services/audit-log.service';
 import { AuditSnapshotService } from './services/audit-snapshot.service';
 
@@ -20,6 +21,7 @@ import { AuditSnapshotService } from './services/audit-snapshot.service';
   providers: [
     AuditLogRepository,
     AuditLogService,
+    AuditLogRetentionService,
     AuditSnapshotService,
     CmsRepository,
     {

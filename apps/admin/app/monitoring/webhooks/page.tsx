@@ -8,7 +8,7 @@ import {
   MonitoringActionBar,
   MonitoringSectionHeader,
 } from '@/components/monitoring/MonitoringUi';
-import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Card, ErrorMessage, StatCard as SharedStatCard } from '@/components/ui/Display';
 import { Button, Input } from '@/components/ui/Form';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
@@ -52,15 +52,12 @@ const HISTORY_RANGES = [
 type DetailTab = 'summary' | 'headers' | 'payload' | 'response' | 'timeline' | 'retryHistory' | 'metadata';
 
 function StatCard({ label, value, tone }: { label: string; value: string | number; tone?: 'ok' | 'warn' | 'error' }) {
-  const toneClass =
-    tone === 'ok' ? 'text-green-700' : tone === 'warn' ? 'text-yellow-700' : tone === 'error' ? 'text-red-700' : 'text-admin-700';
   return (
-    <Card className="text-center">
-      <p className={cn('text-2xl font-bold', toneClass)}>
-        {typeof value === 'number' ? value.toLocaleString('vi-VN') : value}
-      </p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
-    </Card>
+    <SharedStatCard
+      label={label}
+      value={typeof value === 'number' ? value.toLocaleString('vi-VN') : value}
+      tone={tone === 'ok' ? 'success' : tone === 'warn' ? 'warning' : tone === 'error' ? 'danger' : 'accent'}
+    />
   );
 }
 
@@ -76,7 +73,7 @@ function StatusBadge({ status }: { status: WebhookMonitorStatus }) {
             ? 'bg-yellow-100 text-yellow-800'
             : status === 'DUPLICATE'
               ? 'bg-purple-100 text-purple-800'
-              : 'bg-zinc-100 text-zinc-700';
+              : 'bg-slate-100 text-slate-700';
   return <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', cls)}>{status}</span>;
 }
 
@@ -88,8 +85,8 @@ function WebhookHourlyChart({
   const max = Math.max(1, ...buckets.map((b) => b.success + b.failed + b.retry + b.timeout + b.duplicate));
   return (
     <div className="space-y-2">
-      <p className="text-sm font-medium text-zinc-700">{vi.webhookMonitor.hourlyChart}</p>
-      <div className="flex h-36 items-end gap-0.5 overflow-x-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+      <p className="text-sm font-medium text-slate-700">{vi.webhookMonitor.hourlyChart}</p>
+      <div className="flex h-36 items-end gap-0.5 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50 p-2">
         {buckets.map((b) => {
           const total = b.success + b.failed + b.retry + b.timeout + b.duplicate;
           return (
@@ -100,7 +97,7 @@ function WebhookHourlyChart({
                 {b.retry > 0 && <div className="w-full bg-yellow-400" style={{ height: `${Math.round((b.retry / max) * 100)}%`, minHeight: 2 }} />}
                 {b.duplicate > 0 && <div className="w-full bg-purple-400" style={{ height: `${Math.round((b.duplicate / max) * 100)}%`, minHeight: 2 }} />}
                 {b.success > 0 && <div className="w-full bg-green-500" style={{ height: `${Math.round((b.success / max) * 100)}%`, minHeight: 2 }} />}
-                {total === 0 && <div className="h-0.5 w-full bg-zinc-200" />}
+                {total === 0 && <div className="h-0.5 w-full bg-slate-200" />}
               </div>
             </div>
           );
@@ -163,14 +160,14 @@ function WebhookDetailDrawer({
   return (
     <>
       <button type="button" className="fixed inset-0 z-40 bg-black/30" aria-label={vi.common.close} onClick={onClose} />
-      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-zinc-200 bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
+      <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <h3 className="text-lg font-semibold">{vi.webhookMonitor.detail}</h3>
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-zinc-500 hover:bg-zinc-100">
+          <button type="button" onClick={onClose} className="rounded-lg px-3 py-1 text-sm text-slate-500 hover:bg-slate-100">
             {vi.common.close}
           </button>
         </div>
-        <div className="flex gap-1 overflow-x-auto border-b border-zinc-100 px-5 py-2">
+        <div className="flex gap-1 overflow-x-auto border-b border-slate-100 px-5 py-2">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -178,7 +175,7 @@ function WebhookDetailDrawer({
               onClick={() => setTab(t.id)}
               className={cn(
                 'whitespace-nowrap rounded-lg px-3 py-1.5 text-sm',
-                tab === t.id ? 'bg-admin-100 font-medium text-admin-800' : 'text-zinc-600 hover:bg-zinc-100',
+                tab === t.id ? 'bg-admin-100 font-medium text-admin-800' : 'text-slate-600 hover:bg-slate-100',
               )}
             >
               {t.label}
@@ -187,23 +184,23 @@ function WebhookDetailDrawer({
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-5">
           {!detail ? (
-            <p className="text-sm text-zinc-500">{vi.common.noData}</p>
+            <p className="text-sm text-slate-500">{vi.common.noData}</p>
           ) : (
             <>
               {tab === 'summary' && (
                 <dl className="grid grid-cols-2 gap-3 text-sm">
-                  <div><dt className="text-zinc-500">Webhook ID</dt><dd className="font-mono text-xs">{detail.id}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.source}</dt><dd>{detail.displayName}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.common.created}</dt><dd>{formatDateTime(detail.createdAt)}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.duration}</dt><dd>{detail.durationMs != null ? `${detail.durationMs} ms` : '—'}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.retry}</dt><dd>{detail.retry}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.status}</dt><dd><StatusBadge status={detail.status} /></dd></div>
-                  <div className="col-span-2"><dt className="text-zinc-500">{vi.webhookMonitor.correlationId}</dt><dd className="font-mono text-xs">{detail.correlationId ?? '—'}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.signature}</dt><dd><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', detail.signature.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>{detail.signature.badge}</span></dd></div>
+                  <div><dt className="text-slate-500">Webhook ID</dt><dd className="font-mono text-xs">{detail.id}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.source}</dt><dd>{detail.displayName}</dd></div>
+                  <div><dt className="text-slate-500">{vi.common.created}</dt><dd>{formatDateTime(detail.createdAt)}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.duration}</dt><dd>{detail.durationMs != null ? `${detail.durationMs} ms` : '—'}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.retry}</dt><dd>{detail.retry}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.status}</dt><dd><StatusBadge status={detail.status} /></dd></div>
+                  <div className="col-span-2"><dt className="text-slate-500">{vi.webhookMonitor.correlationId}</dt><dd className="font-mono text-xs">{detail.correlationId ?? '—'}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.signature}</dt><dd><span className={cn('rounded px-2 py-0.5 text-xs font-semibold', detail.signature.verified ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>{detail.signature.badge}</span></dd></div>
                 </dl>
               )}
               {tab === 'headers' && (
-                <pre className="overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">{JSON.stringify(detail.headers, null, 2)}</pre>
+                <pre className="overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">{JSON.stringify(detail.headers, null, 2)}</pre>
               )}
               {tab === 'payload' && (
                 <div className="space-y-2">
@@ -226,31 +223,31 @@ function WebhookDetailDrawer({
                     </Button>
                   </div>
                   {showPayload ? (
-                    <pre className="max-h-96 overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">{filteredPayload || payloadText}</pre>
+                    <pre className="max-h-96 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">{filteredPayload || payloadText}</pre>
                   ) : (
-                    <p className="text-sm text-zinc-500">Payload &gt; 100KB — {vi.webhookMonitor.collapse}</p>
+                    <p className="text-sm text-slate-500">Payload &gt; 100KB — {vi.webhookMonitor.collapse}</p>
                   )}
                 </div>
               )}
               {tab === 'response' && (
                 <dl className="space-y-2 text-sm">
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.httpCode}</dt><dd>{detail.response.httpCode}</dd></div>
-                  <div><dt className="text-zinc-500">{vi.webhookMonitor.duration}</dt><dd>{detail.response.durationMs != null ? `${detail.response.durationMs} ms` : '—'}</dd></div>
-                  <div><dt className="text-zinc-500">Worker</dt><dd>{detail.response.worker ?? '—'}</dd></div>
-                  <div><dt className="text-zinc-500">Queue</dt><dd>{detail.response.queue ?? '—'}</dd></div>
-                  <pre className="overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">{JSON.stringify(detail.response.body, null, 2)}</pre>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.httpCode}</dt><dd>{detail.response.httpCode}</dd></div>
+                  <div><dt className="text-slate-500">{vi.webhookMonitor.duration}</dt><dd>{detail.response.durationMs != null ? `${detail.response.durationMs} ms` : '—'}</dd></div>
+                  <div><dt className="text-slate-500">Worker</dt><dd>{detail.response.worker ?? '—'}</dd></div>
+                  <div><dt className="text-slate-500">Queue</dt><dd>{detail.response.queue ?? '—'}</dd></div>
+                  <pre className="overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">{JSON.stringify(detail.response.body, null, 2)}</pre>
                 </dl>
               )}
               {tab === 'timeline' && <JobTimelineView steps={detail.timeline} />}
               {tab === 'retryHistory' && (
                 <table className="w-full text-sm">
-                  <thead><tr className="border-b text-left text-zinc-500"><th>Attempt</th><th>{vi.webhookMonitor.time}</th><th>{vi.webhookMonitor.httpCode}</th><th>{vi.webhookMonitor.duration}</th></tr></thead>
+                  <thead><tr className="border-b text-left text-slate-500"><th>Attempt</th><th>{vi.webhookMonitor.time}</th><th>{vi.webhookMonitor.httpCode}</th><th>{vi.webhookMonitor.duration}</th></tr></thead>
                   <tbody>
                     {detail.retryHistory.length === 0 ? (
-                      <tr><td colSpan={4} className="py-4 text-zinc-500">{vi.common.noData}</td></tr>
+                      <tr><td colSpan={4} className="py-4 text-slate-500">{vi.common.noData}</td></tr>
                     ) : (
                       detail.retryHistory.map((r) => (
-                        <tr key={r.webhookId} className="border-b border-zinc-50">
+                        <tr key={r.webhookId} className="border-b border-slate-50">
                           <td className="py-2">{r.attempt}</td>
                           <td>{formatDateTime(r.time)}</td>
                           <td>{r.httpCode}</td>
@@ -262,10 +259,10 @@ function WebhookDetailDrawer({
                 </table>
               )}
               {tab === 'metadata' && (
-                <pre className="overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">{JSON.stringify(detail.metadata, null, 2)}</pre>
+                <pre className="overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">{JSON.stringify(detail.metadata, null, 2)}</pre>
               )}
               {canManage && ['FAILED', 'RETRY', 'PENDING', 'TIMEOUT'].includes(detail.status) && !detail.cancelled && (
-                <div className="flex flex-wrap gap-2 border-t border-zinc-100 pt-4">
+                <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                   <Button
                     type="button"
                     onClick={() => {
@@ -297,7 +294,7 @@ function WebhookDetailDrawer({
 
 export default function WebhookMonitorPageWrapper() {
   return (
-    <Suspense fallback={<p className="text-zinc-500">{vi.app.loading}</p>}>
+    <Suspense fallback={<p className="text-slate-500">{vi.app.loading}</p>}>
       <WebhookMonitorPage />
     </Suspense>
   );
@@ -436,14 +433,14 @@ function WebhookMonitorPage() {
             subtitle={vi.webhookMonitor.subtitle}
           />
           <MonitoringActionBar>
-            <select className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={refreshSec} onChange={(e) => setRefreshSec(Number(e.target.value))}>
+            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={refreshSec} onChange={(e) => setRefreshSec(Number(e.target.value))}>
               {REFRESH_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label === vi.webhookMonitor.refreshOff ? o.label : `${vi.webhookMonitor.autoRefresh} ${o.label}`}
                 </option>
               ))}
             </select>
-            {refreshSec > 0 && <span className="text-sm text-zinc-500">{vi.webhookMonitor.countdown} {countdown}s</span>}
+            {refreshSec > 0 && <span className="text-sm text-slate-500">{vi.webhookMonitor.countdown} {countdown}s</span>}
             <Button type="button" variant="secondary" disabled={loading} onClick={() => void load()}>↻</Button>
           </MonitoringActionBar>
         </div>
@@ -468,12 +465,12 @@ function WebhookMonitorPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
               <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
-                <div><p className="text-zinc-500">{vi.webhookMonitor.webhooksPerMinute}</p><p className="text-lg font-semibold">{stats.webhooksPerMinute}</p></div>
-                <div><p className="text-zinc-500">{vi.webhookMonitor.webhooksPerHour}</p><p className="text-lg font-semibold">{stats.webhooksPerHour}</p></div>
-                <div><p className="text-zinc-500">{vi.webhookMonitor.avgResponse}</p><p className="text-lg font-semibold">{stats.avgDurationMs != null ? `${stats.avgDurationMs} ms` : '—'}</p></div>
-                <div><p className="text-zinc-500">{vi.webhookMonitor.retryRate}</p><p className="text-lg font-semibold">{stats.retryRate}%</p></div>
-                <div><p className="text-zinc-500">{vi.webhookMonitor.failureRate}</p><p className="text-lg font-semibold">{stats.failureRate}%</p></div>
-                <div><p className="text-zinc-500">{vi.webhookMonitor.signatureFailRate}</p><p className="text-lg font-semibold">{stats.signatureFailRate}%</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.webhooksPerMinute}</p><p className="text-lg font-semibold">{stats.webhooksPerMinute}</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.webhooksPerHour}</p><p className="text-lg font-semibold">{stats.webhooksPerHour}</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.avgResponse}</p><p className="text-lg font-semibold">{stats.avgDurationMs != null ? `${stats.avgDurationMs} ms` : '—'}</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.retryRate}</p><p className="text-lg font-semibold">{stats.retryRate}%</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.failureRate}</p><p className="text-lg font-semibold">{stats.failureRate}%</p></div>
+                <div><p className="text-slate-500">{vi.webhookMonitor.signatureFailRate}</p><p className="text-lg font-semibold">{stats.signatureFailRate}%</p></div>
               </div>
             </Card>
             <Card><WebhookHourlyChart buckets={stats.hourly} /></Card>
@@ -486,11 +483,11 @@ function WebhookMonitorPage() {
               <div key={s.source} role="button" tabIndex={0} className="cursor-pointer" onClick={() => { setSource(s.source); setPage(1); }} onKeyDown={(e) => { if (e.key === 'Enter') { setSource(s.source); setPage(1); } }}>
               <Card className="hover:border-admin-300">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-zinc-800">{s.displayName}</h3>
+                  <h3 className="font-semibold text-slate-800">{s.displayName}</h3>
                   <HealthBadge health={s.health} />
                 </div>
-                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-zinc-600">
-                  <div><dt>{vi.webhookMonitor.today}</dt><dd className="font-medium text-zinc-900">{s.today}</dd></div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
+                  <div><dt>{vi.webhookMonitor.today}</dt><dd className="font-medium text-slate-900">{s.today}</dd></div>
                   <div><dt>{vi.webhookMonitor.success}</dt><dd className="font-medium text-green-700">{s.success}</dd></div>
                   <div><dt>{vi.webhookMonitor.failed}</dt><dd className="font-medium text-red-700">{s.failed}</dd></div>
                   <div><dt>{vi.webhookMonitor.retry}</dt><dd className="font-medium">{s.retry}</dd></div>
@@ -510,11 +507,11 @@ function WebhookMonitorPage() {
             <Input placeholder={vi.webhookMonitor.requestId} value={requestId} onChange={(e) => { setRequestId(e.target.value); setPage(1); }} />
             <Input placeholder={vi.webhookMonitor.endpoint} value={endpoint} onChange={(e) => { setEndpoint(e.target.value); setPage(1); }} />
             <Input placeholder={vi.webhookMonitor.httpCode} value={httpCode} onChange={(e) => { setHttpCode(e.target.value); setPage(1); }} />
-            <select className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }}>
+            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={source} onChange={(e) => { setSource(e.target.value); setPage(1); }}>
               <option value="">{vi.webhookMonitor.source}</option>
               {SOURCE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <select className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+            <select className="rounded-lg border border-slate-200 px-3 py-2 text-sm" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
               <option value="">{vi.webhookMonitor.status}</option>
               {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
@@ -570,7 +567,7 @@ function WebhookMonitorPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-sm">
               <thead>
-                <tr className="border-b text-left text-zinc-500">
+                <tr className="border-b text-left text-slate-500">
                   {canManage && (
                     <th className="py-2 pr-2">
                       <input type="checkbox" checked={items.length > 0 && selected.size === items.length} onChange={toggleSelectAll} />
@@ -593,10 +590,10 @@ function WebhookMonitorPage() {
               </thead>
               <tbody>
                 {items.length === 0 ? (
-                  <tr><td colSpan={canManage ? 15 : 14} className="py-8 text-center text-zinc-500">{vi.common.noData}</td></tr>
+                  <tr><td colSpan={canManage ? 15 : 14} className="py-8 text-center text-slate-500">{vi.common.noData}</td></tr>
                 ) : (
                   items.map((row: WebhookMonitorItem) => (
-                    <tr key={row.id} className="cursor-pointer border-b border-zinc-50 hover:bg-zinc-50" onClick={() => setDetailId(row.id)}>
+                    <tr key={row.id} className="cursor-pointer border-b border-slate-50 hover:bg-slate-50" onClick={() => setDetailId(row.id)}>
                       {canManage && (
                         <td className="py-2 pr-2" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleSelect(row.id)} />
@@ -623,11 +620,11 @@ function WebhookMonitorPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-sm text-zinc-500">
+            <span className="text-sm text-slate-500">
               {data?.total ?? 0} {vi.common.results} · {vi.common.page} {page}/{totalPages}
             </span>
             <div className="flex items-center gap-2">
-              <select className="rounded-lg border border-zinc-200 px-2 py-1 text-sm" value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}>
+              <select className="rounded-lg border border-slate-200 px-2 py-1 text-sm" value={limit} onChange={(e) => { setLimit(Number(e.target.value)); setPage(1); }}>
                 {PAGE_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
               <Button type="button" variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{vi.common.prev}</Button>
@@ -644,7 +641,7 @@ function WebhookMonitorPage() {
                   key={r.id}
                   type="button"
                   onClick={() => setHistoryRange(r.id)}
-                  className={cn('rounded-lg px-3 py-1 text-sm', historyRange === r.id ? 'bg-admin-100 font-medium' : 'text-zinc-600 hover:bg-zinc-100')}
+                  className={cn('rounded-lg px-3 py-1 text-sm', historyRange === r.id ? 'bg-admin-100 font-medium' : 'text-slate-600 hover:bg-slate-100')}
                 >
                   {r.label}
                 </button>

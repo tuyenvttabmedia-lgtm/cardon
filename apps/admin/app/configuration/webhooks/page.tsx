@@ -39,11 +39,11 @@ export default function ConfigurationWebhooksPage() {
         {error && <ErrorMessage message={error} />}
         <Card className="space-y-3">
           <h2 className="font-semibold">MegaPay</h2>
-          <p className="font-mono text-sm text-zinc-600">{String(megapay?.callbackUrl ?? megapay?.webhookUrl ?? '—')}</p>
+          <p className="font-mono text-sm text-slate-600">{String(megapay?.callbackUrl ?? megapay?.webhookUrl ?? '—')}</p>
           <h2 className="font-semibold">SePay</h2>
-          <p className="font-mono text-sm text-zinc-600">{String(sepay?.webhookUrl ?? '—')}</p>
+          <p className="font-mono text-sm text-slate-600">{String(sepay?.webhookUrl ?? '—')}</p>
           <Button type="button" onClick={() => void testWebhook()}>{vi.configuration.testWebhook}</Button>
-          {testResult && <p className="text-sm text-zinc-600">{testResult}</p>}
+          {testResult && <p className="text-sm text-slate-600">{testResult}</p>}
         </Card>
       </div>
     </RequireRole>

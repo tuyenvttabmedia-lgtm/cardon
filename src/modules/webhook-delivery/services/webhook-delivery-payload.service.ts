@@ -46,6 +46,9 @@ export class WebhookDeliveryPayloadService {
           ? 'FAILED'
           : 'PROCESSING';
 
+    const trace = order.clientTrace as { sandbox?: boolean } | null;
+    const environment = trace?.sandbox ? 'SANDBOX' : 'PRODUCTION';
+
     const base: PartnerWebhookPayloadV1 = {
       version: WEBHOOK_EVENT_VERSION,
       event,
@@ -62,7 +65,8 @@ export class WebhookDeliveryPayloadService {
           ? order.updatedAt.toISOString()
           : undefined,
       gateway: 'wallet',
-      provider: 'esale',
+      provider: environment === 'SANDBOX' ? 'sandbox' : 'cardon',
+      environment,
     };
 
     if (event === WEBHOOK_EVENTS.ORDER_COMPLETED && item?.cardRecords?.[0]) {

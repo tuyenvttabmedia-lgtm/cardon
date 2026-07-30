@@ -9,7 +9,7 @@ import {
   MonitoringQuickFilters,
   MonitoringSectionHeader,
 } from '@/components/monitoring/MonitoringUi';
-import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Card, ErrorMessage, StatCard as SharedStatCard } from '@/components/ui/Display';
 import { Button, Input } from '@/components/ui/Form';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
@@ -42,12 +42,7 @@ const SEVERITY_DOT: Record<string, string> = {
 };
 
 function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card className="text-center">
-      <p className="text-2xl font-bold text-admin-700">{value.toLocaleString('vi-VN')}</p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
-    </Card>
-  );
+  return <SharedStatCard label={label} value={value.toLocaleString('vi-VN')} tone="accent" />;
 }
 
 function NotificationCard({ item }: { item: SystemNotification }) {
@@ -56,22 +51,22 @@ function NotificationCard({ item }: { item: SystemNotification }) {
       <span
         className={cn(
           'absolute left-0 top-2 h-3 w-3 rounded-full',
-          SEVERITY_DOT[item.severity] ?? 'bg-zinc-400',
+          SEVERITY_DOT[item.severity] ?? 'bg-slate-400',
         )}
       />
-      <div className="rounded-lg border border-zinc-100 bg-white p-4 shadow-sm">
+      <div className="rounded-lg border border-slate-100 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className={cn('font-medium', item.isRead ? 'text-zinc-600' : 'text-zinc-900')}>
+            <p className={cn('font-medium', item.isRead ? 'text-slate-600' : 'text-slate-900')}>
               {item.title}
             </p>
-            <p className="mt-1 text-sm text-zinc-600">{item.message}</p>
+            <p className="mt-1 text-sm text-slate-600">{item.message}</p>
           </div>
           <span className={cn('text-xs font-medium uppercase', SEVERITY_ROW[item.severity])}>
             {item.severity}
           </span>
         </div>
-        <p className="mt-2 text-xs text-zinc-400">
+        <p className="mt-2 text-xs text-slate-400">
           {formatDateTime(item.createdAt)} · {item.source} · {item.notificationType}
           {item.resourceDisplay ? ` · ${item.resourceDisplay}` : ''}
         </p>
@@ -98,7 +93,7 @@ function NotificationCard({ item }: { item: SystemNotification }) {
 
 export default function NotificationsPageWrapper() {
   return (
-    <Suspense fallback={<p className="text-zinc-500">{vi.app.loading}</p>}>
+    <Suspense fallback={<p className="text-slate-500">{vi.app.loading}</p>}>
       <NotificationsPage />
     </Suspense>
   );
@@ -267,7 +262,7 @@ function NotificationsPage() {
               }}
             />
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={severity}
               onChange={(e) => {
                 setSeverity(e.target.value);
@@ -280,7 +275,7 @@ function NotificationsPage() {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
@@ -293,7 +288,7 @@ function NotificationsPage() {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
@@ -306,7 +301,7 @@ function NotificationsPage() {
               ))}
             </select>
             <select
-              className="rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={readFilter}
               onChange={(e) => {
                 setReadFilter(e.target.value as 'all' | 'read' | 'unread');
@@ -336,14 +331,14 @@ function NotificationsPage() {
           <div className="flex gap-2">
             <button
               type="button"
-              className={cn('rounded-lg px-3 py-1.5 text-sm', view === 'table' ? 'bg-admin-100 font-medium' : 'text-zinc-600')}
+              className={cn('rounded-lg px-3 py-1.5 text-sm', view === 'table' ? 'bg-admin-100 font-medium' : 'text-slate-600')}
               onClick={() => setView('table')}
             >
               {vi.notificationCenter.tableView}
             </button>
             <button
               type="button"
-              className={cn('rounded-lg px-3 py-1.5 text-sm', view === 'timeline' ? 'bg-admin-100 font-medium' : 'text-zinc-600')}
+              className={cn('rounded-lg px-3 py-1.5 text-sm', view === 'timeline' ? 'bg-admin-100 font-medium' : 'text-slate-600')}
               onClick={() => setView('timeline')}
             >
               {vi.notificationCenter.timelineView}
@@ -375,7 +370,7 @@ function NotificationsPage() {
           <Card className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 text-left text-zinc-500">
+                <tr className="border-b border-slate-100 text-left text-slate-500">
                   {canManage && (
                     <th className="px-3 py-2">
                       <input type="checkbox" checked={selected.size === items.length && items.length > 0} onChange={toggleAll} />
@@ -392,7 +387,7 @@ function NotificationsPage() {
               </thead>
               <tbody>
                 {items.map((row) => (
-                  <tr key={row.id} className={cn('border-b border-zinc-50', row.isRead && 'opacity-70')}>
+                  <tr key={row.id} className={cn('border-b border-slate-50', row.isRead && 'opacity-70')}>
                     {canManage && (
                       <td className="px-3 py-2">
                         <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggleSelect(row.id)} />
@@ -402,7 +397,7 @@ function NotificationsPage() {
                     <td className="px-3 py-2">{row.notificationType}</td>
                     <td className="px-3 py-2">
                       <p className="font-medium">{row.title}</p>
-                      <p className="text-xs text-zinc-500 line-clamp-1">{row.message}</p>
+                      <p className="text-xs text-slate-500 line-clamp-1">{row.message}</p>
                     </td>
                     <td className="px-3 py-2">{row.source}</td>
                     <td className="px-3 py-2">{row.resourceDisplay ?? row.resource ?? '—'}</td>
@@ -426,7 +421,7 @@ function NotificationsPage() {
               </tbody>
             </table>
             {items.length === 0 && !loading && (
-              <p className="py-8 text-center text-sm text-zinc-500">{vi.notificationCenter.empty}</p>
+              <p className="py-8 text-center text-sm text-slate-500">{vi.notificationCenter.empty}</p>
             )}
           </Card>
         ) : (
@@ -435,18 +430,18 @@ function NotificationsPage() {
               <NotificationCard key={item.id} item={item} />
             ))}
             {items.length === 0 && !loading && (
-              <p className="py-8 text-center text-sm text-zinc-500">{vi.notificationCenter.empty}</p>
+              <p className="py-8 text-center text-sm text-slate-500">{vi.notificationCenter.empty}</p>
             )}
           </div>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-zinc-500">
+          <p className="text-sm text-slate-500">
             {total.toLocaleString('vi-VN')} {vi.notificationCenter.records}
           </p>
           <div className="flex items-center gap-2">
             <select
-              className="rounded border border-zinc-200 px-2 py-1 text-sm"
+              className="rounded border border-slate-200 px-2 py-1 text-sm"
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value));
@@ -458,7 +453,7 @@ function NotificationsPage() {
               ))}
             </select>
             <select
-              className="rounded border border-zinc-200 px-2 py-1 text-sm"
+              className="rounded border border-slate-200 px-2 py-1 text-sm"
               value={sort}
               onChange={(e) => setSort(e.target.value as 'newest' | 'oldest')}
             >

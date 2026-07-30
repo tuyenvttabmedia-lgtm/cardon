@@ -26,8 +26,8 @@ export function QueueMonitorChart({
 
   return (
     <div className={cn('space-y-2', className)}>
-      <p className="text-sm font-medium text-zinc-700">{title}</p>
-      <div className="flex h-36 items-end gap-0.5 overflow-x-auto rounded-lg border border-zinc-100 bg-zinc-50 p-2">
+      <p className="text-sm font-medium text-slate-700">{title}</p>
+      <div className="flex h-36 items-end gap-0.5 overflow-x-auto rounded-lg border border-slate-100 bg-slate-50 p-2">
         {buckets.map((bucket) => {
           const total = bucket.completed + bucket.failed;
           return (
@@ -55,13 +55,13 @@ export function QueueMonitorChart({
                     }}
                   />
                 )}
-                {total === 0 && <div className="h-0.5 w-full bg-zinc-200" />}
+                {total === 0 && <div className="h-0.5 w-full bg-slate-200" />}
               </div>
             </div>
           );
         })}
       </div>
-      <div className="flex flex-wrap gap-4 text-xs text-zinc-500">
+      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded bg-green-500" /> Completed
         </span>
@@ -83,7 +83,7 @@ export function JobTimelineView({
       {steps.map((step, i) => (
         <div key={`${step.step}-${i}`} className="relative pb-4">
           {i < steps.length - 1 && (
-            <span className="absolute left-[-18px] top-3 h-full w-0.5 bg-zinc-200" />
+            <span className="absolute left-[-18px] top-3 h-full w-0.5 bg-slate-200" />
           )}
           <span
             className={cn(
@@ -91,8 +91,8 @@ export function JobTimelineView({
               step.step === 'failed' ? 'bg-red-500' : step.step === 'completed' ? 'bg-green-500' : step.step === 'retry' ? 'bg-orange-400' : 'bg-admin-500',
             )}
           />
-          <p className="text-sm font-medium text-zinc-800">{step.label}</p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-sm font-medium text-slate-800">{step.label}</p>
+          <p className="text-xs text-slate-500">
             {step.at ?? '—'}
             {step.durationMs != null ? ` · ${step.durationMs} ms` : ''}
           </p>
@@ -125,7 +125,7 @@ function prettyJson(value: unknown): string {
 
 export function ConfigReadonlyPanel({ config }: { config: Record<string, unknown> }) {
   return (
-    <pre className="max-h-96 overflow-auto rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs">
+    <pre className="max-h-96 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs">
       {prettyJson(config)}
     </pre>
   );

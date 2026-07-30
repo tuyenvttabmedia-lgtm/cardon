@@ -8,12 +8,12 @@ import { vi } from '@/lib/i18n/vi';
 import { operationsApi, ApiClientError } from '@/services/api-client';
 
 const ACTIONS = [
-  { id: 'replay_webhook', label: 'Replay webhook', needsWebhook: true },
-  { id: 'recheck_provider', label: 'Recheck provider', needsOrder: true },
+  { id: 'replay_webhook', label: 'Phát lại webhook', needsWebhook: true },
+  { id: 'recheck_provider', label: 'Gọi lại NCC / giao lại', needsOrder: true },
   { id: 'resend_pin', label: 'Gửi lại PIN', needsOrder: true },
   { id: 'resend_email', label: 'Gửi lại email', needsOrder: true },
   { id: 'rebuild_ledger_summary', label: 'Tổng hợp sổ quỹ', needsOrder: true },
-  { id: 'mark_reconciled', label: 'Đánh dấu đối soát', needsOrder: false },
+  { id: 'mark_reconciled', label: 'Đánh dấu đã đối soát', needsOrder: false },
   { id: 'lock_order', label: 'Khóa đơn', needsOrder: true },
   { id: 'unlock_order', label: 'Mở khóa đơn', needsOrder: true },
   { id: 'cancel_safely', label: 'Hủy an toàn', needsOrder: true },
@@ -63,7 +63,7 @@ function ManualOperationsForm() {
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <Card className="p-6">
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-slate-500">
           Mọi thao tác đều đi qua service layer và được ghi vào Activity Log. Không chỉnh sửa database trực tiếp.
         </p>
 
@@ -76,7 +76,7 @@ function ManualOperationsForm() {
           <div>
             <Label>{vi.operations.manualAction}</Label>
             <select
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               value={action}
               onChange={(e) => setAction(e.target.value)}
             >

@@ -64,19 +64,19 @@ export function TagChipInput({
         ))}
       </div>
       <input
-        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-admin-500"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-admin-500"
         placeholder="Tìm hoặc tạo thẻ… Enter để thêm"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={handleKeyDown}
       />
       {query && suggestions.length > 0 && (
-        <ul className="max-h-32 overflow-y-auto rounded-lg border border-zinc-100 bg-white shadow-sm">
+        <ul className="max-h-32 overflow-y-auto rounded-lg border border-slate-100 bg-white shadow-sm">
           {suggestions.map((t) => (
             <li key={t.id}>
               <button
                 type="button"
-                className="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50"
                 onClick={() => addTag(t.id)}
               >
                 {t.name}

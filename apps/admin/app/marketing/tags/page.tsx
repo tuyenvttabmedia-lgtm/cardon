@@ -77,7 +77,7 @@ export default function TagsPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Thẻ bài viết</h1>
+        <h1 className="admin-page-title">Thẻ bài viết</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -119,15 +119,15 @@ export default function TagsPage() {
             <h2 className="font-semibold">Danh sách</h2>
             <ul className="mt-3 space-y-2 text-sm">
               {items.map((t) => (
-                <li key={t.id} className="flex items-center justify-between gap-2 rounded border border-zinc-100 p-2">
+                <li key={t.id} className="flex items-center justify-between gap-2 rounded border border-slate-100 p-2">
                   <div className="min-w-0">
                     <p className="font-medium">
                       {t.name}
                       {t.isHidden && <span className="ml-2 text-xs text-amber-600">(Ẩn)</span>}
                     </p>
-                    <p className="text-xs text-zinc-500">/{t.slug}</p>
+                    <p className="text-xs text-slate-500">/{t.slug}</p>
                     {(t.usageCount ?? 0) > 0 && (
-                      <p className="text-xs text-zinc-400">{t.usageCount} bài viết</p>
+                      <p className="text-xs text-slate-400">{t.usageCount} bài viết</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1">

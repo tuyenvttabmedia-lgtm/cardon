@@ -546,8 +546,7 @@ export class AgentOrderOperationsService {
       }
 
       for (const txn of order.providerTransactions) {
-        const code = txn.provider?.code ?? 'unknown';
-        providerUsage[code] = (providerUsage[code] ?? 0) + 1;
+        providerUsage.fulfillment = (providerUsage.fulfillment ?? 0) + 1;
         if (txn.errorCode) {
           errorCounts[txn.errorCode] = (errorCounts[txn.errorCode] ?? 0) + 1;
         }
@@ -667,6 +666,12 @@ export class AgentOrderOperationsService {
     const completedAt =
       order.fulfillmentStatus === FulfillmentStatus.COMPLETED ? order.updatedAt : latestProvider?.completedAt;
 
+    const sellAmount =
+      order.sellAmount && !order.sellAmount.equals(0)
+        ? order.sellAmount
+        : order.totalAmount;
+    const isSandbox = trace.sandbox === true;
+
     return {
       id: order.id,
       requestId: order.agentRequestId ?? '',
@@ -674,20 +679,23 @@ export class AgentOrderOperationsService {
       transactionId: order.financialTransaction?.transactionId ?? order.transactionId ?? '',
       partnerOrderId: order.agentRequestId ?? '',
       customerReference: (trace.customerReference as string) ?? null,
-      providerTransaction: latestProvider?.providerTransactionId ?? latestProvider?.providerReference ?? null,
-      gateway: resolveGateway(order),
+      gateway: isSandbox ? 'sandbox' : resolveGateway(order),
+      environment: isSandbox ? 'SANDBOX' : 'PRODUCTION',
+      isSandbox,
       product: item?.variant.sku ?? '',
       productName: item?.variant.name ?? '',
       faceValue: order.faceValue?.toFixed?.(2) ?? item?.variant.faceValue?.toFixed?.(2) ?? order.totalAmount.toFixed(2),
-      sellPrice: order.sellAmount?.toFixed?.(2) ?? order.totalAmount.toFixed(2),
-      costPrice: order.providerCost?.toFixed?.(2) ?? '0.00',
-      profit: order.profit?.toFixed?.(2) ?? '0.00',
+      sellPrice: sellAmount.toFixed(2),
+      // Hide NCC economics / identity from Partner portal.
+      costPrice: null,
+      profit: null,
       status: mapFulfillmentToPortalStatus(order.fulfillmentStatus),
       fulfillmentStatus: order.fulfillmentStatus,
       createdAt: order.createdAt.toISOString(),
       completedAt: completedAt?.toISOString?.() ?? null,
       latencyMs: computeLatencyMs(order.createdAt, completedAt ?? null),
-      provider: latestProvider?.provider?.name ?? latestProvider?.provider?.code ?? null,
+      provider: null,
+      providerTransaction: null,
       retryCount: latestProvider?.attempt ?? 0,
       sourceIp: maskIp((trace.ipAddress as string) ?? null),
       apiKey: maskSecret(apiKeyLookup ?? undefined, 4),
@@ -716,8 +724,8 @@ export class AgentOrderOperationsService {
     const timeline = this.buildTimelineSteps(order);
     const lifecycle = [
       'API',
-      'Wallet Hold',
-      'Provider',
+      'Hold',
+      'Fulfillment',
       'Response',
       'Webhook',
       'Ledger',
@@ -743,8 +751,8 @@ export class AgentOrderOperationsService {
         orderCode: order.orderCode,
         fulfillmentStatus: order.fulfillmentStatus,
       }),
-      providerRequest: mask(latestProvider?.requestPayload ?? {}),
-      providerResponse: mask(latestProvider?.responsePayload ?? {}),
+      providerRequest: {},
+      providerResponse: {},
       webhook: this.buildWebhookEntries(order)[0] ?? null,
       walletHold: order.financialTransaction
         ? {
@@ -803,17 +811,17 @@ export class AgentOrderOperationsService {
 
     steps.push({
       id: 'wallet',
-      stage: 'Wallet Hold',
-      label: 'Giữ số dư ví',
+      stage: 'Hold',
+      label: 'Giữ hạn mức',
       status: order.financialTransaction ? 'completed' : 'pending',
       at: order.createdAt.toISOString(),
     });
 
     const providerTxn = order.providerTransactions[0];
     steps.push({
-      id: 'provider',
-      stage: 'Provider',
-      label: 'Gửi nhà cung cấp',
+      id: 'fulfillment',
+      stage: 'Fulfillment',
+      label: 'Xử lý đơn',
       status: providerTxn ? (providerTxn.status === 'SUCCESS' ? 'completed' : providerTxn.status.toLowerCase()) : 'pending',
       at: providerTxn?.createdAt.toISOString() ?? order.createdAt.toISOString(),
     });
@@ -821,7 +829,7 @@ export class AgentOrderOperationsService {
     steps.push({
       id: 'response',
       stage: 'Response',
-      label: 'Phản hồi provider',
+      label: 'Phản hồi xử lý',
       status:
         order.fulfillmentStatus === FulfillmentStatus.COMPLETED
           ? 'completed'
@@ -904,8 +912,8 @@ export class AgentOrderOperationsService {
   private resolveLifecycleStatus(stage: string, order: { fulfillmentStatus: FulfillmentStatus; providerTransactions: unknown[] }) {
     const map: Record<string, string> = {
       API: 'completed',
-      'Wallet Hold': order.providerTransactions.length ? 'completed' : 'active',
-      Provider: order.providerTransactions.length ? 'completed' : 'pending',
+      Hold: order.providerTransactions.length ? 'completed' : 'active',
+      Fulfillment: order.providerTransactions.length ? 'completed' : 'pending',
       Response:
         order.fulfillmentStatus === FulfillmentStatus.COMPLETED
           ? 'completed'

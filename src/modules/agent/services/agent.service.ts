@@ -39,6 +39,7 @@ import {
 } from '../../agent-api/entities/agent-api.mapper';
 import {
   AGENT_API_KEY_PREFIX,
+  AGENT_SANDBOX_SEED_BALANCE,
 } from '../entities/agent.constants';
 import { AgentAuditService } from './agent-audit.service';
 import { AgentCredentialService } from './agent-credential.service';
@@ -291,12 +292,18 @@ export class AgentService {
 
   async getMyCredentialsStatus(userId: string) {
     const agent = await this.requireOwnAgent(userId);
+    const hasSandbox = !!agent.sandboxApiKeyHash;
+    const hasLive = !!agent.apiKeyHash && agent.liveApiEnabled;
     return {
-      hasCredentials: !!agent.apiKeyHash,
+      hasCredentials: hasSandbox || hasLive,
       apiEnabled: agent.apiEnabled,
-      apiKeyMasked: agent.apiKeyHash
+      liveApiEnabled: agent.liveApiEnabled,
+      environment: hasLive ? 'PRODUCTION' : hasSandbox ? 'SANDBOX' : null,
+      apiKeyMasked: hasLive
         ? `${AGENT_API_KEY_PREFIX}${'•'.repeat(24)}`
-        : null,
+        : hasSandbox
+          ? `ak_test_${'•'.repeat(24)}`
+          : null,
       lastUsedAt: agent.lastUsedAt,
       createdAt: agent.kyc?.reviewedAt ?? agent.updatedAt,
       status: agent.apiEnabled ? 'ACTIVE' : 'INACTIVE',
@@ -312,7 +319,7 @@ export class AgentService {
       throw new BadRequestException('KYC must be SUBMITTED before approval');
     }
 
-    const credentials = this.credentialService.generateCredentials();
+    const credentials = this.credentialService.generateCredentials('SANDBOX');
     const companyName = resolveDisplayCompanyName(
       agent.kyc.accountType,
       (agent.kyc.profile as Record<string, unknown> | null) ?? null,
@@ -321,10 +328,11 @@ export class AgentService {
 
     await this.kycRepository.approve(agent.id, reviewerId);
     await this.agentRepository.updateStatus(agent.id, AgentStatus.ACTIVE, { companyName });
-    await this.agentRepository.saveApiCredentials(agent.id, {
-      apiKeyHash: credentials.apiKeyHash,
-      apiKeyLookup: credentials.apiKeyLookup,
-      secretKeyEncrypted: credentials.secretKeyEncrypted,
+    await this.agentRepository.saveSandboxCredentials(agent.id, {
+      sandboxApiKeyHash: credentials.apiKeyHash,
+      sandboxApiKeyLookup: credentials.apiKeyLookup,
+      sandboxSecretKeyEncrypted: credentials.secretKeyEncrypted,
+      sandboxBalance: AGENT_SANDBOX_SEED_BALANCE,
       apiEnabled: true,
     });
     await this.userRepository.promoteToAgent(agent.userId);
@@ -340,38 +348,45 @@ export class AgentService {
       resource: 'agent',
       resourceId: agent.id,
       resourceDisplay: agent.companyName,
-      title: 'API Key Rotated',
-      description: `New API credentials issued for agent ${agent.companyName}`,
+      title: 'Sandbox API Key Issued',
+      description: `Sandbox credentials issued for agent ${agent.companyName}`,
       performedBy: reviewerId,
       performedRole: reviewerRole,
-      metadata: { agentId: agent.id },
+      metadata: { agentId: agent.id, environment: 'SANDBOX' },
     });
     await this.notificationService.notifyAgentApproved(agent.id);
 
     return {
       agentId: agent.id,
       status: AgentStatus.ACTIVE,
+      environment: 'SANDBOX' as const,
       apiKey: credentials.apiKey,
       secretKey: credentials.secretKey,
+      sandboxBalance: AGENT_SANDBOX_SEED_BALANCE,
       message:
-        'Store API credentials securely. Secret key will not be shown again.',
+        'Sandbox credentials only. Store securely — secret will not be shown again. Enable live API after sandbox UAT.',
     };
   }
 
-  async rotateApiKeyByAdmin(adminId: string, agentId: string) {
+  /** Issue / rotate production API keys after sandbox UAT. */
+  async enableLiveApi(adminId: string, agentId: string) {
     const agent = await this.requireAgent(agentId);
-    if (!agent.apiKeyHash) {
+    if (agent.status !== AgentStatus.ACTIVE) {
+      throw new BadRequestException('Agent must be ACTIVE');
+    }
+    if (!agent.sandboxApiKeyHash) {
       throw new BadRequestException(
-        'Agent has no API credentials — approve KYC first',
+        'Issue sandbox credentials (approve KYC) before enabling live API',
       );
     }
 
-    const credentials = this.credentialService.generateCredentials();
+    const credentials = this.credentialService.generateCredentials('PRODUCTION');
     await this.agentRepository.saveApiCredentials(agent.id, {
       apiKeyHash: credentials.apiKeyHash,
       apiKeyLookup: credentials.apiKeyLookup,
       secretKeyEncrypted: credentials.secretKeyEncrypted,
-      apiEnabled: agent.apiEnabled,
+      apiEnabled: true,
+      liveApiEnabled: true,
     });
 
     await this.agentAudit.recordApiKeyGenerated(adminId, agent.id);
@@ -383,14 +398,59 @@ export class AgentService {
       resource: 'agent',
       resourceId: agent.id,
       resourceDisplay: agent.companyName,
-      title: 'API Key Rotated',
-      description: `Admin rotated API credentials for agent ${agent.companyName}`,
+      title: 'Live API Enabled',
+      description: `Production credentials issued for agent ${agent.companyName}`,
       performedBy: adminId,
-      metadata: { agentId: agent.id, rotatedBy: 'admin' },
+      performedRole: UserRole.ADMIN,
+      metadata: { agentId: agent.id, environment: 'PRODUCTION' },
     });
 
     return {
       agentId: agent.id,
+      environment: 'PRODUCTION' as const,
+      liveApiEnabled: true,
+      apiKey: credentials.apiKey,
+      secretKey: credentials.secretKey,
+      message:
+        'Live API enabled. Store credentials securely — secret will not be shown again.',
+    };
+  }
+
+  async rotateApiKeyByAdmin(adminId: string, agentId: string) {
+    const agent = await this.requireAgent(agentId);
+    if (!agent.liveApiEnabled || !agent.apiKeyHash) {
+      throw new BadRequestException(
+        'Live API not enabled — call enableLiveApi first',
+      );
+    }
+
+    const credentials = this.credentialService.generateCredentials('PRODUCTION');
+    await this.agentRepository.saveApiCredentials(agent.id, {
+      apiKeyHash: credentials.apiKeyHash,
+      apiKeyLookup: credentials.apiKeyLookup,
+      secretKeyEncrypted: credentials.secretKeyEncrypted,
+      apiEnabled: agent.apiEnabled,
+      liveApiEnabled: true,
+    });
+
+    await this.agentAudit.recordApiKeyGenerated(adminId, agent.id);
+    this.activityDispatcher.dispatch({
+      eventType: SystemActivityEventType.API_KEY_ROTATED,
+      eventCategory: SystemActivityEventCategory.AUTH,
+      severity: SystemActivitySeverity.INFO,
+      source: SystemActivitySource.ADMIN,
+      resource: 'agent',
+      resourceId: agent.id,
+      resourceDisplay: agent.companyName,
+      title: 'Live API Key Rotated',
+      description: `Admin rotated live API credentials for agent ${agent.companyName}`,
+      performedBy: adminId,
+      metadata: { agentId: agent.id, rotatedBy: 'admin', environment: 'PRODUCTION' },
+    });
+
+    return {
+      agentId: agent.id,
+      environment: 'PRODUCTION' as const,
       apiKey: credentials.apiKey,
       secretKey: credentials.secretKey,
       message: 'Lưu khóa ngay — secret chỉ hiển thị một lần.',

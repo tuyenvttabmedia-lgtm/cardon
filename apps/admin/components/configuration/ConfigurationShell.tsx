@@ -9,7 +9,7 @@ import { vi } from '@/lib/i18n/vi';
 
 function ConfigurationBreadcrumb({ sectionLabel }: { sectionLabel?: string }) {
   return (
-    <nav aria-label="Breadcrumb" className="text-sm text-zinc-500">
+    <nav aria-label="Breadcrumb" className="text-sm text-slate-500">
       <ol className="flex flex-wrap items-center gap-1.5">
         <li>
           <Link href="/configuration" className="hover:text-admin-700">
@@ -18,8 +18,8 @@ function ConfigurationBreadcrumb({ sectionLabel }: { sectionLabel?: string }) {
         </li>
         {sectionLabel && (
           <>
-            <li aria-hidden className="text-zinc-300">/</li>
-            <li className="font-medium text-zinc-800">{sectionLabel}</li>
+            <li aria-hidden className="text-slate-300">/</li>
+            <li className="font-medium text-slate-800">{sectionLabel}</li>
           </>
         )}
       </ol>
@@ -40,10 +40,10 @@ export function ConfigurationShell({ children }: { children: React.ReactNode }) 
         <ConfigurationBreadcrumb sectionLabel={isOverview ? undefined : section?.label} />
 
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">
+          <h1 className="admin-page-title">
             {section?.title ?? vi.configuration.title}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="admin-page-subtitle">
             {section?.subtitle ?? vi.configuration.principleHint}
           </p>
           {isAudit && (
@@ -52,7 +52,7 @@ export function ConfigurationShell({ children }: { children: React.ReactNode }) 
             </p>
           )}
           {!isOverview && (
-            <p className="mt-2 text-xs text-zinc-400">
+            <p className="mt-2 text-xs text-slate-400">
               {vi.configuration.searchHint}
             </p>
           )}

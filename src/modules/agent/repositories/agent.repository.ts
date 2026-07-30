@@ -76,6 +76,7 @@ export class AgentRepository {
       apiKeyLookup: string;
       secretKeyEncrypted: string;
       apiEnabled: boolean;
+      liveApiEnabled?: boolean;
     },
   ) {
     return this.prisma.agent.update({
@@ -85,6 +86,32 @@ export class AgentRepository {
         apiKeyLookup: data.apiKeyLookup,
         secretKeyEncrypted: data.secretKeyEncrypted,
         apiEnabled: data.apiEnabled,
+        ...(data.liveApiEnabled !== undefined
+          ? { liveApiEnabled: data.liveApiEnabled }
+          : {}),
+      },
+    });
+  }
+
+  saveSandboxCredentials(
+    id: string,
+    data: {
+      sandboxApiKeyHash: string;
+      sandboxApiKeyLookup: string;
+      sandboxSecretKeyEncrypted: string;
+      sandboxBalance: Prisma.Decimal | number | string;
+      apiEnabled: boolean;
+    },
+  ) {
+    return this.prisma.agent.update({
+      where: { id },
+      data: {
+        sandboxApiKeyHash: data.sandboxApiKeyHash,
+        sandboxApiKeyLookup: data.sandboxApiKeyLookup,
+        sandboxSecretKeyEncrypted: data.sandboxSecretKeyEncrypted,
+        sandboxBalance: data.sandboxBalance,
+        sandboxHeldBalance: 0,
+        apiEnabled: data.apiEnabled,
       },
     });
   }
@@ -92,6 +119,12 @@ export class AgentRepository {
   findByApiKeyLookup(apiKeyLookup: string) {
     return this.prisma.agent.findFirst({
       where: { apiKeyLookup, deletedAt: null },
+    });
+  }
+
+  findBySandboxApiKeyLookup(apiKeyLookup: string) {
+    return this.prisma.agent.findFirst({
+      where: { sandboxApiKeyLookup: apiKeyLookup, deletedAt: null },
     });
   }
 
@@ -124,6 +157,20 @@ export class AgentRepository {
       data: {
         balance: data.balance,
         heldBalance: data.heldBalance,
+      },
+    });
+  }
+
+  updateSandboxBalancesInTransaction(
+    id: string,
+    data: { sandboxBalance: Prisma.Decimal; sandboxHeldBalance: Prisma.Decimal },
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.agent.update({
+      where: { id },
+      data: {
+        sandboxBalance: data.sandboxBalance,
+        sandboxHeldBalance: data.sandboxHeldBalance,
       },
     });
   }

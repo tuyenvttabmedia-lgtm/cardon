@@ -42,9 +42,9 @@ export default function OrdersOverviewPageClient() {
         <StatCard label="Refund" value={loading ? '…' : String(cards?.refundToday ?? 0)} />
         <StatCard label="Tỷ lệ thành công" value={loading ? '…' : `${cards?.successRate ?? 0}%`} />
         <StatCard label="Thời gian phản hồi TB" value={loading ? '…' : formatMs(cards?.avgLatencyMs ?? 0)} />
-        <StatCard label="Độ trễ eSale" value={loading ? '…' : formatMs(cards?.esaleLatencyMs ?? 0)} />
-        <StatCard label="Gateway đang dùng" value={loading ? '…' : (cards?.gatewayInUse ?? 'WALLET')} />
-        <StatCard label="Số dư ví" value={loading ? '…' : formatVnd(cards?.walletBalance ?? '0')} />
+        <StatCard label="Độ trễ xử lý" value={loading ? '…' : formatMs(cards?.esaleLatencyMs ?? 0)} />
+        <StatCard label="Kênh thanh toán" value={loading ? '…' : (cards?.gatewayInUse ?? 'WALLET')} />
+        <StatCard label="Số dư" value={loading ? '…' : formatVnd(cards?.walletBalance ?? '0')} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

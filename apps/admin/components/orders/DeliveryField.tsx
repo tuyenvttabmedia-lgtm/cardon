@@ -35,7 +35,7 @@ export function CopyValueRow({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
-        <p className="text-xs text-zinc-500">{label}</p>
+        <p className="text-xs text-slate-500">{label}</p>
         <p className={mono ? 'font-mono text-sm' : 'text-sm'}>{value}</p>
       </div>
       <CopyButton value={value} />

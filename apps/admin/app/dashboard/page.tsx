@@ -60,11 +60,11 @@ export default function DashboardPage() {
 
         <div>
 
-          <h1 className="text-2xl font-bold">{vi.dashboard.title}</h1>
+          <h1 className="admin-page-title">{vi.dashboard.title}</h1>
 
           {stats?.asOf && (
 
-            <p className="text-sm text-zinc-500">{vi.common.updatedAt}: {formatDateTime(stats.asOf)}</p>
+            <p className="text-sm text-slate-500">{vi.common.updatedAt}: {formatDateTime(stats.asOf)}</p>
 
           )}
 
@@ -78,16 +78,16 @@ export default function DashboardPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-              <Link href="/configuration/health" className="block rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-admin-400">
+              <Link href="/configuration/health" className="block rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-admin-400">
 
-                <p className="text-sm text-zinc-500">System Health</p>
+                <p className="text-sm text-slate-500">System Health</p>
 
                 <p className="mt-1 text-3xl font-bold">{health?.healthScore ?? 100}%</p>
 
-                <p className="text-sm font-medium text-zinc-700">{health?.productionLabel ?? 'Production Ready'}</p>
+                <p className="text-sm font-medium text-slate-700">{health?.productionLabel ?? 'Production Ready'}</p>
 
                 {health?.systemVersion && (
-                  <div className="mt-2 space-y-1 text-xs text-zinc-600">
+                  <div className="mt-2 space-y-1 text-xs text-slate-600">
                     <p>Current Version: <strong>{health.systemVersion.build}</strong></p>
                     <p>Database Migration: {health.systemVersion.database.migrationCount}</p>
                     <p>
@@ -102,7 +102,7 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <p className="mt-1 text-xs text-zinc-500">Last Scan: {health?.lastScanAt ? formatDateTime(health.lastScanAt) : '—'}</p>
+                <p className="mt-1 text-xs text-slate-500">Last Scan: {health?.lastScanAt ? formatDateTime(health.lastScanAt) : '—'}</p>
 
                 <p className="text-sm text-admin-600">View Report →</p>
 
@@ -132,15 +132,15 @@ export default function DashboardPage() {
 
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-5">
 
-                <div><dt className="text-zinc-500">{vi.dashboard.total}</dt><dd className="text-xl font-bold">{stats.agentStatistics.total}</dd></div>
+                <div><dt className="text-slate-500">{vi.dashboard.total}</dt><dd className="text-xl font-bold">{stats.agentStatistics.total}</dd></div>
 
-                <div><dt className="text-zinc-500">{vi.dashboard.active}</dt><dd className="text-xl font-bold text-emerald-600">{stats.agentStatistics.active}</dd></div>
+                <div><dt className="text-slate-500">{vi.dashboard.active}</dt><dd className="text-xl font-bold text-emerald-600">{stats.agentStatistics.active}</dd></div>
 
-                <div><dt className="text-zinc-500">{vi.dashboard.pendingKyc}</dt><dd className="text-xl font-bold text-amber-600">{stats.agentStatistics.pendingKyc}</dd></div>
+                <div><dt className="text-slate-500">{vi.dashboard.pendingKyc}</dt><dd className="text-xl font-bold text-amber-600">{stats.agentStatistics.pendingKyc}</dd></div>
 
-                <div><dt className="text-zinc-500">{vi.dashboard.suspended}</dt><dd className="text-xl font-bold text-red-600">{stats.agentStatistics.suspended}</dd></div>
+                <div><dt className="text-slate-500">{vi.dashboard.suspended}</dt><dd className="text-xl font-bold text-red-600">{stats.agentStatistics.suspended}</dd></div>
 
-                <div><dt className="text-zinc-500">{vi.dashboard.rejected}</dt><dd className="text-xl font-bold">{stats.agentStatistics.rejected}</dd></div>
+                <div><dt className="text-slate-500">{vi.dashboard.rejected}</dt><dd className="text-xl font-bold">{stats.agentStatistics.rejected}</dd></div>
 
               </dl>
 

@@ -23,8 +23,8 @@ function SidebarSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-zinc-600">
+    <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-600">
         <span className="text-base">{icon}</span>
         {title}
       </h3>
@@ -60,7 +60,7 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
   );
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-zinc-200 bg-zinc-50/80 p-3 md:w-64">
+    <aside className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-slate-50/80 p-3 md:w-64">
       {showTaxonomy && (
         <>
           <SidebarSection icon="📁" title="Danh mục">
@@ -110,10 +110,10 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
                 </option>
               ))}
             </Select>
-            <p className="text-xs text-zinc-500">{CMS_PAGE_LAYOUT_HINTS[form.pageLayout]}</p>
+            <p className="text-xs text-slate-500">{CMS_PAGE_LAYOUT_HINTS[form.pageLayout]}</p>
             {form.pageLayout === 'LANDING' ? (
               <div className="space-y-1 pt-1">
-                <Label className="text-xs text-zinc-600">Mô tả hero (excerpt)</Label>
+                <Label className="text-xs text-slate-600">Mô tả hero (excerpt)</Label>
                 <Input
                   className="text-sm"
                   value={form.excerpt}
@@ -125,7 +125,7 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
           </SidebarSection>
 
           <SidebarSection icon="📋" title="Menu sidebar">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
             <input
               type="checkbox"
               checked={form.showInNav}
@@ -144,11 +144,11 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
                         : p.pageLayout,
                 }));
               }}
-              className="rounded border-zinc-300"
+              className="rounded border-slate-300"
             />
             Hiển thị trong menu &quot;Trang thông tin&quot;
           </label>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-slate-500">
             Thứ tự menu quản lý tại danh sách trang tĩnh. Trang trong menu dùng layout sidebar (Chính sách).
           </p>
         </SidebarSection>

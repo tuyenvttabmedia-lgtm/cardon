@@ -55,7 +55,7 @@ export default function SettingsSmtpPage() {
   if (!form) {
     return (
       <div className="space-y-4">
-        {error ? <ErrorMessage message={error} /> : <p className="text-zinc-500">{vi.app.loading}</p>}
+        {error ? <ErrorMessage message={error} /> : <p className="text-slate-500">{vi.app.loading}</p>}
       </div>
     );
   }
@@ -103,7 +103,7 @@ export default function SettingsSmtpPage() {
             <Input className="mt-1" value={form.fromName ?? ''} onChange={(e) => setForm({ ...form, fromName: e.target.value })} placeholder="CardOn.vn" />
           </div>
           <Button onClick={() => void save()} disabled={busy}>{vi.app.save}</Button>
-          <div className="border-t border-zinc-100 pt-4">
+          <div className="border-t border-slate-100 pt-4">
             <Label>Gửi email thử</Label>
             <div className="mt-1 flex gap-2">
               <Input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="admin@cardon.vn" />

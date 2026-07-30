@@ -28,12 +28,12 @@ export function EditorHeader({
   const ago = formatSavedAgo(lastSavedAt);
 
   return (
-    <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-3 py-2 md:flex-row md:items-center md:gap-4 md:px-4">
+    <header className="flex shrink-0 flex-col gap-2 border-b border-slate-200 bg-white px-3 py-2 md:flex-row md:items-center md:gap-4 md:px-4">
       <div className="flex min-w-0 flex-1 items-center gap-2 md:gap-3">
         <button
           type="button"
           onClick={onBack}
-          className="shrink-0 text-sm font-medium text-zinc-600 hover:text-admin-600"
+          className="shrink-0 text-sm font-medium text-slate-600 hover:text-admin-600"
         >
           ← Quay lại danh sách
         </button>
@@ -56,7 +56,7 @@ export function EditorHeader({
 
 function SaveStatusIndicator({ status, ago }: { status: SaveStatus; ago: string | null }) {
   if (status === 'saving') {
-    return <span className="text-xs text-zinc-500">Đang lưu...</span>;
+    return <span className="text-xs text-slate-500">Đang lưu...</span>;
   }
   if (status === 'error') {
     return <span className="text-xs font-medium text-rose-600">Có lỗi</span>;
@@ -65,7 +65,7 @@ function SaveStatusIndicator({ status, ago }: { status: SaveStatus; ago: string 
     return <span className="text-xs text-emerald-600">Auto Saved {ago}</span>;
   }
   if (ago) {
-    return <span className="text-xs text-zinc-400">Đã lưu {ago}</span>;
+    return <span className="text-xs text-slate-400">Đã lưu {ago}</span>;
   }
   return null;
 }

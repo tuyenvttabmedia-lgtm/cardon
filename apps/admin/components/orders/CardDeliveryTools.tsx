@@ -74,7 +74,7 @@ export function CardDeliveryTools({
   }
 
   return (
-    <div className="flex flex-wrap gap-2 border-b border-zinc-100 pb-4">
+    <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-4">
       <Button size="sm" variant="secondary" onClick={() => void copyAll()}>
         Copy tất cả mã thẻ
       </Button>

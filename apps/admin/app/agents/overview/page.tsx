@@ -43,10 +43,10 @@ export default function AgentsOverviewPage() {
             <Link href="/agents/list" className="rounded-lg bg-admin-600 px-4 py-2 text-sm font-medium text-white">
               {vi.agentCenter.navList}
             </Link>
-            <Link href="/agents/kyc" className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium">
+            <Link href="/agents/kyc" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium">
               {vi.agentCenter.navOnboarding}
             </Link>
-            <Link href="/agents/registration/invite" className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium">
+            <Link href="/agents/registration/invite" className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium">
               {vi.agentCenter.navRegistrationInvite}
             </Link>
           </Card>

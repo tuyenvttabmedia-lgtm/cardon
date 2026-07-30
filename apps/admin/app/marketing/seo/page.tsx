@@ -24,7 +24,7 @@ import type { CmsSeoSettings } from '@/types/api';
 
 function FieldHint({ children }: { children: string }) {
 
-  return <p className="mt-1 text-xs leading-relaxed text-zinc-500">{children}</p>;
+  return <p className="mt-1 text-xs leading-relaxed text-slate-500">{children}</p>;
 
 }
 
@@ -84,7 +84,7 @@ export default function SeoSettingsPage() {
 
   if (loading) {
 
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
 
   }
 
@@ -98,7 +98,7 @@ export default function SeoSettingsPage() {
 
         <div className="space-y-6">
 
-          <h1 className="text-2xl font-bold">{vi.cms.seoTitle}</h1>
+          <h1 className="admin-page-title">{vi.cms.seoTitle}</h1>
 
           <MarketingNav />
 
@@ -122,9 +122,9 @@ export default function SeoSettingsPage() {
 
         <div>
 
-          <h1 className="text-2xl font-bold">{vi.cms.seoTitle}</h1>
+          <h1 className="admin-page-title">{vi.cms.seoTitle}</h1>
 
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-slate-500">
 
             Cài đặt SEO toàn site — áp dụng lên frontend cardon.vn (title/description mặc định, Search Console, robots.txt, sitemap, GA/GTM).
 

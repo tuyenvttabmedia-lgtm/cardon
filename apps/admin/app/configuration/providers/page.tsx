@@ -168,7 +168,7 @@ export default function SettingsProvidersPage() {
 
   if (!form) {
 
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
 
   }
 
@@ -189,11 +189,11 @@ export default function SettingsProvidersPage() {
 
           <SettingsRuntimeBadges source={form.source} configured={form.configured} />
 
-          <div className="grid gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-3 text-sm sm:grid-cols-3">
+          <div className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm sm:grid-cols-3">
 
             <div>
 
-              <p className="text-zinc-500">{vi.settings.providerBalanceThreshold}</p>
+              <p className="text-slate-500">{vi.settings.providerBalanceThreshold}</p>
 
               <p className="font-semibold">
 
@@ -209,7 +209,7 @@ export default function SettingsProvidersPage() {
 
             <div>
 
-              <p className="text-zinc-500">{vi.settings.providerPriority}</p>
+              <p className="text-slate-500">{vi.settings.providerPriority}</p>
 
               <p className="font-semibold">Theo mapping sản phẩm</p>
 
@@ -217,7 +217,7 @@ export default function SettingsProvidersPage() {
 
             <div>
 
-              <p className="text-zinc-500">{vi.settings.providerMaintenance}</p>
+              <p className="text-slate-500">{vi.settings.providerMaintenance}</p>
 
               <p className="font-semibold">
 

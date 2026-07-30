@@ -29,10 +29,6 @@ import {
   depositStatusTone,
 } from '../entities/deposit-status.mapper';
 import { generateDepositReference } from '../entities/deposit-reference.generator';
-import {
-  MAX_DEPOSIT_AMOUNT,
-  MIN_DEPOSIT_AMOUNT,
-} from '../entities/deposit.constants';
 import { AgentDepositRepository } from '../repositories/agent-deposit.repository';
 
 const DEPOSIT_EXPIRY_MS = 15 * 60_000;
@@ -108,14 +104,15 @@ export class AgentDepositService {
       return this.toPortalView(existing);
     }
 
-    if (amount < MIN_DEPOSIT_AMOUNT) {
+    const { minAmount, maxAmount } = this.settingsStore.resolveAgentDepositLimits();
+    if (amount < minAmount) {
       throw new BadRequestException(
-        `Minimum deposit amount is ${MIN_DEPOSIT_AMOUNT.toLocaleString('vi-VN')} VND per transaction`,
+        `Minimum deposit amount is ${minAmount.toLocaleString('vi-VN')} VND per transaction`,
       );
     }
-    if (amount > MAX_DEPOSIT_AMOUNT) {
+    if (amount > maxAmount) {
       throw new BadRequestException(
-        `Maximum deposit amount is ${MAX_DEPOSIT_AMOUNT.toLocaleString('vi-VN')} VND per transaction`,
+        `Maximum deposit amount is ${maxAmount.toLocaleString('vi-VN')} VND per transaction`,
       );
     }
 
@@ -210,6 +207,7 @@ export class AgentDepositService {
       skip,
       take,
       gateways: this.listAvailableGateways(),
+      ...this.settingsStore.resolveAgentDepositLimits(),
     };
   }
 

@@ -44,32 +44,49 @@ export function roundVnd(amount: number, step: number): number {
   return Math.round(amount / step) * step;
 }
 
+/**
+ * Agent sell price from face-based CardOn margin:
+ *   CK_NCC = (face − cost) / face
+ *   CK_agent = max(0, CK_NCC − biên_LN%)
+ *   price = face × (1 − CK_agent)  ≡  cost + face × biên_LN%
+ * FIXED: price = cost + value (VND).
+ * Clamped to [cost, face] so agent CK ≥ 0 and CardOn does not lose money.
+ */
 export function computeMarginPrice(
   providerCost: number,
+  faceValue: number,
   rule: ServiceMarginRule,
   roundTo: number,
 ): number {
-  const raw =
-    rule.marginType === 'PERCENT'
-      ? providerCost * (1 + rule.value / 100)
-      : providerCost + rule.value;
+  const face = faceValue > 0 ? faceValue : providerCost;
+  const cardonTake =
+    rule.marginType === 'PERCENT' ? face * (rule.value / 100) : rule.value;
+  let raw = providerCost + cardonTake;
+  if (raw < providerCost) raw = providerCost;
+  if (raw > face) raw = face;
   return roundVnd(raw, roundTo);
 }
 
 /** Preview before final rounding — rounded to 1đ for admin calculator. */
-export function computePreviewPrice(providerCost: number, rule: ServiceMarginRule): number {
-  const raw =
-    rule.marginType === 'PERCENT'
-      ? providerCost * (1 + rule.value / 100)
-      : providerCost + rule.value;
+export function computePreviewPrice(
+  providerCost: number,
+  faceValue: number,
+  rule: ServiceMarginRule,
+): number {
+  const face = faceValue > 0 ? faceValue : providerCost;
+  const cardonTake =
+    rule.marginType === 'PERCENT' ? face * (rule.value / 100) : rule.value;
+  let raw = providerCost + cardonTake;
+  if (raw < providerCost) raw = providerCost;
+  if (raw > face) raw = face;
   return Math.round(raw);
 }
 
 export function formatMarginRuleLabel(groupLabel: string, rule: ServiceMarginRule): string {
   if (rule.marginType === 'PERCENT') {
-    return `${groupLabel}: +${rule.value}%`;
+    return `${groupLabel}: biên LN ${rule.value}% mệnh giá`;
   }
-  return `${groupLabel}: +${rule.value.toLocaleString('vi-VN')}đ`;
+  return `${groupLabel}: biên LN ${rule.value.toLocaleString('vi-VN')}đ`;
 }
 
 export function normalizeMarginRule(

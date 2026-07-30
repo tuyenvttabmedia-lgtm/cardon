@@ -57,21 +57,21 @@ export function FinanceDashboardPanel() {
                 <StatCard label="Lợi nhuận thực" value={formatVnd(profit.grossProfit)} />
                 <StatCard label="Số đơn thành công" value={String(profit.orderCount)} />
               </div>
-              <dl className="mt-6 grid gap-3 border-t border-zinc-100 pt-4 text-sm sm:grid-cols-2">
+              <dl className="mt-6 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-zinc-500">{vi.finance.revenue}</dt>
+                  <dt className="text-slate-500">{vi.finance.revenue}</dt>
                   <dd className="text-lg font-bold">{formatVnd(profit.revenue)}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">{vi.finance.providerCost}</dt>
+                  <dt className="text-slate-500">{vi.finance.providerCost}</dt>
                   <dd>{formatVnd(profit.providerCost)}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">{vi.finance.grossProfit}</dt>
+                  <dt className="text-slate-500">{vi.finance.grossProfit}</dt>
                   <dd className="font-bold text-emerald-600">{formatVnd(profit.grossProfit)}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">{vi.dashboard.orders}</dt>
+                  <dt className="text-slate-500">{vi.dashboard.orders}</dt>
                   <dd>{profit.orderCount}</dd>
                 </div>
               </dl>
@@ -84,7 +84,7 @@ export function FinanceDashboardPanel() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-zinc-500">
+                <tr className="border-b text-left text-slate-500">
                   <th className="py-2 pr-4">{vi.finance.invoiceNumber}</th>
                   <th className="py-2 pr-4">{vi.finance.type}</th>
                   <th className="py-2 pr-4">{vi.finance.amount}</th>
@@ -93,7 +93,7 @@ export function FinanceDashboardPanel() {
               </thead>
               <tbody>
                 {invoices.map((inv) => (
-                  <tr key={inv.id} className="border-b border-zinc-50">
+                  <tr key={inv.id} className="border-b border-slate-50">
                     <td className="py-3 pr-4 font-mono text-xs">{inv.invoiceNumber}</td>
                     <td className="py-3 pr-4">{inv.type}</td>
                     <td className="py-3 pr-4">{formatVnd(inv.amount)}</td>

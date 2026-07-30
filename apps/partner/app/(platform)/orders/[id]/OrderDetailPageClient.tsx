@@ -96,19 +96,22 @@ export default function OrderDetailPageClient() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="p-4">
           <p className="text-xs text-slate-500">Trạng thái</p>
-          <Badge tone={statusToBadgeTone(order.status)}>{transactionStatusLabel(order.status)}</Badge>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <Badge tone={statusToBadgeTone(order.status)}>{transactionStatusLabel(order.status)}</Badge>
+            {order.isSandbox ? <Badge tone="warning">Sandbox</Badge> : <Badge tone="success">Live</Badge>}
+          </div>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-slate-500">Giá bán</p>
+          <p className="text-xs text-slate-500">Mệnh giá</p>
+          <p className="font-semibold">{formatVnd(order.faceValue)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-slate-500">Số trừ hạn mức</p>
           <p className="font-semibold">{formatVnd(order.sellPrice)}</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-slate-500">Độ trễ</p>
           <p className="font-semibold">{order.latencyMs != null ? `${order.latencyMs}ms` : '—'}</p>
-        </Card>
-        <Card className="p-4">
-          <p className="text-xs text-slate-500">Provider</p>
-          <p className="font-semibold">{order.provider ?? '—'}</p>
         </Card>
       </div>
 
@@ -120,11 +123,9 @@ export default function OrderDetailPageClient() {
         <div className="space-y-4">
           <JsonBlock title="API Request (đã che)" data={order.apiRequest} />
           <JsonBlock title="API Response" data={order.apiResponse} />
-          <JsonBlock title="Provider Request" data={order.providerRequest} />
-          <JsonBlock title="Provider Response" data={order.providerResponse} />
           {order.webhook && <JsonBlock title="Webhook payload" data={order.webhook.payload} />}
-          <JsonBlock title="Wallet Hold" data={order.walletHold} />
-          <JsonBlock title="Ledger Commit" data={order.ledgerCommit} />
+          <JsonBlock title="Giữ hạn mức" data={order.walletHold} />
+          <JsonBlock title="Ledger" data={order.ledgerCommit} />
         </div>
       </div>
 

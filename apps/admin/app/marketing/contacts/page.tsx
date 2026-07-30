@@ -56,7 +56,7 @@ export default function ContactMessagesPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Liên hệ khách hàng</h1>
+        <h1 className="admin-page-title">Liên hệ khách hàng</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
 
@@ -74,12 +74,12 @@ export default function ContactMessagesPage() {
         </div>
 
         {loading ? (
-          <p className="text-zinc-500">{vi.app.loading}</p>
+          <p className="text-slate-500">{vi.app.loading}</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <Card className="overflow-x-auto p-0">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b bg-zinc-50 text-zinc-500">
+                <thead className="border-b bg-slate-50 text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Người gửi</th>
                     <th className="px-4 py-3">Chủ đề</th>
@@ -90,7 +90,7 @@ export default function ContactMessagesPage() {
                 <tbody>
                   {messages.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-8 text-center text-zinc-500">
+                      <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
                         Chưa có tin nhắn
                       </td>
                     </tr>
@@ -98,12 +98,12 @@ export default function ContactMessagesPage() {
                   {messages.map((m) => (
                     <tr
                       key={m.id}
-                      className="cursor-pointer border-b hover:bg-zinc-50"
+                      className="cursor-pointer border-b hover:bg-slate-50"
                       onClick={() => setSelected(m)}
                     >
                       <td className="px-4 py-3">
                         <p className="font-medium">{m.name}</p>
-                        <p className="text-xs text-zinc-500">{m.email}</p>
+                        <p className="text-xs text-slate-500">{m.email}</p>
                       </td>
                       <td className="px-4 py-3">{m.subject}</td>
                       <td className="px-4 py-3">
@@ -111,13 +111,13 @@ export default function ContactMessagesPage() {
                           className={
                             m.status === 'NEW'
                               ? 'rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700'
-                              : 'rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600'
+                              : 'rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600'
                           }
                         >
                           {m.status === 'NEW' ? 'Mới' : 'Đã xử lý'}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-zinc-500">
+                      <td className="px-4 py-3 text-slate-500">
                         {new Date(m.createdAt).toLocaleString('vi-VN')}
                       </td>
                     </tr>
@@ -130,12 +130,12 @@ export default function ContactMessagesPage() {
               {selected ? (
                 <>
                   <h2 className="font-semibold">{selected.subject}</h2>
-                  <div className="text-sm text-zinc-600">
+                  <div className="text-sm text-slate-600">
                     <p>
                       <strong>{selected.name}</strong> — {selected.email}
                     </p>
                     {selected.phone && <p>SĐT: {selected.phone}</p>}
-                    <p className="mt-1 text-xs text-zinc-400">
+                    <p className="mt-1 text-xs text-slate-400">
                       {new Date(selected.createdAt).toLocaleString('vi-VN')}
                     </p>
                   </div>
@@ -152,7 +152,7 @@ export default function ContactMessagesPage() {
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-zinc-500">Chọn tin nhắn để xem chi tiết</p>
+                <p className="text-sm text-slate-500">Chọn tin nhắn để xem chi tiết</p>
               )}
             </Card>
           </div>

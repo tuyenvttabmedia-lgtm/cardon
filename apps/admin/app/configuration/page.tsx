@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Card, ErrorMessage, StatCard } from '@/components/ui/Display';
 import { Button } from '@/components/ui/Form';
 import { ConfigurationDependencies, ConfigurationStatusBadge } from '@/components/configuration/ConfigurationStatusBadge';
 import { ConfigurationIntegrationsPanel } from '@/components/configuration/ConfigurationIntegrationsPanel';
@@ -20,13 +20,12 @@ function OverviewCard({
   value: string | number;
   tone?: 'ok' | 'warn' | 'error';
 }) {
-  const cls =
-    tone === 'ok' ? 'text-green-700' : tone === 'warn' ? 'text-yellow-700' : tone === 'error' ? 'text-red-700' : 'text-zinc-800';
   return (
-    <Card className="text-center">
-      <p className={cn('text-2xl font-bold', cls)}>{value}</p>
-      <p className="mt-1 text-sm text-zinc-500">{label}</p>
-    </Card>
+    <StatCard
+      label={label}
+      value={value}
+      tone={tone === 'ok' ? 'success' : tone === 'warn' ? 'warning' : tone === 'error' ? 'danger' : 'default'}
+    />
   );
 }
 
@@ -85,9 +84,9 @@ export default function ConfigurationOverviewPage() {
               <Link
                 key={m.id}
                 href={m.href}
-                className="flex items-center justify-between rounded-xl border border-zinc-100 p-4 hover:border-admin-300 hover:bg-zinc-50"
+                className="flex items-center justify-between rounded-xl border border-slate-100 p-4 hover:border-admin-300 hover:bg-slate-50"
               >
-                <span className="font-medium text-zinc-800">{m.label}</span>
+                <span className="font-medium text-slate-800">{m.label}</span>
                 <ConfigurationStatusBadge status={m.status} />
               </Link>
             ))}

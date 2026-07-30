@@ -77,7 +77,7 @@ export default function SupportTicketsPage() {
   return (
     <RequirePermission permission="support.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Hỗ trợ — Tickets</h1>
+        <h1 className="admin-page-title">Hỗ trợ — Tickets</h1>
         {error && <ErrorMessage message={error} />}
 
         <div className="flex flex-wrap items-end gap-2">
@@ -92,7 +92,7 @@ export default function SupportTicketsPage() {
             </Button>
           ))}
           <input
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
             placeholder="Mã ticket..."
             value={ticketCode}
             onChange={(e) => setTicketCode(e.target.value)}
@@ -103,12 +103,12 @@ export default function SupportTicketsPage() {
         </div>
 
         {loading ? (
-          <p className="text-zinc-500">{vi.app.loading}</p>
+          <p className="text-slate-500">{vi.app.loading}</p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
             <Card className="overflow-x-auto p-0">
               <table className="min-w-full text-left text-sm">
-                <thead className="border-b bg-zinc-50 text-zinc-500">
+                <thead className="border-b bg-slate-50 text-slate-500">
                   <tr>
                     <th className="px-4 py-3">Mã</th>
                     <th className="px-4 py-3">Khách hàng</th>
@@ -120,7 +120,7 @@ export default function SupportTicketsPage() {
                 <tbody>
                   {tickets.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-zinc-500">
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
                         Chưa có ticket
                       </td>
                     </tr>
@@ -128,17 +128,17 @@ export default function SupportTicketsPage() {
                   {tickets.map((t) => (
                     <tr
                       key={t.id}
-                      className="cursor-pointer border-b hover:bg-zinc-50"
+                      className="cursor-pointer border-b hover:bg-slate-50"
                       onClick={() => void openTicket(t.id)}
                     >
                       <td className="px-4 py-3 font-mono text-xs">{t.ticketCode}</td>
                       <td className="px-4 py-3">
                         <p className="font-medium">{t.customer?.fullName ?? '—'}</p>
-                        <p className="text-xs text-zinc-500">{t.customer?.email}</p>
+                        <p className="text-xs text-slate-500">{t.customer?.email}</p>
                       </td>
                       <td className="px-4 py-3">{t.subject}</td>
                       <td className="px-4 py-3">{STATUS_LABEL[t.status] ?? t.status}</td>
-                      <td className="px-4 py-3 text-zinc-500">
+                      <td className="px-4 py-3 text-slate-500">
                         {new Date(t.createdAt).toLocaleString('vi-VN')}
                       </td>
                     </tr>
@@ -149,20 +149,20 @@ export default function SupportTicketsPage() {
 
             <Card className="p-4">
               {!selected ? (
-                <p className="text-sm text-zinc-500">Chọn ticket để xem hội thoại</p>
+                <p className="text-sm text-slate-500">Chọn ticket để xem hội thoại</p>
               ) : (
                 <div className="space-y-4">
                   <div>
                     <h2 className="font-bold">{selected.subject}</h2>
-                    <p className="text-xs text-zinc-500">{selected.ticketCode}</p>
+                    <p className="text-xs text-slate-500">{selected.ticketCode}</p>
                     {selected.order && (
-                      <p className="mt-1 text-xs text-zinc-600">
+                      <p className="mt-1 text-xs text-slate-600">
                         Đơn {selected.order.orderCode} · TT: {selected.order.paymentStatus} · GH:{' '}
                         {selected.order.fulfillmentStatus}
                       </p>
                     )}
                   </div>
-                  <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg bg-zinc-50 p-3 text-sm">
+                  <div className="max-h-72 space-y-2 overflow-y-auto rounded-lg bg-slate-50 p-3 text-sm">
                     {(selected.messages ?? []).map((m) => (
                       <div
                         key={m.id}
@@ -172,7 +172,7 @@ export default function SupportTicketsPage() {
                             : 'rounded-lg bg-blue-50 p-2'
                         }
                       >
-                        <p className="text-[10px] font-semibold uppercase text-zinc-500">
+                        <p className="text-[10px] font-semibold uppercase text-slate-500">
                           {m.authorType === 'STAFF' ? 'Nhân viên' : 'Khách hàng'}
                         </p>
                         <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
@@ -192,7 +192,7 @@ export default function SupportTicketsPage() {
                   {selected.status !== 'RESOLVED' && (
                     <>
                       <textarea
-                        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                         rows={3}
                         placeholder="Phản hồi khách hàng..."
                         value={reply}

@@ -10,6 +10,8 @@ import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 
 import { Button, Input, Label, Select } from '@/components/ui/Form';
 
+import { Table, THead, TBody, TR, TH, TD, TableEmpty } from '@/components/ui/Table';
+
 import { useToast } from '@/components/ui/Toast';
 
 import { translateRole } from '@/lib/i18n';
@@ -174,7 +176,7 @@ export default function StaffPage() {
 
       <div className="space-y-6">
 
-        <h1 className="text-2xl font-bold">{vi.staff.title}</h1>
+        <h1 className="admin-page-title">{vi.staff.title}</h1>
 
         {error && <ErrorMessage message={error} />}
 
@@ -248,43 +250,45 @@ export default function StaffPage() {
 
         </Card>
 
-        <Card className="overflow-x-auto p-4">
+        <Card className="p-0">
 
-          <table className="w-full text-sm">
+          <Table>
 
-            <thead>
+            <THead>
 
-              <tr className="border-b">
+              <TR>
 
-                <th className="py-2 text-left">{vi.staff.email}</th>
+                <TH>{vi.staff.email}</TH>
 
-                <th>{vi.staff.role}</th>
+                <TH>{vi.staff.role}</TH>
 
-                <th>{vi.staff.status}</th>
+                <TH>{vi.staff.status}</TH>
 
-                <th />
+                <TH />
 
-              </tr>
+              </TR>
 
-            </thead>
+            </THead>
 
-            <tbody>
+            <TBody>
+
+              {staff.length === 0 && <TableEmpty colSpan={4} />}
 
               {staff.map((s) => (
 
-                <tr key={s.id} className="border-b">
+                <TR key={s.id}>
 
-                  <td className="py-2">{s.email}</td>
+                  <TD>{s.email}</TD>
 
-                  <td>{translateRole(s.role)}</td>
+                  <TD>{translateRole(s.role)}</TD>
 
-                  <td>
+                  <TD>
 
                     <Badge tone={statusTone(s.status)} status={s.status} />
 
-                  </td>
+                  </TD>
 
-                  <td className="space-x-2">
+                  <TD className="space-x-2">
 
                     {s.role !== 'SUPER_ADMIN' && s.status === 'ACTIVE' && (
 
@@ -322,15 +326,15 @@ export default function StaffPage() {
 
                     </Button>
 
-                  </td>
+                  </TD>
 
-                </tr>
+                </TR>
 
               ))}
 
-            </tbody>
+            </TBody>
 
-          </table>
+          </Table>
 
         </Card>
 

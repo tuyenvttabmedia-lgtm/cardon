@@ -122,6 +122,10 @@ export class AdminAgentService {
     return { agentId, apiEnabled: false };
   }
 
+  enableLiveApi(adminId: string, agentId: string) {
+    return this.agentService.enableLiveApi(adminId, agentId);
+  }
+
   rotateApiKey(adminId: string, agentId: string) {
     return this.agentService.rotateApiKeyByAdmin(adminId, agentId);
   }

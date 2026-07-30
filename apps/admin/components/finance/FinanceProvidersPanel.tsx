@@ -93,7 +93,7 @@ export function FinanceProvidersPanel() {
             <div>
               <Label>Nhà cung cấp</Label>
               <select
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 value={providerFilter}
                 onChange={(e) => setProviderFilter(e.target.value)}
               >
@@ -174,19 +174,19 @@ export function FinanceProvidersPanel() {
         <Card>
           <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
             <div>
-              <dt className="text-zinc-500">Doanh thu kỳ</dt>
+              <dt className="text-slate-500">Doanh thu kỳ</dt>
               <dd className="text-xl font-bold">{formatVnd(providerDashboard.today.revenue)}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Chi phí NCC</dt>
+              <dt className="text-slate-500">Chi phí NCC</dt>
               <dd>{formatVnd(providerDashboard.today.providerCost)}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Phí thanh toán</dt>
+              <dt className="text-slate-500">Phí thanh toán</dt>
               <dd>{formatVnd(providerDashboard.today.gatewayFee)}</dd>
             </div>
             <div>
-              <dt className="text-zinc-500">Lợi nhuận gộp</dt>
+              <dt className="text-slate-500">Lợi nhuận gộp</dt>
               <dd className="font-bold text-emerald-600">{formatVnd(providerDashboard.today.grossProfit)}</dd>
             </div>
           </dl>
@@ -199,7 +199,7 @@ export function FinanceProvidersPanel() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-zinc-500">
+                <tr className="border-b text-left text-slate-500">
                   <th className="py-2 pr-4">Nhà cung cấp</th>
                   <th className="py-2 pr-4">Số dư đầu kỳ</th>
                   <th className="py-2 pr-4">Chi phí sử dụng</th>
@@ -210,7 +210,7 @@ export function FinanceProvidersPanel() {
               </thead>
               <tbody>
                 {providerRecon.map((r) => (
-                  <tr key={r.id} className="border-b border-zinc-50">
+                  <tr key={r.id} className="border-b border-slate-50">
                     <td className="py-3 pr-4">{r.provider?.name ?? r.provider?.code ?? r.providerId.slice(0, 8)}</td>
                     <td className="py-3 pr-4">{formatVnd(r.openingBalance)}</td>
                     <td className="py-3 pr-4">{formatVnd(r.expectedBalance)}</td>
@@ -233,7 +233,7 @@ export function FinanceProvidersPanel() {
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-zinc-500">
+                <tr className="border-b text-left text-slate-500">
                   <th className="py-2 pr-4">Mã đơn</th>
                   <th className="py-2 pr-4">NCC</th>
                   <th className="py-2 pr-4">Khách trả</th>
@@ -245,7 +245,7 @@ export function FinanceProvidersPanel() {
               </thead>
               <tbody>
                 {providerTxns.map((tx) => (
-                  <tr key={tx.id} className="border-b border-zinc-50 align-top">
+                  <tr key={tx.id} className="border-b border-slate-50 align-top">
                     <td className="py-3 pr-4 font-mono text-xs">{tx.orderCode}</td>
                     <td className="py-3 pr-4">{tx.providerCode}</td>
                     <td className="py-3 pr-4">{formatVnd(tx.customerPaid)}</td>
@@ -254,7 +254,7 @@ export function FinanceProvidersPanel() {
                     <td className="py-3 pr-4">
                       <Badge tone={statusTone(tx.status)} status={tx.status} />
                     </td>
-                    <td className="py-3 max-w-xs truncate text-xs text-zinc-500">
+                    <td className="py-3 max-w-xs truncate text-xs text-slate-500">
                       {tx.errorMessage ??
                         (typeof tx.responsePayload === 'string'
                           ? tx.responsePayload
@@ -271,7 +271,7 @@ export function FinanceProvidersPanel() {
       {tab === 'costHistory' && (
         <Card className="space-y-4">
           <h2 className="font-semibold">Biến động giá vốn</h2>
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-slate-600">
             Lịch sử thay đổi giá vốn được ghi khi đồng bộ sản phẩm từ nhà cung cấp. API báo cáo chi tiết sẽ bổ sung
             trong Phase tiếp theo — hiện xem giá mapping tại{' '}
             <Link href="/products" className="text-admin-600 hover:underline">
@@ -279,10 +279,10 @@ export function FinanceProvidersPanel() {
             </Link>
             .
           </p>
-          <div className="overflow-x-auto rounded-lg border border-zinc-100">
+          <div className="overflow-x-auto rounded-lg border border-slate-100">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b bg-zinc-50 text-left text-zinc-500">
+                <tr className="border-b bg-slate-50 text-left text-slate-500">
                   <th className="py-2 px-4">Sản phẩm</th>
                   <th className="py-2 px-4">Giá vốn cũ</th>
                   <th className="py-2 px-4">Giá vốn mới</th>
@@ -291,7 +291,7 @@ export function FinanceProvidersPanel() {
               </thead>
               <tbody>
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-zinc-400">
+                  <td colSpan={4} className="py-8 text-center text-slate-400">
                     Chưa có dữ liệu — đồng bộ sản phẩm NCC để ghi nhận biến động giá vốn.
                   </td>
                 </tr>

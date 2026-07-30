@@ -53,7 +53,7 @@ export default function UsersPageClient() {
   };
 
   return (
-    <PlatformSection title="Người dùng" description="Quản lý thành viên tổ chức — cùng ví, cùng API key, quyền riêng.">
+    <PlatformSection title="Người dùng" description="Quản lý thành viên tổ chức — cùng số dư, cùng API key, quyền riêng.">
       {error && <p className="text-sm text-red-600">{error}</p>}
       {msg && <p className="text-sm text-emerald-600">{msg}</p>}
 

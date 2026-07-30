@@ -14,9 +14,8 @@ import { WalletPageShell } from '@/components/wallet/WalletSubNav';
 
 const TERMINAL = new Set(['CREDITED', 'EXPIRED', 'FAILED', 'CANCELLED']);
 const POLL_MS = 30_000;
-/** Per-transaction limits — keep in sync with API deposit.constants.ts */
-const MIN_DEPOSIT_AMOUNT = 5_000_000;
-const MAX_DEPOSIT_AMOUNT = 300_000_000;
+const DEFAULT_MIN_DEPOSIT_AMOUNT = 5_000_000;
+const DEFAULT_MAX_DEPOSIT_AMOUNT = 300_000_000;
 
 function newIdempotencyKey() {
   return crypto.randomUUID();
@@ -38,6 +37,8 @@ export default function FinanceDepositsPageClient() {
 
   const [items, setItems] = useState<FinanceDepositRow[]>([]);
   const [gateways, setGateways] = useState<FinanceDepositGateway[]>([]);
+  const [minAmount, setMinAmount] = useState(DEFAULT_MIN_DEPOSIT_AMOUNT);
+  const [maxAmount, setMaxAmount] = useState(DEFAULT_MAX_DEPOSIT_AMOUNT);
   const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,8 @@ export default function FinanceDepositsPageClient() {
       const res = await financeApi.listDeposits({ skip, take });
       setItems(res.items);
       setTotal(res.total);
+      if (typeof res.minAmount === 'number') setMinAmount(res.minAmount);
+      if (typeof res.maxAmount === 'number') setMaxAmount(res.maxAmount);
       if (res.gateways?.length) {
         setGateways(res.gateways);
         if (!gateway) setGateway(res.gateways[0].code);
@@ -169,16 +172,16 @@ export default function FinanceDepositsPageClient() {
                     id="amount"
                     className="mt-1"
                     inputMode="numeric"
-                    placeholder={String(MIN_DEPOSIT_AMOUNT)}
+                    placeholder={String(minAmount)}
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     required
-                    min={MIN_DEPOSIT_AMOUNT}
-                    max={MAX_DEPOSIT_AMOUNT}
+                    min={minAmount}
+                    max={maxAmount}
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    Tối thiểu {formatVnd(String(MIN_DEPOSIT_AMOUNT))} — tối đa{' '}
-                    {formatVnd(String(MAX_DEPOSIT_AMOUNT))} mỗi lần nạp.
+                    Tối thiểu {formatVnd(String(minAmount))} — tối đa{' '}
+                    {formatVnd(String(maxAmount))} mỗi lần nạp.
                   </p>
                 </div>
                 <div>
@@ -216,8 +219,8 @@ export default function FinanceDepositsPageClient() {
                       type="submit"
                       disabled={
                         creating ||
-                        parsedAmount < MIN_DEPOSIT_AMOUNT ||
-                        parsedAmount > MAX_DEPOSIT_AMOUNT
+                        parsedAmount < minAmount ||
+                        parsedAmount > maxAmount
                       }
                     >
                       {creating ? 'Đang tạo...' : 'Sinh giao dịch'}

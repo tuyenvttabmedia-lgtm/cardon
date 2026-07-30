@@ -25,7 +25,7 @@ export function CardPinField({
   if (!canView) {
     return (
       <div>
-        <p className="text-xs text-zinc-500">PIN</p>
+        <p className="text-xs text-slate-500">PIN</p>
         <p className="font-mono text-sm">{pinMasked ?? '************'}</p>
       </div>
     );
@@ -48,7 +48,7 @@ export function CardPinField({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-xs text-zinc-500">PIN</p>
+        <p className="text-xs text-slate-500">PIN</p>
         <p className="font-mono text-sm">{display}</p>
       </div>
       <div className="flex flex-wrap gap-2">

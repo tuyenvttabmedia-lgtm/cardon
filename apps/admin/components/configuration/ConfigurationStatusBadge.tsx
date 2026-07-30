@@ -1,14 +1,16 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/Display';
 import { vi } from '@/lib/i18n/vi';
 
-const STATUS_CLASS: Record<string, string> = {
-  configured: 'bg-green-100 text-green-800',
-  production_ready: 'bg-green-100 text-green-800',
-  needs_attention: 'bg-yellow-100 text-yellow-800',
-  warning: 'bg-yellow-100 text-yellow-800',
-  disabled: 'bg-zinc-100 text-zinc-600',
+type BadgeTone = 'success' | 'warning' | 'default';
+
+const STATUS_TONE: Record<string, BadgeTone> = {
+  configured: 'success',
+  production_ready: 'success',
+  needs_attention: 'warning',
+  warning: 'warning',
+  disabled: 'default',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -21,9 +23,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function ConfigurationStatusBadge({ status }: { status: string }) {
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', STATUS_CLASS[status] ?? STATUS_CLASS.warning)}>
-      {STATUS_LABEL[status] ?? status}
-    </span>
+    <Badge tone={STATUS_TONE[status] ?? 'warning'}>{STATUS_LABEL[status] ?? status}</Badge>
   );
 }
 

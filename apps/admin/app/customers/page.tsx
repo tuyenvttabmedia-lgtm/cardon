@@ -12,6 +12,8 @@ import { RequirePermission } from '@/components/layout/AdminShell';
 
 import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 
+import { Dialog } from '@/components/ui/Dialog';
+
 import { Button, Input } from '@/components/ui/Form';
 
 import { useToast } from '@/components/ui/Toast';
@@ -189,7 +191,7 @@ function CustomersPageInner() {
 
       <div className="space-y-6">
 
-        <h1 className="text-2xl font-bold">{vi.customers.title}</h1>
+        <h1 className="admin-page-title">{vi.customers.title}</h1>
 
         {error && <ErrorMessage message={error} />}
 
@@ -341,7 +343,7 @@ function CustomersPageInner() {
 
                 {detail.orders.length === 0 && (
 
-                  <p className="text-sm text-zinc-500">Chưa có đơn hàng.</p>
+                  <p className="text-sm text-slate-500">Chưa có đơn hàng.</p>
 
                 )}
 
@@ -351,7 +353,7 @@ function CustomersPageInner() {
 
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-sm">
 
-                  <label className="inline-flex items-center gap-2 text-zinc-600">
+                  <label className="inline-flex items-center gap-2 text-slate-600">
 
                     <span>{vi.customers.ordersPerPage}</span>
 
@@ -367,7 +369,7 @@ function CustomersPageInner() {
 
                       }}
 
-                      className="rounded border border-zinc-200 px-2 py-1"
+                      className="rounded border border-slate-200 px-2 py-1"
 
                     >
 
@@ -405,7 +407,7 @@ function CustomersPageInner() {
 
                       </Button>
 
-                      <span className="text-zinc-600">
+                      <span className="text-slate-600">
 
                         {Math.floor(orderSkip / orderTake) + 1}/
 
@@ -461,55 +463,33 @@ function CustomersPageInner() {
 
 
 
-        {resetResult && (
-
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-
-            <Card className="w-full max-w-md space-y-4">
-
-              <h2 className="font-semibold">{vi.customers.resetPassword}</h2>
-
-              <p className="text-sm text-zinc-600">{resetResult.email}</p>
-
-              {resetResult.mode === 'link' ? (
-
-                <div className="space-y-2">
-
-                  <p className="text-sm font-medium">{vi.customers.resetLink}</p>
-
-                  <Input readOnly value={resetResult.resetLink} className="font-mono text-xs" />
-
-                  <Button size="sm" onClick={() => copyResetLink(resetResult.resetLink)}>
-
-                    {vi.customers.copyLink}
-
-                  </Button>
-
-                </div>
-
-              ) : (
-
-                <div className="space-y-2">
-
-                  <p className="text-sm font-medium">{vi.customers.tempPassword}</p>
-
-                  <Input readOnly value={resetResult.tempPassword} className="font-mono" />
-
-                </div>
-
-              )}
-
-              <Button variant="secondary" onClick={() => setResetResult(null)}>
-
-                {vi.customers.close}
-
+        <Dialog
+          open={Boolean(resetResult)}
+          onClose={() => setResetResult(null)}
+          title={vi.customers.resetPassword}
+          description={resetResult?.email}
+          size="sm"
+          footer={
+            <Button variant="secondary" onClick={() => setResetResult(null)}>
+              {vi.customers.close}
+            </Button>
+          }
+        >
+          {resetResult?.mode === 'link' ? (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{vi.customers.resetLink}</p>
+              <Input readOnly value={resetResult.resetLink} className="font-mono text-xs" />
+              <Button size="sm" onClick={() => copyResetLink(resetResult.resetLink)}>
+                {vi.customers.copyLink}
               </Button>
-
-            </Card>
-
-          </div>
-
-        )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{vi.customers.tempPassword}</p>
+              <Input readOnly value={resetResult?.tempPassword ?? ''} className="font-mono" />
+            </div>
+          )}
+        </Dialog>
 
       </div>
 

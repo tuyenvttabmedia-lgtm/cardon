@@ -91,11 +91,29 @@ export class UpdatePaymentGatewayDto {
   @MaxLength(64)
   qrTemplate?: string;
 
+  /** MegaPay DepositCode RSA public key PEM (notify verify) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(8192)
+  notifyPublicKey?: string;
+
   /** MegaPay PG encodeKey (V1.4.6) — separate from DepositCode 3DES when provided */
   @IsOptional()
   @IsString()
   @MaxLength(512)
   pgEncodeKey?: string;
+
+  /** MegaPay PG merId when different from DepositCode merchantId */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  pgMerchantId?: string;
+
+  /** MegaPay PG refund/cancel API password */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  pgRefundPassword?: string;
 
   @IsOptional()
   @IsIn(['sandbox', 'production'])
@@ -232,6 +250,25 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsBoolean()
   customerDataEnabled?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(30)
+  @Max(3650)
+  auditLogRetentionDays?: number;
+
+  /** Min VND per agent SePay deposit (test: lower temporarily). */
+  @IsOptional()
+  @IsInt()
+  @Min(10_000)
+  @Max(500_000_000)
+  agentDepositMinAmount?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(10_000)
+  @Max(500_000_000)
+  agentDepositMaxAmount?: number;
 }
 
 export class UpdateOrderSettingsDto {

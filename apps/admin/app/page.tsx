@@ -19,7 +19,7 @@ export default function HomePage() {
   }, [loading, isAuthenticated, user, permissions, router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center text-sm text-zinc-500">
+    <div className="flex min-h-screen items-center justify-center text-sm text-slate-500">
       Đang chuyển hướng…
     </div>
   );

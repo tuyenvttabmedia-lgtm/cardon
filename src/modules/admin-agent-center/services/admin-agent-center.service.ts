@@ -483,6 +483,7 @@ export class AdminAgentCenterService {
       emailVerified: agent.user?.emailVerifiedAt != null,
       emailVerifiedAt: agent.user?.emailVerifiedAt?.toISOString() ?? null,
       status: agent.status,
+      rateLimit: agent.rateLimit,
       createdAt: agent.createdAt.toISOString(),
       kyc: agent.kyc
         ? {
@@ -578,9 +579,14 @@ export class AdminAgentCenterService {
 
     return {
       apiEnabled: agent.apiEnabled,
+      liveApiEnabled: agent.liveApiEnabled,
       hasCredentials: Boolean(agent.apiKeyHash),
+      hasSandboxCredentials: Boolean(agent.sandboxApiKeyHash),
       apiKeyMasked: agent.apiKeyHash
         ? `${AGENT_API_KEY_PREFIX}${'•'.repeat(24)}`
+        : null,
+      sandboxApiKeyMasked: agent.sandboxApiKeyHash
+        ? `ak_test_${'•'.repeat(24)}`
         : null,
       rateLimit: agent.rateLimit,
       lastUsedAt: agent.lastUsedAt?.toISOString() ?? null,
@@ -861,7 +867,7 @@ export class AdminAgentCenterService {
   }
 
   async getMarginConfig() {
-    const [config, settingRow, lastAudit, sampleCosts] = await Promise.all([
+    const [config, settingRow, lastAudit, samples] = await Promise.all([
       this.marginConfig.getConfig(),
       this.prisma.systemSetting.findUnique({ where: { key: AGENT_MARGIN_SETTINGS_KEY } }),
       this.prisma.systemAuditLog.findFirst({
@@ -878,7 +884,8 @@ export class AdminAgentCenterService {
     return {
       ...config,
       labels: PRODUCT_GROUP_LABELS,
-      sampleCosts,
+      sampleCosts: samples.costs,
+      sampleFaceValues: samples.faceValues,
       defaults: DEFAULT_AGENT_MARGIN_CONFIG,
       lastUpdated: {
         at: (lastAudit?.createdAt ?? settingRow?.updatedAt)?.toISOString() ?? null,
@@ -915,12 +922,22 @@ export class AdminAgentCenterService {
             },
           },
           orderBy: { providerCost: 'asc' },
-          select: { providerCost: true },
+          select: {
+            providerCost: true,
+            productVariant: { select: { faceValue: true } },
+          },
         });
-        return [homeService, row ? Number(row.providerCost) : null] as const;
+        return {
+          homeService,
+          cost: row ? Number(row.providerCost) : null,
+          face: row ? Number(row.productVariant.faceValue) : null,
+        };
       }),
     );
-    return Object.fromEntries(entries);
+    return {
+      costs: Object.fromEntries(entries.map((e) => [e.homeService, e.cost])),
+      faceValues: Object.fromEntries(entries.map((e) => [e.homeService, e.face])),
+    };
   }
 
   async getPricing(agentId: string) {
@@ -962,7 +979,7 @@ export class AdminAgentCenterService {
     return {
       config,
       formula:
-        'Giá bán đại lý = Giá vốn nhà cung cấp + Biên lợi nhuận CardOn (theo % hoặc VNĐ, làm tròn 100đ)',
+        'CK đại lý = CK NCC − biên LN CardOn (% mệnh giá); Giá ĐL = mệnh giá × (1 − CK ĐL) ≡ vốn NCC + biên LN (làm tròn 100đ)',
       items,
     };
   }

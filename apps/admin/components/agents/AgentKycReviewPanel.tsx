@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Card, statusTone } from '@/components/ui/Display';
+import { Dialog } from '@/components/ui/Dialog';
 import { Button } from '@/components/ui/Form';
 import { formatDateTime } from '@/lib/utils';
 import {
@@ -117,9 +118,9 @@ function KycDocumentViewer({
 
   return (
     <>
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
-        <p className="text-sm font-medium text-zinc-800">{doc.label}</p>
-        <p className="mt-0.5 truncate text-xs text-zinc-400" title={doc.key}>
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <p className="text-sm font-medium text-slate-800">{doc.label}</p>
+        <p className="mt-0.5 truncate text-xs text-slate-400" title={doc.key}>
           {doc.key.split('/').pop()}
         </p>
         {canView ? (
@@ -127,39 +128,21 @@ function KycDocumentViewer({
             Xem tài liệu
           </Button>
         ) : (
-          <p className="mt-2 text-xs text-zinc-500">Cần quyền duyệt KYC để xem</p>
+          <p className="mt-2 text-xs text-slate-500">Cần quyền duyệt KYC để xem</p>
         )}
       </div>
 
-      {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          onClick={close}
-        >
-          <div
-            className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h4 className="font-semibold text-zinc-900">{doc.label}</h4>
-              <Button size="sm" variant="ghost" onClick={close}>
-                Đóng
-              </Button>
-            </div>
-            {loading && <p className="text-sm text-zinc-500">Đang tải…</p>}
-            {error && <p className="text-sm text-red-600">{error}</p>}
-            {previewUrl && !loading && (
-              <img
-                src={previewUrl}
-                alt={doc.label}
-                className="mx-auto max-h-[70vh] w-auto rounded-lg border border-zinc-200"
-              />
-            )}
-          </div>
-        </div>
-      )}
+      <Dialog open={open} onClose={close} title={doc.label} size="lg">
+        {loading && <p className="text-sm text-slate-500">Đang tải…</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {previewUrl && !loading && (
+          <img
+            src={previewUrl}
+            alt={doc.label}
+            className="mx-auto max-h-[70vh] w-auto rounded-lg border border-slate-200"
+          />
+        )}
+      </Dialog>
     </>
   );
 }
@@ -177,25 +160,26 @@ export function AgentKycReviewPanel({
   emailVerified?: boolean | null;
   canViewDocuments: boolean;
 }) {
+  const accountType = (kyc?.accountType as AgentAccountType) ?? 'COMPANY';
+  const profile = (kyc?.profile ?? {}) as Record<string, unknown>;
+  const documents = useMemo(() => (kyc ? collectDocuments(kyc) : []), [kyc]);
+  const profileEntries = useMemo(
+    () => orderedProfileEntries(accountType, profile),
+    [accountType, profile],
+  );
+
   if (!kyc) {
     return (
-      <Card className="p-4 text-sm text-zinc-500">
+      <Card className="p-4 text-sm text-slate-500">
         Chưa có hồ sơ KYC. Đại lý chưa nộp thông tin xác minh.
       </Card>
     );
   }
 
-  const accountType = (kyc.accountType as AgentAccountType) ?? 'COMPANY';
-  const profile = (kyc.profile ?? {}) as Record<string, unknown>;
   const business = (kyc.businessProfile ?? {}) as Record<string, unknown>;
   const requestedFields = Array.isArray(kyc.requestedFields)
     ? (kyc.requestedFields as string[])
     : [];
-  const documents = useMemo(() => collectDocuments(kyc), [kyc]);
-  const profileEntries = useMemo(
-    () => orderedProfileEntries(accountType, profile),
-    [accountType, profile],
-  );
 
   const interests = Array.isArray(business.interests)
     ? (business.interests as string[]).map((v) => INTEREST_LABELS[v] ?? v)
@@ -208,9 +192,9 @@ export function AgentKycReviewPanel({
     <div className="space-y-4">
       <Card className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <h3 className="font-semibold text-zinc-900">Hồ sơ KYC</h3>
+          <h3 className="font-semibold text-slate-900">Hồ sơ KYC</h3>
           <Badge tone={statusTone(String(kyc.status))} status={String(kyc.status)} />
-          <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
             {ACCOUNT_TYPE_LABELS[accountType] ?? accountType}
           </span>
         </div>
@@ -229,18 +213,18 @@ export function AgentKycReviewPanel({
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <p className="text-xs text-zinc-500">Email đã xác minh</p>
+            <p className="text-xs text-slate-500">Email đã xác minh</p>
             <p className="font-medium">{emailVerified ? 'Có' : 'Chưa'}</p>
           </div>
           {userPhone && (
             <div>
-              <p className="text-xs text-zinc-500">SĐT tài khoản</p>
+              <p className="text-xs text-slate-500">SĐT tài khoản</p>
               <p>{userPhone}</p>
             </div>
           )}
           {typeof kyc.reviewedAt === 'string' && kyc.reviewedAt && (
             <div>
-              <p className="text-xs text-zinc-500">Cập nhật duyệt</p>
+              <p className="text-xs text-slate-500">Cập nhật duyệt</p>
               <p>{formatDateTime(kyc.reviewedAt)}</p>
             </div>
           )}
@@ -253,8 +237,8 @@ export function AgentKycReviewPanel({
           <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {profileEntries.map(([key, value]) => (
               <div key={key}>
-                <dt className="text-xs text-zinc-500">{PROFILE_FIELD_LABELS[key] ?? key}</dt>
-                <dd className="mt-0.5 font-medium text-zinc-900">{formatProfileValue(key, value)}</dd>
+                <dt className="text-xs text-slate-500">{PROFILE_FIELD_LABELS[key] ?? key}</dt>
+                <dd className="mt-0.5 font-medium text-slate-900">{formatProfileValue(key, value)}</dd>
               </div>
             ))}
           </dl>
@@ -267,13 +251,13 @@ export function AgentKycReviewPanel({
           <dl className="grid gap-3 sm:grid-cols-2">
             {interests.length > 0 && (
               <div className="sm:col-span-2">
-                <dt className="text-xs text-zinc-500">Lĩnh vực quan tâm</dt>
+                <dt className="text-xs text-slate-500">Lĩnh vực quan tâm</dt>
                 <dd className="mt-0.5">{interests.join(', ')}</dd>
               </div>
             )}
             {business.expectedVolume != null && (
               <div>
-                <dt className="text-xs text-zinc-500">Doanh số dự kiến</dt>
+                <dt className="text-xs text-slate-500">Doanh số dự kiến</dt>
                 <dd className="mt-0.5">
                   {VOLUME_LABELS[String(business.expectedVolume)] ?? String(business.expectedVolume)}
                 </dd>
@@ -281,13 +265,13 @@ export function AgentKycReviewPanel({
             )}
             {typeof business.hasExistingSystem === 'boolean' && (
               <div>
-                <dt className="text-xs text-zinc-500">Hệ thống bán hàng / API</dt>
+                <dt className="text-xs text-slate-500">Hệ thống bán hàng / API</dt>
                 <dd className="mt-0.5">{business.hasExistingSystem ? 'Đã có' : 'Chưa có'}</dd>
               </div>
             )}
             {languages.length > 0 && (
               <div className="sm:col-span-2">
-                <dt className="text-xs text-zinc-500">Ngôn ngữ lập trình</dt>
+                <dt className="text-xs text-slate-500">Ngôn ngữ lập trình</dt>
                 <dd className="mt-0.5">{languages.join(', ')}</dd>
               </div>
             )}
@@ -298,12 +282,12 @@ export function AgentKycReviewPanel({
       <Card className="space-y-3">
         <div>
           <h3 className="font-semibold">Tài liệu đính kèm</h3>
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-slate-500">
             Tài liệu KYC được lưu bảo mật — chỉ admin có quyền duyệt KYC mới xem được.
           </p>
         </div>
         {documents.length === 0 ? (
-          <p className="text-sm text-zinc-500">Chưa có tài liệu upload.</p>
+          <p className="text-sm text-slate-500">Chưa có tài liệu upload.</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {documents.map((doc) => (

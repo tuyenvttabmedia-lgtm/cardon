@@ -149,14 +149,14 @@ export default function AppearancePage() {
   }
 
   if (loading) {
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
   }
 
   if (!form) {
     return (
       <RequirePermission permission="cms.manage">
         <div className="space-y-6">
-          <h1 className="text-2xl font-bold">{vi.appearance.title}</h1>
+          <h1 className="admin-page-title">{vi.appearance.title}</h1>
           <MarketingNav />
           {error ? <ErrorMessage message={error} /> : <ErrorMessage message={vi.app.requestFailed} />}
         </div>
@@ -174,8 +174,8 @@ export default function AppearancePage() {
       <div className="space-y-5 pb-24">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">{vi.appearance.title}</h1>
-            <p className="mt-1 text-sm text-zinc-500">
+            <h1 className="admin-page-title">{vi.appearance.title}</h1>
+            <p className="mt-1 text-sm text-slate-500">
               Logo, công ty, liên hệ, menu và footer — chỉnh trên lưới 2 cột để bớt cuộn.
             </p>
           </div>
@@ -191,14 +191,14 @@ export default function AppearancePage() {
         {error ? <ErrorMessage message={error} /> : null}
 
         <nav
-          className="sticky top-0 z-20 -mx-1 flex flex-wrap gap-1.5 rounded-xl border border-zinc-200 bg-white/95 p-2 shadow-sm backdrop-blur"
+          className="sticky top-0 z-20 -mx-1 flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur"
           aria-label="Nhảy tới mục"
         >
           {SECTIONS.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             >
               {section.label}
             </a>
@@ -209,7 +209,7 @@ export default function AppearancePage() {
           <Card id="logos" className="scroll-mt-16 space-y-4 xl:col-span-2">
             <div>
               <h2 className="font-semibold">Logo & ảnh mặc định</h2>
-              <p className="mt-0.5 text-sm text-zinc-500">Logo site, favicon và ảnh Open Graph mặc định.</p>
+              <p className="mt-0.5 text-sm text-slate-500">Logo site, favicon và ảnh Open Graph mặc định.</p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <MediaImageField
@@ -242,7 +242,7 @@ export default function AppearancePage() {
           <Card id="company" className="scroll-mt-16 space-y-4">
             <div>
               <h2 className="font-semibold">Thông tin công ty (Cột 1 footer)</h2>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-sm text-slate-500">
                 Tên, MST, địa chỉ, email, giờ làm việc. Hotline hiện ở cột Hỗ trợ.
               </p>
             </div>
@@ -282,7 +282,7 @@ export default function AppearancePage() {
                     setForm({ ...form, companyInfo: { ...form.companyInfo, hotline: e.target.value } })
                   }
                 />
-                <p className="mt-1 text-xs text-zinc-500">Cột Hỗ trợ (Hotline: …)</p>
+                <p className="mt-1 text-xs text-slate-500">Cột Hỗ trợ (Hotline: …)</p>
               </div>
               <div className="sm:col-span-2">
                 <Label>Địa chỉ</Label>
@@ -306,7 +306,7 @@ export default function AppearancePage() {
                     setForm({ ...form, companyInfo: { ...form.companyInfo, email: e.target.value } })
                   }
                 />
-                <p className="mt-1 text-xs text-zinc-500">Cột 1 footer (Email: …)</p>
+                <p className="mt-1 text-xs text-slate-500">Cột 1 footer (Email: …)</p>
               </div>
               <div>
                 <Label>Thời gian làm việc</Label>
@@ -321,7 +321,7 @@ export default function AppearancePage() {
                     })
                   }
                 />
-                <p className="mt-1 text-xs text-zinc-500">Cột 1 footer (Thời gian làm việc: …)</p>
+                <p className="mt-1 text-xs text-slate-500">Cột 1 footer (Thời gian làm việc: …)</p>
               </div>
             </div>
           </Card>
@@ -330,9 +330,9 @@ export default function AppearancePage() {
             <Card className="space-y-4">
               <div>
                 <h2 className="font-semibold">Logo Bộ Công Thương</h2>
-                <p className="mt-0.5 text-sm text-zinc-500">Hiện dưới cột cuối footer (thường là Hỗ trợ).</p>
+                <p className="mt-0.5 text-sm text-slate-500">Hiện dưới cột cuối footer (thường là Hỗ trợ).</p>
               </div>
-              <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={form.companyInfo?.boCongThuongEnabled === true}
@@ -375,12 +375,12 @@ export default function AppearancePage() {
             <Card className="space-y-4">
               <div>
                 <h2 className="font-semibold">Google Map (/lien-he)</h2>
-                <p className="mt-0.5 text-sm text-zinc-500">
-                  Google Maps → Chia sẻ → Nhúng bản đồ → dán URL <code className="rounded bg-zinc-100 px-1">src</code>{' '}
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Google Maps → Chia sẻ → Nhúng bản đồ → dán URL <code className="rounded bg-slate-100 px-1">src</code>{' '}
                   hoặc cả iframe.
                 </p>
               </div>
-              <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
                   checked={form.companyInfo?.googleMapEnabled === true}
@@ -396,7 +396,7 @@ export default function AppearancePage() {
               <div>
                 <Label>Embed URL / HTML iframe</Label>
                 <textarea
-                  className="mt-1 w-full rounded-md border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
                   rows={3}
                   placeholder="https://www.google.com/maps/embed?pb=…"
                   value={form.companyInfo?.googleMapEmbedUrl ?? ''}
@@ -412,7 +412,7 @@ export default function AppearancePage() {
                     URL chưa hợp lệ — cần link embed Google Maps (có /maps/embed).
                   </p>
                 ) : (
-                  <p className="mt-1 text-xs text-zinc-500">Chỉ chấp nhận HTTPS embed từ Google Maps.</p>
+                  <p className="mt-1 text-xs text-slate-500">Chỉ chấp nhận HTTPS embed từ Google Maps.</p>
                 )}
               </div>
             </Card>
@@ -421,7 +421,7 @@ export default function AppearancePage() {
           <Card id="contact" className="scroll-mt-16 space-y-4 xl:col-span-2">
             <div>
               <h2 className="font-semibold">Kênh liên hệ (trang /lien-he)</h2>
-              <p className="mt-0.5 text-sm text-zinc-500">
+              <p className="mt-0.5 text-sm text-slate-500">
                 Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ — 5 kênh cố định.
               </p>
             </div>
@@ -429,12 +429,12 @@ export default function AppearancePage() {
               {(form.contactChannels ?? []).map((channel, i) => {
                 const meta = CONTACT_CHANNEL_META[channel.key];
                 return (
-                  <div key={channel.key} className="space-y-2 rounded-xl border border-zinc-100 bg-zinc-50/60 p-3">
+                  <div key={channel.key} className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-sm font-medium">
                         {meta.icon} {meta.label}
                       </span>
-                      <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+                      <label className="flex items-center gap-1.5 text-xs text-slate-600">
                         <input
                           type="checkbox"
                           checked={channel.enabled !== false}
@@ -482,7 +482,7 @@ export default function AppearancePage() {
             </div>
             <div className="space-y-2">
               {form.headerMenu.map((item, i) => (
-                <div key={i} className="grid gap-2 rounded-lg border border-zinc-100 p-2.5 sm:grid-cols-[1fr_1fr_5rem_auto]">
+                <div key={i} className="grid gap-2 rounded-lg border border-slate-100 p-2.5 sm:grid-cols-[1fr_1fr_5rem_auto]">
                   <Input
                     value={item.label}
                     onChange={(e) => updateMenu(i, { label: e.target.value })}
@@ -516,7 +516,7 @@ export default function AppearancePage() {
             </div>
             <div className="space-y-2">
               {(form.mobileNav ?? []).map((item, i) => (
-                <div key={i} className="space-y-2 rounded-lg border border-zinc-100 p-2.5">
+                <div key={i} className="space-y-2 rounded-lg border border-slate-100 p-2.5">
                   <div className="grid gap-2 sm:grid-cols-[1fr_4rem_1fr_4rem]">
                     <Input
                       value={item.label}
@@ -541,7 +541,7 @@ export default function AppearancePage() {
                     />
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600">
                       <input
                         type="checkbox"
                         checked={item.requireLogin === true}
@@ -549,7 +549,7 @@ export default function AppearancePage() {
                       />
                       {vi.appearance.requireLogin}
                     </label>
-                    <label className="flex items-center gap-1.5 text-xs text-zinc-600">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600">
                       <input
                         type="checkbox"
                         checked={item.active !== false}
@@ -570,7 +570,7 @@ export default function AppearancePage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="font-semibold">{vi.appearance.footerColumns}</h2>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-slate-500">
                   Cột liên kết 2–4. Cột 1 lấy từ &quot;Thông tin công ty&quot; — không tạo riêng.
                 </p>
               </div>
@@ -579,13 +579,13 @@ export default function AppearancePage() {
               </Button>
             </div>
             {form.footerColumns.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
                 Chưa có cột liên kết. Nhấn &quot;{vi.appearance.addColumn}&quot; để thêm.
               </p>
             ) : (
               <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 {form.footerColumns.map((col, ci) => (
-                  <div key={ci} className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4">
+                  <div key={ci} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-admin-100 px-2 text-xs font-bold text-admin-700">
                         Cột {ci + 2}
@@ -621,7 +621,7 @@ export default function AppearancePage() {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Liên kết</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Liên kết</p>
                       {col.links.map((link, li) => (
                         <div key={li} className="grid gap-1.5">
                           <Input
@@ -673,9 +673,9 @@ export default function AppearancePage() {
           </Card>
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur lg:left-64">
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] backdrop-blur lg:left-64">
           <div className="mx-auto flex max-w-[1600px] items-center justify-between gap-3">
-            <p className="hidden text-sm text-zinc-500 sm:block">
+            <p className="hidden text-sm text-slate-500 sm:block">
               {saved ? vi.cms.saved : 'Nhớ lưu sau khi chỉnh logo, công ty, menu hoặc footer.'}
             </p>
             <Button onClick={() => void save()} disabled={saving}>

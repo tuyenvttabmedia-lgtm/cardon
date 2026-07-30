@@ -315,6 +315,8 @@ export interface AgentOrderListRow {
   customerReference: string | null;
   providerTransaction: string | null;
   gateway: string;
+  environment?: 'SANDBOX' | 'PRODUCTION';
+  isSandbox?: boolean;
   product: string;
   productName: string;
   faceValue: string;
@@ -491,18 +493,32 @@ export interface AgentIpWhitelistEntry {
   reviewedBy?: string | null;
 }
 
-export interface AgentSecurityApiKeys {
+export interface AgentSecurityApiKeyEnvCard {
+  prefix: string;
   hasCredentials: boolean;
+  apiKeyMasked: string | null;
+  status: string;
+  hint: string;
+  balance?: string;
+  heldBalance?: string;
+}
+
+export interface AgentSecurityApiKeys {
   apiEnabled: boolean;
+  liveApiEnabled: boolean;
+  permissions: string[];
+  lastUsedAt: string | null;
+  lastUsedIp: string | null;
+  sandbox: AgentSecurityApiKeyEnvCard;
+  live: AgentSecurityApiKeyEnvCard;
+  /** @deprecated back-compat */
+  hasCredentials: boolean;
   apiKeyMasked: string | null;
   label: string;
   environment: 'PRODUCTION' | 'SANDBOX';
   createdAt: string;
-  lastUsedAt: string | null;
-  lastUsedIp: string | null;
   expiresAt: string | null;
   status: string;
-  permissions: string[];
 }
 
 export interface AgentSecurityDashboard {

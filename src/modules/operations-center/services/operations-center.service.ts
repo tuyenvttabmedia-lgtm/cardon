@@ -395,7 +395,7 @@ export class OperationsCenterService {
       }
 
       if (providerTxn?.status === ProviderTransactionStatus.TIMEOUT) {
-        items.push(this.mismatchRow('PROVIDER_TIMEOUT', 'HIGH', order, 'Provider timeout', gateway, providerTxn.providerReference));
+        items.push(this.mismatchRow('PROVIDER_TIMEOUT', 'HIGH', order, 'NCC hết thời gian chờ (timeout)', gateway, providerTxn.providerReference));
       }
     }
 
@@ -419,13 +419,21 @@ export class OperationsCenterService {
           orderCode: null,
           paymentReference: payment.paymentReference,
           providerRef: null,
-          description: 'Đã nhận tiền — chưa tạo Order',
+          description: 'Đã nhận tiền nhưng chưa tạo đơn hàng',
           detectedAt: payment.createdAt.toISOString(),
           gateway: payment.gateway,
           provider: null,
         });
       }
       if (payment.reconciliationStatus && payment.reconciliationStatus !== PaymentReconciliationStatus.MATCHED) {
+        const reconVi =
+          payment.reconciliationStatus === PaymentReconciliationStatus.PENDING
+            ? 'Chờ đối soát'
+            : payment.reconciliationStatus === PaymentReconciliationStatus.DIFFERENCE
+              ? 'Có chênh lệch'
+              : payment.reconciliationStatus === PaymentReconciliationStatus.MANUAL_REVIEW
+                ? 'Cần xem thủ công'
+                : String(payment.reconciliationStatus);
         items.push({
           id: `pay-mismatch-${payment.id}`,
           type: 'PAYMENT_MISMATCH',
@@ -434,7 +442,7 @@ export class OperationsCenterService {
           orderCode: payment.order?.orderCode ?? null,
           paymentReference: payment.paymentReference,
           providerRef: null,
-          description: `Gateway lệch: ${payment.reconciliationStatus}`,
+          description: `Cổng thanh toán lệch đối soát: ${reconVi}`,
           detectedAt: payment.createdAt.toISOString(),
           gateway: payment.gateway,
           provider: null,
@@ -543,7 +551,14 @@ export class OperationsCenterService {
   }
 
   private async detectExceptions(query: OperationsListQuery) {
-    const mismatches = await this.detectMismatches({ ...query, take: 500 });
+    // Load full mismatch window first, then filter/paginate exceptions locally.
+    // Do not forward skip/take into detectMismatches or pages will skip source rows incorrectly.
+    const mismatches = await this.detectMismatches({
+      severity: query.severity,
+      search: query.search,
+      skip: 0,
+      take: 2000,
+    });
     const items = mismatches.items.map((m) => {
       const state = this.exceptionState.get(m.id);
       return {

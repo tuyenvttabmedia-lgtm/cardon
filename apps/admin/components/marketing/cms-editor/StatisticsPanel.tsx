@@ -17,9 +17,9 @@ export const StatisticsPanel = memo(function StatisticsPanel({ content }: { cont
   return (
     <div className="grid grid-cols-2 gap-2">
       {rows.map((r) => (
-        <div key={r.label} className="rounded-lg bg-zinc-50 px-3 py-2">
-          <p className="text-[10px] uppercase tracking-wide text-zinc-400">{r.label}</p>
-          <p className="text-sm font-semibold text-zinc-800">{r.value}</p>
+        <div key={r.label} className="rounded-lg bg-slate-50 px-3 py-2">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400">{r.label}</p>
+          <p className="text-sm font-semibold text-slate-800">{r.value}</p>
         </div>
       ))}
     </div>

@@ -41,8 +41,12 @@ export class AgentSecurityController {
   }
 
   @Post('api-keys/rotate')
-  async rotateKey(@CurrentUser() user: AuthenticatedUser) {
-    return this.securityService.rotateApiKey(user.id, await this.role(user));
+  async rotateKey(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body?: { environment?: 'SANDBOX' | 'PRODUCTION' },
+  ) {
+    const environment = body?.environment === 'PRODUCTION' ? 'PRODUCTION' : 'SANDBOX';
+    return this.securityService.rotateApiKey(user.id, await this.role(user), environment);
   }
 
   @Post('api-keys/disable')

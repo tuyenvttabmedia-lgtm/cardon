@@ -32,7 +32,7 @@ export const EditorRightPanel = memo(function EditorRightPanel({
   saving: boolean;
 }) {
   return (
-    <aside className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-zinc-200 bg-zinc-50/50 p-3 lg:w-96">
+    <aside className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-slate-200 bg-slate-50/50 p-3 lg:w-96">
       <PanelCard title="Publish">
         <PublishPanel
           form={form}

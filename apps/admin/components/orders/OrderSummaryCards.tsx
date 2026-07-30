@@ -20,7 +20,7 @@ export function OrderSummaryCards({ summary }: { summary: AdminOrderSummary | nu
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {cards.map((c) => (
         <Card key={c.label} className="p-4">
-          <p className="text-xs text-zinc-500">{c.label}</p>
+          <p className="text-xs text-slate-500">{c.label}</p>
           <p
             className={`mt-1 text-lg font-semibold ${
               c.highlight

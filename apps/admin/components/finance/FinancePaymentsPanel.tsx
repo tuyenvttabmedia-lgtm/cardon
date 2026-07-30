@@ -173,7 +173,7 @@ export function FinancePaymentsPanel() {
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-zinc-500">
+                    <tr className="border-b text-left text-slate-500">
                       <th className="py-2 pr-4">Phương thức</th>
                       <th className="py-2 pr-4">Số giao dịch</th>
                       <th className="py-2 pr-4">Tổng tiền khách trả</th>
@@ -187,9 +187,9 @@ export function FinancePaymentsPanel() {
                       const gap =
                         Number(row.totalCollected) - Number(row.totalFee) - Number(row.netAmount);
                       return (
-                        <tr key={`${row.gateway}-${row.methodCode}`} className="border-b border-zinc-50">
+                        <tr key={`${row.gateway}-${row.methodCode}`} className="border-b border-slate-50">
                           <td className="py-3 pr-4">
-                            <span className="ml-4 block border-l-2 border-zinc-200 pl-3">
+                            <span className="ml-4 block border-l-2 border-slate-200 pl-3">
                               {row.methodDisplayName ?? row.method}
                             </span>
                           </td>
@@ -218,52 +218,52 @@ export function FinancePaymentsPanel() {
             {settlementReport.sections.map((section) => (
               <div
                 key={`${section.settlementType}-${section.gateway}`}
-                className="rounded-lg border border-zinc-100 p-4"
+                className="rounded-lg border border-slate-100 p-4"
               >
                 <h4 className="font-medium">
                   {section.gateway} · {section.settlementType}
                 </h4>
                 <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                   <div>
-                    <dt className="text-zinc-500">Giao dịch</dt>
+                    <dt className="text-slate-500">Giao dịch</dt>
                     <dd>{section.transactionCount}</dd>
                   </div>
                   <div>
-                    <dt className="text-zinc-500">Tổng volume</dt>
+                    <dt className="text-slate-500">Tổng volume</dt>
                     <dd>{formatVnd(section.totalVolume)}</dd>
                   </div>
                   {'bankReceivedAmount' in section ? (
                     <>
                       <div>
-                        <dt className="text-zinc-500">Tiền về ngân hàng</dt>
+                        <dt className="text-slate-500">Tiền về ngân hàng</dt>
                         <dd>{formatVnd(section.bankReceivedAmount)}</dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Phí cổng (hóa đơn)</dt>
+                        <dt className="text-slate-500">Phí cổng (hóa đơn)</dt>
                         <dd>{formatVnd(section.gatewayFeeInvoice)}</dd>
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <dt className="text-zinc-500">Cổng thu hộ</dt>
+                        <dt className="text-slate-500">Cổng thu hộ</dt>
                         <dd>{formatVnd(section.gatewayCollected)}</dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Phí cổng</dt>
+                        <dt className="text-slate-500">Phí cổng</dt>
                         <dd>{formatVnd(section.gatewayFee)}</dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Đối soát nhận tiền dự kiến</dt>
+                        <dt className="text-slate-500">Đối soát nhận tiền dự kiến</dt>
                         <dd>{formatVnd(section.expectedSettlement)}</dd>
                       </div>
                       <div>
-                        <dt className="text-zinc-500">Đối soát nhận tiền thực tế</dt>
+                        <dt className="text-slate-500">Đối soát nhận tiền thực tế</dt>
                         <dd>{section.actualSettlement ? formatVnd(section.actualSettlement) : '—'}</dd>
                       </div>
                       {section.settlementGap ? (
                         <div>
-                          <dt className="text-zinc-500">Chênh lệch</dt>
+                          <dt className="text-slate-500">Chênh lệch</dt>
                           <dd className="text-amber-700">{formatVnd(section.settlementGap)}</dd>
                         </div>
                       ) : null}
@@ -285,7 +285,7 @@ export function FinancePaymentsPanel() {
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
-                      <tr className="border-b text-left text-zinc-500">
+                      <tr className="border-b text-left text-slate-500">
                         <th className="py-2 pr-4">Phương thức</th>
                         <th className="py-2 pr-4">Cổng thanh toán</th>
                         <th className="py-2 pr-4">% phí</th>
@@ -296,7 +296,7 @@ export function FinancePaymentsPanel() {
                     </thead>
                     <tbody>
                       {group.methods.map((row) => (
-                        <tr key={`${row.gateway}-${row.methodCode}`} className="border-b border-zinc-50">
+                        <tr key={`${row.gateway}-${row.methodCode}`} className="border-b border-slate-50">
                           <td className="py-3 pr-4">{row.methodDisplayName ?? row.method}</td>
                           <td className="py-3 pr-4">{row.gateway}</td>
                           <td className="py-3 pr-4">{row.percentFee}%</td>
@@ -400,7 +400,7 @@ export function FinancePaymentsPanel() {
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="border-b text-left text-zinc-500">
+                <tr className="border-b text-left text-slate-500">
                   <th className="py-2 pr-4">Số hóa đơn</th>
                   <th className="py-2 pr-4">Kỳ</th>
                   <th className="py-2 pr-4">Cổng thanh toán</th>
@@ -411,7 +411,7 @@ export function FinancePaymentsPanel() {
               </thead>
               <tbody>
                 {gatewayInvoices.map((inv) => (
-                  <tr key={inv.id} className="border-b border-zinc-50">
+                  <tr key={inv.id} className="border-b border-slate-50">
                     <td className="py-3 pr-4 font-mono text-xs">{inv.invoiceNumber ?? '—'}</td>
                     <td className="py-3 pr-4">{inv.period}</td>
                     <td className="py-3 pr-4">{inv.gatewayCode}</td>

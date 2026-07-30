@@ -163,8 +163,8 @@ export default function CheckoutPayPageClient() {
               Xem trạng thái đơn (chưa xác nhận thanh toán)
             </button>
             <p className="mt-3 text-xs leading-relaxed text-cardon-gray sm:text-sm">
-              Đơn chỉ xác nhận sau khi ngân hàng báo về SePay và webhook tới CardOn. Nút trên không tự
-              đánh dấu đã thanh toán — hãy giữ trang này hoặc kiểm tra lại đơn sau vài phút.
+              Đơn sẽ được xác nhận sau khi hệ thống nhận được báo có từ ngân hàng. Nút trên chỉ xem trạng
+              thái, không tự đánh dấu đã thanh toán.
             </p>
           </div>
 

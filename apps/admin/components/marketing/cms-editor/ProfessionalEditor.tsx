@@ -86,7 +86,7 @@ function ToolbarBtn({
       title={title}
       onClick={onClick}
       className={`rounded-md px-2 py-1 text-xs font-semibold transition ${
-        active ? 'bg-admin-600 text-white' : 'text-zinc-600 hover:bg-zinc-200'
+        active ? 'bg-admin-600 text-white' : 'text-slate-600 hover:bg-slate-200'
       }`}
     >
       {children}
@@ -314,37 +314,37 @@ function ProfessionalEditorInner({
   if (!editor && !htmlMode) return null;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-zinc-100/50">
-      <div className="sticky top-0 z-20 border-b border-zinc-200 bg-white shadow-sm">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-100/50">
+      <div className="sticky top-0 z-20 border-b border-slate-200 bg-white shadow-sm">
         <div className="mx-auto flex max-w-[860px] flex-wrap items-center gap-0.5 px-2 py-1.5">
           {!htmlMode && editor ? (
             <>
               <ToolbarBtn title="H1" active={editor.isActive('heading', { level: 1 })} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>H1</ToolbarBtn>
               <ToolbarBtn title="H2" active={editor.isActive('heading', { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>H2</ToolbarBtn>
               <ToolbarBtn title="H3" active={editor.isActive('heading', { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>H3</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-zinc-300" />
+              <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>B</ToolbarBtn>
               <ToolbarBtn title="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>I</ToolbarBtn>
               <ToolbarBtn title="Underline" active={editor.isActive('underline')} onClick={() => editor.chain().focus().toggleUnderline().run()}>U</ToolbarBtn>
               <ToolbarBtn title="Strike" active={editor.isActive('strike')} onClick={() => editor.chain().focus().toggleStrike().run()}>S</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-zinc-300" />
+              <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Bullet" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>•</ToolbarBtn>
               <ToolbarBtn title="Number" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>1.</ToolbarBtn>
               <ToolbarBtn title="Quote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>&ldquo;</ToolbarBtn>
               <ToolbarBtn title="Code" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>{'<>'}</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-zinc-300" />
+              <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Table" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>⊞</ToolbarBtn>
               <ToolbarBtn title="Link (Ctrl+K)" active={editor.isActive('link')} onClick={() => setLinkOpen(true)}>🔗</ToolbarBtn>
               <ToolbarBtn title="Image" onClick={() => void pickAndInsertImage()}>🖼</ToolbarBtn>
               <ToolbarBtn title="Youtube" onClick={() => { const u = window.prompt('URL YouTube'); if (u) editor.chain().focus().setYoutubeVideo({ src: u }).run(); }}>▶</ToolbarBtn>
               <ToolbarBtn title="Divider" onClick={() => editor.chain().focus().setHorizontalRule().run()}>—</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-zinc-300" />
+              <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>↶</ToolbarBtn>
               <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>↷</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-zinc-300" />
+              <span className="mx-1 h-5 w-px bg-slate-300" />
             </>
           ) : (
-            <span className="px-2 text-xs font-medium text-zinc-500">
+            <span className="px-2 text-xs font-medium text-slate-500">
               Chế độ HTML{landingLocked ? ' (bắt buộc cho Landing)' : ''}
             </span>
           )}
@@ -390,21 +390,21 @@ function ProfessionalEditorInner({
       <div className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-[860px] py-4">
           {htmlMode ? (
-            <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-              <p className="text-xs text-zinc-500">
-                Chế độ HTML — dùng class <code className="rounded bg-zinc-100 px-1">cms-block-*</code> cho layout landing.
+            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+              <p className="text-xs text-slate-500">
+                Chế độ HTML — dùng class <code className="rounded bg-slate-100 px-1">cms-block-*</code> cho layout landing.
                 {landingLocked
                   ? ' Trang Landing chỉ chỉnh sửa bằng HTML để giữ layout block.'
                   : ' Gõ / trong ô visual để chèn block.'}
               </p>
               <textarea
-                className="min-h-[520px] w-full rounded-lg border border-zinc-200 p-3 font-mono text-xs leading-relaxed outline-none focus:border-admin-500"
+                className="min-h-[520px] w-full rounded-lg border border-slate-200 p-3 font-mono text-xs leading-relaxed outline-none focus:border-admin-500"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 spellCheck={false}
               />
-              <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Xem trước</p>
+              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Xem trước</p>
                 <div
                   className={`cms-prose max-w-none ${pageLayout === 'LANDING' ? 'cms-landing cms-landing-preview' : ''}`}
                   dangerouslySetInnerHTML={{ __html: value || '<p></p>' }}
@@ -412,17 +412,17 @@ function ProfessionalEditorInner({
               </div>
             </div>
           ) : (
-            <div className={`rounded-xl border border-zinc-200 bg-white shadow-sm ${pageLayout === 'LANDING' ? 'cms-landing-preview' : ''}`}>
+            <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${pageLayout === 'LANDING' ? 'cms-landing-preview' : ''}`}>
               <EditorContent editor={editor} />
             </div>
           )}
         </div>
 
         {slashOpen && !htmlMode && filteredCategories.length > 0 && (
-          <div className="absolute left-1/2 top-8 z-30 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-2xl">
-            <div className="border-b border-zinc-100 px-3 py-2">
+          <div className="absolute left-1/2 top-8 z-30 w-72 -translate-x-1/2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
+            <div className="border-b border-slate-100 px-3 py-2">
               <input
-                className="w-full rounded-md border border-zinc-200 px-2 py-1 text-sm outline-none focus:border-admin-500"
+                className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-admin-500"
                 placeholder="Tìm block…"
                 value={slashFilter}
                 onChange={(e) => setSlashFilter(e.target.value)}
@@ -432,7 +432,7 @@ function ProfessionalEditorInner({
             <div className="max-h-64 overflow-y-auto p-1">
               {filteredCategories.map((cat) => (
                 <div key={cat.name}>
-                  <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-400">{cat.name}</p>
+                  <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{cat.name}</p>
                   {cat.items.map((item) => (
                     <button
                       key={item.key}
@@ -443,10 +443,10 @@ function ProfessionalEditorInner({
                         runSlash(item.key);
                       }}
                     >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-sm">{item.icon}</span>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm">{item.icon}</span>
                       <span>
                         <span className="block font-medium">{item.label}</span>
-                        <span className="text-xs text-zinc-500">{item.desc}</span>
+                        <span className="text-xs text-slate-500">{item.desc}</span>
                       </span>
                     </button>
                   ))}

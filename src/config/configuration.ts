@@ -58,6 +58,8 @@ export default () => ({
     secretKey: process.env.MEGAPAY_SECRET_KEY,
     /** PG encodeKey (V1.4.6) — falls back to secretKey when unset */
     pgEncodeKey: process.env.MEGAPAY_PG_ENCODE_KEY,
+    pgMerchantId: process.env.MEGAPAY_PG_MERCHANT_ID,
+    pgRefundPassword: process.env.MEGAPAY_PG_REFUND_PASSWORD,
     pgEnvironment: process.env.MEGAPAY_PG_ENVIRONMENT ?? 'sandbox',
     reqDomain: process.env.MEGAPAY_REQ_DOMAIN,
     endpoint: process.env.MEGAPAY_ENDPOINT,

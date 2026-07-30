@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDismissableLayer } from '@/components/ui/Dialog';
 import { sanitizeCmsHtml } from '@/lib/sanitize-cms-html';
 import type { CmsPageLayoutValue } from '@/lib/cms-page-layout';
 
@@ -37,6 +38,7 @@ export function ArticlePreviewModal({
   slug?: string;
 }) {
   const [mode, setMode] = useState<PreviewMode>('desktop');
+  const panelRef = useDismissableLayer<HTMLDivElement>(open, onClose);
 
   if (!open) return null;
 
@@ -45,9 +47,17 @@ export function ArticlePreviewModal({
     'Nền tảng mua thẻ game, thẻ điện thoại và nạp cước trực tuyến uy tín tại Việt Nam.';
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-900/90" onClick={onClose}>
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Xem trước nội dung"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex flex-col bg-slate-900/90 focus:outline-none"
+      onClick={onClose}
+    >
       <div
-        className="flex items-center justify-between border-b border-zinc-700 px-4 py-3"
+        className="flex items-center justify-between border-b border-slate-700 px-4 py-3"
         onClick={(e) => e.stopPropagation()}
       >
         <p className="text-sm font-semibold text-white">Xem trước (không cần xuất bản)</p>
@@ -57,12 +67,12 @@ export function ArticlePreviewModal({
               key={m}
               type="button"
               onClick={() => setMode(m)}
-              className={`rounded px-3 py-1 text-xs font-medium capitalize ${mode === m ? 'bg-white text-zinc-900' : 'text-zinc-300 hover:bg-zinc-800'}`}
+              className={`rounded px-3 py-1 text-xs font-medium capitalize ${mode === m ? 'bg-white text-slate-900' : 'text-slate-300 hover:bg-slate-800'}`}
             >
               {m}
             </button>
           ))}
-          <button type="button" className="ml-4 text-sm text-zinc-300 hover:text-white" onClick={onClose}>
+          <button type="button" className="ml-4 text-sm text-slate-300 hover:text-white" onClick={onClose}>
             Đóng
           </button>
         </div>
@@ -78,18 +88,18 @@ export function ArticlePreviewModal({
               <SafeHtml html={content || '<p></p>'} className="cms-prose cms-landing max-w-none px-4 py-8 md:px-8" />
             </div>
           ) : pageLayout === 'POLICY' ? (
-            <div className="grid gap-4 rounded-xl bg-zinc-100 p-4 md:grid-cols-[180px_1fr]">
-              <nav className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-                <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+            <div className="grid gap-4 rounded-xl bg-slate-100 p-4 md:grid-cols-[180px_1fr]">
+              <nav className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
                   Trang thông tin
                 </p>
                 <ul className="space-y-1 text-xs">
                   <li className="rounded-lg bg-blue-600 px-2 py-1.5 font-medium text-white">{title || 'Trang'}</li>
-                  <li className="rounded-lg px-2 py-1.5 text-zinc-500">…</li>
+                  <li className="rounded-lg px-2 py-1.5 text-slate-500">…</li>
                 </ul>
               </nav>
-              <article className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-                <h1 className="text-2xl font-bold text-zinc-900">{title || 'Tiêu đề trang'}</h1>
+              <article className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h1 className="text-2xl font-bold text-slate-900">{title || 'Tiêu đề trang'}</h1>
                 <SafeHtml html={content || '<p></p>'} className="cms-prose mt-4 max-w-none" />
               </article>
             </div>
@@ -99,8 +109,8 @@ export function ArticlePreviewModal({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={featuredImage} alt="" className="mb-4 aspect-video w-full rounded-lg object-cover" />
               ) : null}
-              <h1 className="text-2xl font-bold text-zinc-900">{title || 'Tiêu đề bài viết'}</h1>
-              {excerpt ? <p className="mt-2 text-sm text-zinc-500">{excerpt}</p> : null}
+              <h1 className="text-2xl font-bold text-slate-900">{title || 'Tiêu đề bài viết'}</h1>
+              {excerpt ? <p className="mt-2 text-sm text-slate-500">{excerpt}</p> : null}
               <SafeHtml html={content || '<p></p>'} className="cms-prose mt-4 max-w-none" />
               {slug === 'gioi-thieu' ? (
                 <p className="mt-4 text-xs text-amber-600">

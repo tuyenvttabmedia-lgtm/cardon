@@ -1,11 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { RequirePermission } from '@/components/layout/AdminShell';
+import { SectionNav } from '@/components/ui/Navigation';
 import { AGENT_SECTIONS } from '@/lib/agent-routes';
 import { vi } from '@/lib/i18n/vi';
-import { cn } from '@/lib/utils';
 
 export function AgentManagementShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,29 +16,19 @@ export function AgentManagementShell({ children }: { children: React.ReactNode }
         {!isDetail && (
           <>
             <div>
-              <h1 className="text-2xl font-bold">{vi.agentCenter.title}</h1>
-              <p className="mt-1 text-sm text-zinc-500">{vi.agentCenter.subtitle}</p>
+              <h1 className="admin-page-title">{vi.agentCenter.title}</h1>
+              <p className="admin-page-subtitle">{vi.agentCenter.subtitle}</p>
             </div>
-            <nav className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-              {AGENT_SECTIONS.map((item) => {
+            <SectionNav
+              ariaLabel="Điều hướng quản lý đại lý"
+              items={AGENT_SECTIONS.map((item) => {
                 const active =
                   'exact' in item && item.exact
                     ? pathname === item.href
                     : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      'rounded-lg px-3 py-1.5 text-sm font-medium',
-                      active ? 'bg-admin-600 text-white' : 'text-zinc-600 hover:bg-zinc-100',
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                );
+                return { href: item.href, label: item.label, active };
               })}
-            </nav>
+            />
           </>
         )}
         {children}

@@ -102,7 +102,7 @@ export default function SettingsOrderPage() {
 
   if (!form) {
 
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
 
   }
 

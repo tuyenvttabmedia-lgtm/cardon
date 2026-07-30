@@ -1,7 +1,8 @@
-import Link from 'next/link';
+'use client';
+
 import { usePathname } from 'next/navigation';
+import { SectionNav } from '@/components/ui/Navigation';
 import { vi } from '@/lib/i18n/vi';
-import { cn } from '@/lib/utils';
 
 const TABS = [
   { href: '/marketing', label: 'Dashboard' },
@@ -21,21 +22,15 @@ const TABS = [
 export function MarketingNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-      {TABS.map((tab) => (
-        <Link
-          key={tab.href}
-          href={tab.href}
-          className={cn(
-            'rounded-lg px-3 py-1.5 text-sm font-medium',
-            pathname === tab.href || (tab.href !== '/marketing' && pathname.startsWith(tab.href + '/'))
-              ? 'bg-admin-600 text-white'
-              : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200',
-          )}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
+    <SectionNav
+      ariaLabel="Điều hướng nội dung và marketing"
+      items={TABS.map((tab) => ({
+        href: tab.href,
+        label: tab.label,
+        active:
+          pathname === tab.href ||
+          (tab.href !== '/marketing' && pathname.startsWith(`${tab.href}/`)),
+      }))}
+    />
   );
 }

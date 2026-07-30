@@ -226,7 +226,7 @@ export function MonitoringDashboard() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-zinc-900">{vi.monitoringHub.recentAlerts}</h3>
+            <h3 className="font-semibold text-slate-900">{vi.monitoringHub.recentAlerts}</h3>
             <Link href="/monitoring/notifications" className="text-sm text-admin-600 hover:underline">
               {vi.monitoringHub.viewAll}
             </Link>
@@ -238,9 +238,9 @@ export function MonitoringDashboard() {
           ) : (
             <ul className="space-y-2">
               {recentAlerts.map((n) => (
-                <li key={n.id} className="rounded-lg border border-zinc-100 px-3 py-2 text-sm">
-                  <p className="font-medium text-zinc-800">{n.title}</p>
-                  <p className="text-xs text-zinc-500">{formatDateTime(n.createdAt)} · {n.severity}</p>
+                <li key={n.id} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                  <p className="font-medium text-slate-800">{n.title}</p>
+                  <p className="text-xs text-slate-500">{formatDateTime(n.createdAt)} · {n.severity}</p>
                 </li>
               ))}
             </ul>
@@ -249,7 +249,7 @@ export function MonitoringDashboard() {
 
         <Card className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-zinc-900">{vi.monitoringHub.recentActivities}</h3>
+            <h3 className="font-semibold text-slate-900">{vi.monitoringHub.recentActivities}</h3>
             <Link href="/monitoring/activity" className="text-sm text-admin-600 hover:underline">
               {vi.monitoringHub.viewAll}
             </Link>
@@ -261,9 +261,9 @@ export function MonitoringDashboard() {
           ) : (
             <ul className="space-y-2">
               {recentActivities.map((a) => (
-                <li key={a.id} className="rounded-lg border border-zinc-100 px-3 py-2 text-sm">
-                  <p className="font-medium text-zinc-800">{a.title}</p>
-                  <p className="text-xs text-zinc-500">
+                <li key={a.id} className="rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                  <p className="font-medium text-slate-800">{a.title}</p>
+                  <p className="text-xs text-slate-500">
                     {formatDateTime(a.createdAt)} · {a.eventCategory} · {a.severity}
                   </p>
                 </li>

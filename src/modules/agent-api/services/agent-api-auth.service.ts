@@ -2,7 +2,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { HttpStatus } from '@nestjs/common';
-import { AgentStatus } from '@prisma/client';
+import { Agent, AgentStatus } from '@prisma/client';
 import { AppHttpException } from '../../../common/exceptions/app-http.exception';
 import { ErrorCode } from '../../../common/constants/error-codes.constants';
 import { AgentCredentialService, hashApiKeyForLookup } from '../../agent/services/agent-credential.service';
@@ -13,6 +13,13 @@ import {
   verifyPartnerSignature,
 } from '../entities/agent-api-signature';
 import { AgentApiContext } from '../entities/agent-api.mapper';
+
+type CredentialMatch = {
+  agent: Agent;
+  environment: 'SANDBOX' | 'PRODUCTION';
+  apiKeyHash: string;
+  secretKeyEncrypted: string;
+};
 
 @Injectable()
 export class AgentApiAuthService {
@@ -46,9 +53,9 @@ export class AgentApiAuthService {
     }
 
     const lookup = hashApiKeyForLookup(params.apiKey);
-    const agent = await this.agentRepository.findByApiKeyLookup(lookup);
+    const match = await this.resolveCredentials(lookup);
 
-    if (!agent?.apiKeyHash || !agent.secretKeyEncrypted) {
+    if (!match) {
       this.securityService.recordAuthFailure(null, 'INVALID_KEY', {
         ...logBase,
         message: 'Invalid API key',
@@ -59,6 +66,8 @@ export class AgentApiAuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    const { agent, environment, apiKeyHash, secretKeyEncrypted } = match;
 
     const securityConfig = this.securityService.parseSecurityConfig(agent.securityConfig);
     if (
@@ -76,7 +85,7 @@ export class AgentApiAuthService {
       );
     }
 
-    if (!this.credentialService.verifyApiKey(params.apiKey, agent.apiKeyHash)) {
+    if (!this.credentialService.verifyApiKey(params.apiKey, apiKeyHash)) {
       this.securityService.recordAuthFailure(agent.id, 'INVALID_KEY', {
         ...logBase,
         message: 'Invalid API key',
@@ -124,9 +133,19 @@ export class AgentApiAuthService {
       );
     }
 
-    const secretKey = this.credentialService.decryptSecretKey(
-      agent.secretKeyEncrypted,
-    );
+    if (environment === 'PRODUCTION' && !agent.liveApiEnabled) {
+      this.securityService.recordAuthFailure(agent.id, 'FORBIDDEN', {
+        ...logBase,
+        message: 'Live API not enabled',
+      });
+      throw new AppHttpException(
+        ErrorCode.AGENT_INACTIVE,
+        'Live API is not enabled — complete sandbox UAT first',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+
+    const secretKey = this.credentialService.decryptSecretKey(secretKeyEncrypted);
     const payload = buildSignaturePayload(
       params.method,
       params.path,
@@ -159,6 +178,34 @@ export class AgentApiAuthService {
       agent,
       requestId: params.requestId,
       secretKey,
+      environment,
     };
+  }
+
+  private async resolveCredentials(lookup: string): Promise<CredentialMatch | null> {
+    const live = await this.agentRepository.findByApiKeyLookup(lookup);
+    if (live?.apiKeyHash && live.secretKeyEncrypted) {
+      return {
+        agent: live,
+        environment: 'PRODUCTION',
+        apiKeyHash: live.apiKeyHash,
+        secretKeyEncrypted: live.secretKeyEncrypted,
+      };
+    }
+
+    const sandbox = await this.agentRepository.findBySandboxApiKeyLookup(lookup);
+    if (
+      sandbox?.sandboxApiKeyHash &&
+      sandbox.sandboxSecretKeyEncrypted
+    ) {
+      return {
+        agent: sandbox,
+        environment: 'SANDBOX',
+        apiKeyHash: sandbox.sandboxApiKeyHash,
+        secretKeyEncrypted: sandbox.sandboxSecretKeyEncrypted,
+      };
+    }
+
+    return null;
   }
 }

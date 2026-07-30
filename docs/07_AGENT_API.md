@@ -1,222 +1,207 @@
-# Agent API Platform
+# Partner Agent API (v1)
 
-## Overview
+CardOn B2B gateway. Agents buy digital cards with prepaid balance (HOLD → DEBIT / RELEASE).
 
-The Agent API is CardOn.vn's B2B gateway. Agents purchase digital products using prepaid balance with HOLD-based ledger flow.
-
-```
-Agent System
-    ↓
-Agent API Gateway (NestJS)
-    ↓
-AgentService
-    ↓
-TransactionService | LedgerService | OrderService | FulfillmentQueue
-```
-
+**Public prefix:** `/api/partner/v1`  
 Agents never call provider APIs directly.
 
 ## Authentication
 
+Every request requires three headers:
+
+| Header | Purpose |
+|--------|---------|
+| `X-API-KEY` | API key (`ak_test_…` sandbox / `ak_live_…` or legacy `ak_…` production) |
+| `X-REQUEST-ID` | Unique request id (idempotency for buy) |
+| `X-SIGNATURE` | HMAC-SHA256 of signature payload |
+
+**Not used:** `Authorization: Bearer`.
+
+### Signature
+
 ```
-Authorization: Bearer {api_key}
+payload = METHOD:path:requestId:sha256(rawBody)
+signature = HMAC-SHA256(secretKey, payload)  // hex
 ```
 
-| Field | Storage | Notes |
-|-------|---------|-------|
-| API key (plain) | **Never stored** | Shown **once** on generate/regenerate |
-| `api_key_hash` | bcrypt hash | Used for comparison only — never encrypt |
-| `secret_key_encrypted` | AES-256-GCM | Webhook HMAC signing |
-| `last_used_at` | TIMESTAMPTZ | Updated on each authenticated request |
+- `METHOD` — uppercase (`GET`, `POST`)
+- `path` — **no leading slash**, e.g. `api/partner/v1/cards/buy`
+- `rawBody` — exact JSON body string for POST; empty string for GET
+- Secret — decrypted agent secret (`sk_…`), shown **once** on generate/rotate
 
-| Rule | Detail |
-|------|--------|
-| Rotation | Admin regenerates → old key invalid immediately |
-| Rate limit | Per-agent via `agents.rate_limit` (default 100 req/min) |
+### Credential storage
+
+| Field | Storage |
+|-------|---------|
+| API key (plain) | Never stored — shown once |
+| `api_key_hash` / `sandbox_api_key_hash` | bcrypt |
+| `api_key_lookup` / `sandbox_api_key_lookup` | SHA-256 of plain key (lookup only) |
+| Secret | AES-256-GCM encrypted |
+
+### Environments
+
+| Key prefix | Environment | Balance | Fulfillment |
+|------------|-------------|---------|-------------|
+| `ak_test_` | SANDBOX | `sandbox_balance` | Mock cards — no provider call |
+| `ak_live_` / legacy `ak_` | PRODUCTION | live `balance` | Real provider |
+
+- Sandbox credentials are issued **after KYC APPROVED**.
+- Live API (`live_api_enabled`) is enabled separately (invite / admin) after sandbox UAT.
+- Sandbox and live keys never share ledger balances.
 
 ## Idempotency
 
-Every request MUST include `agent_request_id`:
-
-```typescript
-{
-  "agent_request_id": "req-20240618-001",
-  "product_sku": "VNG_100K",
-  "quantity": 10
-}
-```
+Buy body field: `request_id` (must equal `X-REQUEST-ID`).
 
 | Constraint | Scope |
-|-----------|-------|
-| `UNIQUE(agent_id, agent_request_id)` | Per agent — different agents may reuse same ID string |
+|------------|-------|
+| `UNIQUE(agent_id, agent_request_id)` | Per agent |
 
-**Duplicate behavior:** Return **HTTP 200** with original order response. Do **not** return 409. Do not re-hold or re-charge.
+Duplicate → **HTTP 200** with original result (not 409). No second HOLD.
 
-```typescript
-const existing = await orderRepo.findByAgentRequestId(agentId, agentRequestId);
-if (existing) {
-  return mapToAgentResponse(existing);  // 200, idempotent
-}
-```
+## Endpoints
 
-## Order Creation Flow
-
-```
-Agent POST /orders
-    ↓
-Validate API key → update last_used_at
-    ↓
-Check idempotency (agent_id + agent_request_id) → return 200 if exists
-    ↓
-ProductEngine.resolveProduct(sku)
-    ↓
-Calculate total (agent_price × quantity)
-    ↓
-Create transaction (transaction_id generated)
-    ↓
-LedgerService.hold(agentId, amount, TRANSACTION, transaction.id)
-    ↓
-Create order + order_item(s)
-    ↓
-transaction.status = HOLD
-    ↓
-FulfillmentQueue.add({ orderId })
-    ↓
-Return HTTP 200 (fulfillment_status: PROCESSING)
-```
-
-If hold fails (insufficient available balance) → 400 `INSUFFICIENT_BALANCE`. No transaction completed.
-
-## Provider Success / Failure
-
-See [08_AGENT_BALANCE_LEDGER.md](./08_AGENT_BALANCE_LEDGER.md):
-
-- **Success:** HOLD → DEBIT
-- **Failure:** HOLD → RELEASE
-
-## API Endpoints
-
-### POST /api/v1/agent/orders
-
-**Card request:**
+### `POST /api/partner/v1/cards/buy`
 
 ```json
 {
-  "agent_request_id": "req-20240618-001",
-  "product_sku": "GARENA_100K",
-  "quantity": 10
-}
-```
-
-Creates 1 order_item (quantity=10) → 10 card_records on fulfillment.
-
-**Topup request:**
-
-```json
-{
-  "agent_request_id": "req-20240618-002",
-  "product_sku": "MOBIFONE_TOPUP_50K",
+  "product_code": "GARENA_100K",
   "quantity": 1,
-  "phone": "0901234567"
+  "request_id": "req-20250618-001"
 }
 ```
 
-Creates topup_transaction on fulfillment.
-
-### GET /api/v1/agent/orders/:order_code
-
-**Completed card order response:**
+**SUCCESS response:**
 
 ```json
 {
-  "order_code": "CO-20240618-ABC123",
-  "agent_request_id": "req-20240618-001",
-  "payment_status": "PAID",
-  "fulfillment_status": "COMPLETED",
+  "request_id": "req-20250618-001",
+  "status": "SUCCESS",
+  "product_code": "GARENA_100K",
+  "quantity": 1,
+  "amount": "95000.00",
+  "cards": [
+    { "card_serial": "1234567890", "card_pin": "ABCD1234" }
+  ]
+}
+```
+
+`status`: `SUCCESS` | `PROCESSING` | `FAILED`  
+On `FAILED`, body may include `error: { code, message }` (still HTTP 200 for business failures after accept).
+
+### `GET /api/partner/v1/balance`
+
+```json
+{
+  "available_balance": "1500000.00",
+  "held_balance": "50000.00",
+  "currency": "VND"
+}
+```
+
+Returns sandbox or live balances depending on which API key authenticated the request.
+
+### `GET /api/partner/v1/transactions/:request_id`
+
+Same shape as buy response. Cards only when `status = SUCCESS`.
+
+### `GET /api/partner/v1/products`
+
+Returns **all ACTIVE SKUs** with resolved `agent_price` (manual override → margin config by product group → sell price fallback).
+
+Pricing: `CK_ĐL = CK_NCC − biên_LN CardOn` (% of face from admin margin config); `agent_price = face × (1 − CK_ĐL)`.
+
+```json
+{
   "items": [
     {
-      "sku": "GARENA_100K",
-      "quantity": 10,
-      "cards": [
-        { "card_serial": "xxxx", "card_pin": "****" }
-      ]
+      "product_code": "VIETTEL_10K",
+      "name": "Viettel 10K",
+      "category": "Thẻ điện thoại Viettel",
+      "face_value": "10000.00",
+      "agent_price": "9800.00",
+      "status": "ACTIVE"
     }
   ]
 }
 ```
 
-Card PIN only when `fulfillment_status = COMPLETED`.
+### `GET /api/partner/v1/providers`
 
-### GET /api/v1/agent/balance
+Routing capability probe (does **not** expose upstream supplier identity):
 
 ```json
 {
-  "balance": 15000000,
-  "held_balance": 980000,
-  "available_balance": 14020000,
-  "currency": "VND",
-  "updated_at": "2024-06-18T09:00:00Z"
+  "items": [{ "code": "cardon", "name": "CardOn", "status": "ACTIVE" }]
 }
 ```
 
-### GET /api/v1/agent/products
+No partner topup API in v1.
 
-Uses `agent_product_prices` when configured; falls back to default agent pricing.
-
-### GET /api/v1/agent/ledger
-
-Paginated `ledger_entries` for authenticated agent.
-
-## Agent Pricing
+## Money flow
 
 ```
-ProductEngine.getAgentPrice(agentId, productId)
-    ↓
-agent_product_prices.agent_price  (if exists)
-    ↓
-else default formula from products.sell_price
+Auth → idempotency check
+  → resolve product + agent price
+  → create financial_transaction + HOLD (sandbox or live balance)
+  → create order (PAID / PENDING fulfill)
+  → fulfill (mock sandbox | provider live)
+  → COMPLETED: HOLD → DEBIT | FAILED: HOLD → RELEASE
+  → schedule outbound webhook
 ```
 
-## Webhook Callback
+## Outbound webhook
 
-Config in `agent_webhook_configs`. Sign with HMAC using decrypted `secret_key_encrypted`.
+Configured in Partner → Webhook (`agent_webhook_configs`).  
+Signed with **webhook secret** (separate from API request secret).
 
-```
-POST {callback_url}
+| Header | Value |
+|--------|-------|
+| `X-CardOn-Signature` | HMAC-SHA256(`timestamp.rawBody`, webhook secret) |
+| `X-CardOn-Timestamp` | Unix seconds |
+| `X-CardOn-Event` | `order.completed` \| `order.failed` |
+| `X-CardOn-Version` | `v1` |
+
+**Payload (v1):**
+
+```json
 {
-  "event": "ORDER_COMPLETED",
-  "order_code": "CO-20240618-ABC123",
-  "agent_request_id": "req-20240618-001",
-  "fulfillment_status": "COMPLETED"
+  "version": "v1",
+  "event": "order.completed",
+  "request_id": "req-20250618-001",
+  "order_id": "uuid",
+  "partner_order_id": "req-20250618-001",
+  "status": "SUCCESS",
+  "product": "GARENA_100K",
+  "amount": "95000.00",
+  "created_at": "2026-07-28T10:00:00.000Z",
+  "completed_at": "2026-07-28T10:00:01.000Z",
+  "gateway": "wallet",
+  "serial": "…",
+  "pin": "…",
+  "environment": "SANDBOX"
 }
 ```
 
-Sent via `notification` queue.
+Delivery: BullMQ `webhook_delivery_queue`, retry 5× (0 / 1m / 5m / 15m / 30m).  
+Events only for terminal fulfillment (`COMPLETED` / `FAILED`).
 
-## Error Responses
+## HTTP errors
 
-| HTTP | Code | Meaning |
-|------|------|---------|
-| 200 | — | Success OR duplicate request (idempotent) |
-| 400 | `INVALID_SKU` | Product not found or inactive |
-| 400 | `INSUFFICIENT_BALANCE` | Available balance too low |
-| 401 | `INVALID_API_KEY` | Auth failed |
-| 403 | `AGENT_SUSPENDED` | Agent suspended |
-| 429 | `RATE_LIMITED` | Too many requests |
-| 503 | `SERVICE_UNAVAILABLE` | Temporary issue |
+Envelope: `{ "success": false, "error": { "code", "message" } }`
 
-**No 409 for duplicate requests.** Idempotent APIs always return 200 with original result.
+| HTTP | Code |
+|------|------|
+| 400 | `MISSING_REQUEST_ID`, `INVALID_SKU`, `INSUFFICIENT_BALANCE` |
+| 401 | `INVALID_API_KEY`, `INVALID_SIGNATURE` |
+| 403 | `FORBIDDEN` (IP), `AGENT_SUSPENDED`, `AGENT_INACTIVE` |
+| 429 | `RATE_LIMITED` |
+| 503 | `SERVICE_UNAVAILABLE` (settlement pending — retry same `request_id`) |
 
-## Agent vs B2C
+**No 409** for duplicate buy — return 200 + original body.
 
-| Aspect | B2C | Agent |
-|--------|-----|-------|
-| Payment | MegaPay / SePay | Balance HOLD → DEBIT |
-| Idempotency | `payments.payment_reference` | `(agent_id, agent_request_id)` |
-| Order link | `orders.payment_id` | `orders.transaction_id` |
-| Fulfillment | Same worker | Same worker |
+## Related
 
-## Related Docs
-
-- [06_ORDER_FULFILLMENT.md](./06_ORDER_FULFILLMENT.md)
 - [08_AGENT_BALANCE_LEDGER.md](./08_AGENT_BALANCE_LEDGER.md)
+- [GATE1_PARTNER_UAT_CHECKLIST.md](./GATE1_PARTNER_UAT_CHECKLIST.md)
+- [GATE1_PARTNER_MVP_FREEZE.md](./GATE1_PARTNER_MVP_FREEZE.md)

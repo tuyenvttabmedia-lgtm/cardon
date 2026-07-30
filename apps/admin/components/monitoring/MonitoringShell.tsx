@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { SectionNav } from '@/components/ui/Navigation';
 import { MonitoringGlobalSearch } from '@/components/monitoring/MonitoringGlobalSearch';
 import {
   MonitoringBreadcrumb,
@@ -11,7 +11,6 @@ import {
 } from '@/components/monitoring/MonitoringUi';
 import { MONITORING_SECTIONS, monitoringSectionFromPath } from '@/lib/monitoring-routes';
 import { vi } from '@/lib/i18n/vi';
-import { cn } from '@/lib/utils';
 
 function MonitoringNav() {
   const pathname = usePathname();
@@ -20,26 +19,16 @@ function MonitoringNav() {
   const visible = MONITORING_SECTIONS.filter((item) => !('permission' in item) || can(item.permission));
 
   return (
-    <nav className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3">
-      {visible.map((item) => {
+    <SectionNav
+      ariaLabel="Điều hướng giám sát"
+      items={visible.map((item) => {
         const active =
           'exact' in item && item.exact
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'rounded-lg px-3 py-1.5 text-sm font-medium',
-              active ? 'bg-admin-100 text-admin-800' : 'text-zinc-600 hover:bg-zinc-50',
-            )}
-          >
-            {item.label}
-          </Link>
-        );
+        return { href: item.href, label: item.label, active };
       })}
-    </nav>
+    />
   );
 }
 
@@ -71,10 +60,10 @@ function MonitoringShellInner({ children }: { children: React.ReactNode }) {
       <MonitoringBreadcrumb sectionLabel={isOverview ? undefined : section?.label} />
 
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">
+        <h1 className="admin-page-title">
           {isOverview ? vi.monitoringHub.title : section?.label ?? vi.monitoringHub.title}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="admin-page-subtitle">
           {isOverview ? vi.monitoringHub.subtitle : vi.monitoringHub.sectionHint}
         </p>
       </div>

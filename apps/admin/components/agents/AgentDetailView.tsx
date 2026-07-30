@@ -2,14 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Badge, Card, ErrorMessage, ForbiddenMessage, StatCard, statusTone } from '@/components/ui/Display';
 import { Button, Input, Label } from '@/components/ui/Form';
+import { TabStrip } from '@/components/ui/Navigation';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AGENT_DETAIL_TABS, type AgentDetailTabId } from '@/lib/agent-routes';
 import { vi } from '@/lib/i18n/vi';
-import { cn, formatDateTime, formatVnd } from '@/lib/utils';
+import { LatestRequestTracker } from '@/lib/latest-request';
+import { formatDateTime, formatDisplayValue, formatVnd } from '@/lib/utils';
 import { adminApi, agentCenterApi, ApiClientError } from '@/services/api-client';
 import { AgentInvoiceTabPanel } from '@/components/agents/AgentInvoiceTabPanel';
 import { AgentStatementTabPanel } from '@/components/agents/AgentStatementTabPanel';
@@ -31,11 +33,11 @@ function isTabId(value: string | null): value is AgentDetailTabId {
 }
 
 function LoadingBlock() {
-  return <p className="text-zinc-500">{vi.agentCenter.loading}</p>;
+  return <p className="text-slate-500">{vi.agentCenter.loading}</p>;
 }
 
 function EmptyBlock() {
-  return <p className="text-zinc-500">{vi.common.noData}</p>;
+  return <p className="text-slate-500">{vi.common.noData}</p>;
 }
 
 function SimpleTable({
@@ -49,7 +51,7 @@ function SimpleTable({
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-left text-sm">
-        <thead className="border-b bg-zinc-50 text-zinc-500">
+        <thead className="border-b bg-slate-50 text-slate-500">
           <tr>
             {headers.map((h) => (
               <th key={h} className="px-4 py-3">
@@ -60,7 +62,7 @@ function SimpleTable({
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-zinc-50 hover:bg-zinc-50">
+            <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
               {row.map((cell, j) => (
                 <td key={j} className="px-4 py-3">
                   {cell}
@@ -106,12 +108,25 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
 
   const [header, setHeader] = useState<OverviewData | null>(null);
   const [headerLoading, setHeaderLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [headerError, setHeaderError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
-  const [tabLoading, setTabLoading] = useState(false);
-  const [tabData, setTabData] = useState<Record<string, unknown> | null>(null);
-  const [loadedTabs, setLoadedTabs] = useState<Set<AgentDetailTabId>>(new Set());
+  const [tabLoadingByTab, setTabLoadingByTab] = useState<
+    Partial<Record<AgentDetailTabId, boolean>>
+  >({});
+  const [tabErrorByTab, setTabErrorByTab] = useState<
+    Partial<Record<AgentDetailTabId, string | null>>
+  >({});
+  // Keyed per tab: a tab must never render another tab's payload while loading.
+  const [tabDataByTab, setTabDataByTab] = useState<
+    Partial<Record<AgentDetailTabId, Record<string, unknown>>>
+  >({});
+  const loadedTabsRef = useRef(new Set<AgentDetailTabId>());
+  const tabRequestsRef = useRef(new LatestRequestTracker<AgentDetailTabId>());
+  const headerRequestsRef = useRef(new LatestRequestTracker<'header'>());
+  const tabData = tabDataByTab[activeTab] ?? null;
+  const tabLoading = tabLoadingByTab[activeTab] === true;
+  const tabError = tabErrorByTab[activeTab] ?? null;
 
   const [noteText, setNoteText] = useState('');
   const [metaSaving, setMetaSaving] = useState(false);
@@ -129,37 +144,38 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
   );
 
   const loadHeader = useCallback(async () => {
+    const token = headerRequestsRef.current.begin('header');
     setHeaderLoading(true);
-    setError(null);
+    setHeaderError(null);
     try {
       const data = (await agentCenterApi.overview(agentId)) as unknown as OverviewData;
+      if (!headerRequestsRef.current.isLatest(token)) return;
       setHeader(data);
     } catch (e) {
-      setError(e instanceof ApiClientError ? e.message : vi.agentCenter.loadError);
+      if (!headerRequestsRef.current.isLatest(token)) return;
+      setHeaderError(e instanceof ApiClientError ? e.message : vi.agentCenter.loadError);
     } finally {
-      setHeaderLoading(false);
+      if (headerRequestsRef.current.isLatest(token)) {
+        setHeaderLoading(false);
+      }
     }
   }, [agentId]);
 
   const loadTab = useCallback(
     async (tab: AgentDetailTabId, force = false) => {
-      if (!force && loadedTabs.has(tab)) return;
-      setTabLoading(true);
-      setError(null);
+      if (tab === 'overview' || tab === 'wallet' || tab === 'statement' || tab === 'invoices') {
+        return;
+      }
+      if (!force && loadedTabsRef.current.has(tab)) return;
+
+      const token = tabRequestsRef.current.begin(tab);
+      setTabLoadingByTab((prev) => ({ ...prev, [tab]: true }));
+      setTabErrorByTab((prev) => ({ ...prev, [tab]: null }));
       try {
         let data: Record<string, unknown>;
         switch (tab) {
-          case 'overview':
-            data = (await agentCenterApi.overview(agentId)) as Record<string, unknown>;
-            setHeader(data as unknown as OverviewData);
-            break;
           case 'information':
             data = (await agentCenterApi.information(agentId)) as Record<string, unknown>;
-            setEditForm({
-              companyName: String(data.companyName ?? ''),
-              contactEmail: String(data.contactEmail ?? ''),
-              rateLimit: String(header?.agent.rateLimit ?? ''),
-            });
             break;
           case 'api':
             data = (await agentCenterApi.api(agentId)) as Record<string, unknown>;
@@ -197,24 +213,49 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
           case 'pricing':
             data = (await agentCenterApi.pricing(agentId)) as Record<string, unknown>;
             break;
-          case 'wallet':
-          case 'statement':
-          case 'invoices':
-            setTabLoading(false);
-            return;
           default:
             data = {};
         }
-        setTabData(data);
-        setLoadedTabs((prev) => new Set(prev).add(tab));
+
+        if (!tabRequestsRef.current.isLatest(token)) return;
+        setTabDataByTab((prev) => ({ ...prev, [tab]: data }));
+        loadedTabsRef.current.add(tab);
+        if (tab === 'information') {
+          setEditForm({
+            companyName: String(data.companyName ?? ''),
+            contactEmail: String(data.contactEmail ?? ''),
+            rateLimit: String(data.rateLimit ?? ''),
+          });
+        }
       } catch (e) {
-        setError(e instanceof ApiClientError ? e.message : vi.agentCenter.loadError);
+        if (!tabRequestsRef.current.isLatest(token)) return;
+        setTabErrorByTab((prev) => ({
+          ...prev,
+          [tab]: e instanceof ApiClientError ? e.message : vi.agentCenter.loadError,
+        }));
       } finally {
-        setTabLoading(false);
+        if (tabRequestsRef.current.isLatest(token)) {
+          setTabLoadingByTab((prev) => ({ ...prev, [tab]: false }));
+        }
       }
     },
-    [agentId, loadedTabs],
+    [agentId],
   );
+
+  useEffect(() => {
+    headerRequestsRef.current.invalidateAll();
+    tabRequestsRef.current.invalidateAll();
+    loadedTabsRef.current.clear();
+    setHeader(null);
+    setHeaderLoading(true);
+    setHeaderError(null);
+    setTabDataByTab({});
+    setTabLoadingByTab({});
+    setTabErrorByTab({});
+    setNoteText('');
+    setEditForm({ companyName: '', contactEmail: '', rateLimit: '' });
+    setRevealedCreds(null);
+  }, [agentId]);
 
   useEffect(() => {
     void loadHeader();
@@ -226,7 +267,12 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
   }, [activeTab, tabAllowed, loadTab]);
 
   async function refreshAfterAction() {
-    setLoadedTabs(new Set());
+    loadedTabsRef.current.clear();
+    tabRequestsRef.current.invalidateAll();
+    headerRequestsRef.current.invalidateAll();
+    setTabDataByTab({});
+    setTabLoadingByTab({});
+    setTabErrorByTab({});
     await loadHeader();
     await loadTab(activeTab, true);
   }
@@ -273,7 +319,6 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
       } else {
         await agentCenterApi.rejectIpWhitelist(agentId, entryId);
       }
-      await loadTab('api', true);
     });
   }
 
@@ -312,14 +357,19 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
         title: vi.agents.rotateApiKey,
         hint: result.message,
       });
-      setLoadedTabs((prev) => {
-        const next = new Set(prev);
-        next.delete('api');
-        return next;
+    });
+  }
+
+  async function handleEnableLiveApi() {
+    if (!window.confirm(vi.agents.enableLiveApiConfirm)) return;
+    await runAction(async () => {
+      const result = await adminApi.enableLiveApi(agentId);
+      setRevealedCreds({
+        apiKey: result.apiKey,
+        secretKey: result.secretKey,
+        title: vi.agents.enableLiveApi,
+        hint: result.message,
       });
-      if (activeTab === 'api') {
-        await loadTab('api', true);
-      }
     });
   }
 
@@ -418,7 +468,7 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
     return (
       <Card className="space-y-3">
         <h3 className="font-semibold">{vi.agentCenter.accountStatusTitle}</h3>
-        <p className="text-sm text-zinc-500">{vi.agentCenter.accountStatusHint}</p>
+        <p className="text-sm text-slate-500">{vi.agentCenter.accountStatusHint}</p>
         <div className="flex flex-wrap items-center gap-3">
           {agent?.status && <Badge tone={statusTone(agent.status)} status={agent.status} />}
           {agent?.status === 'ACTIVE' && (
@@ -438,6 +488,14 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
 
   function renderTabPanel() {
     if (!tabAllowed) return <ForbiddenMessage />;
+    const loadsInParent =
+      activeTab !== 'overview' &&
+      activeTab !== 'wallet' &&
+      activeTab !== 'statement' &&
+      activeTab !== 'invoices';
+    if (loadsInParent && !tabData) {
+      return tabError ? null : <LoadingBlock />;
+    }
     if (tabLoading && !tabData) return <LoadingBlock />;
 
     switch (activeTab) {
@@ -466,12 +524,12 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
               <Card className="space-y-3">
                 <h3 className="font-semibold">{vi.agentCenter.tabActivity}</h3>
                 {latestActivity && (
-                  <p className="text-sm text-zinc-600">
+                  <p className="text-sm text-slate-600">
                     {latestActivity.title} · {formatDateTime(latestActivity.at)}
                   </p>
                 )}
                 {latestLogin && (
-                  <p className="text-sm text-zinc-500">
+                  <p className="text-sm text-slate-500">
                     Đăng nhập cuối: {formatDateTime(latestLogin.at)}
                     {latestLogin.ipAddress ? ` · ${latestLogin.ipAddress}` : ''}
                     {latestLogin.device ? ` · ${latestLogin.device}` : ''}
@@ -492,19 +550,19 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             {renderKycPendingBanner()}
             <Card className="grid gap-3 md:grid-cols-2">
               <div>
-                <p className="text-xs text-zinc-500">{vi.agentCenter.colCompany}</p>
+                <p className="text-xs text-slate-500">{vi.agentCenter.colCompany}</p>
                 <p className="font-medium">{String(info?.companyName ?? agent?.companyName ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.contactEmail}</p>
+                <p className="text-xs text-slate-500">{vi.agents.contactEmail}</p>
                 <p>{String(info?.contactEmail ?? agent?.contactEmail ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.userEmail}</p>
+                <p className="text-xs text-slate-500">{vi.agents.userEmail}</p>
                 <p>{String(info?.userEmail ?? agent?.user?.email ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.common.created}</p>
+                <p className="text-xs text-slate-500">{vi.common.created}</p>
                 <p>{info?.createdAt ? formatDateTime(String(info.createdAt)) : '—'}</p>
               </div>
             </Card>
@@ -573,9 +631,9 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
               ) : (
                 <ul className="space-y-2 text-sm">
                   {notes.map((n) => (
-                    <li key={n.id} className="rounded-lg border border-zinc-100 p-3">
+                    <li key={n.id} className="rounded-lg border border-slate-100 p-3">
                       <p>{n.text}</p>
-                      <p className="mt-1 text-xs text-zinc-400">
+                      <p className="mt-1 text-xs text-slate-400">
                         {n.adminEmail} · {formatDateTime(n.createdAt)}
                       </p>
                     </li>
@@ -610,12 +668,16 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             {can('agents.manage') && (
               <Card className="space-y-3">
                 <h3 className="font-semibold">{vi.agentCenter.apiManagementTitle}</h3>
-                <p className="text-sm text-zinc-500">
-                  Secret không thể xem lại — dùng &quot;Tạo lại khóa API&quot; để cấp cặp mới cho đại lý.
+                <p className="text-sm text-slate-500">
+                  Secret không thể xem lại — bật Live hoặc tạo lại khóa để cấp cặp mới cho đại lý.
+                  Đại lý cũng có thể tự xoay khóa Live trên Partner sau khi Live đã bật.
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge tone={api?.apiEnabled ? 'success' : 'default'}>
                     API {api?.apiEnabled ? vi.app.enabled : vi.app.no}
+                  </Badge>
+                  <Badge tone={api?.liveApiEnabled ? 'success' : 'warning'}>
+                    Live {api?.liveApiEnabled ? vi.app.enabled : 'chờ bật'}
                   </Badge>
                   <Button
                     size="sm"
@@ -625,7 +687,12 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
                   >
                     {api?.apiEnabled ? vi.agentCenter.actionDisableApi : vi.agentCenter.actionEnableApi}
                   </Button>
-                  {Boolean(api?.hasCredentials) && (
+                  {!api?.liveApiEnabled && Boolean(api?.hasSandboxCredentials) && (
+                    <Button size="sm" disabled={actionBusy} onClick={() => void handleEnableLiveApi()}>
+                      {vi.agents.enableLiveApi}
+                    </Button>
+                  )}
+                  {Boolean(api?.liveApiEnabled) && (
                     <Button size="sm" disabled={actionBusy} onClick={() => void handleRotateApiKeys()}>
                       {vi.agents.rotateApiKey}
                     </Button>
@@ -635,29 +702,41 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             )}
             <Card className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.apiEnabled}</p>
+                <p className="text-xs text-slate-500">{vi.agents.apiEnabled}</p>
                 <p>{api?.apiEnabled ? vi.app.yes : vi.app.no}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.hasCredentials}</p>
+                <p className="text-xs text-slate-500">{vi.agents.liveApiEnabled}</p>
+                <p>{api?.liveApiEnabled ? vi.app.yes : vi.app.no}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{vi.agents.hasSandboxCredentials}</p>
+                <p>{api?.hasSandboxCredentials ? vi.app.yes : vi.app.no}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{vi.agents.hasCredentials}</p>
                 <p>{api?.hasCredentials ? vi.app.yes : vi.app.no}</p>
               </div>
               <div className="sm:col-span-2">
-                <p className="text-xs text-zinc-500">{vi.agents.apiKeyMasked}</p>
+                <p className="text-xs text-slate-500">{vi.agents.sandboxApiKeyMasked}</p>
+                <p className="font-mono text-sm">{String(api?.sandboxApiKeyMasked ?? '—')}</p>
+              </div>
+              <div className="sm:col-span-2">
+                <p className="text-xs text-slate-500">{vi.agents.apiKeyMasked}</p>
                 <p className="font-mono text-sm">{String(api?.apiKeyMasked ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.rateLimit}</p>
+                <p className="text-xs text-slate-500">{vi.agents.rateLimit}</p>
                 <p>{String(api?.rateLimit ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agents.lastApiUse}</p>
+                <p className="text-xs text-slate-500">{vi.agents.lastApiUse}</p>
                 <p>{api?.lastUsedAt ? formatDateTime(String(api.lastUsedAt)) : '—'}</p>
               </div>
             </Card>
             <Card className="space-y-2">
               <h3 className="font-semibold">IP whitelist</h3>
-              <p className="text-sm text-zinc-500">
+              <p className="text-sm text-slate-500">
                 Đại lý gửi IP → Admin duyệt mới cho phép gọi API từ IP đó. Rate-limit theo đại lý vẫn áp dụng.
               </p>
               {whitelist.length === 0 ? (
@@ -670,11 +749,11 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
                     return (
                       <li
                         key={entryId || i}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2"
                       >
                         <div>
                           <p className="font-mono text-xs">{String(e.cidr)}</p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-slate-500">
                             {String(e.description || '—')} ·{' '}
                             {status === 'PENDING'
                               ? 'Chờ duyệt'
@@ -719,10 +798,10 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
               <SimpleTable
                 headers={['Thời gian', 'Endpoint', 'HTTP', 'ms']}
                 rows={logs.map((l) => [
-                  formatDateTime(String(l.requestTime)),
-                  `${String(l.method)} ${String(l.endpoint)}`,
-                  String(l.httpStatus),
-                  String(l.latencyMs),
+                  formatDateTime(formatDisplayValue(l.requestTime)),
+                  `${formatDisplayValue(l.method)} ${formatDisplayValue(l.endpoint)}`,
+                  formatDisplayValue(l.httpStatus),
+                  formatDisplayValue(l.latencyMs),
                 ])}
               />
             </Card>
@@ -738,19 +817,19 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
           <div className="space-y-4">
             <Card className="grid gap-3 md:grid-cols-2">
               <div>
-                <p className="text-xs text-zinc-500">Callback URL</p>
+                <p className="text-xs text-slate-500">Callback URL</p>
                 <p className="break-all font-mono text-xs">{String(wh?.callbackUrl ?? '—')}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">{vi.agentCenter.colWebhookStatus}</p>
+                <p className="text-xs text-slate-500">{vi.agentCenter.colWebhookStatus}</p>
                 <p>{wh?.enabled ? vi.app.enabled : vi.app.no}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">Tỷ lệ giao 7 ngày</p>
+                <p className="text-xs text-slate-500">Tỷ lệ giao 7 ngày</p>
                 <p>{String(wh?.deliveryRate ?? 0)}%</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500">Secret</p>
+                <p className="text-xs text-slate-500">Secret</p>
                 <p>{wh?.secretConfigured ? vi.app.configured : vi.app.notConfigured}</p>
               </div>
             </Card>
@@ -785,10 +864,14 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             <SimpleTable
               headers={['Email', 'Tên', 'Vai trò', vi.agentCenter.colStatus, 'Đăng nhập cuối']}
               rows={items.map((m) => [
-                String(m.email),
-                String(m.fullName ?? '—'),
-                String(m.role),
-                <Badge key={String(m.id)} tone={statusTone(String(m.status))} status={String(m.status)} />,
+                formatDisplayValue(m.email),
+                formatDisplayValue(m.fullName),
+                formatDisplayValue(m.role),
+                <Badge
+                  key={formatDisplayValue(m.id)}
+                  tone={statusTone(formatDisplayValue(m.status))}
+                  status={formatDisplayValue(m.status)}
+                />,
                 m.lastLoginAt ? formatDateTime(String(m.lastLoginAt)) : '—',
               ])}
             />
@@ -802,13 +885,13 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
         if (roles.length === 0) return <EmptyBlock />;
         return (
           <div className="space-y-3">
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-slate-500">
               Bảng tham chiếu vai trò và quyền trên cổng Partner — áp dụng cho thành viên đại lý
               (tab Thành viên), không chỉnh tại đây. Admin dùng để tra cứu quyền khi hỗ trợ đại lý.
             </p>
             <Card className="overflow-x-auto p-0">
             <table className="min-w-full text-left text-sm">
-              <thead className="border-b bg-zinc-50 text-zinc-500">
+              <thead className="border-b bg-slate-50 text-slate-500">
                 <tr>
                   <th className="px-4 py-3">Vai trò</th>
                   <th className="px-4 py-3">Quyền</th>
@@ -816,12 +899,12 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
               </thead>
               <tbody>
                 {roles.map((r) => (
-                  <tr key={r.role} className="border-b border-zinc-50 align-top">
+                  <tr key={r.role} className="border-b border-slate-50 align-top">
                     <td className="px-4 py-3 font-medium">{r.role}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {r.permissions.map((p) => (
-                          <span key={p} className="rounded bg-zinc-100 px-2 py-0.5 text-xs">
+                          <span key={p} className="rounded bg-slate-100 px-2 py-0.5 text-xs">
                             {p}
                           </span>
                         ))}
@@ -845,15 +928,19 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             <SimpleTable
               headers={['Mã đơn', vi.finance.amount, 'Thanh toán', 'Giao hàng', vi.common.created, '']}
               rows={items.map((o) => [
-                String(o.orderCode),
-                formatVnd(String(o.amount)),
-                <Badge key={`p-${o.id}`} tone={statusTone(String(o.paymentStatus))} status={String(o.paymentStatus)} />,
+                formatDisplayValue(o.orderCode),
+                formatVnd(formatDisplayValue(o.amount)),
                 <Badge
-                  key={`f-${o.id}`}
-                  tone={statusTone(String(o.fulfillmentStatus))}
-                  status={String(o.fulfillmentStatus)}
+                  key={`p-${formatDisplayValue(o.id)}`}
+                  tone={statusTone(formatDisplayValue(o.paymentStatus))}
+                  status={formatDisplayValue(o.paymentStatus)}
                 />,
-                formatDateTime(String(o.createdAt)),
+                <Badge
+                  key={`f-${formatDisplayValue(o.id)}`}
+                  tone={statusTone(formatDisplayValue(o.fulfillmentStatus))}
+                  status={formatDisplayValue(o.fulfillmentStatus)}
+                />,
+                formatDateTime(formatDisplayValue(o.createdAt)),
                 <Link key={`l-${o.id}`} href={`/orders/${String(o.id)}`} className="text-admin-600 hover:underline">
                   {vi.common.detail}
                 </Link>,
@@ -870,16 +957,16 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
         if (items.length === 0) return <EmptyBlock />;
         return (
           <Card>
-            <ul className="space-y-4 border-l-2 border-zinc-200 pl-4">
+            <ul className="space-y-4 border-l-2 border-slate-200 pl-4">
               {items.map((a) => (
                 <li key={String(a.id)} className="relative">
                   <span className="absolute -left-[1.35rem] top-1 h-2 w-2 rounded-full bg-admin-500" />
-                  <p className="font-medium">{String(a.title)}</p>
-                  {a.description ? <p className="text-sm text-zinc-600">{String(a.description)}</p> : null}
-                  <p className="mt-1 text-xs text-zinc-400">
-                    {formatDateTime(String(a.createdAt))}
-                    {a.performedEmail ? ` · ${String(a.performedEmail)}` : ''}
-                    {a.severity ? ` · ${String(a.severity)}` : ''}
+                  <p className="font-medium">{formatDisplayValue(a.title)}</p>
+                  {a.description ? <p className="text-sm text-slate-600">{formatDisplayValue(a.description)}</p> : null}
+                  <p className="mt-1 text-xs text-slate-400">
+                    {formatDateTime(formatDisplayValue(a.createdAt))}
+                    {a.performedEmail ? ` · ${formatDisplayValue(a.performedEmail)}` : ''}
+                    {a.severity ? ` · ${formatDisplayValue(a.severity)}` : ''}
                   </p>
                 </li>
               ))}
@@ -897,12 +984,12 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             <SimpleTable
               headers={[vi.common.created, 'IP', 'Thiết bị', 'Trình duyệt', 'Quốc gia', 'Kết quả']}
               rows={items.map((r) => [
-                formatDateTime(String(r.createdAt)),
-                String(r.ipAddress ?? '—'),
-                String(r.device ?? '—'),
-                String(r.browser ?? '—'),
-                String(r.country ?? '—'),
-                String(r.result ?? '—'),
+                formatDateTime(formatDisplayValue(r.createdAt)),
+                formatDisplayValue(r.ipAddress),
+                formatDisplayValue(r.device),
+                formatDisplayValue(r.browser),
+                formatDisplayValue(r.country),
+                formatDisplayValue(r.result),
               ])}
             />
           </Card>
@@ -946,8 +1033,8 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
         ) : (
           <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold">{agent?.companyName ?? '—'}</h1>
-              <p className="mt-1 font-mono text-sm text-zinc-500">{formatAgentCode(agentId)}</p>
+              <h1 className="admin-page-title">{agent?.companyName ?? '—'}</h1>
+              <p className="mt-1 font-mono text-sm text-slate-500">{formatAgentCode(agentId)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {agent?.status && <Badge tone={statusTone(agent.status)} status={agent.status} />}
                 {kycStatus && <Badge tone={statusTone(kycStatus)} status={kycStatus} />}
@@ -961,50 +1048,37 @@ export function AgentDetailView({ agentId }: { agentId: string }) {
             <div className="flex flex-wrap items-center gap-x-2 text-sm">
               {can('agents.manage') && (
                 <>
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     disabled={actionBusy}
-                    className="text-admin-600 hover:underline disabled:opacity-50"
                     onClick={() => void handleImpersonate()}
                   >
                     {vi.agentCenter.actionImpersonate}
-                  </button>
-                  <span className="text-zinc-300" aria-hidden>
-                    ·
-                  </span>
+                  </Button>
                 </>
               )}
-              <button
-                type="button"
-                className="text-admin-600 hover:underline"
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => void handlePartnerPortal()}
               >
                 {vi.agentCenter.actionPartnerPortal}
-              </button>
+              </Button>
             </div>
           </div>
         )}
       </div>
 
-      {error && <ErrorMessage message={error} />}
+      {headerError && <ErrorMessage message={headerError} />}
+      {tabError && <ErrorMessage message={tabError} />}
 
-      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-zinc-200 pb-0">
-        {visibleTabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              'shrink-0 rounded-t-lg px-3 py-2 text-sm font-medium whitespace-nowrap',
-              activeTab === t.id
-                ? 'border border-b-white border-zinc-200 bg-white text-admin-700'
-                : 'text-zinc-600 hover:bg-zinc-50',
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <TabStrip
+        ariaLabel="Chi tiết đại lý"
+        items={visibleTabs.map((tab) => ({ id: tab.id, label: tab.label }))}
+        active={activeTab}
+        onSelect={setTab}
+      />
 
       <div>{renderTabPanel()}</div>
 

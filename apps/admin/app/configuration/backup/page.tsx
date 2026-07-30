@@ -59,7 +59,7 @@ export default function ConfigurationBackupPage() {
         <Card className="space-y-4">
           <div>
             <label className="text-sm font-medium">{vi.configuration.module}</label>
-            <select className="mt-1 block rounded-lg border border-zinc-200 px-3 py-2 text-sm" value={module} onChange={(e) => setModule(e.target.value)}>
+            <select className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm" value={module} onChange={(e) => setModule(e.target.value)}>
               {EXPORTABLE_MODULES.map((m) => (
                 <option key={m} value={m}>{m}</option>
               ))}
@@ -76,7 +76,7 @@ export default function ConfigurationBackupPage() {
           <div>
             <label className="text-sm font-medium">{vi.configuration.importJson}</label>
             <textarea
-              className="mt-1 w-full rounded-lg border border-zinc-200 p-3 font-mono text-xs"
+              className="mt-1 w-full rounded-lg border border-slate-200 p-3 font-mono text-xs"
               rows={8}
               value={importJson}
               onChange={(e) => setImportJson(e.target.value)}

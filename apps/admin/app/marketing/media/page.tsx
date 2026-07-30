@@ -88,7 +88,7 @@ export default function MediaPage() {
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Thư viện ảnh</h1>
+        <h1 className="admin-page-title">Thư viện ảnh</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
         <Card className="space-y-3 max-w-3xl">
@@ -165,14 +165,14 @@ export default function MediaPage() {
                 className="h-32 w-full rounded object-cover"
               />
               <p className="truncate text-sm font-medium">{m.title || m.originalName}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-slate-500">
                 {m.folder} · {m.filename}
               </p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-slate-500">
                 {(m.size / 1024).toFixed(1)} KB · {m.mimeType}
                 {m.width && m.height ? ` · ${m.width}×${m.height}px` : ''}
               </p>
-              <p className="text-xs text-zinc-400">{new Date(m.createdAt).toLocaleString('vi-VN')}</p>
+              <p className="text-xs text-slate-400">{new Date(m.createdAt).toLocaleString('vi-VN')}</p>
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" onClick={() => copyUrl(m)}>
                   {copied === m.id ? 'Đã copy' : 'Copy URL'}

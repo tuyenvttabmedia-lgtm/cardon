@@ -18,11 +18,11 @@ export function ConfigurationSubNav() {
   });
 
   return (
-    <aside className="sticky top-4 w-full shrink-0 lg:w-56">
-      <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+    <aside className="w-full shrink-0 lg:sticky lg:top-20 lg:w-60">
+      <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
         {vi.configuration.title}
       </p>
-      <nav className="space-y-0.5 rounded-xl border border-zinc-200 bg-white p-2">
+      <nav className="space-y-1 rounded-xl border border-slate-200/80 bg-white p-2 shadow-panel">
         {visible.map((item) => {
           const active =
             'exact' in item && item.exact
@@ -32,10 +32,13 @@ export function ConfigurationSubNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'block rounded-lg px-3 py-2 text-sm font-medium transition',
-                active ? 'bg-admin-600 text-white' : 'text-zinc-700 hover:bg-zinc-100',
-                item.href === '/configuration/audit' && !active && 'mt-1 border-t border-zinc-100 pt-3',
+                'block rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                active
+                  ? 'border-admin-500 bg-admin-50 text-admin-800 shadow-sm'
+                  : 'border-transparent text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950',
+                item.href === '/configuration/audit' && !active && 'mt-2 border-t border-slate-100 pt-3',
               )}
             >
               {item.label}
@@ -43,7 +46,7 @@ export function ConfigurationSubNav() {
           );
         })}
         {!canManage && (
-          <p className="px-3 py-2 text-xs text-zinc-400">{vi.configuration.readOnlyHint}</p>
+          <p className="px-3 py-2 text-xs text-slate-400">{vi.configuration.readOnlyHint}</p>
         )}
       </nav>
     </aside>

@@ -21,6 +21,8 @@ const SUPPLIER_BY_PRODUCT_SLUG = {
   'kul-card': 'KUL',
   'appota-card': 'APPOTA',
   'vcoin-card': 'VTC',
+  funcard: 'FUNCARD',
+  'gate-card': 'GATE',
   'viettel-card': 'VIETTEL',
   mobifone: 'MOBIFONE',
   vinaphone: 'VINAPHONE',
@@ -28,6 +30,7 @@ const SUPPLIER_BY_PRODUCT_SLUG = {
   'viettel-topup': 'viettel',
   'mobifone-topup': 'mobifone',
   'vinaphone-topup': 'vinaphone',
+  'vietnamobile-topup': 'vietnamobile',
   'data-viettel': 'VIETTEL',
   'data-mobifone': 'MOBIFONE',
 };

@@ -59,8 +59,11 @@ export class AgentApiBuyService {
     private readonly webhookDelivery: WebhookDeliveryService,
   ) {}
 
-  getBalance(agentId: string): Promise<PartnerBalanceResponse> {
-    return this.ledgerService.getBalance(agentId).then(mapPartnerBalance);
+  getBalance(ctx: AgentApiContext): Promise<PartnerBalanceResponse> {
+    if (ctx.environment === 'SANDBOX') {
+      return this.ledgerService.getSandboxBalance(ctx.agent.id).then(mapPartnerBalance);
+    }
+    return this.ledgerService.getBalance(ctx.agent.id).then(mapPartnerBalance);
   }
 
   async getTransaction(
@@ -137,9 +140,23 @@ export class AgentApiBuyService {
     );
     const unitPrice = new Decimal(unitPriceStr);
     const totalAmount = unitPrice.mul(dto.quantity);
+    const pricing = await this.pricingService.resolveAgentPrice(
+      ctx.agent.id,
+      variant.id,
+      { allowBelowCost: true },
+    );
+    const unitFace = new Decimal(variant.faceValue);
+    const faceValueTotal = unitFace.mul(dto.quantity);
+    const unitCost =
+      ctx.environment === 'SANDBOX' || pricing.providerCost == null
+        ? new Decimal(0)
+        : new Decimal(pricing.providerCost);
+    const providerCostTotal = unitCost.mul(dto.quantity);
+    const profitTotal = totalAmount.sub(providerCostTotal);
 
     let orderId: string;
     let financialTransactionId: string;
+    const isSandbox = ctx.environment === 'SANDBOX';
 
     try {
       const created = await this.createOrderWithHold({
@@ -150,6 +167,11 @@ export class AgentApiBuyService {
         quantity: dto.quantity,
         unitPrice,
         totalAmount,
+        faceValue: faceValueTotal,
+        sellAmount: totalAmount,
+        providerCost: providerCostTotal,
+        profit: profitTotal,
+        isSandbox,
       });
       orderId = created.orderId;
       financialTransactionId = created.financialTransactionId;
@@ -205,8 +227,12 @@ export class AgentApiBuyService {
 
     let fulfillmentStatus: FulfillmentStatus;
     try {
-      const result = await this.providerService.fulfillOrder(orderId);
-      fulfillmentStatus = result.fulfillmentStatus;
+      if (isSandbox) {
+        fulfillmentStatus = await this.fulfillSandboxOrder(orderId, dto.quantity);
+      } else {
+        const result = await this.providerService.fulfillOrder(orderId);
+        fulfillmentStatus = result.fulfillmentStatus;
+      }
     } catch (error) {
       this.logger.warn(
         `Provider fulfillment error for agent order ${orderId}: ${error instanceof Error ? error.message : error}`,
@@ -232,6 +258,7 @@ export class AgentApiBuyService {
         amount: totalAmount,
         financialTransactionId,
         fulfillmentStatus,
+        isSandbox,
       });
       this.webhookDelivery.scheduleForOrder(orderId);
     } catch (error) {
@@ -268,6 +295,11 @@ export class AgentApiBuyService {
     quantity: number;
     unitPrice: Decimal;
     totalAmount: Decimal;
+    faceValue: Decimal;
+    sellAmount: Decimal;
+    providerCost: Decimal;
+    profit: Decimal;
+    isSandbox: boolean;
   }): Promise<{ orderId: string; financialTransactionId: string }> {
     const orderCode = generateOrderCode();
     const transactionCode = generateTransactionId();
@@ -293,14 +325,22 @@ export class AgentApiBuyService {
         amount: input.totalAmount,
       });
 
-      await this.ledgerService.holdInTransaction(
-        tx,
-        input.agentId,
-        input.totalAmount,
-        LedgerReferenceType.TRANSACTION,
-        financialTxn.id,
-        `Hold for agent buy ${input.productCode}`,
-      );
+      if (input.isSandbox) {
+        await this.ledgerService.holdSandboxInTransaction(
+          tx,
+          input.agentId,
+          input.totalAmount,
+        );
+      } else {
+        await this.ledgerService.holdInTransaction(
+          tx,
+          input.agentId,
+          input.totalAmount,
+          LedgerReferenceType.TRANSACTION,
+          financialTxn.id,
+          `Hold for agent buy ${input.productCode}`,
+        );
+      }
 
       const order = await this.repository.createAgentOrderWithHold(tx, {
         agentId: input.agentId,
@@ -310,6 +350,12 @@ export class AgentApiBuyService {
         quantity: input.quantity,
         unitPrice: input.unitPrice,
         totalAmount: input.totalAmount,
+        faceValue: input.faceValue,
+        sellAmount: input.sellAmount,
+        providerCost: input.providerCost,
+        profit: input.profit,
+        customerPaid: input.sellAmount,
+        isSandbox: input.isSandbox,
         orderCode,
         transactionCode,
         financialTransactionId: financialTxn.id,
@@ -328,12 +374,51 @@ export class AgentApiBuyService {
     });
   }
 
+  /** Mock fulfillment — fake cards, no provider call. */
+  private async fulfillSandboxOrder(
+    orderId: string,
+    quantity: number,
+  ): Promise<FulfillmentStatus> {
+    const order = await this.repository.findOrderById(orderId);
+    const item = order?.orderItems[0];
+    if (!item) {
+      throw new NotFoundException('Sandbox order item missing');
+    }
+
+    const cards = Array.from({ length: quantity }, (_, i) => {
+      const serial = `SBX-${Date.now()}-${i}-${Math.floor(Math.random() * 1e6)}`;
+      const pin = `SBXPIN-${Math.floor(100000 + Math.random() * 900000)}`;
+      return {
+        orderItemId: item.id,
+        encryptedSerial: this.cardEncryption.encrypt(serial),
+        encryptedPin: this.cardEncryption.encrypt(pin),
+        providerResponse: { sandbox: true, mock: true },
+        status: 'DELIVERED' as const,
+      };
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.cardRecord.createMany({ data: cards });
+      await tx.orderItem.update({
+        where: { id: item.id },
+        data: { status: 'COMPLETED' },
+      });
+      await tx.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.COMPLETED },
+      });
+    });
+
+    return FulfillmentStatus.COMPLETED;
+  }
+
   private async settleFulfillment(params: {
     agentId: string;
     orderId: string;
     amount: Decimal;
     financialTransactionId: string;
     fulfillmentStatus: FulfillmentStatus;
+    isSandbox: boolean;
   }): Promise<void> {
     const failureCode = await this.repository.findLatestProviderFailureCode(
       params.orderId,
@@ -341,14 +426,22 @@ export class AgentApiBuyService {
 
     if (params.fulfillmentStatus === FulfillmentStatus.COMPLETED) {
       await this.prisma.$transaction(async (tx) => {
-        await this.ledgerService.debitFromHoldInTransaction(
-          tx,
-          params.agentId,
-          params.amount,
-          LedgerReferenceType.ORDER,
-          params.orderId,
-          'Agent buy card debit',
-        );
+        if (params.isSandbox) {
+          await this.ledgerService.debitSandboxFromHoldInTransaction(
+            tx,
+            params.agentId,
+            params.amount,
+          );
+        } else {
+          await this.ledgerService.debitFromHoldInTransaction(
+            tx,
+            params.agentId,
+            params.amount,
+            LedgerReferenceType.ORDER,
+            params.orderId,
+            'Agent buy card debit',
+          );
+        }
         await this.repository.updateFinancialTransactionStatus(
           params.financialTransactionId,
           FinancialTransactionStatus.COMPLETED,
@@ -360,14 +453,22 @@ export class AgentApiBuyService {
 
     if (this.shouldReleaseHold(failureCode, params.fulfillmentStatus)) {
       await this.prisma.$transaction(async (tx) => {
-        await this.ledgerService.releaseInTransaction(
-          tx,
-          params.agentId,
-          params.amount,
-          LedgerReferenceType.ORDER,
-          params.orderId,
-          'Agent buy card release',
-        );
+        if (params.isSandbox) {
+          await this.ledgerService.releaseSandboxInTransaction(
+            tx,
+            params.agentId,
+            params.amount,
+          );
+        } else {
+          await this.ledgerService.releaseInTransaction(
+            tx,
+            params.agentId,
+            params.amount,
+            LedgerReferenceType.ORDER,
+            params.orderId,
+            'Agent buy card release',
+          );
+        }
         await this.repository.updateFinancialTransactionStatus(
           params.financialTransactionId,
           FinancialTransactionStatus.RELEASED,
@@ -416,6 +517,7 @@ export class AgentApiBuyService {
     const failureCode = await this.repository.findLatestProviderFailureCode(
       order.id,
     );
+    const isSandbox = this.isSandboxOrder(order);
 
     if (order.fulfillmentStatus === FulfillmentStatus.COMPLETED) {
       await this.settleFulfillment({
@@ -424,6 +526,7 @@ export class AgentApiBuyService {
         amount: order.totalAmount,
         financialTransactionId: order.financialTransaction.id,
         fulfillmentStatus: FulfillmentStatus.COMPLETED,
+        isSandbox,
       });
       this.webhookDelivery.scheduleForOrder(order.id);
       return;
@@ -436,8 +539,14 @@ export class AgentApiBuyService {
         amount: order.totalAmount,
         financialTransactionId: order.financialTransaction.id,
         fulfillmentStatus: order.fulfillmentStatus,
+        isSandbox,
       });
       this.webhookDelivery.scheduleForOrder(order.id);
     }
+  }
+
+  private isSandboxOrder(order: AgentOrderWithDetails): boolean {
+    const trace = order.clientTrace as { sandbox?: boolean } | null;
+    return trace?.sandbox === true;
   }
 }

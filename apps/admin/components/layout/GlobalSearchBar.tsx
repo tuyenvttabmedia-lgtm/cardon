@@ -40,14 +40,25 @@ export function GlobalSearchBar() {
   }
 
   return (
-    <form onSubmit={(e) => void handleSearch(e)} className="hidden max-w-md flex-1 md:block">
+    <form onSubmit={(e) => void handleSearch(e)} className="relative hidden max-w-xl flex-1 md:block">
+      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+        ⌕
+      </span>
       <Input
-        placeholder="Tìm mã đơn, email, payment ref, gateway tx…"
+        aria-label="Tìm kiếm toàn hệ thống"
+        placeholder="Tìm mã đơn, email, payment ref, giao dịch…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        className="text-sm"
+        className="h-10 bg-slate-50/80 pl-9 pr-14 text-sm hover:bg-white focus:bg-white"
       />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-400">
+        Enter
+      </span>
+      {error && (
+        <p className="absolute left-0 top-full mt-1 rounded-md bg-red-50 px-2 py-1 text-xs text-red-600 shadow-sm">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

@@ -443,10 +443,25 @@ export const adminApi = {
     );
   },
   rotateAgentApiKeys(id: string) {
-    return apiRequest<{ agentId: string; apiKey: string; secretKey: string; message: string }>(
-      `/admin/agents/${id}/api-keys/rotate`,
-      { method: 'POST' },
-    );
+    return apiRequest<{
+      agentId: string;
+      apiKey: string;
+      secretKey: string;
+      message: string;
+      environment?: string;
+    }>(`/admin/agents/${id}/api-keys/rotate`, {
+      method: 'POST',
+    });
+  },
+  enableLiveApi(id: string) {
+    return apiRequest<{
+      agentId: string;
+      environment: string;
+      liveApiEnabled: boolean;
+      apiKey: string;
+      secretKey: string;
+      message: string;
+    }>(`/admin/agents/${id}/enable-live-api`, { method: 'POST' });
   },
   creditAgent(id: string, amount: string, note?: string) {
     return apiRequest<unknown>(`/admin/agents/${id}/credit`, {

@@ -47,6 +47,15 @@ export class AdminOrderQueryDto {
   @IsUUID()
   providerId?: string;
 
+  /** B2C (default) | AGENT | ALL — retail list must not mix agent API orders. */
+  @IsOptional()
+  @IsIn(['B2C', 'AGENT', 'ALL'])
+  channel?: 'B2C' | 'AGENT' | 'ALL';
+
+  @IsOptional()
+  @IsUUID()
+  agentId?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(255)

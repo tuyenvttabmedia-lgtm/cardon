@@ -43,7 +43,7 @@ export default function SettingsTelegramPage() {
   }
 
   if (!form) {
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
   }
 
   return (
@@ -52,7 +52,7 @@ export default function SettingsTelegramPage() {
         <ConfigurationAuditBar module="telegram" />
         {error && <ErrorMessage message={error} />}
         {saved && <p className="text-sm text-emerald-600">{vi.app.saved}</p>}
-        {testMsg && <p className="text-sm text-zinc-600">{testMsg}</p>}
+        {testMsg && <p className="text-sm text-slate-600">{testMsg}</p>}
         <Card className="max-w-xl space-y-4">
           <SettingsRuntimeBadges source={form.source} secretsProtected={Boolean(form.botToken)} />
           <label className="flex items-center gap-2 text-sm">
@@ -72,7 +72,7 @@ export default function SettingsTelegramPage() {
               onChange={(e) => setForm({ ...form, botToken: e.target.value })}
             />
             {form.botToken?.startsWith('********') && (
-              <p className="mt-1 text-xs text-zinc-500">Token đã cấu hình (ẩn)</p>
+              <p className="mt-1 text-xs text-slate-500">Token đã cấu hình (ẩn)</p>
             )}
           </div>
           <div>

@@ -409,7 +409,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       <div className={view === 'editor' ? 'fixed inset-0 z-40 flex flex-col bg-white' : 'space-y-6'}>
         {view === 'list' ? (
           <>
-            <h1 className="text-2xl font-bold">{title}</h1>
+            <h1 className="admin-page-title">{title}</h1>
             <MarketingNav />
             {error && <ErrorMessage message={error} />}
             {pageType === 'BLOG_POST' ? (

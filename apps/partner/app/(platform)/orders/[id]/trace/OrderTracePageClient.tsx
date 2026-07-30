@@ -33,7 +33,7 @@ export default function OrderTracePageClient() {
           ← Chi tiết đơn
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-slate-900 dark:text-slate-100">Trace vòng đời đơn hàng</h1>
-        <p className="text-sm text-slate-600">API → Wallet Hold → Provider → Response → Webhook → Ledger → Notification → Activity → Completed</p>
+        <p className="text-sm text-slate-600">API → Giữ hạn mức → Xử lý đơn → Phản hồi → Webhook → Ledger → Thông báo → Hoạt động → Hoàn tất</p>
       </div>
 
       {loading ? (

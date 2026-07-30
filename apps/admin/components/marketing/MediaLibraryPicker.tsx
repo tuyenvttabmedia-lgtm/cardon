@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Label, Select } from '@/components/ui/Form';
+import { Dialog } from '@/components/ui/Dialog';
 import { ErrorMessage } from '@/components/ui/Display';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsMedia } from '@/types/api';
@@ -77,18 +78,10 @@ export function MediaLibraryPicker({
     }
   }
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
-          <h2 className="text-lg font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            Đóng
-          </Button>
-        </div>
-        <div className="space-y-3 border-b border-zinc-100 p-4">
+    <Dialog open={open} onClose={onClose} title={title} size="xl">
+      <div className="flex flex-col">
+        <div className="space-y-3 border-b border-slate-100 pb-4">
           {error && <ErrorMessage message={error} />}
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
@@ -113,12 +106,12 @@ export function MediaLibraryPicker({
             </Button>
           </div>
         </div>
-        <div className="grid flex-1 gap-3 overflow-y-auto p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid flex-1 gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((m) => (
             <button
               key={m.id}
               type="button"
-              className="rounded-lg border border-zinc-200 p-2 text-left hover:border-admin-500"
+              className="rounded-lg border border-slate-200 p-2 text-left hover:border-admin-500"
               onClick={() => {
                 onSelect(m.url);
                 onClose();
@@ -130,16 +123,16 @@ export function MediaLibraryPicker({
                 className="h-28 w-full rounded object-cover"
               />
               <p className="mt-2 truncate text-sm font-medium">{m.originalName}</p>
-              <p className="text-xs text-zinc-500">
+              <p className="text-xs text-slate-500">
                 {m.folder} · {(m.size / 1024).toFixed(1)} KB
                 {m.width && m.height ? ` · ${m.width}×${m.height}` : ''}
               </p>
             </button>
           ))}
-          {items.length === 0 && <p className="text-sm text-zinc-500">Chưa có ảnh trong thư mục này.</p>}
+          {items.length === 0 && <p className="text-sm text-slate-500">Chưa có ảnh trong thư mục này.</p>}
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
 

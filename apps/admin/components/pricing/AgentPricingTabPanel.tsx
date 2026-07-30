@@ -22,6 +22,7 @@ type MarginConfigPayload = {
   services: Record<string, ServiceMarginRule>;
   labels: Record<string, string>;
   sampleCosts: Record<string, number | null>;
+  sampleFaceValues?: Record<string, number | null>;
   defaults: {
     roundTo: number;
     services: Record<string, ServiceMarginRule>;
@@ -41,15 +42,22 @@ export function AgentPricingTabPanel({
   data: Record<string, unknown>;
 }) {
   void agentId;
-  const items = (data.items ?? []) as Array<Record<string, unknown>>;
+  const rawItems = (data.items ?? []) as Array<Record<string, unknown>>;
+  const items = rawItems.filter((p) => p && p.variantId != null && p.sku != null);
   const formula = String(data.formula ?? '');
+  const text = (value: unknown) => (value == null || value === '' ? '—' : String(value));
+  const money = (value: unknown) => {
+    if (value == null || value === '') return '—';
+    const amount = Number(value);
+    return Number.isFinite(amount) ? formatVnd(amount) : '—';
+  };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-500">{formula}</p>
+      <p className="text-sm text-slate-500">{formula}</p>
       <Card className="overflow-x-auto p-0">
         <table className="min-w-full text-sm">
-          <thead className="border-b bg-zinc-50 text-zinc-500">
+          <thead className="border-b bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">{vi.pricing.colSku}</th>
               <th className="px-4 py-3 text-left">Nhóm sản phẩm</th>
@@ -61,17 +69,25 @@ export function AgentPricingTabPanel({
             </tr>
           </thead>
           <tbody>
-            {items.map((p) => (
-              <tr key={String(p.variantId)} className="border-b border-zinc-50">
-                <td className="px-4 py-3 font-mono text-xs">{String(p.sku)}</td>
-                <td className="px-4 py-3">{String(p.homeServiceLabel)}</td>
-                <td className="px-4 py-3">{String(p.productName)}</td>
-                <td className="px-4 py-3">{p.providerCost ? formatVnd(String(p.providerCost)) : '—'}</td>
-                <td className="px-4 py-3">{p.cardonMargin ? formatVnd(String(p.cardonMargin)) : '—'}</td>
-                <td className="px-4 py-3 font-medium">{formatVnd(String(p.agentPrice))}</td>
-                <td className="px-4 py-3 text-xs text-zinc-500">{String(p.appliedRule)}</td>
+            {items.length === 0 ? (
+              <tr>
+                <td className="px-4 py-6 text-slate-500" colSpan={7}>
+                  {vi.common.noData}
+                </td>
               </tr>
-            ))}
+            ) : (
+              items.map((p) => (
+                <tr key={String(p.variantId)} className="border-b border-slate-50">
+                  <td className="px-4 py-3 font-mono text-xs">{text(p.sku)}</td>
+                  <td className="px-4 py-3">{text(p.homeServiceLabel)}</td>
+                  <td className="px-4 py-3">{text(p.productName)}</td>
+                  <td className="px-4 py-3">{money(p.providerCost)}</td>
+                  <td className="px-4 py-3">{money(p.cardonMargin)}</td>
+                  <td className="px-4 py-3 font-medium">{money(p.agentPrice)}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{text(p.appliedRule)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </Card>
@@ -176,26 +192,26 @@ export function AgentMarginConfigForm() {
     }
   }
 
-  if (!config) return <p className="text-zinc-500">{vi.pricing.loading}</p>;
+  if (!config) return <p className="text-slate-500">{vi.pricing.loading}</p>;
 
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold text-zinc-900">{vi.agentCenter.navMarginConfig}</h2>
-        <p className="mt-1 text-sm text-zinc-600">
-          Giá bán = Giá vốn nhà cung cấp + Biên lợi nhuận CardOn
+        <h2 className="text-xl font-semibold text-slate-900">{vi.agentCenter.navMarginConfig}</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          CK đại lý = CK NCC − biên LN CardOn (% mệnh giá) → Giá ĐL = vốn NCC + biên LN
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-slate-500">
           Nhóm sản phẩm map theo <strong>Product.homeService</strong> (Garena 10k, Viettel 20k, …). Làm tròn{' '}
           {config.roundTo.toLocaleString('vi-VN')}đ khi áp dụng thực tế.
         </p>
       </div>
 
       {config.lastUpdated.at && (
-        <Card className="border-zinc-200 bg-zinc-50/80 p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">Cập nhật cuối</p>
-          <p className="mt-1 text-sm text-zinc-800">{formatDateTime(config.lastUpdated.at)}</p>
-          <p className="text-sm text-zinc-600">
+        <Card className="border-slate-200 bg-slate-50/80 p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cập nhật cuối</p>
+          <p className="mt-1 text-sm text-slate-800">{formatDateTime(config.lastUpdated.at)}</p>
+          <p className="text-sm text-slate-600">
             {config.lastUpdated.email ?? '—'}
             {config.lastUpdated.role ? ` · ${config.lastUpdated.role.replace(/_/g, ' ')}` : ''}
           </p>
@@ -203,13 +219,13 @@ export function AgentMarginConfigForm() {
       )}
 
       <Card className="p-4">
-        <p className="text-sm font-medium text-zinc-800">Áp dụng cho</p>
+        <p className="text-sm font-medium text-slate-800">Áp dụng cho</p>
         <div className="mt-2 flex flex-wrap gap-4 text-sm">
           <label className="flex items-center gap-2">
             <input type="radio" checked readOnly />
             Tất cả đại lý
           </label>
-          <label className="flex items-center gap-2 text-zinc-400">
+          <label className="flex items-center gap-2 text-slate-400">
             <input type="radio" disabled />
             Đại lý ngoại lệ
             <span className="text-xs">(sắp có)</span>
@@ -222,10 +238,10 @@ export function AgentMarginConfigForm() {
 
       <Card className="overflow-x-auto p-0">
         <table className="min-w-full text-sm">
-          <thead className="border-b bg-zinc-50 text-zinc-500">
+          <thead className="border-b bg-slate-50 text-slate-500">
             <tr>
               <th className="px-4 py-3 text-left">Nhóm sản phẩm</th>
-              <th className="px-4 py-3 text-left">Giá vốn mẫu</th>
+              <th className="px-4 py-3 text-left">Mệnh giá / vốn mẫu</th>
               <th className="px-4 py-3 text-left">Biên lợi nhuận</th>
               <th className="px-4 py-3 text-left">Giá bán dự kiến</th>
             </tr>
@@ -233,17 +249,27 @@ export function AgentMarginConfigForm() {
           <tbody>
             {Object.entries(config.services).map(([key, rule]) => {
               const sampleCost = config.sampleCosts[key];
+              const sampleFace = config.sampleFaceValues?.[key] ?? sampleCost;
               const preview =
-                sampleCost != null ? computePreviewPrice(sampleCost, rule) : null;
+                sampleCost != null && sampleFace != null
+                  ? computePreviewPrice(sampleCost, sampleFace, rule)
+                  : null;
               const applied =
-                sampleCost != null
-                  ? computeAppliedPrice(sampleCost, rule, config.roundTo)
+                sampleCost != null && sampleFace != null
+                  ? computeAppliedPrice(sampleCost, sampleFace, rule, config.roundTo)
                   : null;
               return (
-                <tr key={key} className="border-b border-zinc-50 align-top">
+                <tr key={key} className="border-b border-slate-50 align-top">
                   <td className="px-4 py-3 font-medium">{config.labels[key] ?? key}</td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {sampleCost != null ? formatVnd(sampleCost) : '—'}
+                  <td className="px-4 py-3 text-slate-600">
+                    {sampleCost != null ? (
+                      <div>
+                        <p>{formatVnd(sampleFace ?? sampleCost)}</p>
+                        <p className="text-xs text-slate-400">vốn {formatVnd(sampleCost)}</p>
+                      </div>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="space-y-2">
@@ -262,15 +288,15 @@ export function AgentMarginConfigForm() {
                         onChange={(e) => updateRule(key, { value: Number(e.target.value) })}
                         className="max-w-[140px]"
                       />
-                      <p className="text-xs text-zinc-400">{formatMarginDisplay(rule)}</p>
+                      <p className="text-xs text-slate-400">{formatMarginDisplay(rule)}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     {preview != null ? (
                       <div>
-                        <p className="font-semibold text-zinc-900">{formatVnd(preview)}</p>
+                        <p className="font-semibold text-slate-900">{formatVnd(preview)}</p>
                         {applied != null && applied !== preview && (
-                          <p className="text-xs text-zinc-500">
+                          <p className="text-xs text-slate-500">
                             Sau làm tròn: {formatVnd(applied)}
                           </p>
                         )}

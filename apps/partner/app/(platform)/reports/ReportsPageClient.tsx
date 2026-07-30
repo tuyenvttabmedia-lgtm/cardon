@@ -31,9 +31,9 @@ export default function ReportsPageClient() {
         <StatCard label="Latency TB" value={stats?.cards.avgLatencyMs ? `${stats.cards.avgLatencyMs} ms` : '—'} />
       </div>
       <Card>
-        <p className="text-sm font-semibold text-slate-900">Gateway & Provider</p>
+        <p className="text-sm font-semibold text-slate-900">Phân tích nâng cao</p>
         <p className="mt-2 text-sm text-slate-500">
-          Báo cáo chi tiết theo gateway và provider sẽ bổ sung trong mốc analytics tiếp theo.
+          Báo cáo chi tiết theo kênh thanh toán và hiệu suất xử lý sẽ bổ sung trong mốc analytics tiếp theo.
         </p>
       </Card>
     </PlatformSection>

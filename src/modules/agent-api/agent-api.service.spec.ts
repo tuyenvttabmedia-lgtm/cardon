@@ -28,11 +28,18 @@ describe('AgentApiAuthService', () => {
   let service: AgentApiAuthService;
   let agentRepository: {
     findByApiKeyLookup: jest.Mock;
+    findBySandboxApiKeyLookup: jest.Mock;
     touchLastUsedAt: jest.Mock;
   };
   let credentialService: AgentCredentialService;
+  let securityService: {
+    parseSecurityConfig: jest.Mock;
+    checkIpWhitelist: jest.Mock;
+    recordAuthFailure: jest.Mock;
+    validateApiAccess: jest.Mock;
+  };
 
-  const apiKey = 'ak_test_api_key_001';
+  const apiKey = 'ak_live_test_api_key_001';
   const secretKey = 'sk_test_secret_key_001';
   const requestId = 'req-auth-001';
   const path = `${AGENT_API_PREFIX}/balance`;
@@ -44,12 +51,19 @@ describe('AgentApiAuthService', () => {
     companyName: 'Partner Co',
     balance: new Decimal(1_000_000),
     heldBalance: new Decimal(0),
+    sandboxBalance: new Decimal(10_000_000),
+    sandboxHeldBalance: new Decimal(0),
     apiKeyHash: 'hash',
     apiKeyLookup: hashApiKeyForLookup(apiKey),
     secretKeyEncrypted: 'enc',
+    sandboxApiKeyHash: null,
+    sandboxApiKeyLookup: null,
+    sandboxSecretKeyEncrypted: null,
+    liveApiEnabled: true,
     status: AgentStatus.ACTIVE,
     apiEnabled: true,
     rateLimit: 100,
+    securityConfig: {},
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,
@@ -60,16 +74,24 @@ describe('AgentApiAuthService', () => {
   beforeEach(() => {
     agentRepository = {
       findByApiKeyLookup: jest.fn(),
+      findBySandboxApiKeyLookup: jest.fn().mockResolvedValue(null),
       touchLastUsedAt: jest.fn(),
     };
     credentialService = {
       verifyApiKey: jest.fn().mockReturnValue(true),
       decryptSecretKey: jest.fn().mockReturnValue(secretKey),
     } as unknown as AgentCredentialService;
+    securityService = {
+      parseSecurityConfig: jest.fn().mockReturnValue({}),
+      checkIpWhitelist: jest.fn().mockReturnValue(true),
+      recordAuthFailure: jest.fn(),
+      validateApiAccess: jest.fn(),
+    };
 
     service = new AgentApiAuthService(
       agentRepository as never,
       credentialService,
+      securityService as never,
     );
   });
 
@@ -88,9 +110,11 @@ describe('AgentApiAuthService', () => {
       method: 'GET',
       path,
       rawBody,
+      clientIp: null,
     });
 
     expect(ctx.agent.id).toBe('agent-1');
+    expect(ctx.environment).toBe('PRODUCTION');
     expect(ctx.requestId).toBe(requestId);
     expect(agentRepository.touchLastUsedAt).toHaveBeenCalledWith('agent-1');
   });
@@ -106,6 +130,7 @@ describe('AgentApiAuthService', () => {
         method: 'GET',
         path,
         rawBody,
+        clientIp: null,
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.INVALID_SIGNATURE,
@@ -126,6 +151,7 @@ describe('AgentApiAuthService', () => {
         method: 'GET',
         path,
         rawBody,
+        clientIp: null,
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.AGENT_INACTIVE,
@@ -146,6 +172,7 @@ describe('AgentApiAuthService', () => {
         method: 'GET',
         path,
         rawBody,
+        clientIp: null,
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.AGENT_SUSPENDED,
@@ -167,7 +194,7 @@ describe('AgentApiBuyService', () => {
   };
   let agentRepository: { lockForUpdate: jest.Mock };
   let variantRepository: { findBySku: jest.Mock };
-  let pricingService: { getAgentPrice: jest.Mock };
+  let pricingService: { getAgentPrice: jest.Mock; resolveAgentPrice: jest.Mock };
   let ledgerService: {
     holdInTransaction: jest.Mock;
     debitFromHoldInTransaction: jest.Mock;
@@ -185,6 +212,7 @@ describe('AgentApiBuyService', () => {
     },
     requestId: 'req-buy-001',
     secretKey: 'sk_test',
+    environment: 'PRODUCTION' as const,
   } as never;
 
   const variant = {
@@ -193,6 +221,7 @@ describe('AgentApiBuyService', () => {
     type: ProductVariantType.CARD,
     status: ProductVariantStatus.ACTIVE,
     deletedAt: null,
+    faceValue: new Decimal(100000),
   };
 
   const completedOrder = {
@@ -230,6 +259,11 @@ describe('AgentApiBuyService', () => {
     };
     pricingService = {
       getAgentPrice: jest.fn().mockResolvedValue('100000.00'),
+      resolveAgentPrice: jest.fn().mockResolvedValue({
+        sellingPrice: '100000.00',
+        providerCost: '90000.00',
+        cardonMargin: '10000.00',
+      }),
     };
     ledgerService = {
       holdInTransaction: jest.fn(),
@@ -274,11 +308,12 @@ describe('AgentApiBuyService', () => {
       ledgerService as never,
       providerService as never,
       cardEncryption as never,
+      { scheduleForOrder: jest.fn() } as never,
     );
   });
 
   it('returns balance snapshot', async () => {
-    const result = await service.getBalance('agent-1');
+    const result = await service.getBalance(ctx);
     expect(result.available_balance).toBe('900000.00');
     expect(result.held_balance).toBe('100000.00');
   });

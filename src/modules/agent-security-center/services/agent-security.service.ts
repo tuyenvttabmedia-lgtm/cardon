@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AgentStatus,
   Prisma,
   SystemActivityEventCategory,
   SystemActivityEventType,
@@ -20,7 +21,7 @@ import { ActivityEventDispatcher } from '../../activity-event/activity-event-dis
 import { AuditLogService } from '../../audit-log/services/audit-log.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentCredentialService } from '../../agent/services/agent-credential.service';
-import { AGENT_API_KEY_PREFIX } from '../../agent/entities/agent.constants';
+import { AGENT_API_KEY_PREFIX, AGENT_SANDBOX_SEED_BALANCE } from '../../agent/entities/agent.constants';
 import {
   AGENT_ROLE_PERMISSIONS,
   AgentPlatformRole,
@@ -70,7 +71,8 @@ export class AgentSecurityService {
 
     return {
       apiEnabled: agent.apiEnabled,
-      hasCredentials: !!agent.apiKeyHash,
+      hasCredentials: !!(agent.sandboxApiKeyHash || agent.apiKeyHash),
+      liveApiEnabled: agent.liveApiEnabled,
       ipWhitelistCount: (config.ipWhitelist ?? []).filter((e) => e.enabled).length,
       webhookConfigured: !!webhook?.callbackUrl,
       rateLimit: agent.rateLimit,
@@ -83,41 +85,100 @@ export class AgentSecurityService {
   async getApiKeys(userId: string) {
     const agent = await this.requireAgent(userId);
     const config = this.parseSecurityConfig(agent.securityConfig);
+    const sandboxReady = !!agent.sandboxApiKeyHash;
+    const liveReady = !!agent.apiKeyHash && agent.liveApiEnabled;
+
     return {
-      hasCredentials: !!agent.apiKeyHash,
       apiEnabled: agent.apiEnabled,
-      apiKeyMasked: agent.apiKeyHash ? `${AGENT_API_KEY_PREFIX}${'•'.repeat(24)}` : null,
-      label: config.apiKeyLabel ?? 'Primary Key',
-      environment: config.apiKeyEnvironment ?? 'PRODUCTION',
-      createdAt: agent.createdAt.toISOString(),
+      liveApiEnabled: agent.liveApiEnabled,
+      permissions: ['cards.buy', 'balance.read', 'transactions.read'],
       lastUsedAt: agent.lastUsedAt?.toISOString() ?? null,
       lastUsedIp: config.lastUsedIp ?? null,
+      sandbox: {
+        prefix: 'ak_test_',
+        hasCredentials: sandboxReady,
+        apiKeyMasked: sandboxReady ? `ak_test_${'•'.repeat(24)}` : null,
+        balance: agent.sandboxBalance.toFixed(2),
+        heldBalance: agent.sandboxHeldBalance.toFixed(2),
+        status: !agent.apiEnabled
+          ? 'DISABLED'
+          : sandboxReady
+            ? 'ACTIVE'
+            : 'MISSING',
+        hint: sandboxReady
+          ? 'Dùng key này để tích hợp / UAT — không trừ hạn mức live, không gọi NCC thật.'
+          : 'Chưa có khóa sandbox. Bấm “Tạo khóa Sandbox” để nhận ak_test_ (hiển thị một lần).',
+      },
+      live: {
+        prefix: 'ak_live_',
+        hasCredentials: liveReady,
+        apiKeyMasked: liveReady ? `${AGENT_API_KEY_PREFIX}${'•'.repeat(24)}` : null,
+        status: !agent.liveApiEnabled
+          ? 'PENDING_ADMIN'
+          : !agent.apiEnabled
+            ? 'DISABLED'
+            : liveReady
+              ? 'ACTIVE'
+              : 'MISSING',
+        hint: agent.liveApiEnabled
+          ? 'Khóa production — gọi hàng thật, trừ hạn mức live. Có thể xoay khóa khi cần lấy lại secret.'
+          : 'Chưa bật. Hoàn thành UAT sandbox rồi nhờ Admin bật Live API.',
+      },
+      // Back-compat for older clients
+      hasCredentials: sandboxReady || liveReady || !!agent.apiKeyHash,
+      apiKeyMasked: liveReady
+        ? `${AGENT_API_KEY_PREFIX}${'•'.repeat(24)}`
+        : sandboxReady
+          ? `ak_test_${'•'.repeat(24)}`
+          : null,
+      label: config.apiKeyLabel ?? 'Primary Key',
+      environment: liveReady ? 'PRODUCTION' : 'SANDBOX',
+      createdAt: agent.createdAt.toISOString(),
       expiresAt: config.apiKeyExpiresAt ?? null,
       status: !agent.apiEnabled
         ? 'DISABLED'
-        : config.apiKeyExpiresAt && Date.parse(config.apiKeyExpiresAt) < Date.now()
-          ? 'EXPIRED'
-          : agent.apiKeyHash
-            ? 'ACTIVE'
-            : 'INACTIVE',
-      permissions: ['cards.buy', 'balance.read', 'transactions.read'],
+        : sandboxReady || liveReady
+          ? 'ACTIVE'
+          : 'INACTIVE',
     };
   }
 
-  async rotateApiKey(userId: string, role: AgentPlatformRole) {
+  /**
+   * Issue / rotate credentials.
+   * - SANDBOX: partner self-serve after KYC ACTIVE
+   * - PRODUCTION: only when Admin already enabled liveApiEnabled
+   */
+  async rotateApiKey(
+    userId: string,
+    role: AgentPlatformRole,
+    environment: 'SANDBOX' | 'PRODUCTION' = 'SANDBOX',
+  ) {
     this.assertPermission(role, 'api.manage');
     const agent = await this.requireAgent(userId);
-    if (!agent.apiKeyHash) {
-      throw new BadRequestException('Chưa có khóa API — cần duyệt KYC trước');
+    if (agent.status !== AgentStatus.ACTIVE) {
+      throw new BadRequestException('Đại lý phải ACTIVE (KYC đã duyệt) mới tạo/xoay khóa API');
     }
 
-    const credentials = this.credentialService.generateCredentials();
-    const config = this.parseSecurityConfig(agent.securityConfig);
+    if (environment === 'PRODUCTION') {
+      return this.rotateLiveApiKey(agent, userId);
+    }
+    return this.rotateSandboxApiKey(agent, userId);
+  }
 
-    await this.agentRepository.saveApiCredentials(agent.id, {
-      apiKeyHash: credentials.apiKeyHash,
-      apiKeyLookup: credentials.apiKeyLookup,
-      secretKeyEncrypted: credentials.secretKeyEncrypted,
+  private async rotateSandboxApiKey(
+    agent: Awaited<ReturnType<AgentSecurityService['requireAgent']>>,
+    userId: string,
+  ) {
+    const hadSandbox = !!agent.sandboxApiKeyHash;
+    const credentials = this.credentialService.generateCredentials('SANDBOX');
+    const config = this.parseSecurityConfig(agent.securityConfig);
+    const seedBalance = hadSandbox ? agent.sandboxBalance : AGENT_SANDBOX_SEED_BALANCE;
+
+    await this.agentRepository.saveSandboxCredentials(agent.id, {
+      sandboxApiKeyHash: credentials.apiKeyHash,
+      sandboxApiKeyLookup: credentials.apiKeyLookup,
+      sandboxSecretKeyEncrypted: credentials.secretKeyEncrypted,
+      sandboxBalance: seedBalance,
       apiEnabled: true,
     });
 
@@ -127,18 +188,88 @@ export class AgentSecurityService {
         securityConfig: this.toSecurityJson({
           ...config,
           apiKeyDisabledAt: null,
+          apiKeyEnvironment: 'SANDBOX',
         }),
       },
     });
 
-    this.dispatchSecurityEvent(agent.id, userId, 'API key rotated', 'API_KEY_ROTATED', {
-      action: 'rotate',
+    this.dispatchSecurityEvent(agent.id, userId, 'Sandbox API key issued', 'API_KEY_ROTATED', {
+      action: hadSandbox ? 'rotate' : 'issue',
+      environment: 'SANDBOX',
     });
 
     return {
+      environment: 'SANDBOX' as const,
       apiKey: credentials.apiKey,
       secretKey: credentials.secretKey,
-      message: 'Lưu khóa ngay — secret chỉ hiển thị một lần.',
+      message: hadSandbox
+        ? 'Khóa sandbox đã xoay — secret chỉ hiện một lần.'
+        : 'Khóa sandbox đã tạo — secret chỉ hiện một lần.',
+    };
+  }
+
+  private async rotateLiveApiKey(
+    agent: Awaited<ReturnType<AgentSecurityService['requireAgent']>>,
+    userId: string,
+  ) {
+    if (!agent.liveApiEnabled) {
+      throw new BadRequestException(
+        'Live API chưa được Admin bật. Nhờ Admin bật Live API trước khi xoay khóa live.',
+      );
+    }
+
+    const hadLive = !!agent.apiKeyHash;
+    const credentials = this.credentialService.generateCredentials('PRODUCTION');
+    const config = this.parseSecurityConfig(agent.securityConfig);
+    const actor = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, role: true },
+    });
+
+    await this.agentRepository.saveApiCredentials(agent.id, {
+      apiKeyHash: credentials.apiKeyHash,
+      apiKeyLookup: credentials.apiKeyLookup,
+      secretKeyEncrypted: credentials.secretKeyEncrypted,
+      apiEnabled: true,
+      liveApiEnabled: true,
+    });
+
+    await this.prisma.agent.update({
+      where: { id: agent.id },
+      data: {
+        securityConfig: this.toSecurityJson({
+          ...config,
+          apiKeyDisabledAt: null,
+          apiKeyEnvironment: 'PRODUCTION',
+        }),
+      },
+    });
+
+    this.dispatchSecurityEvent(agent.id, userId, 'Live API key rotated', 'API_KEY_ROTATED', {
+      action: hadLive ? 'rotate' : 'issue',
+      environment: 'PRODUCTION',
+    });
+    this.auditLogService.create({
+      resource: SystemAuditResource.AGENT,
+      resourceId: agent.id,
+      resourceName: 'live_api_credentials',
+      action: SystemAuditAction.UPDATE,
+      fieldName: 'apiKeyHash',
+      oldValue: { rotated: hadLive },
+      newValue: { environment: 'PRODUCTION' },
+      performedBy: userId,
+      performedEmail: actor?.email ?? 'partner@unknown',
+      performedRole: actor?.role ?? UserRole.AGENT,
+      reason: hadLive ? 'Partner rotated live API credentials' : 'Partner issued live API credentials',
+    });
+
+    return {
+      environment: 'PRODUCTION' as const,
+      apiKey: credentials.apiKey,
+      secretKey: credentials.secretKey,
+      message: hadLive
+        ? 'Khóa live đã xoay — secret chỉ hiện một lần. Khóa ak_live_ cũ ngừng ngay.'
+        : 'Khóa live đã tạo — secret chỉ hiện một lần.',
     };
   }
 
@@ -163,7 +294,9 @@ export class AgentSecurityService {
   async enableApiKey(userId: string, role: AgentPlatformRole) {
     this.assertPermission(role, 'api.manage');
     const agent = await this.requireAgent(userId);
-    if (!agent.apiKeyHash) throw new BadRequestException('Chưa có khóa API');
+    if (!agent.sandboxApiKeyHash && !agent.apiKeyHash) {
+      throw new BadRequestException('Chưa có khóa API');
+    }
     await this.prisma.agent.update({
       where: { id: agent.id },
       data: { apiEnabled: true },

@@ -1,14 +1,15 @@
 import { IsEnum, IsNumber, IsOptional, Max, Min } from 'class-validator';
 import { PaymentGatewayCode } from '@prisma/client';
 import {
-  MAX_DEPOSIT_AMOUNT,
-  MIN_DEPOSIT_AMOUNT,
+  ABSOLUTE_MAX_DEPOSIT_AMOUNT,
+  ABSOLUTE_MIN_DEPOSIT_AMOUNT,
 } from '../entities/deposit.constants';
 
 export class CreateAgentDepositDto {
+  /** Absolute bounds; runtime min/max come from Admin system settings. */
   @IsNumber()
-  @Min(MIN_DEPOSIT_AMOUNT)
-  @Max(MAX_DEPOSIT_AMOUNT)
+  @Min(ABSOLUTE_MIN_DEPOSIT_AMOUNT)
+  @Max(ABSOLUTE_MAX_DEPOSIT_AMOUNT)
   amount!: number;
 
   @IsOptional()

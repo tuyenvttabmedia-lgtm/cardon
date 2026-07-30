@@ -1,3 +1,5 @@
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 import { vi } from '@/lib/i18n/vi';
 import { translateRole } from '@/lib/i18n';
 
@@ -18,12 +20,19 @@ export function getApiBaseUrl(): string {
   return 'http://localhost:3000/api/v1';
 }
 
-export function cn(...classes: Array<string | false | null | undefined>): string {
-  return classes.filter(Boolean).join(' ');
+export function cn(...classes: ClassValue[]): string {
+  return twMerge(clsx(classes));
+}
+
+export function formatDisplayValue(value: unknown, fallback = '—'): string {
+  if (value == null || value === '') return fallback;
+  const text = String(value);
+  return text === 'undefined' || text === 'null' ? fallback : text;
 }
 
 export function formatVnd(amount: string | number): string {
   const value = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (!Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
     currency: 'VND',
@@ -32,7 +41,8 @@ export function formatVnd(amount: string | number): string {
 }
 
 export function formatDateTime(value: string | Date): string {
-  return new Date(value).toLocaleString('vi-VN');
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
 }
 
 export function downloadBlob(content: string, filename: string, mime = 'text/csv') {

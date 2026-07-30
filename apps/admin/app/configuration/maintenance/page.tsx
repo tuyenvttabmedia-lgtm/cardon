@@ -44,8 +44,8 @@ function StatusBadge({ active, mode }: { active: boolean; mode: MaintenanceMode 
 function SummaryCard({ label, value, tone }: { label: string; value: React.ReactNode; tone?: 'danger' | 'neutral' }) {
   return (
     <Card className={cn('text-sm', tone === 'danger' && 'border-red-200 bg-red-50/40')}>
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <div className="mt-2 font-semibold text-zinc-900">{value}</div>
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
+      <div className="mt-2 font-semibold text-slate-900">{value}</div>
     </Card>
   );
 }
@@ -157,8 +157,8 @@ export default function ConfigurationMaintenancePage() {
         <ConfigurationAuditBar module="maintenance" />
 
         <Card className="border-blue-200 bg-blue-50/50">
-          <h2 className="text-base font-semibold text-zinc-900">{vi.configuration.maintenanceQuickGuideTitle}</h2>
-          <p className="mt-2 text-sm leading-relaxed text-zinc-700">{vi.configuration.maintenanceQuickGuideBody}</p>
+          <h2 className="text-base font-semibold text-slate-900">{vi.configuration.maintenanceQuickGuideTitle}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{vi.configuration.maintenanceQuickGuideBody}</p>
           {form && canManage && (
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -215,7 +215,7 @@ export default function ConfigurationMaintenancePage() {
                       'rounded-lg border px-4 py-2 text-sm font-medium transition',
                       form.mode === m
                         ? 'border-admin-600 bg-admin-600 text-white'
-                        : 'border-zinc-200 bg-white text-zinc-700 hover:border-admin-300',
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-admin-300',
                       !canManage && 'cursor-not-allowed opacity-60',
                     )}
                   >
@@ -223,7 +223,7 @@ export default function ConfigurationMaintenancePage() {
                   </button>
                 ))}
               </div>
-              <label className="block text-sm font-medium text-zinc-700">{vi.configuration.maintenanceReason}</label>
+              <label className="block text-sm font-medium text-slate-700">{vi.configuration.maintenanceReason}</label>
               <Textarea
                 value={form.reason ?? ''}
                 disabled={!canManage}
@@ -238,8 +238,8 @@ export default function ConfigurationMaintenancePage() {
                 {MODULE_KEYS.map((key) => {
                   const enabled = form.modules?.[key] !== false;
                   return (
-                    <label key={key} className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-2 text-sm">
-                      <span className="font-medium capitalize text-zinc-800">{key.replace(/_/g, ' ')}</span>
+                    <label key={key} className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2 text-sm">
+                      <span className="font-medium capitalize text-slate-800">{key.replace(/_/g, ' ')}</span>
                       <input
                         type="checkbox"
                         checked={enabled}
@@ -305,12 +305,12 @@ export default function ConfigurationMaintenancePage() {
                 {preview && (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl border p-4" style={{ borderColor: form.banner?.color ?? '#dc2626' }}>
-                      <p className="text-xs text-zinc-500">Desktop</p>
+                      <p className="text-xs text-slate-500">Desktop</p>
                       <p className="mt-1 font-semibold">{preview.desktop}</p>
-                      <p className="mt-1 text-sm text-zinc-600">{form.banner?.description}</p>
+                      <p className="mt-1 text-sm text-slate-600">{form.banner?.description}</p>
                     </div>
                     <div className="rounded-xl border p-4">
-                      <p className="text-xs text-zinc-500">Mobile</p>
+                      <p className="text-xs text-slate-500">Mobile</p>
                       <p className="mt-1 text-sm">{preview.mobile}</p>
                     </div>
                   </div>
@@ -449,7 +449,7 @@ export default function ConfigurationMaintenancePage() {
 
             {canManage && (
               <Card className="space-y-3">
-                <label className="block text-sm font-medium text-zinc-700">{vi.configuration.maintenancePassword}</label>
+                <label className="block text-sm font-medium text-slate-700">{vi.configuration.maintenancePassword}</label>
                 <Input
                   type="password"
                   value={password}
@@ -465,17 +465,17 @@ export default function ConfigurationMaintenancePage() {
             <Card className="space-y-3">
               <h2 className="text-lg font-semibold">{vi.configuration.maintenanceHistory}</h2>
               {(form.history ?? []).length === 0 ? (
-                <p className="text-sm text-zinc-500">{vi.configuration.maintenanceNoHistory}</p>
+                <p className="text-sm text-slate-500">{vi.configuration.maintenanceNoHistory}</p>
               ) : (
                 <ul className="space-y-3">
                   {(form.history ?? []).map((entry) => (
-                    <li key={entry.id} className="rounded-lg border border-zinc-100 px-4 py-3 text-sm">
+                    <li key={entry.id} className="rounded-lg border border-slate-100 px-4 py-3 text-sm">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="font-semibold text-zinc-900">{entry.mode}</span>
-                        <span className="text-zinc-500">{formatDateTime(entry.at)}</span>
+                        <span className="font-semibold text-slate-900">{entry.mode}</span>
+                        <span className="text-slate-500">{formatDateTime(entry.at)}</span>
                       </div>
-                      <p className="mt-1 text-zinc-600">{entry.performedEmail ?? entry.performedBy}</p>
-                      {entry.reason && <p className="mt-1 text-zinc-500">{entry.reason}</p>}
+                      <p className="mt-1 text-slate-600">{entry.performedEmail ?? entry.performedBy}</p>
+                      {entry.reason && <p className="mt-1 text-slate-500">{entry.reason}</p>}
                     </li>
                   ))}
                 </ul>

@@ -11,7 +11,6 @@ import { apiOpsApi, ApiClientError } from '@/services/api-client';
 const PRESETS = [
   { label: 'Số dư', method: 'GET' as const, path: '/balance' },
   { label: 'Sản phẩm', method: 'GET' as const, path: '/products' },
-  { label: 'Providers', method: 'GET' as const, path: '/providers' },
   { label: 'Mua thẻ', method: 'POST' as const, path: '/cards/buy', body: '{"product_code":"GARENA_100K","quantity":1,"request_id":""}' },
 ];
 

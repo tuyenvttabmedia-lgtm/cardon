@@ -83,13 +83,12 @@ export default function DashboardPageClient() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Số dư ví" value={formatVnd(dashboard?.walletBalance ?? profile.balance.balance)} />
+        <StatCard label="Số dư" value={formatVnd(dashboard?.walletBalance ?? profile.balance.balance)} />
         <StatCard label="API Calls hôm nay" value={String(dashboard?.apiCallsToday ?? 0)} />
         <StatCard label="Đơn API hôm nay" value={String(dashboard?.todayOrders ?? 0)} />
         <StatCard label="Tỷ lệ thành công" value={`${dashboard?.successRate ?? 100}%`} />
         <StatCard label="Latency trung bình" value={stats ? `${stats.cards.avgLatencyMs} ms` : '—'} />
-        <StatCard label="Gateway đang sử dụng" value={stats?.cards.gatewayInUse ?? '—'} />
-        <StatCard label="Provider" value="—" />
+        <StatCard label="Kênh thanh toán" value={stats?.cards.gatewayInUse ?? '—'} />
         <StatCard label="Webhook thất bại" value="0" />
         <StatCard label="Thông báo mới" value={String(dashboard?.unreadNotifications ?? 0)} />
       </div>

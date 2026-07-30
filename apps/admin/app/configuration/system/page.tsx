@@ -35,7 +35,25 @@ export default function SettingsSystemPage() {
   const agentThresholdError = form
     ? validateVndAmount(form.agentLowBalanceThreshold ?? 0, false)
     : null;
-  const hasValidationError = Boolean(providerThresholdError || agentThresholdError);
+  const retentionDays = form?.auditLogRetentionDays ?? 360;
+  const retentionError =
+    retentionDays < 30 || retentionDays > 3650
+      ? 'Số ngày giữ log phải từ 30 đến 3650'
+      : null;
+  const depositMin = form?.agentDepositMinAmount ?? 5_000_000;
+  const depositMax = form?.agentDepositMaxAmount ?? 300_000_000;
+  const depositMinError = validateVndAmount(depositMin, false);
+  const depositMaxError = validateVndAmount(depositMax, false);
+  const depositRangeError =
+    depositMax < depositMin ? 'Tối đa phải ≥ tối thiểu' : null;
+  const hasValidationError = Boolean(
+    providerThresholdError ||
+      agentThresholdError ||
+      retentionError ||
+      depositMinError ||
+      depositMaxError ||
+      depositRangeError,
+  );
 
   async function save() {
     if (!form || hasValidationError) return;
@@ -49,6 +67,9 @@ export default function SettingsSystemPage() {
         agentLowBalanceThreshold: form.agentLowBalanceThreshold,
         customerTopupEnabled: form.customerTopupEnabled,
         customerDataEnabled: form.customerDataEnabled,
+        auditLogRetentionDays: form.auditLogRetentionDays ?? 360,
+        agentDepositMinAmount: form.agentDepositMinAmount ?? 5_000_000,
+        agentDepositMaxAmount: form.agentDepositMaxAmount ?? 300_000_000,
       });
       setForm(updated);
       setSaved(true);
@@ -61,7 +82,7 @@ export default function SettingsSystemPage() {
   }
 
   if (!form) {
-    return <p className="text-zinc-500">{vi.app.loading}</p>;
+    return <p className="text-slate-500">{vi.app.loading}</p>;
   }
 
   return (
@@ -122,11 +143,11 @@ export default function SettingsSystemPage() {
                 onChange={(e) => setForm({ ...form, customerTopupEnabled: e.target.checked })}
               />
               <span>
-                <span className="flex items-center font-medium text-zinc-700">
+                <span className="flex items-center font-medium text-slate-700">
                   {vi.settings.customerTopupLabel}
                   <InfoTooltip text={vi.settings.customerTopupTooltip} />
                 </span>
-                <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500">
                   {vi.settings.customerTopupHint}
                 </span>
               </span>
@@ -141,23 +162,78 @@ export default function SettingsSystemPage() {
                 onChange={(e) => setForm({ ...form, customerDataEnabled: e.target.checked })}
               />
               <span>
-                <span className="flex items-center font-medium text-zinc-700">
+                <span className="flex items-center font-medium text-slate-700">
                   {vi.settings.customerDataLabel}
                   <InfoTooltip text={vi.settings.customerDataTooltip} />
                 </span>
-                <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500">
                   {vi.settings.customerDataHint}
                 </span>
               </span>
             </label>
           </div>
+          <SettingsField
+            label={vi.settings.auditLogRetentionLabel}
+            tooltip={vi.settings.auditLogRetentionTooltip}
+            hint={vi.settings.auditLogRetentionHint}
+          >
+            <Input
+              type="number"
+              min={30}
+              max={3650}
+              value={form.auditLogRetentionDays ?? 360}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  auditLogRetentionDays: Number(e.target.value) || 360,
+                })
+              }
+            />
+            {retentionError ? (
+              <p className="mt-1 text-xs text-red-600">{retentionError}</p>
+            ) : null}
+          </SettingsField>
+          <SettingsField
+            label={vi.settings.agentDepositMinLabel}
+            tooltip={vi.settings.agentDepositMinTooltip}
+            hint={vi.settings.agentDepositMinHint}
+          >
+            <VndInput
+              value={form.agentDepositMinAmount ?? 5_000_000}
+              allowZero={false}
+              onChange={(agentDepositMinAmount) =>
+                setForm({ ...form, agentDepositMinAmount })
+              }
+            />
+            {depositMinError ? (
+              <p className="mt-1 text-xs text-red-600">{depositMinError}</p>
+            ) : null}
+          </SettingsField>
+          <SettingsField
+            label={vi.settings.agentDepositMaxLabel}
+            tooltip={vi.settings.agentDepositMaxTooltip}
+            hint={vi.settings.agentDepositMaxHint}
+          >
+            <VndInput
+              value={form.agentDepositMaxAmount ?? 300_000_000}
+              allowZero={false}
+              onChange={(agentDepositMaxAmount) =>
+                setForm({ ...form, agentDepositMaxAmount })
+              }
+            />
+            {depositMaxError || depositRangeError ? (
+              <p className="mt-1 text-xs text-red-600">
+                {depositMaxError || depositRangeError}
+              </p>
+            ) : null}
+          </SettingsField>
           <Button onClick={() => void save()} disabled={saving || hasValidationError}>
             {saving ? vi.app.loading : vi.app.save}
           </Button>
         </Card>
 
-        <Card className="max-w-xl space-y-3 text-sm text-zinc-700">
-          <h2 className="text-lg font-semibold text-zinc-900">{vi.configuration.securityTitle}</h2>
+        <Card className="max-w-xl space-y-3 text-sm text-slate-700">
+          <h2 className="text-lg font-semibold text-slate-900">{vi.configuration.securityTitle}</h2>
           <p>{vi.configuration.secretsProtectedDesc}</p>
           <ul className="list-inside list-disc space-y-1">
             <li>SMTP Password</li>
@@ -166,15 +242,15 @@ export default function SettingsSystemPage() {
             <li>SePay API Key / Webhook Secret</li>
             <li>Provider Private Key</li>
           </ul>
-          <p className="text-zinc-500">
+          <p className="text-slate-500">
             {vi.configuration.developerOverride}:{' '}
             {isSettingsDeveloperMode() ? vi.configuration.yes : vi.configuration.no}
           </p>
         </Card>
 
         <Card className="max-w-xl space-y-4">
-          <h2 className="text-lg font-semibold text-zinc-900">{vi.configuration.advancedTitle}</h2>
-          <p className="text-sm text-zinc-600">{vi.configuration.advancedHint}</p>
+          <h2 className="text-lg font-semibold text-slate-900">{vi.configuration.advancedTitle}</h2>
+          <p className="text-sm text-slate-600">{vi.configuration.advancedHint}</p>
           <Button type="button" onClick={() => void settingsAdminApi.reloadAll()}>
             {vi.configuration.reloadSettings}
           </Button>
