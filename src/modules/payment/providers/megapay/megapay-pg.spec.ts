@@ -3,11 +3,18 @@ import {
   buildMegapayPgCancelTokens,
   buildMegapayPgRequestToken,
   buildMegapayPgStatusToken,
+  formatVaDate,
   getMegapayPgClientAssets,
   getMegapayPgApiUrls,
 } from './megapay-pg';
 
 describe('MegaPay PG V1.4.6 helpers', () => {
+  it('formats VA dates in Vietnam time regardless of server timezone', () => {
+    // Container production chạy UTC; MegaPay đọc theo GMT+7.
+    expect(formatVaDate(new Date('2026-07-30T13:27:02Z'))).toBe('20260730202702');
+    expect(formatVaDate(new Date('2026-07-30T17:30:00Z'))).toBe('20260731003000');
+  });
+
   it('uses pg.megapay.vn for production assets and APIs', () => {
     const assets = getMegapayPgClientAssets('production');
     const apis = getMegapayPgApiUrls('production');

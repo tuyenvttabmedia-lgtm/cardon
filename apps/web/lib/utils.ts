@@ -31,6 +31,16 @@ export function getApiBaseUrl(): string {
   }
   const publicUrl = process.env.NEXT_PUBLIC_API_URL?.trim();
   if (publicUrl) return publicUrl.replace(/\/$/, '');
+
+  // Production must never bake localhost into the browser bundle. A relative
+  // URL lets nginx route /api/v1 on the same CardOn origin even if the public
+  // build variable was accidentally omitted.
+  if (typeof window !== 'undefined') {
+    return '/api/v1';
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return `${getSiteUrl()}/api/v1`;
+  }
   return 'http://localhost:3000/api/v1';
 }
 

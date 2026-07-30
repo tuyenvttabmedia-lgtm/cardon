@@ -166,11 +166,31 @@ export function buildMegapayPgIpnToken(params: {
   return createHash('sha256').update(raw, 'utf8').digest('hex');
 }
 
+/**
+ * MegaPay đối chiếu vaStartDt/vaEndDt với giờ hệ thống của họ (GMT+7).
+ * Container chạy UTC nên phải quy đổi tường minh, nếu không cửa sổ VA gửi đi
+ * sẽ lùi 7 tiếng và bị coi là đã hết hạn.
+ */
+const MEGAPAY_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
+const VA_DATE_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: MEGAPAY_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
 export function formatVaDate(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
+  const parts = VA_DATE_FORMATTER.formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
   return (
-    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
-    `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+    `${part('year')}${part('month')}${part('day')}` +
+    `${part('hour')}${part('minute')}${part('second')}`
   );
 }
 
