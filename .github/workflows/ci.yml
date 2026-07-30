@@ -12,6 +12,8 @@ concurrency:
 
 env:
   NODE_VERSION: '22'
+  # Prisma only parses the URL at schema-validation time; CI never connects.
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci?schema=public
 
 jobs:
   money-flow:
