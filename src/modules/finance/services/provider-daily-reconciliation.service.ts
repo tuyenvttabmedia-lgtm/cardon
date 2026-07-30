@@ -99,24 +99,29 @@ export class ProviderDailyReconciliationService implements OnModuleInit, OnModul
     const expectedBalance = openingBalance.sub(totalProviderCost);
 
     let actualBalance: Decimal | null = null;
+    let liveBalanceAvailable = false;
     try {
       const provider = await this.providerRepository.findProviderById(providerId);
       if (provider) {
         const adapter = this.registry.getAdapter(provider.code);
         const live = await adapter.getBalance();
         actualBalance = new Decimal(live.balance);
+        liveBalanceAvailable = true;
       }
     } catch {
-      actualBalance = balanceRow?.balance ?? null;
+      // Do not fall back to the cached DB balance: that can invent a false MATCHED report.
+      actualBalance = null;
+      liveBalanceAvailable = false;
     }
 
-    const differenceAmount = actualBalance
-      ? actualBalance.sub(expectedBalance)
-      : new Decimal(0);
+    const differenceAmount =
+      actualBalance != null
+        ? actualBalance.sub(expectedBalance)
+        : new Decimal(0);
 
     const status = ProviderOperationsRepository.resolveReconciliationStatus(
       differenceAmount,
-      actualBalance !== null,
+      liveBalanceAvailable,
     );
 
     return this.operationsRepository.upsertReconciliationReport({

@@ -35,6 +35,7 @@ import { AgentPlatformModule } from './modules/agent-platform/agent-platform.mod
 import { AgentSecurityCenterModule } from './modules/agent-security-center/agent-security-center.module';
 import { AgentDepositModule } from './modules/agent-deposit/agent-deposit.module';
 import { WebhookMonitorModule } from './modules/webhook-monitor/webhook-monitor.module';
+import { OrderRevenueReconcileModule } from './modules/finance/order-revenue-reconcile.module';
 import { OperationsCenterModule } from './modules/operations-center/operations-center.module';
 import { CustomerCenterModule } from './modules/customer-center/customer-center.module';
 import { WebhookDeliveryModule } from './modules/webhook-delivery/webhook-delivery.module';
@@ -76,6 +77,7 @@ const workerProviders = shouldRegisterWorkers() ? [WorkerHeartbeatService] : [];
     AgentApiModule,
     AdminModule,
     FinanceModule,
+    OrderRevenueReconcileModule,
     NotificationModule,
     AuditLogModule,
     ActivityEventModule,

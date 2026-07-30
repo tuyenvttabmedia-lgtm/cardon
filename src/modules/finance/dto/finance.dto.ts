@@ -287,3 +287,9 @@ export class RunProviderReconciliationDto {
   @IsDateString()
   reportDate?: string;
 }
+
+export class RunOrderRevenueReconcileDto {
+  @IsOptional()
+  @IsDateString()
+  reportDate?: string;
+}
