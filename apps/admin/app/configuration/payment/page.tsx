@@ -274,8 +274,8 @@ const MEGAPAY_METHOD_META: Record<
   { flowLabel: string; hint: string }
 > = {
   DEPOSIT_CODE: {
-    flowLabel: 'Luồng 1 · DepositCode',
-    hint: 'registerVA → QR VietQR / VA inline',
+    flowLabel: 'Luồng 2 · PG V1.4.6',
+    hint: 'payType=VA · mã nộp tiền · openPayment',
   },
   VNPAYQR: {
     flowLabel: 'Luồng 2 · PG V1.4.6',
@@ -418,7 +418,10 @@ function MegaPayGatewayCard({
 
       <section className="space-y-3 rounded-lg border border-slate-200 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold">Luồng 1 · DepositCode (VietQR / VA)</h3>
+          <h3 className="font-semibold">Luồng 1 · DepositCode (legacy)</h3>
+          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+            Không tạo thanh toán mới
+          </span>
           <span
             className={`rounded px-2 py-0.5 text-xs font-medium ${
               settings.depositCodeReady
@@ -430,8 +433,9 @@ function MegaPayGatewayCard({
           </span>
         </div>
         <p className="text-sm text-slate-500">
-          Method <code>DEPOSIT_CODE</code> → <code>registerVA</code> (3DES) → QR inline. Verify notify
-          bằng RSA public key.
+          VietQR đã chuyển sang Luồng 2 (<code>payType=VA</code>). Phần này chỉ còn dùng để verify
+          notify RSA và tra cứu các giao dịch <code>registerVA</code> cũ — đổi endpoint ở đây không
+          ảnh hưởng tới đơn mới.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div>

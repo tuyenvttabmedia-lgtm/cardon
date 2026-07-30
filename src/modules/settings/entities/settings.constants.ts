@@ -115,7 +115,8 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     gatewayCode: 'MEGAPAY',
     methodCode: 'DEPOSIT_CODE',
     displayName: 'Chuyển khoản VietQR',
-    description: 'Chuyển khoản VietQR / mã nộp tiền (MegaPay DepositCode VA).',
+    description:
+      'Chuyển khoản VietQR / mã nộp tiền (MegaPay PG payType=VA).',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
