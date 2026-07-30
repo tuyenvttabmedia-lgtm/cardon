@@ -1,65 +1,75 @@
 # CardOn — Backup & Restore Plan
 
-> Phase 4D — operational backup procedures.
+> Phase 4D / P0.3 — operational backup procedures (host cron on VPS).
 
-## PostgreSQL
+## What runs in production
 
-### Daily backup
+Installed by `scripts/deploy/install-backup-cron.sh` → `/etc/cron.d/cardon-backup`.
+
+| Schedule (Asia/Ho_Chi_Minh) | Job | Script |
+|-----------------------------|-----|--------|
+| Daily 02:30 | Postgres dump → `backups/cardon_<db>_YYYYMMDD_HHMMSS.sql.gz` + `..._latest.sql.gz` | `scripts/backup-db.sh` |
+| Daily 02:45 | Restore verify into isolated `cardon_restore_test`, then drop | `scripts/verify-backup-restore.sh` |
+| Sunday 03:15 | Uploads archive | `scripts/backup-uploads.sh` |
+
+Logs:
+
+- `/var/log/cardon-backup.log`
+- `/var/log/cardon-backup-restore.log`
+- `backups/RESTORE_VERIFY.log` (PASS/FAIL line per verify)
+
+Retention:
+
+- Daily SQL dumps: **30 days**
+- Monthly copies under `backups/monthly/`: **~12 months**
+- Uploads archives: **60 days**
+
+## Manual commands (VPS)
 
 ```bash
-# Encrypted dump (run via cron at 02:00 UTC)
-pg_dump "$DATABASE_URL" --format=custom --file="/backups/cardon-$(date +%Y%m%d).dump"
-gpg --symmetric --cipher-algo AES256 "/backups/cardon-$(date +%Y%m%d).dump"
+cd /opt/cardon
+sudo ./scripts/deploy/install-backup-cron.sh /opt/cardon
+
+# Snapshot now
+/bin/bash ./scripts/backup-db.sh
+
+# Prove the latest dump restores (does NOT touch production DB data)
+/bin/bash ./scripts/verify-backup-restore.sh
+
+# Destructive restore into production DB (stop api/worker first)
+FORCE_RESTORE=1 /bin/bash ./scripts/restore-db.sh backups/cardon_cardon_latest.sql.gz
 ```
 
-Retention: **30 days** daily, **12 months** monthly archive.
+## PostgreSQL dump format
 
-### Restore test (monthly)
+Plain SQL gzip via `pg_dump | gzip` (compatible with `psql` restore). Custom-format dumps from older docs are not used by these scripts.
 
-```bash
-# 1. Create isolated test DB
-createdb cardon_restore_test
+## Restore test checks
 
-# 2. Restore latest dump
-pg_restore --dbname=cardon_restore_test --clean --if-exists /backups/cardon-latest.dump
+`verify-backup-restore.sh` asserts:
 
-# 3. Verify row counts
-psql cardon_restore_test -c "SELECT COUNT(*) FROM orders;"
-psql cardon_restore_test -c "SELECT COUNT(*) FROM payments WHERE status = 'SUCCESS';"
-
-# 4. Drop test DB after verification
-dropdb cardon_restore_test
-```
-
-Document restore test date and result in ops log.
+1. Public table count ≥ 5
+2. `orders` and `payments` tables exist after restore
+3. Counts for `orders` and `payments WHERE status='SUCCESS'` are readable
 
 ## Redis
 
-- Enable AOF: `redis-server --appendonly yes`
-- RDB snapshot daily (queue state is recoverable; jobs may be re-enqueued)
-- **Not a source of truth** — PostgreSQL holds financial data
+- AOF enabled in `docker-compose.production.yml` (`--appendonly yes`)
+- **Not** a source of truth — PostgreSQL holds financial data
+- Queue jobs may be re-enqueued after Redis loss
 
-## Environment variables
+## Environment / secrets
 
 | Method | Frequency |
 |--------|-----------|
-| Encrypted secrets manager (Vault / AWS SM) | Source of truth |
-| `.env.production` export to encrypted archive | On every secret rotation |
-| Never commit `.env` to git | Always |
+| Encrypted secrets manager / password vault | Source of truth |
+| `.env.production` kept only on VPS (never git) | On every secret rotation |
+| Optional encrypted copy of `.env.production` off-box | After rotation |
 
-Restore procedure: redeploy `.env.production` from secrets manager before starting API/worker.
-
-## Connection pool (production)
-
-Add to `DATABASE_URL`:
-
-```
-postgresql://user:pass@host:5432/cardon?schema=public&connection_limit=20&pool_timeout=30
-```
-
-Tune `connection_limit` per API replica × worker count.
+Restore procedure for app: restore SQL dump → redeploy `.env.production` with the **same** `ENCRYPTION_KEY` / `JWT_SECRET` → start API/worker.
 
 ## Related
 
 - [DATA_RETENTION_RULES.md](./DATA_RETENTION_RULES.md)
 - [PHASE_4D_PRODUCTION_READINESS_REPORT.md](./PHASE_4D_PRODUCTION_READINESS_REPORT.md)
+- [DEPLOY_CHECKLIST.md](../DEPLOY_CHECKLIST.md)

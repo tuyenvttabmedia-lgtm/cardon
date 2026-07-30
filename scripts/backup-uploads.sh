@@ -27,3 +27,6 @@ else
 fi
 
 echo "[backup-uploads] Done: ${OUTPUT} ($(du -h "${OUTPUT}" | cut -f1))"
+
+# Keep last 8 weekly uploads archives (~2 months)
+find "${BACKUP_DIR}" -maxdepth 1 -name "cardon_uploads_*.tar.gz" -mtime +60 -delete 2>/dev/null || true

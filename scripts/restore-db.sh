@@ -32,21 +32,24 @@ POSTGRES_DB="${POSTGRES_DB:-cardon}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-cardon-prod-postgres}"
 
 echo "[restore-db] Restoring ${BACKUP_FILE} → ${POSTGRES_DB}"
-read -r -p "This will OVERWRITE database ${POSTGRES_DB}. Continue? [y/N] " confirm
-if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
-  echo "Aborted."
-  exit 0
+if [[ "${FORCE_RESTORE:-}" != "1" ]]; then
+  read -r -p "This will OVERWRITE database ${POSTGRES_DB}. Continue? [y/N] " confirm
+  if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+    echo "Aborted."
+    exit 0
+  fi
 fi
 
+# Prefer isolated verify first: ./scripts/verify-backup-restore.sh <file>
 if docker ps --format '{{.Names}}' | grep -qx "${POSTGRES_CONTAINER}"; then
   gunzip -c "${BACKUP_FILE}" | docker exec -i "${POSTGRES_CONTAINER}" \
-    psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --single-transaction
+    psql -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" --single-transaction -v ON_ERROR_STOP=1
 else
   if ! command -v psql >/dev/null 2>&1; then
     echo "[restore-db] ERROR: Postgres container not running and psql not found." >&2
     exit 1
   fi
-  gunzip -c "${BACKUP_FILE}" | psql "${DATABASE_URL:?DATABASE_URL required when not using Docker}"
+  gunzip -c "${BACKUP_FILE}" | psql "${DATABASE_URL:?DATABASE_URL required when not using Docker}" -v ON_ERROR_STOP=1
 fi
 
 echo "[restore-db] Restore complete."

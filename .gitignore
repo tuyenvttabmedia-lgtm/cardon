@@ -20,6 +20,10 @@ infra/nginx/ssl/*.pem
 # Deploy artifacts
 cardon-deploy.tgz
 
+# Local / VPS backup dumps (keep directory placeholder)
+backups/*
+!backups/.gitkeep
+
 # UAT eSale BBNT reports (may contain transIds)
 scripts/uat/reports/*
 !scripts/uat/reports/.gitkeep
