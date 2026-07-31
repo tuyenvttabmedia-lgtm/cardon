@@ -51,3 +51,65 @@ export function normalizeContactChannels(
     };
   });
 }
+
+export type SpeedDialActionId = 'hotline' | 'zalo' | 'messenger';
+
+export interface SpeedDialAction {
+  id: SpeedDialActionId;
+  label: string;
+  href: string;
+  external: boolean;
+}
+
+/** Prefer m.me deep link when the fanpage URL is a normal Facebook page. */
+export function resolveMessengerHref(fanpageHref: string): string {
+  const raw = fanpageHref.trim();
+  if (!raw) return raw;
+  if (/m\.me\//i.test(raw)) {
+    return raw.startsWith('http') ? raw : `https://${raw}`;
+  }
+
+  try {
+    const url = new URL(raw.startsWith('http') ? raw : `https://${raw}`);
+    const host = url.hostname.replace(/^www\./, '');
+    if (host !== 'facebook.com' && host !== 'fb.com') {
+      return raw.startsWith('http') ? raw : `https://${raw}`;
+    }
+    const slug = url.pathname.replace(/^\/+|\/+$/g, '').split('/')[0];
+    if (slug && slug !== 'profile.php' && slug !== 'pages') {
+      return `https://m.me/${slug}`;
+    }
+  } catch {
+    /* keep original */
+  }
+
+  return raw.startsWith('http') ? raw : `https://${raw}`;
+}
+
+export function buildSpeedDialActions(channels: ContactChannel[]): SpeedDialAction[] {
+  const actions: SpeedDialAction[] = [];
+  const byKey = new Map(channels.map((c) => [c.key, c]));
+
+  const hotline = byKey.get('hotline');
+  if (hotline?.enabled) {
+    const href =
+      hotline.href?.trim() ||
+      (hotline.value.trim() ? `tel:${hotline.value.replace(/[^\d+]/g, '')}` : '');
+    if (href) {
+      actions.push({ id: 'hotline', label: 'Gọi điện', href, external: false });
+    }
+  }
+
+  const zalo = byKey.get('zalo');
+  if (zalo?.enabled && zalo.href?.trim()) {
+    actions.push({ id: 'zalo', label: 'Zalo', href: zalo.href.trim(), external: true });
+  }
+
+  const fanpage = byKey.get('fanpage');
+  if (fanpage?.enabled && fanpage.href?.trim()) {
+    const href = resolveMessengerHref(fanpage.href);
+    actions.push({ id: 'messenger', label: 'Messenger', href, external: true });
+  }
+
+  return actions;
+}
