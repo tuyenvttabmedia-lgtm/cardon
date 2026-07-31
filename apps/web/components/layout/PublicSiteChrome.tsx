@@ -2,6 +2,7 @@
 
 import { Footer } from '@/components/layout/Footer';
 import { BuildVersionComment } from '@/components/layout/BuildVersionComment';
+import { ContactSpeedDial } from '@/components/layout/ContactSpeedDial';
 import { Header } from '@/components/layout/Header';
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 
@@ -13,6 +14,7 @@ export function PublicSiteChrome({ children }: { children: React.ReactNode }) {
       <Footer />
       <BuildVersionComment />
       <MobileBottomNav />
+      <ContactSpeedDial />
     </div>
   );
 }
