@@ -26,6 +26,10 @@ describe('Phase 5C.8 — Admin order detail mapper', () => {
         invoiceMetadata: {},
         customerNote: null,
         totalAmount: new Decimal('100000'),
+        faceValue: new Decimal('100000'),
+        sellAmount: new Decimal('100000'),
+        customerPaid: new Decimal('100000'),
+        discountAmount: new Decimal(0),
         paymentStatus: 'PAID',
         fulfillmentStatus: 'COMPLETED',
         paymentExpiresAt: null,
@@ -52,6 +56,7 @@ describe('Phase 5C.8 — Admin order detail mapper', () => {
           provider: { code: 'ESALE', name: 'eSale' },
         }],
         providerLogs: [],
+        topupTransactions: [],
       } as never,
       auditLogs: [{ id: 'a1', action: 'ORDER_CREATED', targetType: AuditTargetType.ORDER, targetId: 'order-1', metadata: {}, createdAt: new Date(), adminId: 'u1', ipAddress: null, admin: { email: 'admin@test.com', role: UserRole.ADMIN } }],
       canViewPin: false,
@@ -149,13 +154,13 @@ describe('Phase 5C.8 — Staff management', () => {
 });
 
 describe('Phase 5C.8 — Agent invite', () => {
-  it('requires invite token in INVITE_ONLY mode', () => {
+  it('requires invite token in INVITE_ONLY mode', async () => {
     const settingsStore = {
       resolveSystemConfig: () => ({ agentRegistrationMode: AgentRegistrationMode.INVITE_ONLY }),
     };
     const service = new AgentInviteService({ agentInvite: { findFirst: jest.fn() } } as never, settingsStore as never);
 
-    expect(() => service.requireInviteForMode()).toThrow(BadRequestException);
+    await expect(service.requireInviteForMode()).rejects.toBeInstanceOf(BadRequestException);
   });
 });
 

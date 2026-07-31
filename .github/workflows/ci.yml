@@ -60,11 +60,8 @@ jobs:
         run: npm run build
 
   full-suite:
-    name: Full test suite (non-blocking)
+    name: Full test suite
     runs-on: ubuntu-latest
-    # Suites outside the money path still carry drift from earlier phases.
-    # Reported for visibility; only money-flow and build gate a merge.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 

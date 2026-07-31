@@ -224,6 +224,7 @@ describe('Phase 4A.1 — CHECK 3: Manual fulfillment retry safety', () => {
     const repository = {
       findOrderById: jest.fn().mockResolvedValue({
         id: 'order-1',
+        paymentStatus: 'PAID',
         fulfillmentStatus: FulfillmentStatus.COMPLETED,
       }),
     };
@@ -233,6 +234,8 @@ describe('Phase 4A.1 — CHECK 3: Manual fulfillment retry safety', () => {
       repository as never,
       fulfillmentDispatchService as never,
       adminAudit as never,
+      { notifyAdminRetryRequired: jest.fn() } as never,
+      { decrypt: jest.fn() } as never,
     );
 
     await expect(service.retryFulfillment('admin-1', 'order-1')).rejects.toBeInstanceOf(
@@ -245,6 +248,7 @@ describe('Phase 4A.1 — CHECK 3: Manual fulfillment retry safety', () => {
     const repository = {
       findOrderById: jest.fn().mockResolvedValue({
         id: 'order-1',
+        paymentStatus: 'PAID',
         fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
       }),
     };
@@ -260,6 +264,8 @@ describe('Phase 4A.1 — CHECK 3: Manual fulfillment retry safety', () => {
       repository as never,
       fulfillmentDispatchService as never,
       adminAudit as never,
+      { notifyAdminRetryRequired: jest.fn() } as never,
+      { decrypt: jest.fn() } as never,
     );
 
     await service.retryFulfillment('admin-1', 'order-1');
@@ -283,12 +289,16 @@ describe('Phase 4A.1 — CHECK 4: Agent suspension (Agent API)', () => {
           id: 'agent-1',
           status: AgentStatus.SUSPENDED,
           apiEnabled: true,
+          liveApiEnabled: true,
           apiKeyHash: 'hash',
           secretKeyEncrypted: 'enc',
+          securityConfig: {},
         }),
+        findBySandboxApiKeyLookup: jest.fn().mockResolvedValue(null),
         touchLastUsedAt: jest.fn(),
       } as never,
       credentialService as never,
+      { recordAuthFailure: jest.fn(), parseSecurityConfig: jest.fn().mockReturnValue({}), checkIpWhitelist: jest.fn().mockReturnValue(true) } as never,
     );
 
     await expect(
@@ -299,6 +309,7 @@ describe('Phase 4A.1 — CHECK 4: Agent suspension (Agent API)', () => {
         method: 'POST',
         path: '/api/partner/v1/buy',
         rawBody: '{}',
+        clientIp: null,
       }),
     ).rejects.toMatchObject({ code: ErrorCode.AGENT_SUSPENDED });
   });
@@ -330,6 +341,8 @@ describe('Phase 4A.1 — CHECK 5: Admin credit balance', () => {
       { notifyAgentApproved: jest.fn() } as never,
       { encrypt: jest.fn(), decrypt: jest.fn() } as never,
       { requireInviteForMode: jest.fn().mockResolvedValue(null), consumeInvite: jest.fn() } as never,
+      { dispatch: jest.fn() } as never,
+      {} as never,
     );
 
     await service.creditAgent('admin-1', {
@@ -391,13 +404,20 @@ describe('Phase 4A.1 — CHECK 7: Sensitive data exposure', () => {
       companyName: 'Co',
       balance: new Decimal('100.00'),
       heldBalance: new Decimal('0.00'),
+      sandboxBalance: new Decimal('0.00'),
+      sandboxHeldBalance: new Decimal('0.00'),
       apiKeyHash: 'secret-hash',
       apiKeyLookup: 'lookup',
       secretKeyEncrypted: 'encrypted-secret',
+      sandboxApiKeyHash: null,
+      sandboxApiKeyLookup: null,
+      sandboxSecretKeyEncrypted: null,
+      liveApiEnabled: false,
       lastUsedAt: null,
       contactEmail: null,
       rateLimit: 100,
       apiEnabled: true,
+      securityConfig: {},
       status: AgentStatus.ACTIVE,
       createdAt: new Date('2026-01-01T00:00:00.000Z'),
       updatedAt: new Date('2026-01-01T00:00:00.000Z'),

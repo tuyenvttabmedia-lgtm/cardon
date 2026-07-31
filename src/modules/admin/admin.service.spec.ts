@@ -62,12 +62,15 @@ describe('AdminOrderService', () => {
       repository as never,
       fulfillmentDispatchService as never,
       adminAudit as never,
+      { notifyAdminRetryRequired: jest.fn() } as never,
+      { decrypt: jest.fn() } as never,
     );
   });
 
   it('retries fulfillment only for WAITING_ADMIN_RETRY', async () => {
     repository.findOrderById.mockResolvedValue({
       id: 'order-1',
+      paymentStatus: 'PAID',
       fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
     });
 
@@ -86,6 +89,7 @@ describe('AdminOrderService', () => {
   it('rejects retry for non-retryable status', async () => {
     repository.findOrderById.mockResolvedValue({
       id: 'order-1',
+      paymentStatus: 'PAID',
       fulfillmentStatus: FulfillmentStatus.COMPLETED,
     });
 

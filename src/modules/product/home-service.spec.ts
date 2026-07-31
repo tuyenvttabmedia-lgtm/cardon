@@ -1,5 +1,5 @@
 import { HomeServiceType } from '@prisma/client';
-import { inferHomeServiceFromCategorySlug } from './home-service';
+import { inferHomeServiceFromCategorySlug } from './entities/home-service';
 
 describe('home-service', () => {
   it('infers legacy category slugs', () => {

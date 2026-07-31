@@ -147,6 +147,8 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
         notifyPasswordReset,
       } as never,
       settingsEncryption as never,
+      { dispatch: jest.fn() } as never,
+      { assertLoginAllowed: jest.fn() } as never,
     );
   });
 
