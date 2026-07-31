@@ -108,7 +108,7 @@ export function buildSpeedDialActions(channels: ContactChannel[]): SpeedDialActi
   const fanpage = byKey.get('fanpage');
   if (fanpage?.enabled && fanpage.href?.trim()) {
     const href = resolveMessengerHref(fanpage.href);
-    actions.push({ id: 'messenger', label: 'Messenger', href, external: true });
+    actions.push({ id: 'messenger', label: 'Facebook', href, external: true });
   }
 
   return actions;

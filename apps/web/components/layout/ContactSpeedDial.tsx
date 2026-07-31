@@ -25,57 +25,50 @@ function isPurchaseSurface(pathname: string): boolean {
   );
 }
 
+/** Filled phone — sized to dominate the circle. */
 function PhoneIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M6.6 3.2c.5-.5 1.3-.6 1.9-.2l2.3 1.5c.5.3.7.9.5 1.5l-.8 2.3c-.1.4 0 .8.3 1.1l2.4 2.4c.3.3.7.4 1.1.3l2.3-.8c.5-.2 1.1 0 1.5.5l1.5 2.3c.4.6.3 1.4-.2 1.9l-1.3 1.3c-.6.6-1.4.9-2.2.8-2-.3-4.5-1.7-7-4.2s-3.9-5-4.2-7c-.1-.8.2-1.6.8-2.2L6.6 3.2Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M7.05 3.4c.42-.42 1.1-.5 1.62-.2l2.05 1.2a1.35 1.35 0 0 1 .62 1.55l-.72 2.35a1.1 1.1 0 0 0 .25.98l2.55 2.55c.27.27.7.35.98.25l2.35-.72a1.35 1.35 0 0 1 1.55.62l1.2 2.05c.3.52.22 1.2-.2 1.62l-1.2 1.2c-.7.7-1.68 1.05-2.65.9-2.35-.35-5.2-2-8.05-4.85S3.75 9.3 3.4 6.95c-.15-.97.2-1.95.9-2.65l1.75-1.9Z" />
     </svg>
   );
 }
 
+/**
+ * Zalo brand mark: blue speech bubble + white wordmark.
+ * (Official-looking mark used by chat widgets — not a generic "Z" glyph.)
+ */
 function ZaloIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="3" y="3" width="18" height="18" rx="5" stroke="currentColor" strokeWidth="1.75" />
+    <svg className={className} viewBox="0 0 48 48" aria-hidden>
       <path
-        d="M8 15.5V8.5h2.2c1.5 0 2.4.8 2.4 2.1 0 1.2-.8 2-2.1 2.1H9.5v2.8H8Zm1.5-4.2h.6c.6 0 1-.3 1-.9s-.4-.9-1-.9h-.6v1.8ZM14.2 15.5l2.6-7h1.7l-2.6 7h-1.7Zm-1.1 0V8.5h1.5v7h-1.5Z"
-        fill="currentColor"
+        fill="#0068FF"
+        d="M24.1 4C13.55 4 5 11.85 5 21.55c0 5.95 3.35 11.2 8.5 14.45-.25 1.55-1.05 4.55-1.2 5.3-.2.95.35 1.25 1.1.75.6-.4 3.85-2.55 5.5-3.65 1.6.35 3.3.55 5.05.55 10.55 0 19.1-7.85 19.1-17.4C43.05 11.85 34.55 4 24.1 4Z"
+      />
+      <path
+        fill="#fff"
+        d="M14.2 29.2V16.4h4.15c2.85 0 4.55 1.45 4.55 3.85 0 2.25-1.5 3.7-3.95 3.85h-2.2v5.1H14.2Zm2.55-7.45h1.25c1.2 0 1.9-.6 1.9-1.65s-.7-1.65-1.9-1.65h-1.25v3.3Zm8.35 7.45V16.4h2.55l3.55 8.35h.1l-.1-8.35h2.5V29.2h-2.55l-3.55-8.4h-.1l.1 8.4h-2.5Z"
       />
     </svg>
   );
 }
 
-function MessengerIcon({ className }: { className?: string }) {
+/** Facebook "f" mark on brand blue. */
+function FacebookIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3.5c-4.6 0-8.3 3.4-8.3 7.6 0 2.4 1.2 4.5 3.1 5.9v2.5l2.3-1.3c.9.3 1.9.4 2.9.4 4.6 0 8.3-3.4 8.3-7.5S16.6 3.5 12 3.5Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
-      <path
-        d="m8.2 12.4 2.6-2.8 2.1 2.1 3-2.1-2.6 2.8-2.1-2.1-3 2.1Z"
-        fill="currentColor"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M14.5 8.5V6.85c0-.7.15-1.1 1.15-1.1H17V3h-2.35C11.9 3 11 4.55 11 6.7V8.5H9v2.7h2V21h3.5V11.2h2.35l.35-2.7H14.5Z" />
     </svg>
   );
 }
 
 function ChatIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v7a2.5 2.5 0 0 1-2.5 2.5H11l-3.8 2.7c-.5.3-1.2-.1-1.2-.7V16H7.5A2.5 2.5 0 0 1 5 13.5v-7Z"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        strokeLinejoin="round"
-      />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M5.5 4.25A2.75 2.75 0 0 1 8.25 1.5h7.5A2.75 2.75 0 0 1 18.5 4.25v7a2.75 2.75 0 0 1-2.75 2.75h-3.35l-3.55 2.85a.9.9 0 0 1-1.45-.72v-2.13H8.25A2.75 2.75 0 0 1 5.5 11.25v-7Z" />
+      <circle cx="9.2" cy="7.75" r="1.05" fill="#005BEA" />
+      <circle cx="12" cy="7.75" r="1.05" fill="#005BEA" />
+      <circle cx="14.8" cy="7.75" r="1.05" fill="#005BEA" />
     </svg>
   );
 }
@@ -84,9 +77,9 @@ function CloseIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M7 7l10 10M17 7 7 17"
+        d="M6.5 6.5 17.5 17.5M17.5 6.5 6.5 17.5"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.4"
         strokeLinecap="round"
       />
     </svg>
@@ -96,13 +89,20 @@ function CloseIcon({ className }: { className?: string }) {
 const ACTION_ICON: Record<SpeedDialActionId, (props: { className?: string }) => ReactNode> = {
   hotline: PhoneIcon,
   zalo: ZaloIcon,
-  messenger: MessengerIcon,
+  messenger: FacebookIcon,
 };
 
 const ACTION_TONE: Record<SpeedDialActionId, string> = {
   hotline: 'bg-cardon-blue text-white',
-  zalo: 'bg-[#0068FF] text-white',
-  messenger: 'bg-[#0084FF] text-white',
+  zalo: 'bg-white text-[#0068FF] ring-1 ring-[#0068FF]/20',
+  messenger: 'bg-[#1877F2] text-white',
+};
+
+/** Zalo logo already includes its blue bubble — render nearly full-bleed. */
+const ACTION_ICON_SIZE: Record<SpeedDialActionId, string> = {
+  hotline: 'h-7 w-7',
+  zalo: 'h-11 w-11',
+  messenger: 'h-7 w-7',
 };
 
 function SpeedDialActionButton({
@@ -123,24 +123,20 @@ function SpeedDialActionButton({
       target={action.external ? '_blank' : undefined}
       rel={action.external ? 'noopener noreferrer' : undefined}
       tabIndex={open ? 0 : -1}
+      aria-label={action.label}
+      title={action.label}
       onClick={onNavigate}
       className={cn(
-        'group flex items-center justify-end gap-2 transition duration-200 ease-out',
-        open ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0',
+        'flex h-12 w-12 items-center justify-center rounded-full shadow-card transition duration-200 ease-out',
+        'hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cardon-blue',
+        ACTION_TONE[action.id],
+        open
+          ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
+          : 'pointer-events-none translate-y-3 scale-90 opacity-0',
       )}
-      style={{ transitionDelay: open ? `${index * 40}ms` : '0ms' }}
+      style={{ transitionDelay: open ? `${index * 45}ms` : '0ms' }}
     >
-      <span className="rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-cardon-navy shadow-card ring-1 ring-cardon-border">
-        {action.label}
-      </span>
-      <span
-        className={cn(
-          'flex h-12 w-12 items-center justify-center rounded-full shadow-card transition group-hover:scale-105',
-          ACTION_TONE[action.id],
-        )}
-      >
-        <Icon className="h-5 w-5" />
-      </span>
+      <Icon className={ACTION_ICON_SIZE[action.id]} />
     </a>
   );
 }
@@ -197,11 +193,7 @@ export function ContactSpeedDial() {
           : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8',
       )}
     >
-      <div
-        id={listId}
-        className="flex flex-col items-end gap-3"
-        aria-hidden={!open}
-      >
+      <div id={listId} className="flex flex-col items-end gap-3" aria-hidden={!open}>
         {actions.map((action, index) => (
           <SpeedDialActionButton
             key={action.id}
@@ -222,10 +214,10 @@ export function ContactSpeedDial() {
         className={cn(
           'flex h-14 w-14 items-center justify-center rounded-full bg-cardon-blue text-white shadow-card-hover transition',
           'hover:bg-cardon-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cardon-blue',
-          open && 'rotate-90 bg-cardon-navy',
+          open ? 'rotate-90 bg-cardon-navy' : 'speed-dial-nudge',
         )}
       >
-        {open ? <CloseIcon className="h-6 w-6" /> : <ChatIcon className="h-6 w-6" />}
+        {open ? <CloseIcon className="h-7 w-7" /> : <ChatIcon className="h-8 w-8" />}
       </button>
     </div>
   );
