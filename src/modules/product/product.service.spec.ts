@@ -45,11 +45,17 @@ describe('ProductService', () => {
       productRepository as never,
       categoryRepository as never,
       usage as never,
+      {
+        resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+      } as never,
     );
   });
 
   it('creates product', async () => {
-    categoryRepository.findById.mockResolvedValue({ id: 'cat-1' });
+    categoryRepository.findById.mockResolvedValue({
+      id: 'cat-1',
+      homeService: HomeServiceType.GAME_CARD,
+    });
     productRepository.findBySlug.mockResolvedValue(null);
     productRepository.create.mockResolvedValue({
       id: 'prod-1',
@@ -185,7 +191,7 @@ describe('VariantService', () => {
 
 describe('ProviderMappingService', () => {
   let service: ProviderMappingService;
-  let mappingRepository: { create: jest.Mock; findById: jest.Mock };
+  let mappingRepository: { create: jest.Mock; findById: jest.Mock; update: jest.Mock };
   let variantRepository: { findById: jest.Mock };
   let prisma: {
     provider: { findFirst: jest.Mock };
@@ -256,6 +262,16 @@ describe('PricingService', () => {
     service = new PricingService(
       pricingRepository as never,
       mappingRepository as never,
+      {
+        resolveAgentPrice: jest.fn().mockImplementation(async (agentId: string, variantId: string) => {
+          const custom = await pricingRepository.findActiveAgentProductPrice(agentId, variantId);
+          if (custom) {
+            return { sellingPrice: custom.agentPrice.toFixed(2) };
+          }
+          const variant = await pricingRepository.findActiveVariantSellPrice(variantId);
+          return { sellingPrice: variant.sellPrice.toFixed(2) };
+        }),
+      } as never,
     );
   });
 

@@ -1,4 +1,4 @@
-import { versionsMatch } from '../../settings/entities/payment-gateway-priority';
+import { versionsMatch } from '../settings/entities/payment-gateway-priority';
 
 const BUILD_COMMENT_RE = /<!-- CardOn(?:\s+\w+)?\s+build\s+([^>]+)\s*-->/i;
 

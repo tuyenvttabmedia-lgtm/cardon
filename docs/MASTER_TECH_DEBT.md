@@ -29,7 +29,7 @@
 | TD-H08 | LedgerEntry has deletedAt despite append-only rule | `schema.prisma` | Data integrity ambiguity |
 | TD-H09 | CardAccessLog.cardId no FK to CardRecord | `schema.prisma` | Referential integrity gap |
 | TD-H10 | FinancialTransaction maps to table `transactions` | Naming | Onboarding confusion |
-| TD-H11 | Specs ngoài luồng tiền không compile (constructor/import đã trôi) | `admin`, `auth`, `product`, `notification` specs | Không có lưới an toàn cho các module này; job `full-suite` đỏ |
+| TD-H11 | ~~Specs ngoài luồng tiền không compile~~ — **đã đóng 2026-07-31** (full suite 461 tests xanh) | `admin`, `auth`, `product`, `notification` specs | — |
 
 ---
 

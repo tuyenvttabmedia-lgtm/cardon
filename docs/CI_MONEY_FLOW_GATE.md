@@ -45,13 +45,14 @@ Kết quả kỳ vọng: 30 suite / 262 test, xanh toàn bộ.
 |-----|-----------|----------|
 | `money-flow` | Có | `prisma generate` → `prisma validate` → `npm run test:money` |
 | `build` | Có | `nest build` — bắt lỗi TypeScript của mã production |
-| `full-suite` | Không | `npm test` toàn bộ, để lộ phần nợ kỹ thuật còn lại |
+| `full-suite` | Có | `npm test` toàn bộ (59 suite) |
+
+Branch protection trên `main` bắt buộc `Money flow smoke tests` và `Build API`.
 
 ---
 
-## Nợ còn lại
+## Nợ đã đóng (P0.5 follow-up)
 
-`full-suite` hiện còn đỏ ở các module ngoài luồng tiền: `admin`, `auth`,
-`product`, `notification`. Nguyên nhân là chữ ký constructor và đường dẫn import
-đã trôi so với lúc viết test — không phải lỗi logic production. Xem
-`MASTER_TECH_DEBT.md` mục TD-H11.
+Specs ngoài luồng tiền (`admin`, `auth`, `product`, `notification`) đã được sửa
+cho khớp chữ ký constructor / mock dữ liệu hiện tại. `full-suite` giờ xanh và
+chặn merge cùng với hai job kia.

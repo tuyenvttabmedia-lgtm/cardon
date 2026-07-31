@@ -109,6 +109,7 @@ describe('AuthService', () => {
       { notifyUserRegister: jest.fn(), notifyPasswordReset: jest.fn() } as never,
       { encrypt: jest.fn(), decrypt: jest.fn() } as never,
       { dispatch: jest.fn() } as never,
+      { assertLoginAllowed: jest.fn() } as never,
     );
   });
 

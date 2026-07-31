@@ -3,8 +3,8 @@ import {
   auditCategories,
   buildCategoryMergePlan,
   detectParentLoops,
-} from '../entities/category-integrity';
-import type { CategoryIntegrityRow } from '../entities/category-integrity.types';
+} from './entities/category-integrity';
+import type { CategoryIntegrityRow } from './entities/category-integrity.types';
 
 function row(
   partial: Partial<CategoryIntegrityRow> & Pick<CategoryIntegrityRow, 'id' | 'slug' | 'name' | 'homeService'>,
@@ -26,7 +26,7 @@ describe('Phase 6O31.1 — Category integrity', () => {
       row({ id: '2', slug: 'local-demo-cards', name: 'Thẻ game', homeService: HomeServiceType.GAME_CARD }),
     ];
     const report = auditCategories(rows);
-    expect(report.issues.some((i) => i.type === 'duplicate_home_service_root')).toBe(true);
+    expect(report.issues.some((i: { type: string }) => i.type === 'duplicate_home_service_root')).toBe(true);
     expect(report.mergePlan).toHaveLength(1);
     expect(report.mergePlan[0].duplicateSlug).toBe('local-demo-cards');
     expect(report.mergePlan[0].canonicalSlug).toBe('game-card');

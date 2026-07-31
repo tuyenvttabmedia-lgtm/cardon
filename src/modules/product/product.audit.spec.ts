@@ -37,6 +37,7 @@ describe('Phase 2C.1 Product Engine Audit', () => {
         },
         providerProductMapping: {
           findUnique: jest.fn().mockResolvedValue(null),
+          findFirst: jest.fn().mockResolvedValue(null),
         },
       };
 
@@ -155,6 +156,9 @@ describe('Phase 2C.1 Product Engine Audit', () => {
         productRepository as never,
         { findById: jest.fn() } as never,
         { productHasUsage: jest.fn() } as never,
+        {
+          resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+        } as never,
       );
 
       const disabled = await mappingService.disableMapping('map-1');

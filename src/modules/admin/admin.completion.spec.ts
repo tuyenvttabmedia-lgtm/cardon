@@ -73,6 +73,9 @@ describe('Phase 5C.1 — Admin product list', () => {
       productRepository as never,
       categoryRepository as never,
       { productHasUsage: jest.fn() } as never,
+      {
+        resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
+      } as never,
     );
 
     const result = await service.listAdminProducts();
@@ -149,6 +152,7 @@ describe('Phase 5C.1 — Provider operations', () => {
 
     const providerRepository = {
       findById: jest.fn().mockResolvedValue({ id: 'prov-1', code: 'ESALE', name: 'eSale' }),
+      findProviderById: jest.fn().mockResolvedValue({ id: 'prov-1', code: 'ESALE', name: 'eSale' }),
     };
     const providerTransactionRepository = {
       findManyByProviderAdmin: jest.fn().mockResolvedValue([txRow]),

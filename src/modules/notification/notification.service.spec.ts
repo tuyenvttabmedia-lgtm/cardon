@@ -35,6 +35,7 @@ describe('Phase 4C Notification', () => {
         producer,
         {} as NotificationRepository,
         { get: () => 'https://cardon.vn' } as unknown as ConfigService,
+        { record: jest.fn() } as never,
       );
 
       await service.notifyUserRegister('user@cardon.vn', 'verify-token-abc');
@@ -112,9 +113,12 @@ describe('Phase 4C Notification', () => {
           id: 'order-1',
           orderCode: 'ORD-CARD-1',
           guestEmail: 'buyer@cardon.vn',
+          totalAmount: new Decimal('100000'),
           user: null,
           orderItems: [
             {
+              quantity: 1,
+              variant: { name: 'Garena 100K' },
               cardRecords: [
                 {
                   id: 'card-1',
