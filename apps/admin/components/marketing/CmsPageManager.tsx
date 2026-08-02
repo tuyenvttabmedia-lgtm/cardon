@@ -47,7 +47,7 @@ export function CmsPageManager({ pageType, title }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [editorPickResolver, setEditorPickResolver] = useState<
-    ((url: string | null) => void) | null
+    ((media: { url: string; alt?: string | null } | null) => void) | null
   >(null);
 
   async function load() {
@@ -102,15 +102,15 @@ export function CmsPageManager({ pageType, title }: Props) {
     }));
   }
 
-  async function pickImageUrl(): Promise<string | null> {
+  async function pickImageUrl(): Promise<{ url: string; alt?: string | null } | null> {
     return new Promise((resolve) => {
       setEditorPickResolver(() => resolve);
       setImagePickerOpen(true);
     });
   }
 
-  function handleEditorImagePick(url: string) {
-    editorPickResolver?.(url);
+  function handleEditorImagePick(media: { url: string; alt?: string | null }) {
+    editorPickResolver?.(media);
     setEditorPickResolver(null);
     setImagePickerOpen(false);
   }

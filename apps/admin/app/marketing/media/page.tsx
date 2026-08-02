@@ -20,6 +20,86 @@ const FOLDERS = [
   { value: 'articles', label: 'Bài viết' },
 ];
 
+function MediaCard({
+  item,
+  copied,
+  onCopy,
+  onRemove,
+  onUpdated,
+  onError,
+}: {
+  item: CmsMedia;
+  copied: boolean;
+  onCopy: () => void;
+  onRemove: () => void;
+  onUpdated: (media: CmsMedia) => void;
+  onError: (message: string) => void;
+}) {
+  const [alt, setAlt] = useState(item.alt ?? '');
+  const [title, setTitle] = useState(item.title ?? '');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setAlt(item.alt ?? '');
+    setTitle(item.title ?? '');
+  }, [item.id, item.alt, item.title]);
+
+  async function saveMeta() {
+    setSaving(true);
+    try {
+      const updated = await cmsAdminApi.updateMedia(item.id, { alt, title });
+      onUpdated(updated);
+    } catch (err) {
+      onError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card className="space-y-2">
+      <img
+        src={mediaFullUrl(item.thumbnailUrl ?? item.url)}
+        alt={item.alt ?? item.filename}
+        className="h-32 w-full rounded object-cover"
+      />
+      <p className="truncate text-sm font-medium">{item.title || item.originalName}</p>
+      <p className="text-xs text-slate-500">
+        {item.folder} · {item.filename}
+      </p>
+      <p className="text-xs text-slate-500">
+        {(item.size / 1024).toFixed(1)} KB · {item.mimeType}
+        {item.width && item.height ? ` · ${item.width}×${item.height}px` : ''}
+      </p>
+      <div>
+        <Label>Alt Image</Label>
+        <Input
+          className="mt-1"
+          value={alt}
+          onChange={(e) => setAlt(e.target.value)}
+          placeholder="Mô tả ảnh (SEO)"
+        />
+      </div>
+      <div>
+        <Label>Tiêu đề</Label>
+        <Input className="mt-1" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <p className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleString('vi-VN')}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => void saveMeta()} disabled={saving}>
+          {saving ? 'Đang lưu…' : 'Lưu alt'}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCopy}>
+          {copied ? 'Đã copy' : 'Copy URL'}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onRemove}>
+          {vi.app.delete}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function MediaPage() {
   const [items, setItems] = useState<CmsMedia[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -116,8 +196,13 @@ export default function MediaPage() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <Label>Alt text</Label>
-              <Input className="mt-1" value={alt} onChange={(e) => setAlt(e.target.value)} />
+              <Label>Alt Image</Label>
+              <Input
+                className="mt-1"
+                value={alt}
+                onChange={(e) => setAlt(e.target.value)}
+                placeholder="Mô tả ảnh cho SEO / accessibility"
+              />
             </div>
             <div>
               <Label>Tiêu đề</Label>
@@ -142,7 +227,12 @@ export default function MediaPage() {
             </div>
             <div>
               <Label>Tìm kiếm</Label>
-              <Input className="mt-1" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tên file, alt…" />
+              <Input
+                className="mt-1"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Tên file, alt…"
+              />
             </div>
             <div>
               <Label>Loại file</Label>
@@ -158,30 +248,17 @@ export default function MediaPage() {
         </Card>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((m) => (
-            <Card key={m.id} className="space-y-2">
-              <img
-                src={mediaFullUrl(m.thumbnailUrl ?? m.url)}
-                alt={m.alt ?? m.filename}
-                className="h-32 w-full rounded object-cover"
-              />
-              <p className="truncate text-sm font-medium">{m.title || m.originalName}</p>
-              <p className="text-xs text-slate-500">
-                {m.folder} · {m.filename}
-              </p>
-              <p className="text-xs text-slate-500">
-                {(m.size / 1024).toFixed(1)} KB · {m.mimeType}
-                {m.width && m.height ? ` · ${m.width}×${m.height}px` : ''}
-              </p>
-              <p className="text-xs text-slate-400">{new Date(m.createdAt).toLocaleString('vi-VN')}</p>
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" onClick={() => copyUrl(m)}>
-                  {copied === m.id ? 'Đã copy' : 'Copy URL'}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => void remove(m.id)}>
-                  {vi.app.delete}
-                </Button>
-              </div>
-            </Card>
+            <MediaCard
+              key={m.id}
+              item={m}
+              copied={copied === m.id}
+              onCopy={() => copyUrl(m)}
+              onRemove={() => void remove(m.id)}
+              onUpdated={(updated) =>
+                setItems((prev) => prev.map((row) => (row.id === updated.id ? updated : row)))
+              }
+              onError={setError}
+            />
           ))}
         </div>
       </div>

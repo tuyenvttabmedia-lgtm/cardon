@@ -808,6 +808,12 @@ export const cmsAdminApi = {
     });
     return parseResponse<CmsMedia>(response);
   },
+  updateMedia(id: string, meta: { alt?: string; title?: string; folder?: string }) {
+    return apiRequest<CmsMedia>(`/admin/cms/media/${id}`, {
+      method: 'PATCH',
+      body: meta,
+    });
+  },
   deleteMedia(id: string) {
     return apiRequest<void>(`/admin/cms/media/${id}`, { method: 'DELETE' });
   },

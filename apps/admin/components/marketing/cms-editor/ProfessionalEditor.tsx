@@ -14,6 +14,7 @@ import Underline from '@tiptap/extension-underline';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Placeholder from '@tiptap/extension-placeholder';
 import { cmsAdminApi } from '@/services/api-client';
+import type { MediaPickResult } from '@/components/marketing/MediaLibraryPicker';
 import { InternalLinkModal } from './InternalLinkModal';
 import {
   CMS_BLOCK_SNIPPETS,
@@ -97,7 +98,7 @@ function ToolbarBtn({
 export interface ProfessionalEditorProps {
   value: string;
   onChange: (html: string) => void;
-  onPickImage?: () => Promise<string | null>;
+  onPickImage?: () => Promise<MediaPickResult | null>;
   linkTargets?: Array<{ label: string; href: string; type: string }>;
   placeholder?: string;
   pageLayout?: 'ARTICLE' | 'LANDING' | 'POLICY';
@@ -115,6 +116,8 @@ function ProfessionalEditorInner({
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashFilter, setSlashFilter] = useState('');
   const [htmlMode, setHtmlMode] = useState(pageLayout === 'LANDING');
+  const [imageAltDraft, setImageAltDraft] = useState('');
+  const [, setSelectionTick] = useState(0);
   const landingLocked = pageLayout === 'LANDING';
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -125,10 +128,16 @@ function ProfessionalEditorInner({
     }
   }, [landingLocked, htmlMode]);
 
-  async function uploadFile(file: File): Promise<string | null> {
+  async function uploadFile(file: File): Promise<MediaPickResult | null> {
     try {
-      const media = await cmsAdminApi.uploadMedia(file, { folder: 'articles' });
-      return media.url;
+      const suggestedAlt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
+      const alt =
+        window.prompt('Alt Image — Thêm alt cho ảnh', suggestedAlt) ?? '';
+      const media = await cmsAdminApi.uploadMedia(file, {
+        folder: 'articles',
+        alt: alt.trim() || undefined,
+      });
+      return { url: media.url, alt: media.alt ?? (alt.trim() || null) };
     } catch {
       return null;
     }
@@ -173,8 +182,17 @@ function ProfessionalEditorInner({
         const file = files[0];
         if (!file.type.startsWith('image/')) return false;
         event.preventDefault();
-        void uploadFile(file).then((url) => {
-          if (url) view.dispatch(view.state.tr.replaceSelectionWith(view.state.schema.nodes.image.create({ src: url })));
+        void uploadFile(file).then((picked) => {
+          if (picked) {
+            view.dispatch(
+              view.state.tr.replaceSelectionWith(
+                view.state.schema.nodes.image.create({
+                  src: picked.url,
+                  alt: picked.alt ?? '',
+                }),
+              ),
+            );
+          }
         });
         return true;
       },
@@ -186,8 +204,17 @@ function ProfessionalEditorInner({
             const file = item.getAsFile();
             if (!file) continue;
             event.preventDefault();
-            void uploadFile(file).then((url) => {
-              if (url) view.dispatch(view.state.tr.replaceSelectionWith(view.state.schema.nodes.image.create({ src: url })));
+            void uploadFile(file).then((picked) => {
+              if (picked) {
+                view.dispatch(
+                  view.state.tr.replaceSelectionWith(
+                    view.state.schema.nodes.image.create({
+                      src: picked.url,
+                      alt: picked.alt ?? '',
+                    }),
+                  ),
+                );
+              }
             });
             return true;
           }
@@ -206,6 +233,22 @@ function ProfessionalEditorInner({
   }, [editor, value]);
 
   useEffect(() => {
+    if (!editor) return;
+    const syncSelection = () => {
+      setSelectionTick((n) => n + 1);
+      if (editor.isActive('image')) {
+        setImageAltDraft(String(editor.getAttributes('image').alt ?? ''));
+      }
+    };
+    editor.on('selectionUpdate', syncSelection);
+    editor.on('transaction', syncSelection);
+    return () => {
+      editor.off('selectionUpdate', syncSelection);
+      editor.off('transaction', syncSelection);
+    };
+  }, [editor]);
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -217,9 +260,28 @@ function ProfessionalEditorInner({
   }, []);
 
   const pickAndInsertImage = useCallback(async () => {
-    const url = onPickImage ? await onPickImage() : window.prompt('URL ảnh');
-    if (url && editor) editor.chain().focus().setImage({ src: url }).run();
+    let picked: MediaPickResult | null = null;
+    if (onPickImage) {
+      picked = await onPickImage();
+    } else {
+      const url = window.prompt('URL ảnh');
+      if (!url) return;
+      const alt = window.prompt('Alt Image — Thêm alt cho ảnh', '') ?? '';
+      picked = { url, alt: alt.trim() || null };
+    }
+    if (picked?.url && editor) {
+      editor
+        .chain()
+        .focus()
+        .setImage({ src: picked.url, alt: picked.alt ?? '' })
+        .run();
+    }
   }, [editor, onPickImage]);
+
+  function applyImageAlt() {
+    if (!editor?.isActive('image')) return;
+    editor.chain().focus().updateAttributes('image', { alt: imageAltDraft.trim() }).run();
+  }
 
   function removeSlashTrigger() {
     if (!editor) return;
@@ -342,6 +404,24 @@ function ProfessionalEditorInner({
               <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>↶</ToolbarBtn>
               <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>↷</ToolbarBtn>
               <span className="mx-1 h-5 w-px bg-slate-300" />
+              {editor.isActive('image') ? (
+                <div className="ml-1 flex min-w-[240px] flex-1 items-center gap-1">
+                  <label className="shrink-0 text-[11px] font-semibold text-slate-500">Alt Image</label>
+                  <input
+                    className="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-admin-500"
+                    value={imageAltDraft}
+                    onChange={(e) => setImageAltDraft(e.target.value)}
+                    onBlur={applyImageAlt}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyImageAlt();
+                      }
+                    }}
+                    placeholder="Thêm alt cho ảnh"
+                  />
+                </div>
+              ) : null}
             </>
           ) : (
             <span className="px-2 text-xs font-medium text-slate-500">

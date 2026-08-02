@@ -57,7 +57,9 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const [revisions, setRevisions] = useState(listRevisions(editingId ?? 'new'));
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [featuredPickerOpen, setFeaturedPickerOpen] = useState(false);
-  const [editorPickResolver, setEditorPickResolver] = useState<((url: string | null) => void) | null>(null);
+  const [editorPickResolver, setEditorPickResolver] = useState<
+    ((media: { url: string; alt?: string | null } | null) => void) | null
+  >(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [authorLabel, setAuthorLabel] = useState('CardOn');
   const formRef = useRef(form);
@@ -202,7 +204,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     }));
   }
 
-  async function pickImageUrl(): Promise<string | null> {
+  async function pickImageUrl(): Promise<{ url: string; alt?: string | null } | null> {
     return new Promise((resolve) => {
       setEditorPickResolver(() => resolve);
       setImagePickerOpen(true);
@@ -495,14 +497,14 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
         <MediaLibraryPicker
           open={imagePickerOpen}
           onClose={() => { editorPickResolver?.(null); setEditorPickResolver(null); setImagePickerOpen(false); }}
-          onSelect={(url) => { editorPickResolver?.(url); setEditorPickResolver(null); setImagePickerOpen(false); }}
+          onSelect={(media) => { editorPickResolver?.(media); setEditorPickResolver(null); setImagePickerOpen(false); }}
           defaultFolder="articles"
           title="Chọn ảnh"
         />
         <MediaLibraryPicker
           open={featuredPickerOpen}
           onClose={() => setFeaturedPickerOpen(false)}
-          onSelect={(url) => { setForm((p) => ({ ...p, featuredImage: url })); setFeaturedPickerOpen(false); }}
+          onSelect={(media) => { setForm((p) => ({ ...p, featuredImage: media.url })); setFeaturedPickerOpen(false); }}
           defaultFolder="articles"
           title="Ảnh đại diện"
         />

@@ -15,7 +15,7 @@ import { useEffect } from 'react';
 interface Props {
   value: string;
   onChange: (html: string) => void;
-  onPickImage?: () => Promise<string | null>;
+  onPickImage?: () => Promise<{ url: string; alt?: string | null } | null>;
 }
 
 function ToolbarButton({
@@ -74,8 +74,18 @@ export function ArticleEditor({ value, onChange, onPickImage }: Props) {
   if (!editor) return null;
 
   async function insertImage() {
-    const url = onPickImage ? await onPickImage() : window.prompt('URL ảnh');
-    if (url) editor?.chain().focus().setImage({ src: url }).run();
+    let picked: { url: string; alt?: string | null } | null = null;
+    if (onPickImage) {
+      picked = await onPickImage();
+    } else {
+      const url = window.prompt('URL ảnh');
+      if (!url) return;
+      const alt = window.prompt('Alt Image — Thêm alt cho ảnh', '') ?? '';
+      picked = { url, alt: alt.trim() || null };
+    }
+    if (picked?.url) {
+      editor?.chain().focus().setImage({ src: picked.url, alt: picked.alt ?? '' }).run();
+    }
   }
 
   function insertLink() {
