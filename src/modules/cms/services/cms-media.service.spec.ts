@@ -9,6 +9,7 @@ describe('Phase 6H.2 — CmsMediaService', () => {
     listMedia: jest.fn(),
     createMedia: jest.fn(),
     findMediaById: jest.fn(),
+    updateMedia: jest.fn(),
     softDeleteMedia: jest.fn(),
   };
   const storage = {
@@ -71,5 +72,14 @@ describe('Phase 6H.2 — CmsMediaService', () => {
     await service().deleteMedia('m1');
     expect(storage.deleteLocalFile).toHaveBeenCalledWith('banners/x.png');
     expect(repository.softDeleteMedia).toHaveBeenCalledWith('m1');
+  });
+
+  it('updates media alt/title metadata', async () => {
+    repository.findMediaById.mockResolvedValue({ id: 'm1' });
+    repository.updateMedia.mockResolvedValue({ id: 'm1', alt: 'Hero banner' });
+
+    const result = await service().updateMedia('m1', { alt: '  Hero banner  ' });
+    expect(result).toEqual({ id: 'm1', alt: 'Hero banner' });
+    expect(repository.updateMedia).toHaveBeenCalledWith('m1', { alt: 'Hero banner' });
   });
 });

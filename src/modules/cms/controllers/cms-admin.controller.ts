@@ -28,6 +28,7 @@ import {
   ListCmsPagesQueryDto,
   ListCmsMediaQueryDto,
   UpdateCmsBannerDto,
+  UpdateCmsMediaDto,
   UpdateCmsPageDto,
   UpdateCmsSeoSettingsDto,
   UpdateCmsThemeDto,
@@ -202,6 +203,14 @@ export class CmsAdminController {
     @Body('folder') folder?: string,
   ) {
     return this.mediaService.upload(file, { alt, title, folder });
+  }
+
+  @Patch('media/:id')
+  updateMedia(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCmsMediaDto,
+  ) {
+    return this.mediaService.updateMedia(id, dto);
   }
 
   @Delete('media/:id')

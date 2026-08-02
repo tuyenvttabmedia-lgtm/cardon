@@ -488,6 +488,23 @@ export class ListCmsMediaQueryDto {
   mimeType?: string;
 }
 
+export class UpdateCmsMediaDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  alt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  folder?: string;
+}
+
 export class UpsertCmsFaqItemDto {
   @IsOptional()
   @IsString()

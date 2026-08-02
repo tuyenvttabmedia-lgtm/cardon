@@ -358,6 +358,20 @@ export class CmsRepository {
     return this.prisma.cmsMedia.findFirst({ where: { id, deletedAt: null } });
   }
 
+  updateMedia(
+    id: string,
+    data: { alt?: string | null; title?: string | null; folder?: string },
+  ) {
+    return this.prisma.cmsMedia.update({
+      where: { id },
+      data: {
+        ...(data.alt !== undefined ? { alt: data.alt } : {}),
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.folder !== undefined ? { folder: data.folder } : {}),
+      },
+    });
+  }
+
   softDeleteMedia(id: string) {
     return this.prisma.cmsMedia.update({
       where: { id },
