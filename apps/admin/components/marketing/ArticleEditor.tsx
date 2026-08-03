@@ -6,11 +6,11 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Blockquote from '@tiptap/extension-blockquote';
 import Youtube from '@tiptap/extension-youtube';
 import { useEffect } from 'react';
+import { CmsImage, insertCmsImage } from './cms-editor/cms-image-extension';
 
 interface Props {
   value: string;
@@ -46,7 +46,7 @@ export function ArticleEditor({ value, onChange, onPickImage }: Props) {
       StarterKit.configure({ heading: { levels: [2, 3, 4] } }),
       Blockquote,
       Link.configure({ openOnClick: false }),
-      Image,
+      CmsImage.configure({ inline: false, allowBase64: false }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
@@ -80,11 +80,10 @@ export function ArticleEditor({ value, onChange, onPickImage }: Props) {
     } else {
       const url = window.prompt('URL ảnh');
       if (!url) return;
-      const alt = window.prompt('Alt Image — Thêm alt cho ảnh', '') ?? '';
-      picked = { url, alt: alt.trim() || null };
+      picked = { url, alt: null };
     }
-    if (picked?.url) {
-      editor?.chain().focus().setImage({ src: picked.url, alt: picked.alt ?? '' }).run();
+    if (picked?.url && editor) {
+      insertCmsImage(editor, picked);
     }
   }
 
