@@ -37,13 +37,23 @@ function selectImageNearCursor(view: EditorView) {
   }
 }
 
+export type CmsImageInsertAttrs = {
+  /** TipTap image src — also accepts media picker `url`. */
+  src?: string;
+  url?: string;
+  alt?: string | null;
+};
+
+function resolveImageSrc(attrs: CmsImageInsertAttrs): string {
+  const src = (attrs.src ?? attrs.url ?? '').trim();
+  if (!src) throw new Error('Image src/url is required');
+  return src;
+}
+
 /** Insert via ProseMirror view (drop/paste) and select so Alt panel opens. */
-export function insertCmsImageIntoView(
-  view: EditorView,
-  attrs: { src: string; alt?: string | null },
-) {
+export function insertCmsImageIntoView(view: EditorView, attrs: CmsImageInsertAttrs) {
   const node = view.state.schema.nodes.image.create({
-    src: attrs.src,
+    src: resolveImageSrc(attrs),
     alt: attrs.alt ?? '',
   });
   const tr = view.state.tr.replaceSelectionWith(node);
@@ -52,16 +62,13 @@ export function insertCmsImageIntoView(
 }
 
 /** Insert image then NodeSelect it so the inline Alt panel opens immediately. */
-export function insertCmsImage(
-  editor: Editor,
-  attrs: { src: string; alt?: string | null },
-) {
+export function insertCmsImage(editor: Editor, attrs: CmsImageInsertAttrs) {
   editor
     .chain()
     .focus()
     .insertContent({
       type: 'image',
-      attrs: { src: attrs.src, alt: attrs.alt ?? '' },
+      attrs: { src: resolveImageSrc(attrs), alt: attrs.alt ?? '' },
     })
     .run();
   selectImageNearCursor(editor.view);
