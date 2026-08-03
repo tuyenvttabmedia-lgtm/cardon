@@ -7,7 +7,6 @@ import Table from '@tiptap/extension-table';
 import TableRow from '@tiptap/extension-table-row';
 import TableCell from '@tiptap/extension-table-cell';
 import TableHeader from '@tiptap/extension-table-header';
-import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Youtube from '@tiptap/extension-youtube';
 import Underline from '@tiptap/extension-underline';
@@ -15,6 +14,7 @@ import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Placeholder from '@tiptap/extension-placeholder';
 import { cmsAdminApi } from '@/services/api-client';
 import type { MediaPickResult } from '@/components/marketing/MediaLibraryPicker';
+import { CmsImage, insertCmsImage, insertCmsImageIntoView } from './cms-image-extension';
 import { InternalLinkModal } from './InternalLinkModal';
 import {
   CMS_BLOCK_SNIPPETS,
@@ -116,8 +116,6 @@ function ProfessionalEditorInner({
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashFilter, setSlashFilter] = useState('');
   const [htmlMode, setHtmlMode] = useState(pageLayout === 'LANDING');
-  const [imageAltDraft, setImageAltDraft] = useState('');
-  const [, setSelectionTick] = useState(0);
   const landingLocked = pageLayout === 'LANDING';
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -130,14 +128,8 @@ function ProfessionalEditorInner({
 
   async function uploadFile(file: File): Promise<MediaPickResult | null> {
     try {
-      const suggestedAlt = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
-      const alt =
-        window.prompt('Alt Image — Thêm alt cho ảnh', suggestedAlt) ?? '';
-      const media = await cmsAdminApi.uploadMedia(file, {
-        folder: 'articles',
-        alt: alt.trim() || undefined,
-      });
-      return { url: media.url, alt: media.alt ?? (alt.trim() || null) };
+      const media = await cmsAdminApi.uploadMedia(file, { folder: 'articles' });
+      return { url: media.url, alt: media.alt ?? null };
     } catch {
       return null;
     }
@@ -149,7 +141,7 @@ function ProfessionalEditorInner({
       Underline,
       HorizontalRule,
       Link.configure({ openOnClick: false, autolink: true }),
-      Image.configure({ inline: false, allowBase64: false }),
+      CmsImage.configure({ inline: false, allowBase64: false }),
       Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
@@ -183,16 +175,7 @@ function ProfessionalEditorInner({
         if (!file.type.startsWith('image/')) return false;
         event.preventDefault();
         void uploadFile(file).then((picked) => {
-          if (picked) {
-            view.dispatch(
-              view.state.tr.replaceSelectionWith(
-                view.state.schema.nodes.image.create({
-                  src: picked.url,
-                  alt: picked.alt ?? '',
-                }),
-              ),
-            );
-          }
+          if (picked) insertCmsImageIntoView(view, picked);
         });
         return true;
       },
@@ -205,16 +188,7 @@ function ProfessionalEditorInner({
             if (!file) continue;
             event.preventDefault();
             void uploadFile(file).then((picked) => {
-              if (picked) {
-                view.dispatch(
-                  view.state.tr.replaceSelectionWith(
-                    view.state.schema.nodes.image.create({
-                      src: picked.url,
-                      alt: picked.alt ?? '',
-                    }),
-                  ),
-                );
-              }
+              if (picked) insertCmsImageIntoView(view, picked);
             });
             return true;
           }
@@ -231,22 +205,6 @@ function ProfessionalEditorInner({
       editor.commands.setContent(value || '<p></p>', false);
     }
   }, [editor, value]);
-
-  useEffect(() => {
-    if (!editor) return;
-    const syncSelection = () => {
-      setSelectionTick((n) => n + 1);
-      if (editor.isActive('image')) {
-        setImageAltDraft(String(editor.getAttributes('image').alt ?? ''));
-      }
-    };
-    editor.on('selectionUpdate', syncSelection);
-    editor.on('transaction', syncSelection);
-    return () => {
-      editor.off('selectionUpdate', syncSelection);
-      editor.off('transaction', syncSelection);
-    };
-  }, [editor]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -266,22 +224,12 @@ function ProfessionalEditorInner({
     } else {
       const url = window.prompt('URL ảnh');
       if (!url) return;
-      const alt = window.prompt('Alt Image — Thêm alt cho ảnh', '') ?? '';
-      picked = { url, alt: alt.trim() || null };
+      picked = { url, alt: null };
     }
     if (picked?.url && editor) {
-      editor
-        .chain()
-        .focus()
-        .setImage({ src: picked.url, alt: picked.alt ?? '' })
-        .run();
+      insertCmsImage(editor, picked);
     }
   }, [editor, onPickImage]);
-
-  function applyImageAlt() {
-    if (!editor?.isActive('image')) return;
-    editor.chain().focus().updateAttributes('image', { alt: imageAltDraft.trim() }).run();
-  }
 
   function removeSlashTrigger() {
     if (!editor) return;
@@ -403,25 +351,6 @@ function ProfessionalEditorInner({
               <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()}>↶</ToolbarBtn>
               <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()}>↷</ToolbarBtn>
-              <span className="mx-1 h-5 w-px bg-slate-300" />
-              {editor.isActive('image') ? (
-                <div className="ml-1 flex min-w-[240px] flex-1 items-center gap-1">
-                  <label className="shrink-0 text-[11px] font-semibold text-slate-500">Alt Image</label>
-                  <input
-                    className="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-xs outline-none focus:border-admin-500"
-                    value={imageAltDraft}
-                    onChange={(e) => setImageAltDraft(e.target.value)}
-                    onBlur={applyImageAlt}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        applyImageAlt();
-                      }
-                    }}
-                    placeholder="Thêm alt cho ảnh"
-                  />
-                </div>
-              ) : null}
             </>
           ) : (
             <span className="px-2 text-xs font-medium text-slate-500">
