@@ -37,6 +37,13 @@ interface MediaLibraryPickerProps {
   title?: string;
 }
 
+/**
+ * Fast pick UX:
+ * - Click a thumbnail → insert immediately (old 1-click behavior)
+ * - Upload → insert immediately with optional upload-time alt
+ * - Alt for article images is edited on the photo inside TipTap after insert
+ *   (no scroll-to-bottom alt panel in this dialog)
+ */
 export function MediaLibraryPicker({
   open,
   onClose,
@@ -50,9 +57,6 @@ export function MediaLibraryPicker({
   const [uploadAlt, setUploadAlt] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedAlt, setSelectedAlt] = useState('');
-  const [savingAlt, setSavingAlt] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -70,12 +74,16 @@ export function MediaLibraryPicker({
 
   useEffect(() => {
     if (open) {
-      setSelectedId(null);
-      setSelectedAlt('');
       setUploadAlt('');
+      setError(null);
       void load();
     }
   }, [open, folder, search]);
+
+  function insertMedia(media: Pick<CmsMedia, 'url' | 'alt'>) {
+    onSelect({ url: media.url, alt: media.alt ?? null });
+    onClose();
+  }
 
   async function upload() {
     const file = fileRef.current?.files?.[0];
@@ -89,9 +97,8 @@ export function MediaLibraryPicker({
       });
       if (fileRef.current) fileRef.current.value = '';
       setUploadAlt('');
-      await load();
-      setSelectedId(media.id);
-      setSelectedAlt(media.alt ?? '');
+      // Insert right away — no need to find the new card in a long grid.
+      insertMedia(media);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Upload thất bại');
     } finally {
@@ -99,47 +106,15 @@ export function MediaLibraryPicker({
     }
   }
 
-  function selectItem(m: CmsMedia) {
-    setSelectedId(m.id);
-    setSelectedAlt(m.alt ?? '');
-  }
-
-  async function saveSelectedAlt() {
-    if (!selectedId) return;
-    setSavingAlt(true);
-    setError(null);
-    try {
-      const updated = await cmsAdminApi.updateMedia(selectedId, { alt: selectedAlt });
-      setItems((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
-    } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Không lưu được alt');
-    } finally {
-      setSavingAlt(false);
-    }
-  }
-
-  async function confirmSelect() {
-    const item = items.find((m) => m.id === selectedId);
-    if (!item) return;
-    const nextAlt = selectedAlt.trim();
-    if (nextAlt !== (item.alt ?? '')) {
-      try {
-        await cmsAdminApi.updateMedia(item.id, { alt: nextAlt });
-      } catch {
-        // Still insert into editor even if library metadata save fails.
-      }
-    }
-    onSelect({ url: item.url, alt: nextAlt || item.alt || null });
-    onClose();
-  }
-
-  const selected = items.find((m) => m.id === selectedId) ?? null;
-
   return (
     <Dialog open={open} onClose={onClose} title={title} size="xl">
-      <div className="flex flex-col">
-        <div className="space-y-3 border-b border-slate-100 pb-4">
+      <div className="flex max-h-[min(78vh,720px)] flex-col">
+        <div className="shrink-0 space-y-3 border-b border-slate-100 pb-4">
           {error && <ErrorMessage message={error} />}
+          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+            Nhấn vào ảnh để chèn ngay. Alt Image chỉnh sau khi ảnh đã vào bài (nhấn vào ảnh trong
+            editor). Khi tải lên có thể nhập alt sẵn ở ô bên dưới.
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label>Thư mục</Label>
@@ -163,12 +138,12 @@ export function MediaLibraryPicker({
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <div>
-              <Label>Alt Image (khi tải lên)</Label>
+              <Label>Alt Image (tuỳ chọn khi tải lên)</Label>
               <Input
                 className="mt-1"
                 value={uploadAlt}
                 onChange={(e) => setUploadAlt(e.target.value)}
-                placeholder="Mô tả ảnh cho SEO / accessibility"
+                placeholder="Có thể bỏ trống — chỉnh sau trong bài viết"
               />
             </div>
             <div className="flex flex-wrap items-end gap-2">
@@ -179,66 +154,42 @@ export function MediaLibraryPicker({
                 className="text-sm"
               />
               <Button size="sm" disabled={uploading} onClick={() => void upload()}>
-                {uploading ? 'Đang tải…' : 'Tải lên'}
+                {uploading ? 'Đang tải…' : 'Tải lên & chèn'}
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="grid flex-1 gap-3 pt-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className={`rounded-lg border p-2 text-left transition ${
-                selectedId === m.id
-                  ? 'border-admin-500 ring-2 ring-admin-200'
-                  : 'border-slate-200 hover:border-admin-500'
-              }`}
-              onClick={() => selectItem(m)}
-            >
-              <img
-                src={mediaFullUrl(m.thumbnailUrl ?? m.url)}
-                alt={m.alt ?? m.filename}
-                className="h-28 w-full rounded object-cover"
-              />
-              <p className="mt-2 truncate text-sm font-medium">{m.originalName}</p>
-              <p className="truncate text-xs text-slate-500">
-                {m.alt ? `Alt: ${m.alt}` : 'Chưa có alt'}
-              </p>
-              <p className="text-xs text-slate-500">
-                {m.folder} · {(m.size / 1024).toFixed(1)} KB
-                {m.width && m.height ? ` · ${m.width}×${m.height}` : ''}
-              </p>
-            </button>
-          ))}
-          {items.length === 0 && <p className="text-sm text-slate-500">Chưa có ảnh trong thư mục này.</p>}
-        </div>
-
-        {selected && (
-          <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
-            <Label>Alt Image — Thêm alt cho ảnh</Label>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                className="min-w-[220px] flex-1"
-                value={selectedAlt}
-                onChange={(e) => setSelectedAlt(e.target.value)}
-                placeholder="Mô tả nội dung ảnh"
-              />
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={savingAlt}
-                onClick={() => void saveSelectedAlt()}
+        <div className="min-h-0 flex-1 overflow-y-auto pt-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                title="Nhấn để chèn ảnh vào bài"
+                className="rounded-lg border border-slate-200 p-2 text-left transition hover:border-admin-500 hover:ring-2 hover:ring-admin-100"
+                onClick={() => insertMedia(m)}
               >
-                {savingAlt ? 'Đang lưu…' : 'Lưu alt'}
-              </Button>
-              <Button size="sm" onClick={() => void confirmSelect()}>
-                Chèn ảnh
-              </Button>
-            </div>
+                <img
+                  src={mediaFullUrl(m.thumbnailUrl ?? m.url)}
+                  alt={m.alt ?? m.filename}
+                  className="h-28 w-full rounded object-cover"
+                />
+                <p className="mt-2 truncate text-sm font-medium">{m.originalName}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {m.alt ? `Alt: ${m.alt}` : 'Chưa có alt — chỉnh sau trong bài'}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {m.folder} · {(m.size / 1024).toFixed(1)} KB
+                  {m.width && m.height ? ` · ${m.width}×${m.height}` : ''}
+                </p>
+              </button>
+            ))}
+            {items.length === 0 && (
+              <p className="text-sm text-slate-500">Chưa có ảnh trong thư mục này.</p>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </Dialog>
   );
