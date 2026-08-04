@@ -280,7 +280,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
         saveRevision(saved.id, formRef.current);
         setRevisions(listRevisions(saved.id));
       }
-      if (statusOverride === 'PUBLISHED') {
+      if (statusOverride === 'PUBLISHED' && saved.status !== 'PUBLISHED') {
         saved = await cmsAdminApi.publishPage(saved.id);
       }
       setForm((prev) => ({
