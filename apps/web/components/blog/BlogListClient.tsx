@@ -11,7 +11,23 @@ import { BLOG_BASE_PATH, blogCategoryPath } from '@/lib/routes';
 import { matchesViSearch, stripHtmlForSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
 
-const PAGE_SIZE = 12;
+const GRID_COLUMNS = 3;
+/** Cards in the grid section (must be multiple of GRID_COLUMNS for a full last row). */
+const GRID_PAGE_SIZE = 12;
+/** Page 1: 1 featured hero + full grid (avoids empty slot that looks like a missing post). */
+const FIRST_PAGE_SIZE = 1 + GRID_PAGE_SIZE;
+
+function getTotalPages(totalItems: number): number {
+  if (totalItems <= 0) return 1;
+  if (totalItems <= FIRST_PAGE_SIZE) return 1;
+  return 1 + Math.ceil((totalItems - FIRST_PAGE_SIZE) / GRID_PAGE_SIZE);
+}
+
+function getPageSlice<T>(items: T[], page: number): T[] {
+  if (page <= 1) return items.slice(0, FIRST_PAGE_SIZE);
+  const start = FIRST_PAGE_SIZE + (page - 2) * GRID_PAGE_SIZE;
+  return items.slice(start, start + GRID_PAGE_SIZE);
+}
 
 export function BlogListClient({
   posts,
@@ -87,9 +103,9 @@ export function BlogListClient({
     );
   }, [posts, query]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = getTotalPages(filtered.length);
   const currentPage = Math.min(page, totalPages);
-  const paginatedPosts = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paginatedPosts = getPageSlice(filtered, currentPage);
   const featured = currentPage === 1 ? paginatedPosts[0] ?? null : null;
   const gridPosts = currentPage === 1 ? paginatedPosts.slice(1) : paginatedPosts;
 
