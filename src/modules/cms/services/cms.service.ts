@@ -184,9 +184,12 @@ export class CmsService {
   }
 
   async publishPage(id: string) {
+    const existing = await this.getPage(id);
+    // Keep the original publish date on re-publish / content edits.
+    // Overwriting with now() wrongly bumps listing order and public date.
     await this.repository.updatePage(id, {
       status: CmsPageStatus.PUBLISHED,
-      publishedAt: new Date(),
+      publishedAt: existing.publishedAt ?? new Date(),
     });
     return this.getPage(id);
   }
