@@ -230,8 +230,8 @@ export const ArticleListTable = memo(function ArticleListTable({
     return items.filter((p) => {
       if (deleted.has(p.id)) return false;
       const inTrash = isInTrash(p.id);
-      const scheduled = getScheduledPublish(p.id);
-      const isScheduled = scheduled && new Date(scheduled) > new Date();
+      const scheduled = p.scheduledPublishAt ?? getScheduledPublish(p.id);
+      const isScheduled = !!(scheduled && new Date(scheduled) > new Date() && p.status !== 'PUBLISHED');
 
       if (filters.quickFilter === 'trash') return inTrash;
       if (inTrash) return false;
@@ -413,7 +413,7 @@ export const ArticleListTable = memo(function ArticleListTable({
               {visibleRows.map((p) => {
                 const author = (p as CmsPage & { author?: { email?: string } }).author?.email ?? '—';
                 const score = seoScores[p.id] ?? 0;
-                const scheduled = getScheduledPublish(p.id);
+                const scheduled = p.scheduledPublishAt ?? getScheduledPublish(p.id);
                 const inTrash = isInTrash(p.id);
                 const views = viewsMap[p.id] ?? 0;
                 return (

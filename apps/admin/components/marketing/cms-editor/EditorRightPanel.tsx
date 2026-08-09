@@ -18,6 +18,7 @@ export const EditorRightPanel = memo(function EditorRightPanel({
   autosaveLabel,
   onSave,
   onPublish,
+  onSchedule,
   saving,
 }: {
   form: CmsEditorFormState;
@@ -29,6 +30,7 @@ export const EditorRightPanel = memo(function EditorRightPanel({
   autosaveLabel: string | null;
   onSave: () => void;
   onPublish: () => void;
+  onSchedule: () => void;
   saving: boolean;
 }) {
   return (
@@ -43,6 +45,7 @@ export const EditorRightPanel = memo(function EditorRightPanel({
           autosaveLabel={autosaveLabel}
           onSave={onSave}
           onPublish={onPublish}
+          onSchedule={onSchedule}
           saving={saving}
         />
       </PanelCard>

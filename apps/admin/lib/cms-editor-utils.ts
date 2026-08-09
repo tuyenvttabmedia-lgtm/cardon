@@ -9,6 +9,7 @@ export interface CmsEditorFormState {
   tagIds: string[];
   status: 'DRAFT' | 'PUBLISHED';
   pageLayout: 'ARTICLE' | 'LANDING' | 'POLICY';
+  /** Value for `<input type="datetime-local">` (local `YYYY-MM-DDTHH:mm`). */
   scheduledPublishAt: string;
   showInNav: boolean;
   navSortOrder: number;
@@ -20,6 +21,27 @@ export interface CmsEditorFormState {
   ogTitle: string;
   ogDescription: string;
   ogImage: string;
+}
+
+/** Convert API ISO / stored value → datetime-local input value. */
+export function toDatetimeLocalValue(isoOrLocal: string | null | undefined): string {
+  if (!isoOrLocal?.trim()) return '';
+  const raw = isoOrLocal.trim();
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw) && !raw.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(raw)) {
+    return raw.slice(0, 16);
+  }
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Convert datetime-local value → ISO string for API (null if empty/invalid). */
+export function fromDatetimeLocalValue(local: string | null | undefined): string | null {
+  if (!local?.trim()) return null;
+  const d = new Date(local.trim());
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 import { defaultPageLayoutForSlug } from '@/lib/cms-page-layout';
@@ -187,6 +209,7 @@ export function pageToEditorForm(
     showInNav?: boolean;
     navSortOrder?: number;
     pageLayout?: 'ARTICLE' | 'LANDING' | 'POLICY';
+    scheduledPublishAt?: string | null;
     seo?: {
       focusKeyword?: string | null;
       metaTitle?: string | null;
@@ -200,6 +223,7 @@ export function pageToEditorForm(
   },
   scheduledPublishAt = '',
 ): CmsEditorFormState {
+  const fromPage = toDatetimeLocalValue(page.scheduledPublishAt);
   return {
     title: page.title,
     slug: page.slug,
@@ -211,7 +235,7 @@ export function pageToEditorForm(
     tagIds: page.pageTags?.map((pt) => pt.tag.id) ?? [],
     status: page.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
     pageLayout: page.pageLayout ?? defaultPageLayoutForSlug(page.slug),
-    scheduledPublishAt,
+    scheduledPublishAt: fromPage || toDatetimeLocalValue(scheduledPublishAt),
     showInNav: page.showInNav ?? false,
     navSortOrder: page.navSortOrder ?? 0,
     focusKeyword: page.seo?.focusKeyword ?? '',

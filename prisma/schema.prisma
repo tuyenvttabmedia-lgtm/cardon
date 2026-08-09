@@ -1876,10 +1876,11 @@ model CmsPage {
   pageLayout    CmsPageLayout @default(ARTICLE) @map("page_layout")
   showInNav     Boolean       @default(false) @map("show_in_nav")
   navSortOrder  Int           @default(0) @map("nav_sort_order")
-  authorId      String        @map("author_id") @db.Uuid
-  publishedAt   DateTime?     @map("published_at") @db.Timestamptz(6)
-  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  authorId            String        @map("author_id") @db.Uuid
+  publishedAt         DateTime?     @map("published_at") @db.Timestamptz(6)
+  scheduledPublishAt  DateTime?     @map("scheduled_publish_at") @db.Timestamptz(6)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   author       User              @relation(fields: [authorId], references: [id], onDelete: Restrict)
   categoryRel  CmsCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
@@ -1887,6 +1888,7 @@ model CmsPage {
   pageTags     CmsPageTag[]
 
   @@index([categoryId])
+  @@index([status, scheduledPublishAt])
   @@map("cms_pages")
 }
 

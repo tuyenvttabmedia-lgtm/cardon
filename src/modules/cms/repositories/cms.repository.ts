@@ -51,6 +51,17 @@ export class CmsRepository {
     return this.prisma.cmsPage.findUnique({ where: { slug } });
   }
 
+  findDueScheduledPages(now = new Date()) {
+    return this.prisma.cmsPage.findMany({
+      where: {
+        status: CmsPageStatus.DRAFT,
+        scheduledPublishAt: { lte: now, not: null },
+      },
+      select: { id: true, publishedAt: true, title: true, slug: true },
+      take: 50,
+    });
+  }
+
   findPublishedPageBySlug(slug: string) {
     return this.prisma.cmsPage.findFirst({
       where: { slug, status: CmsPageStatus.PUBLISHED },
