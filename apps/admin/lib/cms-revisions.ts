@@ -13,6 +13,7 @@ const TRASH_KEY = 'cardon-cms-trash';
 const DELETED_FOREVER_KEY = 'cardon-cms-deleted-forever';
 const FILTERS_KEY = 'cardon-cms-article-filters';
 const MAX_REVISIONS = 20;
+const MAX_REVISIONS_WHEN_QUOTA = 5;
 
 function readAll(): Record<string, CmsRevision[]> {
   if (typeof window === 'undefined') return {};
@@ -23,8 +24,30 @@ function readAll(): Record<string, CmsRevision[]> {
   }
 }
 
+/** Persist revisions; never throw — quota pressure must not fail CMS autosave. */
 function writeAll(data: Record<string, CmsRevision[]>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return;
+  } catch {
+    // QuotaExceeded or private mode — prune and retry, then give up quietly.
+  }
+
+  const pruned: Record<string, CmsRevision[]> = {};
+  for (const [pageId, list] of Object.entries(data)) {
+    pruned[pageId] = list.slice(0, MAX_REVISIONS_WHEN_QUOTA);
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(pruned));
+    return;
+  } catch {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
 }
 
 function readIdSet(key: string): Set<string> {
@@ -37,7 +60,11 @@ function readIdSet(key: string): Set<string> {
 }
 
 function writeIdSet(key: string, ids: Set<string>) {
-  localStorage.setItem(key, JSON.stringify([...ids]));
+  try {
+    localStorage.setItem(key, JSON.stringify([...ids]));
+  } catch {
+    // ignore quota
+  }
 }
 
 export function listRevisions(pageId: string): CmsRevision[] {
@@ -65,8 +92,12 @@ export function getScheduledPublish(pageId: string): string | null {
 }
 
 export function setScheduledPublish(pageId: string, iso: string | null) {
-  if (!iso) localStorage.removeItem(`cardon-cms-schedule-${pageId}`);
-  else localStorage.setItem(`cardon-cms-schedule-${pageId}`, iso);
+  try {
+    if (!iso) localStorage.removeItem(`cardon-cms-schedule-${pageId}`);
+    else localStorage.setItem(`cardon-cms-schedule-${pageId}`, iso);
+  } catch {
+    // ignore
+  }
 }
 
 export function getViewCount(pageId: string): number {
@@ -115,7 +146,11 @@ export function getLastAutosaveAt(pageId: string): string | null {
 }
 
 export function setLastAutosaveAt(pageId: string, iso: string) {
-  localStorage.setItem(`cardon-cms-autosave-${pageId}`, iso);
+  try {
+    localStorage.setItem(`cardon-cms-autosave-${pageId}`, iso);
+  } catch {
+    // ignore
+  }
 }
 
 export function loadArticleFilters<T>(): T | null {
@@ -129,7 +164,11 @@ export function loadArticleFilters<T>(): T | null {
 }
 
 export function saveArticleFilters<T>(filters: T) {
-  localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+  try {
+    localStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+  } catch {
+    // ignore
+  }
 }
 
 export function formatSavedAgo(iso: string | null): string | null {

@@ -10,6 +10,7 @@ export function EditorHeader({
   onBack,
   saveStatus,
   lastSavedAt,
+  saveError,
   onPreview,
   onSaveDraft,
   onPublish,
@@ -20,6 +21,7 @@ export function EditorHeader({
   onBack: () => void;
   saveStatus: SaveStatus;
   lastSavedAt: string | null;
+  saveError?: string | null;
   onPreview: () => void;
   onSaveDraft: () => void;
   onPublish: () => void;
@@ -45,7 +47,7 @@ export function EditorHeader({
         />
       </div>
       <div className="flex flex-wrap items-center justify-end gap-2 md:shrink-0">
-        <SaveStatusIndicator status={saveStatus} ago={ago} />
+        <SaveStatusIndicator status={saveStatus} ago={ago} saveError={saveError} />
         <Button variant="secondary" size="sm" onClick={onPreview}>Preview</Button>
         <Button variant="secondary" size="sm" onClick={onSaveDraft} disabled={saving}>Lưu nháp</Button>
         <Button size="sm" onClick={onPublish} disabled={saving}>Xuất bản</Button>
@@ -54,12 +56,28 @@ export function EditorHeader({
   );
 }
 
-function SaveStatusIndicator({ status, ago }: { status: SaveStatus; ago: string | null }) {
+function SaveStatusIndicator({
+  status,
+  ago,
+  saveError,
+}: {
+  status: SaveStatus;
+  ago: string | null;
+  saveError?: string | null;
+}) {
   if (status === 'saving') {
     return <span className="text-xs text-slate-500">Đang lưu...</span>;
   }
   if (status === 'error') {
-    return <span className="text-xs font-medium text-rose-600">Có lỗi</span>;
+    const detail = saveError?.trim() || 'Không lưu được — thử lại hoặc bấm Lưu nháp';
+    return (
+      <span
+        className="max-w-[220px] truncate text-xs font-medium text-rose-600"
+        title={detail}
+      >
+        Có lỗi: {detail}
+      </span>
+    );
   }
   if (status === 'saved' && ago) {
     return <span className="text-xs text-emerald-600">Auto Saved {ago}</span>;

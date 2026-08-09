@@ -52,6 +52,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const [form, setForm] = useState<CmsEditorFormState>(emptyCmsForm());
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [autosaveLabel, setAutosaveLabel] = useState<string | null>(null);
   const [revisions, setRevisions] = useState(listRevisions(editingId ?? 'new'));
@@ -66,6 +67,8 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   formRef.current = form;
   const savingRef = useRef(false);
   savingRef.current = saving;
+  const saveStatusRef = useRef(saveStatus);
+  saveStatusRef.current = saveStatus;
 
   const showTaxonomy = pageType === 'BLOG_POST';
 
@@ -144,6 +147,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       setLastSavedAt(null);
     }
     setSaveStatus('idle');
+    setSaveError(null);
     setView('editor');
   }
 
@@ -185,6 +189,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     setAuthorLabel('CardOn');
     setLastSavedAt(null);
     setSaveStatus('idle');
+    setSaveError(null);
     setView('editor');
   }
 
@@ -193,9 +198,18 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     setEditingId(null);
     setForm(emptyCmsForm());
     setSaveStatus('idle');
+    setSaveError(null);
+  }
+
+  function clearSaveErrorIfNeeded() {
+    if (saveStatusRef.current === 'error') {
+      setSaveStatus('idle');
+      setSaveError(null);
+    }
   }
 
   function updateTitle(titleValue: string) {
+    clearSaveErrorIfNeeded();
     setForm((prev) => ({
       ...prev,
       title: titleValue,
@@ -231,11 +245,13 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       inNav: f.showInNav,
       content: f.content,
     });
+    const metaTitle = (f.metaTitle || f.title).slice(0, 128);
+    const metaDescription = (f.metaDescription || f.excerpt || f.title).slice(0, 256);
     return {
-      title: f.title,
-      slug: f.slug,
+      title: f.title.slice(0, 255),
+      slug: f.slug.slice(0, 255),
       content: f.content,
-      excerpt: f.excerpt || undefined,
+      excerpt: f.excerpt ? f.excerpt.slice(0, 512) : undefined,
       featuredImage: f.featuredImage || undefined,
       categoryId: f.categoryId || undefined,
       tagIds: f.tagIds,
@@ -244,45 +260,47 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       showInNav: f.showInNav,
       navSortOrder: f.navSortOrder || undefined,
       seo: {
-        metaTitle: f.metaTitle || f.title,
-        metaDescription: f.metaDescription || f.title,
-        focusKeyword: f.focusKeyword || undefined,
-        canonicalUrl: f.canonicalUrl || undefined,
+        metaTitle,
+        metaDescription,
+        focusKeyword: f.focusKeyword ? f.focusKeyword.slice(0, 128) : undefined,
+        canonicalUrl: f.canonicalUrl ? f.canonicalUrl.slice(0, 512) : undefined,
         robots: f.robots || 'index,follow',
-        ogTitle: f.ogTitle || f.metaTitle || f.title,
-        ogDescription: f.ogDescription || f.metaDescription,
-        ogImage: f.ogImage || f.featuredImage || undefined,
+        ogTitle: (f.ogTitle || metaTitle).slice(0, 128),
+        ogDescription: (f.ogDescription || metaDescription).slice(0, 256),
+        ogImage: (f.ogImage || f.featuredImage || undefined)?.slice(0, 512),
       },
     };
   }
 
   const persist = useCallback(async (statusOverride?: 'DRAFT' | 'PUBLISHED', silent = false) => {
+    if (savingRef.current) return null;
     const body = buildBody(statusOverride);
     if (!body.title?.trim() || !body.slug?.trim()) {
       if (!silent) {
         setError('Vui lòng nhập tiêu đề và slug');
         setSaveStatus('error');
+        setSaveError('Vui lòng nhập tiêu đề và slug');
       }
       return null;
     }
     setSaving(true);
     setSaveStatus('saving');
+    setSaveError(null);
     if (!silent) setError(null);
     try {
       let saved: CmsPage;
       if (editingId) {
         saved = await cmsAdminApi.updatePage(editingId, body);
-        saveRevision(editingId, formRef.current, silent ? 'Autosave' : undefined);
-        setRevisions(listRevisions(editingId));
       } else {
         saved = await cmsAdminApi.createPage({ ...body, type: pageType });
         setEditingId(saved.id);
-        saveRevision(saved.id, formRef.current);
-        setRevisions(listRevisions(saved.id));
       }
       if (statusOverride === 'PUBLISHED' && saved.status !== 'PUBLISHED') {
         saved = await cmsAdminApi.publishPage(saved.id);
       }
+
+      // Mark API success before localStorage side-effects (quota must not flip UI to "Có lỗi").
+      const now = new Date().toISOString();
       setForm((prev) => ({
         ...prev,
         status:
@@ -292,21 +310,35 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
               ? 'DRAFT'
               : prev.status,
       }));
-      const now = new Date().toISOString();
       setLastSavedAt(now);
       setLastAutosaveAt(saved.id, now);
-      if (formRef.current.scheduledPublishAt) {
-        setScheduledPublish(saved.id, formRef.current.scheduledPublishAt);
-      }
-      await load();
       setSaveStatus('saved');
+      setSaveError(null);
       if (silent) {
         setAutosaveLabel(`Auto Saved ${new Date().toLocaleTimeString('vi-VN')}`);
       }
+
+      try {
+        saveRevision(saved.id, formRef.current, silent ? 'Autosave' : undefined);
+        setRevisions(listRevisions(saved.id));
+        if (formRef.current.scheduledPublishAt) {
+          setScheduledPublish(saved.id, formRef.current.scheduledPublishAt);
+        }
+      } catch {
+        // local history is best-effort
+      }
+
+      // Refresh list only on explicit save — silent autosave should stay lightweight.
+      if (!silent) {
+        await load();
+      }
       return saved;
     } catch (err) {
+      const message =
+        err instanceof ApiClientError ? err.message : vi.app.requestFailed;
       setSaveStatus('error');
-      if (!silent) setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+      setSaveError(message);
+      if (!silent) setError(message);
       return null;
     } finally {
       setSaving(false);
@@ -325,7 +357,10 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   }, [view, persist]);
 
   const contentChangeRef = useRef<(html: string) => void>(() => undefined);
-  contentChangeRef.current = (html: string) => setForm((p) => ({ ...p, content: html }));
+  contentChangeRef.current = (html: string) => {
+    clearSaveErrorIfNeeded();
+    setForm((p) => ({ ...p, content: html }));
+  };
   const stableContentChange = useCallback((html: string) => contentChangeRef.current(html), []);
 
   async function handleBulk(action: string, ids: string[], extra?: { categoryId?: string; tagIds?: string[] }) {
@@ -448,6 +483,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
               onBack={closeEditor}
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
+              saveError={saveError}
               onPreview={() => setPreviewOpen(true)}
               onSaveDraft={() => void persist('DRAFT')}
               onPublish={() => void persist('PUBLISHED')}
