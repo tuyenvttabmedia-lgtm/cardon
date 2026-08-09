@@ -1,8 +1,11 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { Button, Input, Label, Select } from '@/components/ui/Form';
-import type { CmsEditorFormState } from '@/lib/cms-editor-utils';
+import {
+  fromDatetimeLocalValue,
+  type CmsEditorFormState,
+} from '@/lib/cms-editor-utils';
 import type { CmsRevision } from '@/lib/cms-revisions';
 
 export const PublishPanel = memo(function PublishPanel({
@@ -14,6 +17,7 @@ export const PublishPanel = memo(function PublishPanel({
   autosaveLabel,
   onSave,
   onPublish,
+  onSchedule,
   saving,
 }: {
   form: CmsEditorFormState;
@@ -24,8 +28,19 @@ export const PublishPanel = memo(function PublishPanel({
   autosaveLabel: string | null;
   onSave: () => void;
   onPublish: () => void;
+  onSchedule: () => void;
   saving: boolean;
 }) {
+  const scheduleIso = useMemo(
+    () => fromDatetimeLocalValue(form.scheduledPublishAt),
+    [form.scheduledPublishAt],
+  );
+  const scheduleDate = scheduleIso ? new Date(scheduleIso) : null;
+  const isFutureSchedule = !!(scheduleDate && scheduleDate.getTime() > Date.now());
+  const scheduleLabel = scheduleDate
+    ? scheduleDate.toLocaleString('vi-VN')
+    : null;
+
   return (
     <div className="flex flex-col gap-3">
       <div>
@@ -46,8 +61,39 @@ export const PublishPanel = memo(function PublishPanel({
           type="datetime-local"
           className="mt-1 text-sm"
           value={form.scheduledPublishAt}
-          onChange={(e) => setForm((p) => ({ ...p, scheduledPublishAt: e.target.value }))}
+          onChange={(e) =>
+            setForm((p) => ({
+              ...p,
+              scheduledPublishAt: e.target.value,
+              // Future schedule implies draft until cron publishes.
+              status: e.target.value ? 'DRAFT' : p.status,
+            }))
+          }
         />
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {form.scheduledPublishAt ? (
+            <button
+              type="button"
+              className="text-xs font-medium text-rose-600 hover:underline"
+              onClick={() => setForm((p) => ({ ...p, scheduledPublishAt: '' }))}
+            >
+              Xóa lịch
+            </button>
+          ) : null}
+        </div>
+        {isFutureSchedule ? (
+          <p className="mt-1 text-xs text-amber-700">
+            Bài ở trạng thái nháp và sẽ tự xuất bản lúc <strong>{scheduleLabel}</strong>.
+          </p>
+        ) : form.scheduledPublishAt && scheduleDate ? (
+          <p className="mt-1 text-xs text-rose-600">
+            Thời điểm đã qua — chọn giờ trong tương lai, hoặc bấm Xuất bản ngay.
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-slate-500">
+            Chọn ngày/giờ rồi bấm <strong>Lên lịch</strong>. Server sẽ tự xuất bản đúng giờ.
+          </p>
+        )}
       </div>
 
       <div className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600 space-y-1">
@@ -57,7 +103,17 @@ export const PublishPanel = memo(function PublishPanel({
 
       <div className="flex flex-col gap-2">
         <Button onClick={onSave} disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu nháp'}</Button>
-        <Button variant="secondary" onClick={onPublish} disabled={saving}>Xuất bản</Button>
+        <Button
+          variant="secondary"
+          onClick={onSchedule}
+          disabled={saving || !isFutureSchedule}
+          title={!isFutureSchedule ? 'Chọn thời điểm trong tương lai trước' : undefined}
+        >
+          Lên lịch
+        </Button>
+        <Button variant="secondary" onClick={onPublish} disabled={saving}>
+          Xuất bản ngay
+        </Button>
       </div>
 
       {revisions.length > 0 && (

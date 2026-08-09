@@ -1332,6 +1332,7 @@ export interface CmsPage {
   showInNav?: boolean;
   navSortOrder?: number;
   publishedAt?: string | null;
+  scheduledPublishAt?: string | null;
   createdAt: string;
   updatedAt: string;
   author?: { id: string; email: string } | null;

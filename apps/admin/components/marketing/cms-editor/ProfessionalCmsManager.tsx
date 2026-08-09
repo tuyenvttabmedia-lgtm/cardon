@@ -11,7 +11,14 @@ import { vi } from '@/lib/i18n/vi';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsCategory, CmsPage, CmsTag } from '@/types/api';
 import { GIOI_THIEU_LANDING_HTML } from '@/lib/cms-block-snippets';
-import { emptyCmsForm, pageToEditorForm, type CmsEditorFormState, type SaveStatus } from '@/lib/cms-editor-utils';
+import {
+  emptyCmsForm,
+  fromDatetimeLocalValue,
+  pageToEditorForm,
+  toDatetimeLocalValue,
+  type CmsEditorFormState,
+  type SaveStatus,
+} from '@/lib/cms-editor-utils';
 import {
   defaultPageLayoutForSlug,
   hasLandingBlockMarkup,
@@ -247,6 +254,17 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     });
     const metaTitle = (f.metaTitle || f.title).slice(0, 128);
     const metaDescription = (f.metaDescription || f.excerpt || f.title).slice(0, 256);
+    const scheduleIso = fromDatetimeLocalValue(f.scheduledPublishAt);
+    const scheduleFuture = !!(scheduleIso && new Date(scheduleIso).getTime() > Date.now());
+    let status = statusOverride ?? f.status;
+    // Explicit publish-now clears schedule. Future schedule keeps draft until cron runs.
+    let scheduledPublishAt: string | null = scheduleIso;
+    if (statusOverride === 'PUBLISHED') {
+      status = 'PUBLISHED';
+      scheduledPublishAt = null;
+    } else if (scheduleFuture) {
+      status = 'DRAFT';
+    }
     return {
       title: f.title.slice(0, 255),
       slug: f.slug.slice(0, 255),
@@ -255,10 +273,11 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       featuredImage: f.featuredImage || undefined,
       categoryId: f.categoryId || undefined,
       tagIds: f.tagIds,
-      status: statusOverride ?? f.status,
+      status,
       pageLayout,
       showInNav: f.showInNav,
       navSortOrder: f.navSortOrder || undefined,
+      scheduledPublishAt,
       seo: {
         metaTitle,
         metaDescription,
@@ -321,9 +340,13 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       try {
         saveRevision(saved.id, formRef.current, silent ? 'Autosave' : undefined);
         setRevisions(listRevisions(saved.id));
-        if (formRef.current.scheduledPublishAt) {
-          setScheduledPublish(saved.id, formRef.current.scheduledPublishAt);
-        }
+        // Keep local schedule mirror in sync with server (legacy list badges).
+        setScheduledPublish(saved.id, saved.scheduledPublishAt ?? null);
+        setForm((prev) => ({
+          ...prev,
+          scheduledPublishAt: toDatetimeLocalValue(saved.scheduledPublishAt),
+          status: saved.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
+        }));
       } catch {
         // local history is best-effort
       }
@@ -524,6 +547,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                 autosaveLabel={autosaveLabel}
                 onSave={() => void persist('DRAFT')}
                 onPublish={() => void persist('PUBLISHED')}
+                onSchedule={() => void persist('DRAFT')}
                 saving={saving}
               />
             </div>

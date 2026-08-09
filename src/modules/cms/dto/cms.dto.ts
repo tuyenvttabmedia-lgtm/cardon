@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -9,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -126,6 +128,12 @@ export class CreateCmsPageDto {
   @Min(0)
   navSortOrder?: number;
 
+  /** ISO datetime; null clears schedule. Future schedule keeps page as DRAFT until cron publishes. */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== '')
+  @IsDateString()
+  scheduledPublishAt?: string | null;
+
   @IsOptional()
   seo?: CmsPageSeoDto;
 }
@@ -192,6 +200,12 @@ export class UpdateCmsPageDto {
   @IsInt()
   @Min(0)
   navSortOrder?: number;
+
+  /** ISO datetime; null clears schedule. */
+  @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== '')
+  @IsDateString()
+  scheduledPublishAt?: string | null;
 
   @IsOptional()
   seo?: CmsPageSeoDto;

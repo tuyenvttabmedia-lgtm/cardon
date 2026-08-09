@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -78,6 +79,12 @@ export class CmsService {
       { inNav: showInNav, content: dto.content ?? '' },
     );
 
+    const schedule = this.resolveScheduledPublishAt(dto.scheduledPublishAt);
+    let status = dto.status ?? CmsPageStatus.DRAFT;
+    if (schedule && schedule.getTime() > Date.now() && status !== CmsPageStatus.PUBLISHED) {
+      status = CmsPageStatus.DRAFT;
+    }
+
     const page = await this.repository.createPage({
       type: dto.type,
       slug: dto.slug,
@@ -87,12 +94,12 @@ export class CmsService {
       category: dto.category,
       tags: dto.tags ?? [],
       featuredImage: dto.featuredImage,
-      status: dto.status ?? CmsPageStatus.DRAFT,
+      status,
       pageLayout,
       showInNav,
       navSortOrder,
-      publishedAt:
-        dto.status === CmsPageStatus.PUBLISHED ? new Date() : undefined,
+      publishedAt: status === CmsPageStatus.PUBLISHED ? new Date() : undefined,
+      scheduledPublishAt: status === CmsPageStatus.PUBLISHED ? null : schedule,
       author: { connect: { id: authorId } },
       ...(dto.categoryId ? { categoryRel: { connect: { id: dto.categoryId } } } : {}),
     });
@@ -121,10 +128,29 @@ export class CmsService {
   async updatePage(id: string, dto: UpdateCmsPageDto) {
     const existing = await this.getPage(id);
 
+    let status = dto.status;
     let publishedAt: Date | null | undefined = undefined;
-    if (dto.status === CmsPageStatus.PUBLISHED) {
+    let scheduledPublishAt: Date | null | undefined = undefined;
+
+    if (dto.scheduledPublishAt !== undefined) {
+      scheduledPublishAt = this.resolveScheduledPublishAt(dto.scheduledPublishAt);
+    }
+
+    if (status === CmsPageStatus.PUBLISHED) {
       publishedAt = existing.publishedAt ?? new Date();
-    } else if (dto.status === CmsPageStatus.DRAFT || dto.status === CmsPageStatus.ARCHIVED) {
+      scheduledPublishAt = null;
+    } else if (status === CmsPageStatus.DRAFT || status === CmsPageStatus.ARCHIVED) {
+      // Unpublish / archive: clear public date. Keep or update schedule separately.
+      publishedAt = null;
+    }
+
+    // Future schedule forces draft until cron publishes (unless explicitly publishing now).
+    if (
+      status !== CmsPageStatus.PUBLISHED &&
+      scheduledPublishAt &&
+      scheduledPublishAt.getTime() > Date.now()
+    ) {
+      status = CmsPageStatus.DRAFT;
       publishedAt = null;
     }
 
@@ -150,11 +176,12 @@ export class CmsService {
       category: dto.category,
       tags: dto.tags,
       featuredImage: dto.featuredImage,
-      status: dto.status,
+      ...(status !== undefined ? { status } : {}),
       pageLayout,
       ...(dto.showInNav !== undefined ? { showInNav } : {}),
       ...(dto.showInNav !== undefined || dto.navSortOrder !== undefined ? { navSortOrder } : {}),
       ...(publishedAt !== undefined ? { publishedAt } : {}),
+      ...(scheduledPublishAt !== undefined ? { scheduledPublishAt } : {}),
       ...(dto.categoryId !== undefined
         ? dto.categoryId
           ? { categoryRel: { connect: { id: dto.categoryId } } }
@@ -190,8 +217,32 @@ export class CmsService {
     await this.repository.updatePage(id, {
       status: CmsPageStatus.PUBLISHED,
       publishedAt: existing.publishedAt ?? new Date(),
+      scheduledPublishAt: null,
     });
     return this.getPage(id);
+  }
+
+  /** Cron: publish drafts whose scheduledPublishAt has passed. */
+  async publishDueScheduledPages() {
+    const due = await this.repository.findDueScheduledPages();
+    for (const page of due) {
+      await this.repository.updatePage(page.id, {
+        status: CmsPageStatus.PUBLISHED,
+        publishedAt: page.publishedAt ?? new Date(),
+        scheduledPublishAt: null,
+      });
+    }
+    return due.length;
+  }
+
+  private resolveScheduledPublishAt(raw?: string | null): Date | null {
+    if (raw === undefined) return null;
+    if (raw === null || raw === '') return null;
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid scheduledPublishAt');
+    }
+    return date;
   }
 
   listBanners() {
