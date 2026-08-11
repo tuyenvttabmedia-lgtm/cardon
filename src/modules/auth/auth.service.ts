@@ -453,7 +453,7 @@ export class AuthService {
     };
   }
 
-  async getMe(userId: string): Promise<AuthUserSummary & { permissions: string[] }> {
+  async getMe(userId: string): Promise<AuthUserSummary> {
     const user = await this.prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
     });
@@ -464,7 +464,6 @@ export class AuthService {
 
     return {
       ...this.toUserSummary(user),
-      permissions: [],
     };
   }
 

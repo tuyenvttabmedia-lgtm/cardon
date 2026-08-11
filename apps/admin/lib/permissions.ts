@@ -148,6 +148,8 @@ export function canAccessNavItem(
 
   if (item.roles && !item.roles.includes(role)) return false;
 
+  if (role === 'SUPER_ADMIN') return true;
+
   if (item.permission) return permissions.includes(item.permission);
 
   if (item.permissions) {
@@ -162,18 +164,24 @@ export function canAccessNavItem(
 
 
 
-export function hasPermission(permissions: string[], permission: string): boolean {
-
+export function hasPermission(
+  permissions: string[],
+  permission: string,
+  role?: string | null,
+): boolean {
+  if (role === 'SUPER_ADMIN') return true;
   return permissions.includes(permission);
-
 }
 
 
 
-export function hasAnyPermission(permissions: string[], required: string[]): boolean {
-
+export function hasAnyPermission(
+  permissions: string[],
+  required: string[],
+  role?: string | null,
+): boolean {
+  if (role === 'SUPER_ADMIN') return true;
   return required.some((p) => permissions.includes(p));
-
 }
 
 

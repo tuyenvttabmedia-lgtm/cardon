@@ -30,7 +30,9 @@ export default function LoginPage() {
     setError(null);
     try {
       const result = await login(email, password);
-      router.replace(defaultRouteForRole(result.user.role, result.user.permissions ?? []));
+      router.replace(
+        defaultRouteForRole(result.user.role, result.user.permissions ?? []),
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : vi.login.failed);
