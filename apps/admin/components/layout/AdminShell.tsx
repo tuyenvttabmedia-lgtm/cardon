@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn, ROLE_LABELS } from '@/lib/utils';
-import { NAV_ITEMS, canAccessNavItem } from '@/lib/permissions';
+import { NAV_ITEMS, canAccessNavItem, isAdminStaffRole } from '@/lib/permissions';
 import { BuildInfoService } from '@/lib/build-version';
 import { Drawer, DialogCloseButton } from '@/components/ui/Dialog';
 import { vi } from '@/lib/i18n/vi';
@@ -213,12 +213,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const staffOk = isAdminStaffRole(user?.role);
 
   useEffect(() => {
     if (loading) return;
+    if (isAuthenticated && !staffOk) {
+      void logout();
+      return;
+    }
     if (isAuthenticated && pathname === '/login') {
       router.replace('/dashboard');
       return;
@@ -226,7 +231,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isAuthenticated && pathname !== '/login') {
       router.replace('/login');
     }
-  }, [loading, isAuthenticated, pathname, router]);
+  }, [loading, isAuthenticated, staffOk, pathname, router, logout]);
 
   if (loading) {
     return (
@@ -237,11 +242,11 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (pathname === '/login') {
-    if (isAuthenticated) return null;
+    if (isAuthenticated && staffOk) return null;
     return <>{children}</>;
   }
 
-  if (!isAuthenticated) return null;
+  if (!isAuthenticated || !staffOk) return null;
 
   return <AdminLayout>{children}</AdminLayout>;
 }

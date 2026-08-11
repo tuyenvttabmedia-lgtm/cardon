@@ -184,6 +184,19 @@ export function hasAnyPermission(
   return required.some((p) => permissions.includes(p));
 }
 
+/** Roles allowed to use admin.cardon.vn (not CUSTOMER / AGENT). */
+export const ADMIN_STAFF_ROLES = [
+  'SUPER_ADMIN',
+  'ADMIN',
+  'SUPPORT',
+  'ACCOUNTANT',
+  'MARKETING',
+] as const;
+
+export function isAdminStaffRole(role: string | null | undefined): boolean {
+  return Boolean(role && (ADMIN_STAFF_ROLES as readonly string[]).includes(role));
+}
+
 
 
 /** View payment list — SUPPORT and above with payments.view */
