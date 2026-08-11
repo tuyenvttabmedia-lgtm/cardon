@@ -12,13 +12,20 @@ export default function AccountProfilePage() {
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void accountApi.getProfile().then((p) => {
-      setProfile(p);
-      setFullName(p.fullName ?? '');
-      setPhone(p.phone ?? '');
-    });
+    void accountApi
+      .getProfile()
+      .then((p) => {
+        setProfile(p);
+        setFullName(p.fullName ?? '');
+        setPhone(p.phone ?? '');
+      })
+      .catch((err) => {
+        setError(err instanceof ApiClientError ? err.message : 'Không tải được thông tin tài khoản');
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function save(e: React.FormEvent) {
@@ -34,7 +41,16 @@ export default function AccountProfilePage() {
     }
   }
 
-  if (!profile) return <p className="text-cardon-gray">Đang tải...</p>;
+  if (loading) return <p className="text-cardon-gray">Đang tải...</p>;
+
+  if (!profile) {
+    return (
+      <div>
+        <h2 className="text-lg font-bold text-cardon-navy">Thông tin tài khoản</h2>
+        <p className="mt-4 text-sm text-red-600">{error ?? 'Không tải được thông tin tài khoản'}</p>
+      </div>
+    );
+  }
 
   return (
     <div>
