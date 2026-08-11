@@ -36,6 +36,27 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Legacy homepage tab deep-links → clean SEO paths (strip query).
+  if (pathname === '/') {
+    const category = request.nextUrl.searchParams.get('category');
+    if (category === 'game' || category === 'phone') {
+      const target = category === 'phone' ? '/the-dien-thoai' : '/the-game';
+      return withPortalHeader(NextResponse.redirect(new URL(target, request.url), 308));
+    }
+  }
+
+  // Drop leftover ?category= / ?section=buy-card on the new paths.
+  if (pathname === '/the-game' || pathname === '/the-dien-thoai') {
+    const params = request.nextUrl.searchParams;
+    if (params.has('category') || params.get('section') === 'buy-card') {
+      const clean = new URL(pathname, request.url);
+      params.delete('category');
+      params.delete('section');
+      params.forEach((value, key) => clean.searchParams.set(key, value));
+      return withPortalHeader(NextResponse.redirect(clean, 308));
+    }
+  }
+
   const removedRoute = REMOVED_CUSTOMER_PORTAL_REDIRECTS[pathname];
   if (removedRoute) {
     return withPortalHeader(NextResponse.redirect(new URL(removedRoute, request.url)));
