@@ -33,6 +33,18 @@ const nextConfig: NextConfig = {
       })),
       { source: '/huong-dan', destination: '/tin-tuc/huong-dan', permanent: true },
       { source: '/khuyen-mai', destination: '/tin-tuc/khuyen-mai', permanent: true },
+      {
+        source: '/',
+        has: [{ type: 'query', key: 'category', value: 'game' }],
+        destination: '/the-game',
+        permanent: true,
+      },
+      {
+        source: '/',
+        has: [{ type: 'query', key: 'category', value: 'phone' }],
+        destination: '/the-dien-thoai',
+        permanent: true,
+      },
     ];
   },
 };

@@ -4,12 +4,10 @@ import Link from 'next/link';
 import {
   CHECKOUT_SERVICE_REGISTRY,
   checkoutServiceById,
-  homeCardServiceHref,
 } from '@/lib/checkout-services';
 import {
   getVisibleHomeServiceTabs,
   HOME_CATEGORY_TABS,
-  type HomeCardCategory,
   type HomeCategory,
 } from '@/lib/home-catalog';
 import {
@@ -153,7 +151,6 @@ export function ServiceNavigation({
           const iconUrl = categoryIcons[id] ?? null;
           const active = activeService === id;
           const className = cn(itemBaseClass, active ? itemActiveClass : itemIdleClass);
-          const isInlineCard = id === 'game' || id === 'phone';
           const tabProps = {
             title: catalogTab.title,
             description: catalogTab.description,
@@ -162,16 +159,13 @@ export function ServiceNavigation({
             active,
           };
 
-          const href = isInlineCard
-            ? homeCardServiceHref(id as HomeCardCategory)
-            : serviceDef?.href;
+          const href = serviceDef?.href;
           if (!href) return null;
 
           return (
             <Link
               key={id}
               href={href}
-              scroll={isInlineCard ? false : undefined}
               prefetch={serviceDef?.prefetch ?? false}
               className={className}
               aria-current={active ? 'page' : undefined}

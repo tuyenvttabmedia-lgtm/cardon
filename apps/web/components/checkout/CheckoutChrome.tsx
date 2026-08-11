@@ -1,10 +1,11 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { ServiceNavigation } from '@/components/checkout/ServiceNavigation';
 import { HeroBanner, type HeroBannerVariant } from '@/components/home/HeroBanner';
 import { useProducts } from '@/hooks/useProducts';
+import { cardCategoryFromPathname } from '@/lib/checkout-services';
 import { resolveHomeCategoryIcons, type HomeCategory } from '@/lib/home-catalog';
 import { productApi } from '@/services/api-client';
 import type { Category } from '@/types/api';
@@ -15,15 +16,14 @@ function resolveHeroVariant(pathname: string): HeroBannerVariant {
   return 'card';
 }
 
-function resolveActiveService(pathname: string, categoryParam: string | null): HomeCategory {
+function resolveActiveService(pathname: string): HomeCategory {
   if (pathname.startsWith('/nap-cuoc')) return 'topup';
   if (pathname.startsWith('/nap-data')) return 'data';
-  return categoryParam === 'phone' ? 'phone' : 'game';
+  return cardCategoryFromPathname(pathname) ?? 'game';
 }
 
 function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { products, loading } = useProducts();
   const [catalogCategories, setCatalogCategories] = useState<Category[]>([]);
 
@@ -32,10 +32,7 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
   }, []);
 
   const heroVariant = resolveHeroVariant(pathname);
-  const activeService = useMemo(
-    () => resolveActiveService(pathname, searchParams.get('category')),
-    [pathname, searchParams],
-  );
+  const activeService = useMemo(() => resolveActiveService(pathname), [pathname]);
 
   const categoryIcons = useMemo(
     () => resolveHomeCategoryIcons(products, catalogCategories),

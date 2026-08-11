@@ -82,5 +82,5 @@ export function isMegapayCancelResult(
 }
 
 export function defaultMegapayResumeHref(): string {
-  return '/?section=buy-card';
+  return '/the-game';
 }
