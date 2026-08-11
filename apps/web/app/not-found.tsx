@@ -21,7 +21,7 @@ export default function NotFound() {
             Về trang chủ
           </Link>
           <Link
-            href="/?section=buy-card&category=game"
+            href="/the-game"
             className="rounded-xl border border-cardon-border bg-white px-6 py-3 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
           >
             Mua thẻ ngay

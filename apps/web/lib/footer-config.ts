@@ -25,8 +25,8 @@ export const DEFAULT_FOOTER_LINK_COLUMNS: FooterColumn[] = [
   {
     title: 'Dịch vụ',
     links: [
-      { label: 'Mua thẻ game', href: '/cards' },
-      { label: 'Mua thẻ điện thoại', href: '/cards' },
+      { label: 'Mua thẻ game', href: '/the-game' },
+      { label: 'Mua thẻ điện thoại', href: '/the-dien-thoai' },
       { label: 'Nạp cước', href: '/nap-cuoc' },
     ],
   },

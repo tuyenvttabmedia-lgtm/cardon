@@ -7,26 +7,31 @@ export type CheckoutServiceDefinition = {
   mode: CheckoutShellMode;
   title: string;
   description: string;
-  /** Crawlable route for external navigation; null = inline CARD on homepage */
+  /** Crawlable route for service navigation */
   href: string | null;
   prefetch?: boolean;
 };
 
 /** Registry — add future services (Google Play, Steam, etc.) here only. */
+export const CARD_GAME_PATH = '/the-game';
+export const CARD_PHONE_PATH = '/the-dien-thoai';
+
 export const CHECKOUT_SERVICE_REGISTRY: CheckoutServiceDefinition[] = [
   {
     id: 'game',
     mode: 'CARD',
     title: 'Thẻ game',
     description: 'Garena, Zing, Steam…',
-    href: null,
+    href: CARD_GAME_PATH,
+    prefetch: true,
   },
   {
     id: 'phone',
     mode: 'CARD',
     title: 'Thẻ điện thoại',
     description: 'Viettel, Mobi, Vina…',
-    href: null,
+    href: CARD_PHONE_PATH,
+    prefetch: true,
   },
   {
     id: 'topup',
@@ -60,6 +65,13 @@ export function checkoutModeActiveService(
 }
 
 export function homeCardServiceHref(category: HomeCardCategory): string {
-  if (category === 'game') return '/?category=game';
-  return '/?category=phone';
+  if (category === 'game') return CARD_GAME_PATH;
+  return CARD_PHONE_PATH;
+}
+
+/** Resolve card tab from path (`/the-game`, `/the-dien-thoai`). */
+export function cardCategoryFromPathname(pathname: string): HomeCardCategory | null {
+  if (pathname === CARD_PHONE_PATH || pathname.startsWith(`${CARD_PHONE_PATH}/`)) return 'phone';
+  if (pathname === CARD_GAME_PATH || pathname.startsWith(`${CARD_GAME_PATH}/`)) return 'game';
+  return null;
 }

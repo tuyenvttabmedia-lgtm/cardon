@@ -15,12 +15,12 @@ export function Hero() {
           Thanh toán QR ngân hàng hoặc chuyển khoản trực tuyến. Giao thẻ tự động sau khi thanh toán thành công.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/cards">
+          <Link href="/the-game">
             <Button size="lg" className="bg-white text-brand-700 hover:bg-brand-50">
               Mua ngay
             </Button>
           </Link>
-          <Link href="/cards?type=topup">
+          <Link href="/nap-cuoc">
             <Button size="lg" variant="secondary" className="border-white/30 bg-white/10 text-white hover:bg-white/20">
               Nạp điện thoại
             </Button>

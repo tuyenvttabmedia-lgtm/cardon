@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   PaymentMethodsEmpty,
   MobilePaymentMethodButton,
@@ -43,7 +43,11 @@ import {
   findProductForVariant,
   variantStillInCatalog,
 } from '@/lib/catalog-variants';
-import type { CheckoutShellMode } from '@/lib/checkout-services';
+import {
+  cardCategoryFromPathname,
+  homeCardServiceHref,
+  type CheckoutShellMode,
+} from '@/lib/checkout-services';
 import { formatDataPackageCard } from '@/lib/data-variant-display';
 import { getSiteConfig, type PublicSiteConfig } from '@/lib/cms-api';
 import { storeOrderGuestEmail } from '@/lib/order-guest-email';
@@ -134,13 +138,17 @@ function CheckoutShellInner({
   serviceUnavailable,
 }: CheckoutShellProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, refreshUser } = useAuth();
   const { products, loading, error } = useProducts();
   const payInFlightRef = useRef(false);
   const autoCatalogInitialized = useRef(false);
 
-  const [category, setCategory] = useState<HomeCardCategory>(initialCategory);
+  const pathCategory = cardCategoryFromPathname(pathname);
+  const [category, setCategory] = useState<HomeCardCategory>(
+    pathCategory ?? initialCategory,
+  );
   const [product, setProduct] = useState<Product | null>(null);
   const [variant, setVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -316,6 +324,11 @@ function CheckoutShellInner({
 
   useEffect(() => {
     if (mode !== 'CARD') return;
+    const fromPath = cardCategoryFromPathname(pathname);
+    if (fromPath) {
+      handleCategoryChange(fromPath);
+      return;
+    }
     const urlCategory = parseHomeCategory(searchParams.get('category'));
     if (urlCategory) handleCategoryChange(urlCategory);
     if (searchParams.get('section') === 'buy-card') {
@@ -323,7 +336,7 @@ function CheckoutShellInner({
         document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
     }
-  }, [mode, searchParams, handleCategoryChange, anchorId]);
+  }, [mode, pathname, searchParams, handleCategoryChange, anchorId]);
 
   useEffect(() => {
     if (mode !== 'CARD' || loading || products.length === 0 || autoCatalogInitialized.current) return;
@@ -331,15 +344,25 @@ function CheckoutShellInner({
       searchParams.get('checkout') === 'resume' || loadPendingCheckout() !== null;
     if (shouldRestore) return;
 
+    const fromPath = cardCategoryFromPathname(pathname);
+    if (fromPath) {
+      setCategory(fromPath);
+      autoCatalogInitialized.current = true;
+      return;
+    }
+
     let cat = pickFirstCardHomeCategoryWithProducts(products);
     const urlCategory = parseHomeCategory(searchParams.get('category'));
     if (urlCategory) cat = urlCategory;
+    else if (filterProductsByHomeCategory(products, initialCategory).length > 0) {
+      cat = initialCategory;
+    }
     if (typeof window !== 'undefined' && window.location.hash === '#mua-the') {
       if (filterProductsByHomeCategory(products, 'game').length > 0) cat = 'game';
     }
     setCategory(cat);
     autoCatalogInitialized.current = true;
-  }, [mode, loading, products, searchParams]);
+  }, [mode, loading, products, searchParams, pathname, initialCategory]);
 
   useEffect(() => {
     if (mode !== 'CARD' || loading || cardProducts.length === 0) return;
@@ -618,7 +641,7 @@ function CheckoutShellInner({
       });
       return `/checkout?${q.toString()}`;
     }
-    return `/?section=buy-card&category=${encodeURIComponent(category)}#${anchorId}`;
+    return `${homeCardServiceHref(category)}#${anchorId}`;
   }, [mode, anchorId, product?.slug, variant?.id, orderQuantity, category]);
 
   const showMobileBar = Boolean(variant);
