@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { WrongRetailPortalNotice } from '@/components/auth/WrongRetailPortalNotice';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { useAuth } from '@/hooks/useAuth';
 import { isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
+import { isRetailCustomerRole } from '@/lib/retail-auth';
 import { cn } from '@/lib/utils';
 
 const LINKS = [
@@ -22,17 +24,36 @@ const LINKS = [
 export function AccountLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, logout } = useAuth();
   const siteConfig = useSiteConfig();
   const links = LINKS.filter(
     (item) => !('requiresData' in item && item.requiresData) || isDataServiceVisible(siteConfig),
   );
+  const wrongPortal = Boolean(user && !isRetailCustomerRole(user.role));
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) router.push(`/login?redirect=${ACCOUNT_PATHS.profile}`);
+    if (!loading && !isAuthenticated) {
+      router.push(`/login?redirect=${ACCOUNT_PATHS.profile}`);
+    }
   }, [loading, isAuthenticated, router]);
 
-  if (loading || !isAuthenticated) {
+  if (loading) {
+    return (
+      <PageContainer>
+        <p className="py-12 text-center text-cardon-gray">Đang tải...</p>
+      </PageContainer>
+    );
+  }
+
+  if (wrongPortal) {
+    return (
+      <PageContainer>
+        <WrongRetailPortalNotice role={user?.role} onLogout={logout} />
+      </PageContainer>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <PageContainer>
         <p className="py-12 text-center text-cardon-gray">Đang tải...</p>
