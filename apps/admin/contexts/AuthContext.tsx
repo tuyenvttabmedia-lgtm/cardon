@@ -23,6 +23,8 @@ import {
 import { hasPermission } from '@/lib/permissions';
 import type { AuthResult, AuthUser } from '@/types/api';
 
+type AuthUserWithPermissions = AuthUser & { permissions?: string[] };
+
 interface AuthContextValue {
   user: AuthUser | null;
   permissions: string[];
@@ -35,11 +37,28 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function normalizePermissions(me: AuthUserWithPermissions): string[] {
+  return Array.isArray(me.permissions) ? me.permissions : [];
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const applyMe = useCallback((me: AuthUserWithPermissions, accessToken: string, refreshToken: string) => {
+    const nextPermissions = normalizePermissions(me);
+    setAuthSession({
+      accessToken,
+      refreshToken,
+      user: me,
+      permissions: nextPermissions,
+    });
+    setUser(me);
+    setPermissions(nextPermissions);
+    return nextPermissions;
+  }, []);
 
   const syncSession = useCallback(async () => {
     const stored = getStoredUser<AuthUser>();
@@ -58,27 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const me = await authApi.me();
-      setAuthSession({
-        accessToken: getAccessToken() ?? '',
-        refreshToken: getRefreshToken() ?? '',
-        user: me,
-        permissions: me.permissions,
-      });
-      setUser(me);
-      setPermissions(me.permissions ?? []);
+      applyMe(me, getAccessToken() ?? '', getRefreshToken() ?? '');
     } catch {
       const refreshed = await refreshSession();
       if (refreshed) {
         try {
           const me = await authApi.me();
-          setAuthSession({
-            accessToken: getAccessToken() ?? '',
-            refreshToken: getRefreshToken() ?? '',
-            user: me,
-            permissions: me.permissions,
-          });
-          setUser(me);
-          setPermissions(me.permissions ?? []);
+          applyMe(me, getAccessToken() ?? '', getRefreshToken() ?? '');
           return;
         } catch {
           // fall through to clear
@@ -88,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setPermissions([]);
     }
-  }, []);
+  }, [applyMe]);
 
   useEffect(() => {
     void (async () => {
@@ -117,29 +122,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const result = await authApi.login(email.trim(), password);
 
+      // Persist tokens first so /auth/me is authenticated.
       setAuthSession({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         user: result.user,
-        permissions: result.user.permissions,
+        permissions: [],
       });
       setUser(result.user);
-      setPermissions(result.user.permissions ?? []);
+      setPermissions([]);
 
       const me = await authApi.me();
-      setAuthSession({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        user: me,
-        permissions: me.permissions,
-      });
-      setUser(me);
-      setPermissions(me.permissions ?? []);
+      const nextPermissions = applyMe(me, result.accessToken, result.refreshToken);
 
       router.refresh();
-      return result;
+      return {
+        ...result,
+        user: {
+          ...me,
+          permissions: nextPermissions,
+        },
+      };
     },
-    [router],
+    [applyMe, router],
   );
 
   const logout = useCallback(async () => {
@@ -158,8 +163,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const can = useCallback(
-    (permission: string) => hasPermission(permissions, permission),
-    [permissions],
+    (permission: string) => hasPermission(permissions, permission, user?.role),
+    [permissions, user?.role],
   );
 
   const value = useMemo(

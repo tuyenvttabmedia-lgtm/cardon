@@ -70,15 +70,25 @@ export class AuthController {
   @Public()
   @Throttle({ default: AUTH_LOGIN_THROTTLE })
   @Post('login')
-  login(@Body() dto: LoginDto, @Req() req: Request) {
-    return this.authService.login(dto, activityContextFromRequest(req));
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    const result = await this.authService.login(dto, activityContextFromRequest(req));
+    const permissions = await this.rbacService.getPermissionsForRole(result.user.role as never);
+    return {
+      ...result,
+      user: { ...result.user, permissions },
+    };
   }
 
   @Public()
   @Throttle({ default: AUTH_REFRESH_THROTTLE })
   @Post('refresh')
-  refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refresh(dto.refreshToken);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    const result = await this.authService.refresh(dto.refreshToken);
+    const permissions = await this.rbacService.getPermissionsForRole(result.user.role as never);
+    return {
+      ...result,
+      user: { ...result.user, permissions },
+    };
   }
 
   @UseGuards(JwtAuthGuard)

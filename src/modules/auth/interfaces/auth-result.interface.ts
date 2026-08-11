@@ -11,6 +11,7 @@ export interface AuthUserSummary {
   email: string;
   role: string;
   emailVerified: boolean;
+  permissions?: string[];
 }
 
 export interface AuthResult {

@@ -22,7 +22,8 @@ export function setAuthSession(params: {
   localStorage.setItem(ACCESS_TOKEN_KEY, params.accessToken);
   localStorage.setItem(REFRESH_TOKEN_KEY, params.refreshToken);
   localStorage.setItem(USER_KEY, JSON.stringify(params.user));
-  if (params.permissions) {
+  // Always persist when provided (including []) so stale grants cannot linger.
+  if (params.permissions !== undefined) {
     localStorage.setItem(PERMISSIONS_KEY, JSON.stringify(params.permissions));
   }
 }
