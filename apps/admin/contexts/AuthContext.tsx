@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { authApi, refreshSession } from '@/services/api-client';
+import { authApi, refreshSession, ApiClientError } from '@/services/api-client';
 import {
   clearAuthSession,
   clearSessionKycCredentials,
@@ -20,7 +20,7 @@ import {
   getStoredUser,
   setAuthSession,
 } from '@/lib/auth-storage';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermission, isAdminStaffRole } from '@/lib/permissions';
 import type { AuthResult, AuthUser } from '@/types/api';
 
 type AuthUserWithPermissions = AuthUser & { permissions?: string[] };
@@ -77,12 +77,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const me = await authApi.me();
+      if (!isAdminStaffRole(me.role)) {
+        clearAuthSession();
+        setUser(null);
+        setPermissions([]);
+        return;
+      }
       applyMe(me, getAccessToken() ?? '', getRefreshToken() ?? '');
     } catch {
       const refreshed = await refreshSession();
       if (refreshed) {
         try {
           const me = await authApi.me();
+          if (!isAdminStaffRole(me.role)) {
+            clearAuthSession();
+            setUser(null);
+            setPermissions([]);
+            return;
+          }
           applyMe(me, getAccessToken() ?? '', getRefreshToken() ?? '');
           return;
         } catch {
@@ -122,17 +134,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const result = await authApi.login(email.trim(), password);
 
+      if (!isAdminStaffRole(result.user.role)) {
+        clearAuthSession();
+        setUser(null);
+        setPermissions([]);
+        throw new ApiClientError(
+          'Tài khoản này không có quyền truy cập Admin Panel. Dùng tài khoản SUPER_ADMIN / nhân sự.',
+          403,
+          'WRONG_PORTAL_ROLE',
+        );
+      }
+
       // Persist tokens first so /auth/me is authenticated.
       setAuthSession({
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         user: result.user,
-        permissions: [],
+        permissions: normalizePermissions(result.user),
       });
       setUser(result.user);
-      setPermissions([]);
+      setPermissions(normalizePermissions(result.user));
 
       const me = await authApi.me();
+      if (!isAdminStaffRole(me.role)) {
+        clearAuthSession();
+        setUser(null);
+        setPermissions([]);
+        throw new ApiClientError(
+          'Tài khoản này không có quyền truy cập Admin Panel. Dùng tài khoản SUPER_ADMIN / nhân sự.',
+          403,
+          'WRONG_PORTAL_ROLE',
+        );
+      }
       const nextPermissions = applyMe(me, result.accessToken, result.refreshToken);
 
       router.refresh();
