@@ -293,3 +293,21 @@ export class RunOrderRevenueReconcileDto {
   @IsDateString()
   reportDate?: string;
 }
+
+export class VatDailyQueryDto {
+  @IsDateString()
+  dateFrom!: string;
+
+  @IsDateString()
+  dateTo!: string;
+
+  @IsOptional()
+  @IsIn(['TOPUP', 'PHONE_CARD', 'GAME_CARD', 'DATA', 'OTHER'])
+  productLine?: 'TOPUP' | 'PHONE_CARD' | 'GAME_CARD' | 'DATA' | 'OTHER';
+}
+
+export class VatRetailOutputQueryDto extends VatDailyQueryDto {
+  @Type(() => Number)
+  @IsIn([8, 10])
+  vatRatePct!: 8 | 10;
+}

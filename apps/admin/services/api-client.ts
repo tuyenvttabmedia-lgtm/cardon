@@ -1347,6 +1347,27 @@ export const financeApi = {
     const csv = await apiRequest<string>(`/admin/finance/export/providers/transactions?${q}`);
     downloadBlob(csv, `provider-transactions-${Date.now()}.csv`);
   },
+  getVatSupplier(dateFrom: string, dateTo: string, productLine?: string) {
+    const q = new URLSearchParams({ dateFrom, dateTo });
+    if (productLine) q.set('productLine', productLine);
+    return apiRequest<import('@/types/api').VatSupplierPack>(`/admin/finance/vat/supplier?${q}`);
+  },
+  getVatRetailOutput(dateFrom: string, dateTo: string, vatRatePct: 8 | 10) {
+    const q = new URLSearchParams({ dateFrom, dateTo, vatRatePct: String(vatRatePct) });
+    return apiRequest<import('@/types/api').VatRetailOutputPack>(
+      `/admin/finance/vat/retail-output?${q}`,
+    );
+  },
+  getVatGatewayFee(dateFrom: string, dateTo: string) {
+    const q = new URLSearchParams({ dateFrom, dateTo });
+    return apiRequest<import('@/types/api').VatGatewayFeePack>(
+      `/admin/finance/vat/gateway-fee?${q}`,
+    );
+  },
+  getVatSummary(dateFrom: string, dateTo: string) {
+    const q = new URLSearchParams({ dateFrom, dateTo });
+    return apiRequest<import('@/types/api').VatMonthlySummary>(`/admin/finance/vat/summary?${q}`);
+  },
 };
 
 function buildAuditQuery(params: Record<string, string | number | undefined> = {}) {

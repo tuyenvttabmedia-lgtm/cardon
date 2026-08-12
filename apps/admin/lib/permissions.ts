@@ -45,7 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
     permission: 'support.manage',
   },
 
-  { href: '/finance/dashboard', label: vi.nav.finance, permission: 'finance.view' },
+  { href: '/finance/supplier', label: vi.nav.finance, permission: 'finance.view' },
 
   {
     href: '/operations',
@@ -223,7 +223,7 @@ export function canReviewPayments(permissions: string[]): boolean {
 
 export function defaultRouteForRole(role: string, permissions: string[]): string {
 
-  if (role === 'ACCOUNTANT') return '/finance/dashboard';
+  if (role === 'ACCOUNTANT') return '/finance/supplier';
 
   if (role === 'MARKETING') return '/marketing/articles';
 
@@ -233,7 +233,7 @@ export function defaultRouteForRole(role: string, permissions: string[]): string
 
   if (permissions.includes('orders.read')) return '/orders';
 
-  if (permissions.includes('finance.view')) return '/finance/dashboard';
+  if (permissions.includes('finance.view')) return '/finance/supplier';
 
   return '/dashboard';
 

@@ -35,53 +35,31 @@ import { ProviderOperationsService } from './services/provider-operations.servic
 import { ProviderReconcileService } from './services/provider-reconcile.service';
 
 import { ReconcileReportService } from './services/reconcile-report.service';
-
-
+import { VatDailyService } from './services/vat-daily.service';
 
 @Module({
-
   imports: [AuthModule, forwardRef(() => ProviderModule)],
-
   controllers: [FinanceController],
-
   providers: [
-
     FinanceRepository,
-
     ProviderOperationsRepository,
-
     FinanceAuditService,
-
     PaymentReconcileService,
-
     ProviderReconcileService,
-
     ProviderDailyReconciliationService,
-
     ProviderOperationsService,
-
     ReconcileReportService,
-
     ProfitService,
-
     GatewayFeesService,
-
     PaymentSettlementService,
-
     GatewayInvoiceService,
-
     AgentStatementService,
-
     InvoiceService,
-
     ExportService,
-
+    VatDailyService,
   ],
-
   exports: [FinanceRepository, FinanceAuditService, InvoiceService, AgentStatementService, ExportService],
-
 })
-
 export class FinanceModule {}
 
 
