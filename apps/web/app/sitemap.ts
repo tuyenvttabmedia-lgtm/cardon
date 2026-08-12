@@ -48,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  const posts = (await listBlogPosts({ take: 500 })) ?? [];
+  const posts = (await listBlogPosts({ take: 100 })) ?? [];
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${base}${blogPostPath(post.categorySlug, post.slug)}`,
     lastModified: post.publishedAt ? new Date(post.publishedAt) : now,

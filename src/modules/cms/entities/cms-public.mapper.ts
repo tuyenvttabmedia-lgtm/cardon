@@ -106,6 +106,14 @@ export function mapCmsPageForPublic(page: {
   };
 }
 
+/** List/card payload — omit HTML body to keep index/sitemap responses small. */
+export function mapCmsBlogPostListItem(
+  page: Omit<Parameters<typeof mapCmsPageForPublic>[0], 'content'> & { content?: string },
+): PublicCmsPageView {
+  const mapped = mapCmsBlogPostForPublic({ ...page, content: page.excerpt ?? '' });
+  return { ...mapped, content: '' };
+}
+
 export function mapCmsBlogPostForPublic(
   page: Parameters<typeof mapCmsPageForPublic>[0],
 ): PublicCmsPageView {

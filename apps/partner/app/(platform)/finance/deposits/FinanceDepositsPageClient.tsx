@@ -31,8 +31,8 @@ function DepositSkeleton() {
 }
 
 export default function FinanceDepositsPageClient() {
-  const { role, can } = useAgentPlatform();
-  const canCreate = role !== 'READONLY';
+  const { can } = useAgentPlatform();
+  const canCreate = can('wallet.manage');
   const canExport = can('finance.export');
 
   const [items, setItems] = useState<FinanceDepositRow[]>([]);
@@ -86,12 +86,12 @@ export default function FinanceDepositsPageClient() {
   }, []);
 
   useEffect(() => {
-    if (!active || TERMINAL.has(active.status)) return;
+    if (!canCreate || !active || TERMINAL.has(active.status)) return;
     const id = setInterval(() => {
       void financeApi.refreshDeposit(active.id).then(setActive).catch(() => {});
     }, POLL_MS);
     return () => clearInterval(id);
-  }, [active?.id, active?.status]);
+  }, [canCreate, active?.id, active?.status]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -121,7 +121,7 @@ export default function FinanceDepositsPageClient() {
   }
 
   async function handleRefresh() {
-    if (!active) return;
+    if (!canCreate || !active) return;
     setRefreshing(true);
     try {
       const detail = await financeApi.refreshDeposit(active.id);
@@ -373,11 +373,13 @@ export default function FinanceDepositsPageClient() {
                 </div>
               )}
 
-              <div className="flex gap-2">
-                <Button size="sm" onClick={() => void handleRefresh()} disabled={refreshing}>
-                  {refreshing ? 'Đang làm mới...' : 'Làm mới trạng thái'}
-                </Button>
-              </div>
+              {canCreate && (
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => void handleRefresh()} disabled={refreshing}>
+                    {refreshing ? 'Đang làm mới...' : 'Làm mới trạng thái'}
+                  </Button>
+                </div>
+              )}
 
               <div>
                 <p className="mb-3 text-sm font-semibold text-slate-900">Timeline</p>

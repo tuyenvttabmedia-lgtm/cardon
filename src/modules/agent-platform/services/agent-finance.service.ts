@@ -16,7 +16,13 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
+import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
 import { LedgerService } from '../../agent/services/ledger.service';
+import {
+  roleHasPermission,
+  type AgentPlatformPermission,
+  type AgentPlatformRole,
+} from '../entities/agent-platform.constants';
 import { NotificationService } from '../../notification/services/notification.service';
 import { AgentDepositService } from '../../agent-deposit/services/agent-deposit.service';
 import {
@@ -47,10 +53,11 @@ export class AgentFinanceService {
     private readonly depositService: AgentDepositService,
     private readonly notificationService: NotificationService,
     private readonly activityDispatcher: ActivityEventDispatcher,
+    private readonly memberContext: AgentMemberContextService,
   ) {}
 
   async getOverview(userId: string) {
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'finance.read');
     const [wallet, balance, startOfDay, startOfMonth] = [
       await this.walletService.getOverview(userId),
       await this.ledgerService.getBalance(agent.id),
@@ -116,7 +123,7 @@ export class AgentFinanceService {
   }
 
   async listDeposits(userId: string, query: FinanceQuery) {
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'finance.read');
     const result = await this.depositService.listDeposits(
       agent.id,
       query.skip ?? 0,
@@ -127,7 +134,7 @@ export class AgentFinanceService {
     return { ...result, readOnly: false };
   }
 
-  createDeposit(
+  async createDeposit(
     userId: string,
     email: string | undefined,
     amount: number,
@@ -135,24 +142,27 @@ export class AgentFinanceService {
     gateway?: import('@prisma/client').PaymentGatewayCode,
     role?: string,
   ) {
+    await this.requireAgent(userId, 'wallet.manage');
     this.assertCanCreateDeposit(role);
     return this.depositService.createDeposit(userId, amount, idempotencyKey, gateway, email);
   }
 
-  getDeposit(userId: string, depositId: string, email?: string) {
+  async getDeposit(userId: string, depositId: string, email?: string) {
+    await this.requireAgent(userId, 'finance.read');
     return this.depositService.getDeposit(userId, depositId).then((view) => {
       void this.depositService.logActivity(userId, email, 'view_detail', { depositId });
       return view;
     });
   }
 
-  refreshDeposit(userId: string, depositId: string, email?: string) {
+  async refreshDeposit(userId: string, depositId: string, email?: string) {
+    await this.requireAgent(userId, 'wallet.manage');
     return this.depositService.refreshDeposit(userId, depositId);
   }
 
   assertCanCreateDeposit(role?: string) {
-    if (role === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot create deposits');
+    if (!role || !roleHasPermission(role as AgentPlatformRole, 'wallet.manage')) {
+      throw new ForbiddenException('Insufficient permission to create deposits');
     }
   }
 
@@ -161,7 +171,7 @@ export class AgentFinanceService {
   }
 
   async getSettlements(userId: string, query: FinanceQuery) {
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'settlement.read');
     const skip = query.skip ?? 0;
     const take = Math.min(query.take ?? 25, 100);
     const where = this.partnerStatementWhere(agent.id);
@@ -190,7 +200,7 @@ export class AgentFinanceService {
   }
 
   async getSettlement(userId: string, statementId: string) {
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'settlement.read');
     const statement = await this.prisma.agentStatement.findFirst({
       where: { id: statementId, ...this.partnerStatementWhere(agent.id) },
       include: {
@@ -221,7 +231,7 @@ export class AgentFinanceService {
   }
 
   async listAdjustments(userId: string, query: FinanceQuery) {
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'finance.read');
     const skip = query.skip ?? 0;
     const take = Math.min(query.take ?? 25, 100);
 
@@ -279,6 +289,7 @@ export class AgentFinanceService {
   }
 
   async getCredit(userId: string) {
+    await this.requireAgent(userId, 'finance.read');
     const limits = await this.walletService.getLimits(userId);
     return {
       ...limits,
@@ -291,6 +302,7 @@ export class AgentFinanceService {
   }
 
   async listHistory(userId: string, query: FinanceQuery) {
+    await this.requireAgent(userId, 'finance.read');
     const result = await this.walletService.listLedger(userId, query);
     return {
       ...result,
@@ -336,8 +348,8 @@ export class AgentFinanceService {
   }
 
   assertCanExport(role: string) {
-    if (role === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot export finance data');
+    if (!roleHasPermission(role as AgentPlatformRole, 'finance.export')) {
+      throw new ForbiddenException('Insufficient permission to export finance data');
     }
   }
 
@@ -369,8 +381,10 @@ export class AgentFinanceService {
     return d;
   }
 
-  private async requireAgent(userId: string) {
-    const agent = await this.agentRepository.findByUserId(userId);
+  private async requireAgent(userId: string, permission: AgentPlatformPermission = 'finance.read') {
+    const ctx = await this.memberContext.resolve(userId);
+    this.memberContext.assertPermission(ctx, permission);
+    const agent = await this.agentRepository.findById(ctx.agentId);
     if (!agent) throw new NotFoundException('Agent profile not found');
     return agent;
   }

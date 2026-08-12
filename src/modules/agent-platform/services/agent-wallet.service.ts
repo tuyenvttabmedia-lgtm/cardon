@@ -22,8 +22,14 @@ import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
+import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
 import { LedgerService } from '../../agent/services/ledger.service';
 import { NotificationService } from '../../notification/services/notification.service';
+import {
+  roleHasPermission,
+  type AgentPlatformPermission,
+  type AgentPlatformRole,
+} from '../entities/agent-platform.constants';
 import {
   ledgerEntryStatus,
   mapLedgerToPortalType,
@@ -53,10 +59,11 @@ export class AgentWalletService {
     private readonly ledgerService: LedgerService,
     private readonly notificationService: NotificationService,
     private readonly activityDispatcher: ActivityEventDispatcher,
+    private readonly memberContext: AgentMemberContextService,
   ) {}
 
   async getOverview(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const balance = await this.ledgerService.getBalance(agent.id);
     const startOfDay = this.startOfToday();
     const startOfMonth = this.startOfMonth();
@@ -124,7 +131,7 @@ export class AgentWalletService {
   }
 
   async getSummary(userId: string, dateFrom?: string, dateTo?: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const range = this.resolveRange(dateFrom, dateTo);
 
     const [priorEntry, entries] = await Promise.all([
@@ -199,7 +206,7 @@ export class AgentWalletService {
   }
 
   async listLedger(userId: string, query: WalletLedgerQuery) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const skip = query.skip ?? 0;
     const take = Math.min(query.take ?? 25, 100);
     const where = this.buildLedgerWhere(agent.id, query);
@@ -226,7 +233,7 @@ export class AgentWalletService {
   }
 
   async getLedgerDetail(userId: string, entryId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const entry = await this.prisma.ledgerEntry.findFirst({
       where: { id: entryId, agentId: agent.id, deletedAt: null },
       include: {
@@ -286,7 +293,7 @@ export class AgentWalletService {
   }
 
   async listDeposits(userId: string, query: WalletLedgerQuery) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const skip = query.skip ?? 0;
     const take = Math.min(query.take ?? 25, 100);
 
@@ -336,6 +343,7 @@ export class AgentWalletService {
   }
 
   async listWithdraws(userId: string, query: WalletLedgerQuery) {
+    await this.requireAgentByUser(userId, 'wallet.read');
     return {
       items: [] as Array<Record<string, unknown>>,
       total: 0,
@@ -347,7 +355,7 @@ export class AgentWalletService {
   }
 
   async getLimits(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const balance = await this.ledgerService.getBalance(agent.id);
     const creditLimit = new Decimal(0);
     const dailyLimit = new Decimal(0);
@@ -369,7 +377,7 @@ export class AgentWalletService {
   }
 
   async getRecentActivity(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const [ledger, orders, notificationList, pendingSettlement] = await Promise.all([
       this.prisma.ledgerEntry.findMany({
         where: { agentId: agent.id, deletedAt: null },
@@ -450,8 +458,8 @@ export class AgentWalletService {
   }
 
   assertCanExport(role: string) {
-    if (role === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot export wallet data');
+    if (!roleHasPermission(role as AgentPlatformRole, 'wallet.export')) {
+      throw new ForbiddenException('Insufficient permission to export wallet data');
     }
   }
 
@@ -623,8 +631,10 @@ export class AgentWalletService {
     return d;
   }
 
-  private async requireAgentByUser(userId: string) {
-    const agent = await this.agentRepository.findByUserId(userId);
+  private async requireAgentByUser(userId: string, permission: AgentPlatformPermission = 'wallet.read') {
+    const ctx = await this.memberContext.resolve(userId);
+    this.memberContext.assertPermission(ctx, permission);
+    const agent = await this.agentRepository.findById(ctx.agentId);
     if (!agent) throw new NotFoundException('Agent profile not found');
     return agent;
   }

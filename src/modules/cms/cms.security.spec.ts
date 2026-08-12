@@ -1,7 +1,7 @@
 import { validate } from 'class-validator';
 import { sanitizeCmsHtml } from './entities/cms-html-safety';
-import { mapCmsPageForPublic } from './entities/cms-public.mapper';
-import { UpdateCmsSeoSettingsDto } from './dto/cms.dto';
+import { mapCmsPageForPublic, mapCmsBlogPostListItem } from './entities/cms-public.mapper';
+import { ListBlogQueryDto, UpdateCmsSeoSettingsDto } from './dto/cms.dto';
 import { CMS_ROBOTS_TXT_MAX_LENGTH } from './entities/cms.constants';
 
 describe('Phase 5C.4 — CMS HTML sanitize', () => {
@@ -101,6 +101,24 @@ describe('Phase 5C.4 — CMS HTML sanitize', () => {
     expect(mapped.title).toBe('Title');
     expect(mapped.content).toBe('<p>Safe</p>');
   });
+
+  it('mapCmsBlogPostListItem omits HTML body', () => {
+    const mapped = mapCmsBlogPostListItem({
+      id: '1',
+      slug: 'post',
+      title: 'Post',
+      content: '<p>Huge body that must not appear in list payloads</p>',
+      excerpt: 'Short excerpt',
+      featuredImage: null,
+      category: null,
+      tags: [],
+      publishedAt: new Date(),
+      seo: { metaTitle: 'T', metaDescription: 'D' },
+    });
+    expect(mapped.content).toBe('');
+    expect(mapped.excerpt).toBe('Short excerpt');
+    expect(mapped.title).toBe('Post');
+  });
 });
 
 describe('Phase 5C.4 — robots.txt validation', () => {
@@ -116,5 +134,21 @@ describe('Phase 5C.4 — robots.txt validation', () => {
     dto.robotsTxt = 'x'.repeat(CMS_ROBOTS_TXT_MAX_LENGTH + 1);
     const errors = await validate(dto);
     expect(errors.some((e) => e.property === 'robotsTxt')).toBe(true);
+  });
+});
+
+describe('P0 — blog list query limits', () => {
+  it('rejects take over 100', async () => {
+    const dto = new ListBlogQueryDto();
+    dto.take = 500;
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === 'take')).toBe(true);
+  });
+
+  it('accepts take within max', async () => {
+    const dto = new ListBlogQueryDto();
+    dto.take = 20;
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
   });
 });
