@@ -30,6 +30,8 @@ import {
   ProviderReconciliationQueryDto,
   ProviderTransactionSearchQueryDto,
   RunProviderReconciliationDto,
+  VatDailyQueryDto,
+  VatRetailOutputQueryDto,
 } from '../dto/finance.dto';
 import { FINANCE_PERMISSIONS } from '../entities/finance.constants';
 import { AgentStatementService } from '../services/agent-statement.service';
@@ -43,6 +45,7 @@ import { ProfitService } from '../services/profit.service';
 import { ProviderReconcileService } from '../services/provider-reconcile.service';
 import { ProviderOperationsService } from '../services/provider-operations.service';
 import { ReconcileReportService } from '../services/reconcile-report.service';
+import { VatDailyService } from '../services/vat-daily.service';
 
 @Controller('admin/finance')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -59,7 +62,32 @@ export class FinanceController {
     private readonly agentStatementService: AgentStatementService,
     private readonly invoiceService: InvoiceService,
     private readonly exportService: ExportService,
+    private readonly vatDailyService: VatDailyService,
   ) {}
+
+  @Get('vat/supplier')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  vatSupplier(@Query() query: VatDailyQueryDto) {
+    return this.vatDailyService.getSupplierPack(query);
+  }
+
+  @Get('vat/retail-output')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  vatRetailOutput(@Query() query: VatRetailOutputQueryDto) {
+    return this.vatDailyService.getRetailOutputPack(query);
+  }
+
+  @Get('vat/gateway-fee')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  vatGatewayFee(@Query() query: VatDailyQueryDto) {
+    return this.vatDailyService.getGatewayFeePack(query);
+  }
+
+  @Get('vat/summary')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  vatSummary(@Query() query: VatDailyQueryDto) {
+    return this.vatDailyService.getMonthlySummary(query);
+  }
 
   @Post('reconcile/payment')
   @Permissions(FINANCE_PERMISSIONS.MANAGE)

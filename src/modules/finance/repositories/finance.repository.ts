@@ -8,6 +8,7 @@ import {
   PaymentRecordStatus,
   PaymentSettlementType,
   Prisma,
+  ProviderProductMappingStatus,
   ProviderTransactionStatus,
   ReconcileDomain,
   ReconcileMatchStatus,
@@ -854,6 +855,68 @@ export class FinanceRepository {
       orderBy: { createdAt: 'desc' },
       skip: pagination.skip,
       take: pagination.take,
+    });
+  }
+
+  /**
+   * B2C retail orders completed in range — source for VAT daily packs.
+   * Agent channel excluded (separate statement flow).
+   */
+  findB2cCompletedOrderItemsForVat(dateFrom: Date, dateTo: Date) {
+    const end = new Date(dateTo);
+    end.setUTCHours(23, 59, 59, 999);
+    return this.prisma.orderItem.findMany({
+      where: {
+        order: {
+          ...ACTIVE_ORDER_WHERE,
+          channel: 'B2C',
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.COMPLETED,
+          agentId: null,
+          createdAt: { gte: dateFrom, lte: end },
+        },
+      },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderCode: true,
+            createdAt: true,
+            faceValue: true,
+            sellAmount: true,
+            discountAmount: true,
+            paymentFeeAmount: true,
+            paymentFeePercent: true,
+            customerPaid: true,
+            providerCost: true,
+            paymentGateway: true,
+          },
+        },
+        variant: {
+          select: {
+            id: true,
+            sku: true,
+            name: true,
+            faceValue: true,
+            sellPrice: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                homeService: true,
+              },
+            },
+            providerMappings: {
+              where: { status: ProviderProductMappingStatus.ACTIVE },
+              orderBy: { priority: 'desc' },
+              take: 1,
+              select: { providerCost: true, providerProductCode: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: FINANCE_MAX_INTERNAL_QUERY_ROWS,
     });
   }
 

@@ -1077,6 +1077,117 @@ export interface ProfitReport {
   filters: Record<string, unknown>;
 }
 
+export interface VatSupplierPack {
+  kind: 'SUPPLIER_INPUT';
+  dateFrom: string;
+  dateTo: string;
+  productLine: string | null;
+  rows: Array<{
+    stt: number;
+    sku: string;
+    name: string;
+    productLine: string;
+    productLineLabel: string;
+    unit: string;
+    quantity: number;
+    faceValue: number;
+    unitPriceFactor: number;
+    preVatTotal: number;
+    supplierDiscountRatePct: number;
+    discountTotal: number;
+    afterDiscountTotal: number;
+    vatRatePct: number;
+    vatTotal: number;
+    payableTotal: number;
+  }>;
+  totals: {
+    preVatTotal: number;
+    discountTotal: number;
+    afterDiscountTotal: number;
+    vatTotal: number;
+    payableTotal: number;
+    quantity: number;
+  };
+}
+
+export interface VatRetailOutputPack {
+  kind: 'RETAIL_OUTPUT';
+  buyerName: string;
+  vatRatePct: 8 | 10;
+  dateFrom: string;
+  dateTo: string;
+  rows: Array<{
+    stt: number;
+    sku: string;
+    name: string;
+    productLine: string;
+    productLineLabel: string;
+    unit: string;
+    quantity: number;
+    unitPriceExclVat: number;
+    amountExclVat: number;
+    vatRatePct: number;
+    vatAmount: number;
+    amountInclVat: number;
+    sellInclVatUnit: number;
+  }>;
+  details: Array<{
+    orderId: string;
+    orderCode: string;
+    createdAt: string;
+    sku: string;
+    productLine: string;
+    productLineLabel: string;
+    quantity: number;
+    sellInclVatUnit: number;
+    unitPriceExclVat: number;
+    vatAmount: number;
+    amountInclVat: number;
+    paymentFeeAmount: number;
+  }>;
+  totals: {
+    amountExclVat: number;
+    vatAmount: number;
+    amountInclVat: number;
+    quantity: number;
+  };
+  paymentFeeIncl: number;
+}
+
+export interface VatGatewayFeePack {
+  kind: 'GATEWAY_FEE';
+  dateFrom: string;
+  dateTo: string;
+  sellerName: string;
+  buyerName: string;
+  description: string;
+  quantity: number;
+  unitPriceExclVat: number;
+  amountExclVat: number;
+  vatRatePct: number;
+  vatAmount: number;
+  amountInclVat: number;
+  retailAmountInclVat: number;
+}
+
+export interface VatMonthlySummary {
+  kind: 'MONTHLY_SUMMARY';
+  dateFrom: string;
+  dateTo: string;
+  rows: Array<{
+    productLine: string;
+    productLineLabel: string;
+    vatRatePct: number;
+    quantity: number;
+    amountExclVat: number;
+    vatAmount: number;
+    amountInclVat: number;
+    supplierPayable: number;
+    paymentFeeIncl: number;
+    marginApprox: number;
+  }>;
+}
+
 export interface ReconcileReport {
   id: string;
   domain: string;
