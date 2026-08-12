@@ -22,7 +22,7 @@ export const AGENT_ROLE_LABELS: Record<AgentPlatformRole, string> = {
 
 export const AGENT_ROLE_PERMISSIONS: Record<AgentPlatformRole, AgentPlatformPermission[]> = {
   OWNER: [
-    'dashboard.read', 'wallet.read', 'wallet.export', 'finance.read', 'finance.export',
+    'dashboard.read', 'wallet.read', 'wallet.export', 'wallet.manage', 'finance.read', 'finance.export',
     'orders.read', 'orders.export', 'products.read', 'settlement.read', 'reports.read',
     'api.read', 'api.manage', 'webhooks.read', 'webhooks.manage', 'invoices.read',
     'users.read', 'users.manage', 'support.read', 'settings.read', 'settings.manage',
@@ -34,7 +34,7 @@ export const AGENT_ROLE_PERMISSIONS: Record<AgentPlatformRole, AgentPlatformPerm
     'notifications.read', 'settings.read', 'organization.read', 'retry.manage',
   ],
   FINANCE: [
-    'dashboard.read', 'wallet.read', 'wallet.export', 'finance.read', 'finance.export',
+    'dashboard.read', 'wallet.read', 'wallet.export', 'wallet.manage', 'finance.read', 'finance.export',
     'orders.read', 'settlement.read', 'reports.read', 'invoices.read',
     'notifications.read', 'settings.read', 'organization.read',
   ],

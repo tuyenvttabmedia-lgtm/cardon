@@ -17,7 +17,12 @@ import {
   UpsertCmsCategoryDto,
   UpsertCmsTagDto,
 } from '../dto/cms.dto';
-import { CMS_SEO_SETTING_KEYS, CMS_THEME_SETTING_KEYS } from '../entities/cms.constants';
+import {
+  CMS_BLOG_LIST_DEFAULT_TAKE,
+  CMS_BLOG_LIST_MAX_TAKE,
+  CMS_SEO_SETTING_KEYS,
+  CMS_THEME_SETTING_KEYS,
+} from '../entities/cms.constants';
 import {
   DEFAULT_MOBILE_NAV,
   type CmsMobileNavItem,
@@ -26,7 +31,11 @@ import { normalizeContactChannels, type ContactChannel } from '../entities/conta
 import { SETTINGS_KEYS } from '../../settings/entities/settings.constants';
 import { normalizeSearchConsoleVerification } from '../utils/seo-settings.util';
 import { defaultPageLayoutForSlug, resolveEffectivePageLayout } from '../entities/cms-page-layout';
-import { mapCmsPageForPublic, mapCmsBlogPostForPublic } from '../entities/cms-public.mapper';
+import {
+  mapCmsPageForPublic,
+  mapCmsBlogPostForPublic,
+  mapCmsBlogPostListItem,
+} from '../entities/cms-public.mapper';
 import { CmsRepository } from '../repositories/cms.repository';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { MaintenanceAvailabilityService } from '../../maintenance-center/services/maintenance-availability.service';
@@ -355,14 +364,15 @@ export class CmsService {
   }
 
   listBlogPosts(query: ListBlogQueryDto) {
+    const take = Math.min(query.take ?? CMS_BLOG_LIST_DEFAULT_TAKE, CMS_BLOG_LIST_MAX_TAKE);
     return this.repository
       .findPublishedBlogPosts({
         categorySlug: query.category,
         tagSlug: query.tag,
         skip: query.skip,
-        take: query.take,
+        take,
       })
-      .then((rows) => rows.map(mapCmsBlogPostForPublic));
+      .then((rows) => rows.map(mapCmsBlogPostListItem));
   }
 
   async getBlogPost(slug: string) {
@@ -374,7 +384,7 @@ export class CmsService {
     );
     return {
       post: mapCmsBlogPostForPublic(page),
-      related: related.map(mapCmsBlogPostForPublic),
+      related: related.map(mapCmsBlogPostListItem),
     };
   }
 

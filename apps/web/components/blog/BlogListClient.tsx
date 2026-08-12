@@ -8,7 +8,7 @@ import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { PageContainer } from '@/components/layout/PageContainer';
 import type { PublicBlogPost } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath } from '@/lib/routes';
-import { matchesViSearch, stripHtmlForSearch } from '@/lib/vi-search';
+import { matchesViSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
 
 const GRID_COLUMNS = 3;
@@ -94,7 +94,6 @@ export function BlogListClient({
         q,
         p.title,
         p.excerpt,
-        stripHtmlForSearch(p.content),
         p.category,
         p.categorySlug,
         p.slug,

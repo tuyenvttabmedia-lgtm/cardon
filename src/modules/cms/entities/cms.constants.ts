@@ -22,6 +22,9 @@ export const CMS_THEME_SETTING_KEYS = {
   MOBILE_NAV: 'cms.theme.mobile_nav',
 } as const;
 
+export const CMS_BLOG_LIST_DEFAULT_TAKE = 20;
+export const CMS_BLOG_LIST_MAX_TAKE = 100;
+
 export const CMS_FAQ_SETTING_KEY = 'cms.faq.items';
 
 export type CmsFaqStatus = 'ACTIVE' | 'INACTIVE';

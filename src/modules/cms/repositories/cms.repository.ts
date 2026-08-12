@@ -25,6 +25,29 @@ const PAGE_INCLUDE = {
   pageTags: { include: { tag: true } },
 };
 
+const BLOG_LIST_SELECT = {
+  id: true,
+  slug: true,
+  title: true,
+  excerpt: true,
+  featuredImage: true,
+  publishedAt: true,
+  pageLayout: true,
+  showInNav: true,
+  category: true,
+  seo: {
+    select: {
+      metaTitle: true,
+      metaDescription: true,
+      ogTitle: true,
+      ogDescription: true,
+      ogImage: true,
+    },
+  },
+  categoryRel: { select: { name: true, slug: true } },
+  pageTags: { select: { tag: { select: { name: true, slug: true } } } },
+} as const;
+
 @Injectable()
 export class CmsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -245,7 +268,7 @@ export class CmsRepository {
           ? { pageTags: { some: { tag: { slug: filters.tagSlug } } } }
           : {}),
       },
-      include: PAGE_INCLUDE,
+      select: BLOG_LIST_SELECT,
       orderBy: [{ publishedAt: 'desc' }, { updatedAt: 'desc' }],
       skip: filters.skip ?? 0,
       take: filters.take ?? 20,
@@ -260,7 +283,7 @@ export class CmsRepository {
         status: CmsPageStatus.PUBLISHED,
         ...(categoryId ? { categoryId } : {}),
       },
-      include: PAGE_INCLUDE,
+      select: BLOG_LIST_SELECT,
       orderBy: { publishedAt: 'desc' },
       take,
     });

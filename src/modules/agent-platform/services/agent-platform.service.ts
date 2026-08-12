@@ -8,7 +8,11 @@ import { NotificationService } from '../../notification/services/notification.se
 import { AgentOrganizationService } from '../../agent-organization/services/agent-organization.service';
 import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
 import { PricingService } from '../../product/services/pricing.service';
-import { AGENT_PLATFORM_ROLES, AGENT_ROLE_LABELS } from '../entities/agent-platform.constants';
+import {
+  AGENT_PLATFORM_ROLES,
+  AGENT_ROLE_LABELS,
+  type AgentPlatformPermission,
+} from '../entities/agent-platform.constants';
 
 @Injectable()
 export class AgentPlatformService {
@@ -24,7 +28,7 @@ export class AgentPlatformService {
   ) {}
 
   async getDashboard(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'dashboard.read');
     const balance = await this.ledgerService.getBalance(agent.id);
     const startOfDay = this.startOfToday();
 
@@ -85,7 +89,7 @@ export class AgentPlatformService {
   }
 
   async getWallet(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'wallet.read');
     const balance = await this.ledgerService.getBalance(agent.id);
     return {
       currentBalance: balance.balance,
@@ -102,7 +106,7 @@ export class AgentPlatformService {
     userId: string,
     query: { status?: string; skip?: number; take?: number },
   ) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'orders.read');
     const skip = query.skip ?? 0;
     const take = Math.min(query.take ?? 20, 100);
 
@@ -140,7 +144,7 @@ export class AgentPlatformService {
   }
 
   async listProducts(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'products.read');
 
     const variants = await this.prisma.productVariant.findMany({
       where: { deletedAt: null, status: ProductVariantStatus.ACTIVE },
@@ -176,7 +180,7 @@ export class AgentPlatformService {
   }
 
   async getApiCenter(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'api.read');
     const credentials = await this.agentService.getMyCredentialsStatus(userId);
     return {
       ...credentials,
@@ -191,7 +195,7 @@ export class AgentPlatformService {
   }
 
   async getWebhooks(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'webhooks.read');
     const config = await this.prisma.agentWebhookConfig.findUnique({ where: { agentId: agent.id } });
     return {
       configured: !!config,
@@ -205,7 +209,7 @@ export class AgentPlatformService {
   }
 
   async listInvoices(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'invoices.read');
     const rows = await this.prisma.invoice.findMany({
       where: { agentId: agent.id, deletedAt: null },
       orderBy: { createdAt: 'desc' },
@@ -243,12 +247,13 @@ export class AgentPlatformService {
   }
 
   async listNotifications(userId: string) {
+    await this.requireAgentByUser(userId, 'notifications.read');
     const items = await this.notificationService.listUserNotifications(userId);
     return { items };
   }
 
   async getSettlement(userId: string) {
-    const agent = await this.requireAgentByUser(userId);
+    const agent = await this.requireAgentByUser(userId, 'settlement.read');
     return {
       currentCycle: null,
       history: [],
@@ -259,6 +264,7 @@ export class AgentPlatformService {
   }
 
   async getReports(userId: string) {
+    await this.requireAgentByUser(userId, 'reports.read');
     const dashboard = await this.getDashboard(userId);
     return {
       revenue: { today: dashboard.revenueToday, period: 'today' },
@@ -286,8 +292,13 @@ export class AgentPlatformService {
     return this.organizationService.getSessionPayload(ctx);
   }
 
-  private async requireAgentByUser(userId: string) {
-    const agent = await this.agentRepository.findByUserId(userId);
+  private async requireAgentByUser(
+    userId: string,
+    permission: AgentPlatformPermission = 'dashboard.read',
+  ) {
+    const ctx = await this.memberContext.resolve(userId);
+    this.memberContext.assertPermission(ctx, permission);
+    const agent = await this.agentRepository.findById(ctx.agentId);
     if (!agent) throw new NotFoundException('Agent profile not found');
     return agent;
   }

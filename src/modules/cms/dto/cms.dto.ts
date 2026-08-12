@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -482,6 +483,7 @@ export class ListBlogQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(100)
   take?: number;
 }
 

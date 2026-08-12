@@ -4,6 +4,7 @@ export type AgentPlatformPermission =
   | 'dashboard.read'
   | 'wallet.read'
   | 'wallet.export'
+  | 'wallet.manage'
   | 'finance.read'
   | 'finance.export'
   | 'orders.read'

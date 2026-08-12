@@ -6,6 +6,8 @@
 #
 # Do NOT deploy to real server until ops review is complete.
 
+# Memory budget for ~2GB VPS (leave ~250MB for OS / page cache):
+# postgres 320m + redis 96m + api 384m + worker 256m + web 256m + partner 192m + admin 192m + nginx 48m
 name: cardon-production
 
 x-backend-env: &backend-env
@@ -68,6 +70,8 @@ services:
     image: postgres:16-alpine
     container_name: cardon-prod-postgres
     restart: unless-stopped
+    mem_limit: 320m
+    mem_reservation: 192m
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -88,7 +92,9 @@ services:
     image: redis:7-alpine
     container_name: cardon-prod-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    mem_limit: 96m
+    mem_reservation: 48m
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
     volumes:
       - cardon_prod_redis:/data
     networks:
@@ -106,11 +112,14 @@ services:
     image: cardon-api:production
     container_name: cardon-prod-api
     restart: unless-stopped
+    mem_limit: 384m
+    mem_reservation: 256m
     environment:
       <<: *backend-env
       APP_ROLE: api
       PORT: 3000
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      NODE_OPTIONS: --max-old-space-size=300
     depends_on:
       postgres:
         condition: service_healthy
@@ -137,10 +146,13 @@ services:
     image: cardon-api:production
     container_name: cardon-prod-worker
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 160m
     environment:
       <<: *backend-env
       APP_ROLE: worker
       RUN_MIGRATIONS: "false"
+      NODE_OPTIONS: --max-old-space-size=192
     command: ["node", "dist/worker.js"]
     depends_on:
       postgres:
@@ -173,9 +185,12 @@ services:
     image: cardon-web:production
     container_name: cardon-prod-web
     restart: unless-stopped
+    mem_limit: 256m
+    mem_reservation: 160m
     environment:
       PORT: 3001
       HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=192
     depends_on:
       api:
         condition: service_healthy
@@ -204,9 +219,12 @@ services:
     image: cardon-partner:production
     container_name: cardon-prod-partner
     restart: unless-stopped
+    mem_limit: 192m
+    mem_reservation: 128m
     environment:
       PORT: 3002
       HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=160
     depends_on:
       api:
         condition: service_healthy
@@ -236,9 +254,12 @@ services:
     image: cardon-admin:production
     container_name: cardon-prod-admin
     restart: unless-stopped
+    mem_limit: 192m
+    mem_reservation: 128m
     environment:
       PORT: 3003
       HOSTNAME: 0.0.0.0
+      NODE_OPTIONS: --max-old-space-size=160
     depends_on:
       api:
         condition: service_healthy
@@ -257,6 +278,8 @@ services:
     image: nginx:1.27-alpine
     container_name: cardon-prod-nginx
     restart: unless-stopped
+    mem_limit: 48m
+    mem_reservation: 16m
     ports:
       - "80:80"
       - "443:443"

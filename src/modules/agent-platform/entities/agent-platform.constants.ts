@@ -13,6 +13,7 @@ export const AGENT_PLATFORM_PERMISSIONS = [
   'dashboard.read',
   'wallet.read',
   'wallet.export',
+  'wallet.manage',
   'finance.read',
   'finance.export',
   'orders.read',
@@ -62,6 +63,7 @@ export const AGENT_ROLE_PERMISSIONS: Record<AgentPlatformRole, AgentPlatformPerm
     'dashboard.read',
     'wallet.read',
     'wallet.export',
+    'wallet.manage',
     'finance.read',
     'finance.export',
     'orders.read',
@@ -134,4 +136,6 @@ export const IMPERSONATION_BLOCKED_ACTIONS = [
   'settings.manage',
   'organization.manage',
   'sessions.manage',
+  'wallet.manage',
+  'retry.manage',
 ] as const;

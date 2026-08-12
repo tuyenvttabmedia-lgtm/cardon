@@ -122,8 +122,8 @@ export class AgentOrderOperationsController {
     if (body.action === 'export') {
       this.ordersService.assertCanExport(session.platformRole);
     }
-    if (body.action === 'retry' && session.platformRole === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot retry orders');
+    if (body.action === 'retry' && !session.permissions.includes('retry.manage')) {
+      throw new ForbiddenException('Insufficient permission to retry orders');
     }
     this.ordersService.logActivity(user.id, user.email, body.action, body.metadata);
     return { ok: true };

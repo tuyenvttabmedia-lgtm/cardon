@@ -18,9 +18,14 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
+import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
 import { LedgerService } from '../../agent/services/ledger.service';
 import { FulfillmentDispatchService } from '../../provider/services/fulfillment-dispatch.service';
-import { AGENT_ROLE_PERMISSIONS, AgentPlatformRole } from '../entities/agent-platform.constants';
+import {
+  AGENT_ROLE_PERMISSIONS,
+  AgentPlatformPermission,
+  AgentPlatformRole,
+} from '../entities/agent-platform.constants';
 import {
   computeLatencyMs,
   mapFulfillmentToPortalStatus,
@@ -90,15 +95,8 @@ export class AgentOrderOperationsService {
     private readonly ledgerService: LedgerService,
     private readonly activityDispatcher: ActivityEventDispatcher,
     private readonly fulfillmentDispatch: FulfillmentDispatchService,
+    private readonly memberContext: AgentMemberContextService,
   ) {}
-
-  getSession(userId: string) {
-    return {
-      userId,
-      platformRole: 'OWNER' as AgentPlatformRole,
-      permissions: AGENT_ROLE_PERMISSIONS.OWNER,
-    };
-  }
 
   async getStatistics(userId: string) {
     const agent = await this.requireAgent(userId);
@@ -355,7 +353,7 @@ export class AgentOrderOperationsService {
     query: OrderListQuery,
   ) {
     this.assertCanExport(role);
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'orders.export');
     const where = this.buildOrderWhere(agent.id, query);
     const count = await this.prisma.order.count({ where });
 
@@ -390,7 +388,8 @@ export class AgentOrderOperationsService {
     return { mode: 'immediate' as const, format, rows, rowCount: rows.length };
   }
 
-  getExportJob(userId: string, jobId: string) {
+  async getExportJob(userId: string, jobId: string) {
+    await this.requireAgent(userId, 'orders.export');
     const job = this.exportJobs.get(jobId);
     if (!job || job.userId !== userId) throw new NotFoundException('Export job not found');
     return {
@@ -403,11 +402,11 @@ export class AgentOrderOperationsService {
   }
 
   async retryOrder(userId: string, role: AgentPlatformRole, orderId: string) {
-    if (role === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot retry orders');
+    if (!AGENT_ROLE_PERMISSIONS[role]?.includes('retry.manage')) {
+      throw new ForbiddenException('Insufficient permission to retry orders');
     }
 
-    const agent = await this.requireAgent(userId);
+    const agent = await this.requireAgent(userId, 'retry.manage');
     const order = await this.prisma.order.findFirst({
       where: { id: orderId, agentId: agent.id, channel: OrderChannel.AGENT, deletedAt: null },
       include: { providerTransactions: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 1 } },
@@ -471,9 +470,6 @@ export class AgentOrderOperationsService {
   }
 
   assertCanExport(role: AgentPlatformRole) {
-    if (role === 'READONLY') {
-      throw new ForbiddenException('Readonly role cannot export order data');
-    }
     if (!AGENT_ROLE_PERMISSIONS[role]?.includes('orders.export')) {
       throw new ForbiddenException('Insufficient permission to export orders');
     }
@@ -996,8 +992,10 @@ export class AgentOrderOperationsService {
       .slice(0, 10);
   }
 
-  private async requireAgent(userId: string) {
-    const agent = await this.agentRepository.findByUserId(userId);
+  private async requireAgent(userId: string, permission: AgentPlatformPermission = 'orders.read') {
+    const ctx = await this.memberContext.resolve(userId);
+    this.memberContext.assertPermission(ctx, permission);
+    const agent = await this.agentRepository.findById(ctx.agentId);
     if (!agent) throw new NotFoundException('Agent profile not found');
     return agent;
   }
