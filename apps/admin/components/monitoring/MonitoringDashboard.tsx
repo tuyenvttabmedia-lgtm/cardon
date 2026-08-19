@@ -14,13 +14,14 @@ import { formatDateTime } from '@/lib/utils';
 import {
   partnerApiLogsApi,
   queueMonitorApi,
+  serverHealthApi,
   systemActivityApi,
   systemHealthApi,
   systemNotificationApi,
   webhookMonitorApi,
   ApiClientError,
 } from '@/services/api-client';
-import type { SystemActivityLog, SystemNotification } from '@/types/api';
+import type { ServerOverallStatus, SystemActivityLog, SystemNotification } from '@/types/api';
 
 export function MonitoringDashboard() {
   const { can } = useAuth();
@@ -28,6 +29,8 @@ export function MonitoringDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [healthLabel, setHealthLabel] = useState<string>('—');
+  const [serverOverall, setServerOverall] = useState<ServerOverallStatus | null>(null);
+  const [serverReady, setServerReady] = useState<boolean | null>(null);
   const [queueFailed, setQueueFailed] = useState<number | null>(null);
   const [queueRedis, setQueueRedis] = useState<string>('—');
   const [workersOnline, setWorkersOnline] = useState<boolean | null>(null);
@@ -63,6 +66,24 @@ export function MonitoringDashboard() {
               }
             }),
         );
+
+        if (can('monitoring.server.read')) {
+          tasks.push(
+            serverHealthApi
+              .get()
+              .then((s) => {
+                if (cancelled) return;
+                setServerOverall(s.overall);
+                setServerReady(s.ready);
+              })
+              .catch(() => {
+                if (!cancelled) {
+                  setServerOverall(null);
+                  setServerReady(null);
+                }
+              }),
+          );
+        }
 
         if (can('queue.read')) {
           tasks.push(
@@ -158,6 +179,29 @@ export function MonitoringDashboard() {
       {error && <ErrorMessage message={error} />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {can('monitoring.server.read') && (
+          <MonitoringHealthCard
+            title={vi.monitoringHub.cardServerHealth}
+            value={serverOverall ?? '—'}
+            hint={
+              serverReady == null
+                ? undefined
+                : serverReady
+                  ? vi.monitoringHub.healthReady
+                  : 'Not ready'
+            }
+            href="/monitoring/server"
+            tone={
+              serverOverall === 'OK'
+                ? 'ok'
+                : serverOverall === 'DEGRADED'
+                  ? 'warn'
+                  : serverOverall
+                    ? 'error'
+                    : 'default'
+            }
+          />
+        )}
         <MonitoringHealthCard
           title={vi.monitoringHub.cardSystemHealth}
           value={healthScore != null ? `${healthScore}%` : '—'}

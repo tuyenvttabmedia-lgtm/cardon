@@ -1220,6 +1220,12 @@ export const systemHealthApi = {
   },
 };
 
+export const serverHealthApi = {
+  get() {
+    return apiRequest<import('@/types/api').ServerHealthPack>('/admin/monitoring/server-health');
+  },
+};
+
 export const financeApi = {
   getProfit(dateFrom: string, dateTo: string) {
     const q = new URLSearchParams({ dateFrom, dateTo });

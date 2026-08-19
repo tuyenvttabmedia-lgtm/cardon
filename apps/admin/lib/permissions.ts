@@ -56,7 +56,13 @@ export const NAV_ITEMS: NavItem[] = [
   {
     href: '/monitoring',
     label: vi.nav.monitoring,
-    permissions: ['activity.read', 'webhook.read', 'queue.read', 'notification.read'],
+    permissions: [
+      'activity.read',
+      'webhook.read',
+      'queue.read',
+      'notification.read',
+      'monitoring.server.read',
+    ],
   },
 
   { href: '/agents/overview', label: vi.nav.agents, permission: 'users.read' },
