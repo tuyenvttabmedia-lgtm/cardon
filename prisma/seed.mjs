@@ -30,6 +30,7 @@ const PERMISSIONS = [
   { code: 'queue.read', description: 'View queue monitor' },
   { code: 'queue.manage', description: 'Manage queues (retry, pause, clean)' },
   { code: 'queue.export', description: 'Export queue monitor data' },
+  { code: 'monitoring.server.read', description: 'View server health (runtime / infra snapshot)' },
   { code: 'webhook.read', description: 'View webhook monitor' },
   { code: 'webhook.manage', description: 'Manage webhooks (retry, cancel)' },
   { code: 'webhook.export', description: 'Export webhook monitor data' },
@@ -56,7 +57,7 @@ const PERMISSIONS = [
 const ROLE_PERMISSION_MATRIX = {
   CUSTOMER: [],
   AGENT: [],
-  SUPPORT: ['users.read', 'customers.read', 'customers.manage', 'orders.read', 'orders.retry', 'payments.view', 'agents.kyc.review', 'support.manage', 'notification.read', 'queue.read', 'webhook.read', 'reconciliation.read'],
+  SUPPORT: ['users.read', 'customers.read', 'customers.manage', 'orders.read', 'orders.retry', 'payments.view', 'agents.kyc.review', 'support.manage', 'notification.read', 'queue.read', 'webhook.read', 'reconciliation.read', 'monitoring.server.read'],
   MARKETING: ['cms.manage', 'notification.read'],
   ACCOUNTANT: [
     'users.read',
@@ -98,6 +99,7 @@ const ROLE_PERMISSION_MATRIX = {
     'queue.read',
     'queue.manage',
     'queue.export',
+    'monitoring.server.read',
     'webhook.read',
     'webhook.manage',
     'webhook.export',

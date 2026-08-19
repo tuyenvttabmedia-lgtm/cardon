@@ -44,7 +44,8 @@ function MonitoringShellInner({ children }: { children: React.ReactNode }) {
     can('activity.read') ||
     can('webhook.read') ||
     can('queue.read') ||
-    can('notification.read');
+    can('notification.read') ||
+    can('monitoring.server.read');
 
   if (!hasAccess) {
     return (

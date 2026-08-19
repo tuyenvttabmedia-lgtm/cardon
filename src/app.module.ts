@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { ServerHealthModule } from './modules/server-health/server-health.module';
 import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ProviderModule } from './modules/provider/provider.module';
@@ -62,6 +63,7 @@ const workerProviders = shouldRegisterWorkers() ? [WorkerHeartbeatService] : [];
     LoggerModule,
     RbacModule,
     HealthModule,
+    ServerHealthModule,
     AuthModule,
     ProductModule,
     CmsModule,

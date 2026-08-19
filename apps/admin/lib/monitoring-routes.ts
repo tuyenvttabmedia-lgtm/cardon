@@ -2,6 +2,11 @@ import { vi } from '@/lib/i18n/vi';
 
 export const MONITORING_SECTIONS = [
   { href: '/monitoring', label: vi.monitoringHub.navOverview, exact: true as const },
+  {
+    href: '/monitoring/server',
+    label: vi.monitoringHub.navServer,
+    permission: 'monitoring.server.read',
+  },
   { href: '/monitoring/activity', label: vi.monitoringHub.navActivity, permission: 'activity.read' },
   { href: '/monitoring/webhooks', label: vi.monitoringHub.navWebhooks, permission: 'webhook.read' },
   { href: '/monitoring/queues', label: vi.monitoringHub.navQueues, permission: 'queue.read' },

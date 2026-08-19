@@ -83,6 +83,50 @@ export interface SystemHealthSummary {
   };
 }
 
+export type ServerOverallStatus = 'OK' | 'DEGRADED' | 'DOWN';
+export type ServerComponentStatus = 'ok' | 'error' | 'stale' | 'unknown';
+
+export interface ServerHealthPack {
+  overall: ServerOverallStatus;
+  ready: boolean;
+  checkedAt: string;
+  buildVersion: string;
+  gitCommit: string | null;
+  appRole: string;
+  database: { status: ServerComponentStatus; latencyMs: number | null; detail?: string | null };
+  redis: { status: ServerComponentStatus; latencyMs: number | null; detail?: string | null };
+  workers: {
+    status: ServerComponentStatus;
+    ageMs: number | null;
+    lastHeartbeatAt: string | null;
+    buildVersion: string | null;
+    required: boolean;
+  };
+  process: {
+    uptimeSec: number;
+    pid: number;
+    nodeVersion: string;
+    heapUsedMb: number;
+    heapTotalMb: number;
+    rssMb: number;
+    externalMb: number;
+    eventLoopLagMs: number;
+  };
+  queues: {
+    waitingJobs: number;
+    activeJobs: number;
+    delayedJobs: number;
+    failedJobs: number;
+    redisStatus: 'ok' | 'error' | 'unknown';
+    workerConnected: boolean;
+  } | null;
+  links: {
+    systemHealth: string;
+    queues: string;
+    configurationHealth: string;
+  };
+}
+
 export interface OperationsDashboard {
   productionLabel: string;
   healthScore: number;
