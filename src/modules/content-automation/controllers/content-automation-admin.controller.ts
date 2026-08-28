@@ -67,15 +67,15 @@ export class ContentAutomationAdminController {
     return {
       enabled: this.config.isEnabled(),
       queue: this.config.getQueueName(),
-      version: '1.0-m4-ops2',
+      version: '1.0-m4-ops3',
       aiConfigured,
       promptsReady,
       heuristicFallbackAllowed: this.config.isHeuristicFallbackAllowed(),
     };
   }
 
+  /** Plan CRUD available when flag OFF — only AI enqueue / CMS publish path stays gated. */
   @Post('plans')
-  @UseGuards(ContentAutomationEnabledGuard)
   createPlan(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateContentPlanDto,
@@ -115,7 +115,6 @@ export class ContentAutomationAdminController {
   }
 
   @Patch('plans/:id')
-  @UseGuards(ContentAutomationEnabledGuard)
   updatePlan(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateContentPlanDto,
@@ -124,7 +123,6 @@ export class ContentAutomationAdminController {
   }
 
   @Post('plans/:id/archive')
-  @UseGuards(ContentAutomationEnabledGuard)
   archivePlan(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.archive(id);
   }
@@ -152,13 +150,11 @@ export class ContentAutomationAdminController {
   }
 
   @Post('plans/:id/approve-outline')
-  @UseGuards(ContentAutomationEnabledGuard)
   approveOutline(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.approveOutline(id);
   }
 
   @Post('plans/:id/reject-outline')
-  @UseGuards(ContentAutomationEnabledGuard)
   rejectOutline(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.rejectOutline(id);
   }
@@ -175,20 +171,17 @@ export class ContentAutomationAdminController {
   }
 
   @Post('plans/:id/run-quality-gate')
-  @UseGuards(ContentAutomationEnabledGuard)
   @HttpCode(HttpStatus.OK)
   runQualityGate(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.runQualityGate(id);
   }
 
   @Post('plans/:id/approve-content')
-  @UseGuards(ContentAutomationEnabledGuard)
   approveContent(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.approveContent(id);
   }
 
   @Post('plans/:id/reject-content')
-  @UseGuards(ContentAutomationEnabledGuard)
   rejectContent(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RejectContentDto,
@@ -197,7 +190,6 @@ export class ContentAutomationAdminController {
   }
 
   @Post('plans/:id/create-cms-draft')
-  @UseGuards(ContentAutomationEnabledGuard)
   createCmsDraft(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', ParseUUIDPipe) id: string,
@@ -207,7 +199,6 @@ export class ContentAutomationAdminController {
   }
 
   @Get('internal-link-candidates')
-  @UseGuards(ContentAutomationEnabledGuard)
   listInternalLinkCandidates(@Query() query: InternalLinkCandidatesQueryDto) {
     return this.linkCandidates.listCandidates(query);
   }

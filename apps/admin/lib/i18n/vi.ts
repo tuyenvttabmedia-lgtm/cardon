@@ -1299,7 +1299,7 @@ export const vi = {
       aiRuns: 'Lịch sử AI',
     },
     disabledBanner:
-      'Content Automation đang TẮT (CONTENT_AUTOMATION_ENABLED=false). Có thể xem kế hoạch / lịch sử AI, cấu hình Content AI; chưa chạy phân tích/viết bài.',
+      'Content Automation đang TẮT (CONTENT_AUTOMATION_ENABLED=false). Có thể tạo/xem kế hoạch và cấu hình Content AI; chưa chạy phân tích/viết bài AI.',
     promptsMissingBanner:
       'Thiếu prompt AI (analyze/outline/write). Chạy seed prompts hoặc kiểm tra bảng ai_prompt_templates trước khi bật generate.',
     aiNotConfiguredBanner:
