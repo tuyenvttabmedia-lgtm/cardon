@@ -19,6 +19,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { AgentApiModule } from './modules/agent-api/agent-api.module';
 import { ProductModule } from './modules/product/product.module';
 import { CmsModule } from './modules/cms/cms.module';
+import { ContentAutomationModule } from './modules/content-automation/content-automation.module';
 import { FaqModule } from './modules/faq/faq.module';
 import { ContactModule } from './modules/contact/contact.module';
 import { SupportModule } from './modules/support/support.module';
@@ -67,6 +68,7 @@ const workerProviders = shouldRegisterWorkers() ? [WorkerHeartbeatService] : [];
     AuthModule,
     ProductModule,
     CmsModule,
+    ContentAutomationModule,
     FaqModule,
     ContactModule,
     SupportModule,

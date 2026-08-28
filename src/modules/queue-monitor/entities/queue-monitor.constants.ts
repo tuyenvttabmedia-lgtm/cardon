@@ -8,6 +8,7 @@ export const QUEUE_DISPLAY_NAMES: Record<QueueName, string> = {
   reconciliation_queue: 'Reconciliation',
   notification_queue: 'Notification',
   webhook_delivery_queue: 'Webhook Delivery',
+  content_automation_queue: 'Content Automation',
 };
 
 export const QUEUE_FAILED_ALERT_THRESHOLD = 10;

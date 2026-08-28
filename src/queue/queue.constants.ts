@@ -6,6 +6,7 @@ export const QUEUE_NAMES = [
   'reconciliation_queue',
   'notification_queue',
   'webhook_delivery_queue',
+  'content_automation_queue',
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];

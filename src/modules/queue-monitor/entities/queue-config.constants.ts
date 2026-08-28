@@ -93,4 +93,17 @@ export const QUEUE_READONLY_CONFIG: Record<QueueName, QueueReadonlyConfig> = {
     rateLimit: null,
     workerCount: 1,
   },
+  content_automation_queue: {
+    attempts: 2,
+    backoff: DEFAULT_BACKOFF,
+    concurrency: 1,
+    limiter: null,
+    defaultJobOptions: {
+      ...DEFAULT_JOB_OPTIONS,
+      attempts: 2,
+      backoff: DEFAULT_BACKOFF,
+    },
+    rateLimit: null,
+    workerCount: 1,
+  },
 };
