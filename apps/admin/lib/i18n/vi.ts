@@ -848,6 +848,10 @@ export const vi = {
     contentAi: 'Content AI',
     contentAiTitle: 'Cấu hình Content AI',
     contentAiSubtitle: 'Provider OpenAI-compatible cho Content Automation',
+    contentAiTestOk: 'Kết nối thành công',
+    contentAiTestFail: 'Kết nối thất bại',
+    contentAiTimeoutHint:
+      'Timeout provider phải thấp hơn soft job timeout của Content Automation để tránh job bị stall.',
     webhooks: 'Webhook',
     webhooksSubtitle: 'URL webhook inbound và kiểm tra',
     security: 'Bảo mật',

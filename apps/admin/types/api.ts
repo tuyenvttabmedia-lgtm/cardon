@@ -1736,6 +1736,8 @@ export interface ContentAiSettings {
   maxTokens: number;
   temperature: number;
   source: 'database' | 'none';
+  jobTimeoutMs?: number;
+  maxAllowedTimeoutMs?: number;
 }
 
 export interface ProviderAlertSettings {

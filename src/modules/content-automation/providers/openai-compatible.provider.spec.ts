@@ -111,4 +111,75 @@ describe('OpenAiCompatibleProvider', () => {
       }),
     ).rejects.toMatchObject({ kind: 'MALFORMED_OUTPUT', retryable: false });
   });
+
+  it('probeConnection succeeds via GET /models', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [] }),
+    }) as never;
+
+    const result = await provider.probeConnection({
+      providerId: 'openai-compatible',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4.1-mini',
+      apiKey: 'sk-test',
+      timeoutMs: 1000,
+      maxTokens: 1000,
+      temperature: 0.3,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.method).toBe('models');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.openai.com/v1/models',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
+  it('probeConnection falls back to chat when /models is unavailable', async () => {
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: { message: 'not found' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ model: 'gpt-4.1-mini', choices: [{ message: { content: 'ok' } }] }),
+      }) as never;
+
+    const result = await provider.probeConnection({
+      providerId: 'openai-compatible',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4.1-mini',
+      apiKey: 'sk-test',
+      timeoutMs: 1000,
+      maxTokens: 1000,
+      temperature: 0.3,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.method).toBe('chat');
+  });
+
+  it('probeConnection throws AUTH on 401 from /models', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: 'bad key' } }),
+    }) as never;
+
+    await expect(
+      provider.probeConnection({
+        providerId: 'openai-compatible',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4.1-mini',
+        apiKey: 'sk-bad',
+        timeoutMs: 1000,
+        maxTokens: 1000,
+        temperature: 0.3,
+      }),
+    ).rejects.toBeInstanceOf(AiProviderError);
+  });
 });

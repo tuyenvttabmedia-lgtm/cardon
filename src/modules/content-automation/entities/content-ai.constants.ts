@@ -14,6 +14,9 @@ export const CONTENT_AI_DEFAULT_BASE_URL = 'https://api.openai.com/v1';
 
 export const CONTENT_AI_DEFAULT_TIMEOUT_MS = 170_000;
 
+/** Soft probe for admin “Test connection” (keep UI snappy). */
+export const CONTENT_AI_TEST_TIMEOUT_MS = 15_000;
+
 export interface StoredContentAiConfig {
   providerId?: string;
   baseUrl?: string;
