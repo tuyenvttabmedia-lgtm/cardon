@@ -1,6 +1,8 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import {
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -10,6 +12,7 @@ import {
   CONTENT_AUTOMATION_JOB,
   CONTENT_AUTOMATION_QUEUE,
   CONTENT_AUTOMATION_QUEUE_OPTIONS,
+  CONTENT_AUTOMATION_RATE_LIMIT_PER_HOUR,
 } from '../entities/content-automation.constants';
 import { ContentAutomationQueueJobData } from '../entities/content-automation.types';
 import { buildBullMqJobId } from '../entities/idempotency.util';
@@ -101,6 +104,18 @@ export class ContentAutomationQueueProducer {
       };
     }
 
+    const since = new Date(Date.now() - 60 * 60 * 1000);
+    const recentCount = await this.aiRunRepository.countRecentForPlan(data.planId, since);
+    if (recentCount >= CONTENT_AUTOMATION_RATE_LIMIT_PER_HOUR) {
+      throw new HttpException(
+        {
+          error: 'RATE_LIMIT_EXCEEDED',
+          message: `Max ${CONTENT_AUTOMATION_RATE_LIMIT_PER_HOUR} AI jobs per plan per hour`,
+        },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const aiRun = await this.aiRunRepository.create({
       contentPlan: { connect: { id: data.planId } },
       task: data.task,
@@ -109,11 +124,31 @@ export class ContentAutomationQueueProducer {
     });
 
     const jobId = buildBullMqJobId(data.planId, data.task, data.generationEpoch);
-    await this.queue.add(data.jobName, { ...data, aiRunId: aiRun.id }, {
-      jobId,
-      ...CONTENT_AUTOMATION_QUEUE_OPTIONS,
-    });
+    await this.removeTerminalJobIfExists(jobId);
+
+    try {
+      await this.queue.add(data.jobName, { ...data, aiRunId: aiRun.id }, {
+        jobId,
+        ...CONTENT_AUTOMATION_QUEUE_OPTIONS,
+      });
+    } catch (err) {
+      await this.aiRunRepository.completeRun(aiRun.id, {
+        status: AiRunStatus.FAILED,
+        error: err instanceof Error ? err.message.slice(0, 500) : 'Queue enqueue failed',
+      });
+      throw err;
+    }
 
     return { jobId, aiRunId: aiRun.id };
+  }
+
+  /** Allow re-enqueue after FAILED/COMPLETED by clearing leftover BullMQ job with same id. */
+  private async removeTerminalJobIfExists(jobId: string): Promise<void> {
+    const existing = await this.queue.getJob(jobId);
+    if (!existing) return;
+    const state = await existing.getState();
+    if (state === 'failed' || state === 'completed') {
+      await existing.remove();
+    }
   }
 }

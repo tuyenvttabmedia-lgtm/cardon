@@ -1941,6 +1941,30 @@ export interface ContentPlanListResponse {
   totalPages: number;
 }
 
+export interface ContentAiRunListItem {
+  id: string;
+  task: string;
+  status: string;
+  generationEpoch: number;
+  provider: string | null;
+  model: string | null;
+  promptVersion: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: string | null;
+  durationMs: number | null;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export interface ContentAiRunDetail extends ContentAiRunListItem {
+  contentPlanId: string;
+  inputHash: string | null;
+  contextRefs: unknown;
+  outputSnapshot: unknown;
+}
+
 export interface ContentAutomationContext {
   userProvided: {
     topic: string;

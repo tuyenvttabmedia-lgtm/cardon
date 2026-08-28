@@ -132,6 +132,7 @@ export class AiOrchestratorService {
     const snapshot = this.heuristic.buildSnapshot(context);
     const transitioned = await this.persistAnalyzeResult(
       input.planId,
+      input.generationEpoch,
       snapshot,
       suggestedTitle,
     );
@@ -207,6 +208,7 @@ export class AiOrchestratorService {
       const snapshot = validateAndBuildAiSnapshot(response.parsedJson, context);
       const transitioned = await this.persistAnalyzeResult(
         input.planId,
+        input.generationEpoch,
         snapshot,
         suggestedTitle,
       );
@@ -265,6 +267,7 @@ export class AiOrchestratorService {
 
   private async persistAnalyzeResult(
     planId: string,
+    generationEpoch: number,
     snapshot: IntelligenceSnapshotV1,
     existingSuggestedTitle: string | null,
   ): Promise<boolean> {
@@ -272,19 +275,21 @@ export class AiOrchestratorService {
     if (!plan) {
       throw new Error('Content plan not found');
     }
-
-    await this.planRepository.update(planId, {
-      intelligenceSnapshot: snapshot as object,
-      suggestedTitle: existingSuggestedTitle ?? this.heuristic.suggestTitle(plan),
-    });
-
-    if (plan.status !== ContentPlanStatus.DRAFT) {
+    if (plan.generationEpoch !== generationEpoch) {
       return false;
     }
 
-    assertContentPlanTransition(plan.status, ContentPlanStatus.PLANNED);
-    await this.planRepository.update(planId, { status: ContentPlanStatus.PLANNED });
-    return true;
+    const suggestedTitle = existingSuggestedTitle ?? this.heuristic.suggestTitle(plan);
+    const updated = await this.planRepository.updateIfGenerationEpoch(planId, generationEpoch, {
+      intelligenceSnapshot: snapshot as object,
+      suggestedTitle,
+      ...(plan.status === ContentPlanStatus.DRAFT
+        ? { status: ContentPlanStatus.PLANNED }
+        : {}),
+    });
+
+    if (!updated) return false;
+    return plan.status === ContentPlanStatus.DRAFT;
   }
 
   private async completeRun(
@@ -301,7 +306,11 @@ export class AiOrchestratorService {
     context: Awaited<ReturnType<ContextBuilderService['buildFromPlan']>>,
   ): Promise<AiOrchestratorResult> {
     const outline = this.heuristicOutline.buildOutline(plan, context);
-    const transitioned = await this.persistOutlineResult(input.planId, outline);
+    const transitioned = await this.persistOutlineResult(
+      input.planId,
+      input.generationEpoch,
+      outline,
+    );
     await this.completeRun(input.aiRunId, {
       status: AiRunStatus.SUCCEEDED,
       provider: 'heuristic',
@@ -333,7 +342,11 @@ export class AiOrchestratorService {
 
     return this.runAiJsonTask(input, cfg, prompt, context, async (parsed) => {
       const outline = validateAndBuildOutline(parsed, 'AI');
-      const transitioned = await this.persistOutlineResult(input.planId, outline);
+      const transitioned = await this.persistOutlineResult(
+        input.planId,
+        input.generationEpoch,
+        outline,
+      );
       return {
         outputSnapshot: { source: 'AI', sectionCount: outline.sections.length },
         auditEvent: 'plan.outline.completed',
@@ -353,7 +366,12 @@ export class AiOrchestratorService {
     if (!report.passed) {
       throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);
     }
-    const transitioned = await this.persistWriteResult(input.planId, doc, report);
+    const transitioned = await this.persistWriteResult(
+      input.planId,
+      input.generationEpoch,
+      doc,
+      report,
+    );
     await this.completeRun(input.aiRunId, {
       status: AiRunStatus.SUCCEEDED,
       provider: 'heuristic',
@@ -390,7 +408,12 @@ export class AiOrchestratorService {
       if (!report.passed) {
         throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);
       }
-      const transitioned = await this.persistWriteResult(input.planId, doc, report);
+      const transitioned = await this.persistWriteResult(
+        input.planId,
+        input.generationEpoch,
+        doc,
+        report,
+      );
       return {
         outputSnapshot: { source: 'AI', qualityPassed: report.passed },
         auditEvent: 'plan.write.completed',
@@ -490,41 +513,50 @@ export class AiOrchestratorService {
     }
   }
 
-  private async persistOutlineResult(planId: string, outline: OutlineV1): Promise<boolean> {
+  private async persistOutlineResult(
+    planId: string,
+    generationEpoch: number,
+    outline: OutlineV1,
+  ): Promise<boolean> {
     const plan = await this.planRepository.findById(planId);
     if (!plan) throw new Error('Content plan not found');
+    if (plan.generationEpoch !== generationEpoch) return false;
 
-    await this.planRepository.update(planId, { outline: outline as object });
+    const shouldTransition = plan.status === ContentPlanStatus.PLANNED;
+    if (shouldTransition) {
+      assertContentPlanTransition(plan.status, ContentPlanStatus.OUTLINE_READY);
+    }
 
-    if (plan.status !== ContentPlanStatus.PLANNED) return false;
+    const updated = await this.planRepository.updateIfGenerationEpoch(planId, generationEpoch, {
+      outline: outline as object,
+      ...(shouldTransition ? { status: ContentPlanStatus.OUTLINE_READY } : {}),
+    });
 
-    assertContentPlanTransition(plan.status, ContentPlanStatus.OUTLINE_READY);
-    await this.planRepository.update(planId, { status: ContentPlanStatus.OUTLINE_READY });
-    return true;
+    return Boolean(updated && shouldTransition);
   }
 
   private async persistWriteResult(
     planId: string,
+    generationEpoch: number,
     doc: ArticleDocumentV1,
     report: Awaited<ReturnType<QualityGateService['runGate']>>,
   ): Promise<boolean> {
     const plan = await this.planRepository.findById(planId);
     if (!plan) throw new Error('Content plan not found');
+    if (plan.generationEpoch !== generationEpoch) return false;
 
-    await this.planRepository.update(planId, {
+    const shouldTransition = plan.status === ContentPlanStatus.OUTLINE_APPROVED;
+    if (shouldTransition) {
+      assertContentPlanTransition(plan.status, ContentPlanStatus.CONTENT_READY);
+    }
+
+    // Stay at CONTENT_READY so admin can explicitly run quality gate → IN_REVIEW.
+    const updated = await this.planRepository.updateIfGenerationEpoch(planId, generationEpoch, {
       articleDocument: doc as object,
       qualityReport: report as object,
+      ...(shouldTransition ? { status: ContentPlanStatus.CONTENT_READY } : {}),
     });
 
-    if (plan.status !== ContentPlanStatus.OUTLINE_APPROVED) return false;
-
-    assertContentPlanTransition(plan.status, ContentPlanStatus.CONTENT_READY);
-    await this.planRepository.update(planId, { status: ContentPlanStatus.CONTENT_READY });
-
-    if (report.passed) {
-      assertContentPlanTransition(ContentPlanStatus.CONTENT_READY, ContentPlanStatus.IN_REVIEW);
-      await this.planRepository.update(planId, { status: ContentPlanStatus.IN_REVIEW });
-    }
-    return true;
+    return Boolean(updated && shouldTransition);
   }
 }

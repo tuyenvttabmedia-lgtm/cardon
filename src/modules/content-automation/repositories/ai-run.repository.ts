@@ -114,6 +114,24 @@ export class AiRunRepository {
 
   }
 
+  listByPlan(contentPlanId: string, take = 50): Promise<AiRun[]> {
+    return this.prisma.aiRun.findMany({
+      where: { contentPlanId },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+  }
+
+  countRecentForPlan(contentPlanId: string, since: Date): Promise<number> {
+    return this.prisma.aiRun.count({
+      where: {
+        contentPlanId,
+        createdAt: { gte: since },
+        status: { not: AiRunStatus.CANCELLED },
+      },
+    });
+  }
+
 
 
   updateStatus(

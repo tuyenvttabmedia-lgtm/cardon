@@ -18,7 +18,11 @@ describe('AiOrchestratorService', () => {
   const heuristicOutline = { buildOutline: jest.fn() };
   const heuristicWrite = { buildArticle: jest.fn() };
   const qualityGate = { runGate: jest.fn() };
-  const planRepository = { findById: jest.fn(), update: jest.fn() };
+  const planRepository = {
+    findById: jest.fn(),
+    update: jest.fn(),
+    updateIfGenerationEpoch: jest.fn(),
+  };
   const aiRunRepository = { completeRun: jest.fn() };
   const audit = { log: jest.fn() };
 
@@ -95,6 +99,9 @@ describe('AiOrchestratorService', () => {
     contextBuilder.buildFromPlan.mockResolvedValue(baseContext);
     planRepository.findById.mockResolvedValue(basePlan);
     planRepository.update.mockResolvedValue({});
+    planRepository.updateIfGenerationEpoch.mockImplementation(
+      async (_id: string, _epoch: number, data: object) => ({ ...basePlan, ...data }),
+    );
   });
 
   it('returns noop when epoch guard fails', async () => {
@@ -184,8 +191,9 @@ describe('AiOrchestratorService', () => {
 
     expect(result.source).toBe('AI');
     expect(result.snapshot?.source).toBe('AI');
-    expect(planRepository.update).toHaveBeenCalledWith(
+    expect(planRepository.updateIfGenerationEpoch).toHaveBeenCalledWith(
       'plan-1',
+      0,
       expect.objectContaining({
         intelligenceSnapshot: expect.objectContaining({ source: 'AI' }),
       }),

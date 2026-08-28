@@ -31,6 +31,46 @@ export class ContentPlanRepository {
     return this.prisma.contentPlan.update({ where: { id }, data });
   }
 
+  /**
+   * Persist only when generation_epoch still matches the job epoch (spec §15).
+   * Returns null when the plan was bumped (stale job) or missing.
+   */
+  async updateIfGenerationEpoch(
+    id: string,
+    generationEpoch: number,
+    data: Prisma.ContentPlanUpdateInput,
+  ): Promise<ContentPlan | null> {
+    const result = await this.prisma.contentPlan.updateMany({
+      where: { id, generationEpoch },
+      data: data as Prisma.ContentPlanUpdateManyMutationInput,
+    });
+    if (result.count !== 1) return null;
+    return this.findById(id);
+  }
+
+  /**
+   * Row-lock plan for critical writes (CMS draft). Caller must use the same tx client.
+   */
+  async findByIdForUpdate(
+    tx: Prisma.TransactionClient,
+    id: string,
+  ): Promise<ContentPlan | null> {
+    await tx.$executeRaw`SELECT 1 FROM content_plans WHERE id = ${id}::uuid FOR UPDATE`;
+    return tx.contentPlan.findUnique({ where: { id } });
+  }
+
+  updateWithClient(
+    tx: Prisma.TransactionClient,
+    id: string,
+    data: Prisma.ContentPlanUpdateInput,
+  ): Promise<ContentPlan> {
+    return tx.contentPlan.update({ where: { id }, data });
+  }
+
+  transaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(fn);
+  }
+
   async list(params: ListContentPlansParams): Promise<{ items: ContentPlan[]; total: number }> {
     const where: Prisma.ContentPlanWhereInput = {
       ...(params.status ? { status: params.status } : {}),
