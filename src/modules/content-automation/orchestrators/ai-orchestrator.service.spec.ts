@@ -2,9 +2,11 @@ import { AiRunStatus, AiTaskType, ContentPlanStatus } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { AiOrchestratorService } from './ai-orchestrator.service';
 import { AnalyzeOutputValidationError } from '../validators/analyze-output.validator';
+
 describe('AiOrchestratorService', () => {
   const guard = { assertRunnable: jest.fn() };
   const contextBuilder = { buildFromPlan: jest.fn() };
+  const featureConfig = { isHeuristicFallbackAllowed: jest.fn(() => true) };
   const aiConfig = { isConfigured: jest.fn(), resolveConfig: jest.fn() };
   const promptComposer = {
     compose: jest.fn(),
@@ -17,7 +19,7 @@ describe('AiOrchestratorService', () => {
   };
   const heuristicOutline = { buildOutline: jest.fn() };
   const heuristicWrite = { buildArticle: jest.fn() };
-  const qualityGate = { runGate: jest.fn() };
+  const qualityGate = { runGate: jest.fn(), runGateAsync: jest.fn() };
   const planRepository = {
     findById: jest.fn(),
     update: jest.fn(),
@@ -51,7 +53,17 @@ describe('AiOrchestratorService', () => {
       angle: null,
     },
     references: {},
-    brandContext: { siteName: 'CardOn', publicUrl: '', siteTitle: null, metaDescription: null, companyName: null, hotline: null, email: null, address: null, source: 'CMS_THEME' as const },
+    brandContext: {
+      siteName: 'CardOn',
+      publicUrl: '',
+      siteTitle: null,
+      metaDescription: null,
+      companyName: null,
+      hotline: null,
+      email: null,
+      address: null,
+      source: 'CMS_THEME' as const,
+    },
     factContext: { refs: [], source: 'BACKEND' as const },
     existingContent: [
       {
@@ -80,9 +92,11 @@ describe('AiOrchestratorService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    featureConfig.isHeuristicFallbackAllowed.mockReturnValue(true);
     orchestrator = new AiOrchestratorService(
       guard as never,
       contextBuilder as never,
+      featureConfig as never,
       aiConfig as never,
       promptComposer as never,
       aiProvider as never,
@@ -118,7 +132,7 @@ describe('AiOrchestratorService', () => {
     expect(aiProvider.complete).not.toHaveBeenCalled();
   });
 
-  it('uses heuristic fallback when AI not configured', async () => {
+  it('uses heuristic fallback when AI not configured and fallback allowed', async () => {
     aiConfig.isConfigured.mockResolvedValue(false);
     heuristic.buildSnapshot.mockReturnValue({
       version: '1',
@@ -144,6 +158,30 @@ describe('AiOrchestratorService', () => {
       'run-1',
       expect.objectContaining({ status: AiRunStatus.SUCCEEDED, provider: 'heuristic' }),
     );
+  });
+
+  it('fails when AI not configured and heuristic fallback disabled', async () => {
+    featureConfig.isHeuristicFallbackAllowed.mockReturnValue(false);
+    aiConfig.isConfigured.mockResolvedValue(false);
+
+    await expect(
+      orchestrator.execute({
+        planId: 'plan-1',
+        task: AiTaskType.ANALYZE,
+        generationEpoch: 0,
+        aiRunId: 'run-1',
+      }),
+    ).rejects.toThrow(/HEURISTIC_FALLBACK_DISABLED/);
+
+    expect(aiRunRepository.completeRun).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({
+        status: AiRunStatus.FAILED,
+        provider: 'heuristic',
+        error: expect.stringContaining('AI_NOT_CONFIGURED'),
+      }),
+    );
+    expect(aiProvider.complete).not.toHaveBeenCalled();
   });
 
   it('persists AI snapshot with source AI on success', async () => {
@@ -259,7 +297,7 @@ describe('AiOrchestratorService', () => {
     );
   });
 
-  it('falls back to heuristic when analyze prompt template is missing', async () => {
+  it('falls back to heuristic when analyze prompt template is missing and fallback allowed', async () => {
     aiConfig.isConfigured.mockResolvedValue(true);
     aiConfig.resolveConfig.mockResolvedValue({
       providerId: 'openai-compatible',

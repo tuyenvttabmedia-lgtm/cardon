@@ -90,13 +90,9 @@ export default function ContentPlansPage() {
       setTotal(res.total);
       setTotalPages(res.totalPages);
       setError(null);
-      setFeatureEnabled(true);
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : vi.app.requestFailed;
       setError(message);
-      if (err instanceof ApiClientError && (err.status === 503 || /disabled/i.test(err.message))) {
-        setFeatureEnabled(false);
-      }
     } finally {
       setLoading(false);
     }

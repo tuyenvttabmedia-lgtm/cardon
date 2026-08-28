@@ -10,6 +10,7 @@ import { AiProviderError } from '../providers/ai-provider.interface';
 import { AiRunRepository } from '../repositories/ai-run.repository';
 import { ContentPlanRepository } from '../repositories/content-plan.repository';
 import { ContentAutomationAuditService, type ContentAutomationAuditEvent } from '../services/content-automation-audit.service';
+import { ContentAutomationConfigService } from '../services/content-automation-config.service';
 import { ContextBuilderService } from '../services/context-builder.service';
 import { HeuristicAnalyzeStrategy } from '../strategies/heuristic-analyze.strategy';
 import { buildInputHash, estimateCostUsd } from '../utils/input-hash.util';
@@ -51,6 +52,7 @@ export class AiOrchestratorService {
   constructor(
     private readonly guard: AiWorkerGuardService,
     private readonly contextBuilder: ContextBuilderService,
+    private readonly featureConfig: ContentAutomationConfigService,
     private readonly aiConfig: ContentAiConfigService,
     private readonly promptComposer: PromptComposerService,
     private readonly aiProvider: OpenAiCompatibleProvider,
@@ -95,7 +97,9 @@ export class AiOrchestratorService {
   ): Promise<AiOrchestratorResult> {
     const aiConfigured = await this.aiConfig.isConfigured();
     if (!aiConfigured) {
-      return this.runHeuristicAnalyze(input, context, plan.suggestedTitle);
+      return this.runHeuristicOrReject(input, 'AI_NOT_CONFIGURED', () =>
+        this.runHeuristicAnalyze(input, context, plan.suggestedTitle),
+      );
     }
     return this.runAiAnalyze(input, context, plan.suggestedTitle);
   }
@@ -107,7 +111,9 @@ export class AiOrchestratorService {
   ): Promise<AiOrchestratorResult> {
     const aiConfigured = await this.aiConfig.isConfigured();
     if (!aiConfigured) {
-      return this.runHeuristicOutline(input, plan, context);
+      return this.runHeuristicOrReject(input, 'AI_NOT_CONFIGURED', () =>
+        this.runHeuristicOutline(input, plan, context),
+      );
     }
     return this.runAiOutline(input, plan, context);
   }
@@ -119,9 +125,39 @@ export class AiOrchestratorService {
   ): Promise<AiOrchestratorResult> {
     const aiConfigured = await this.aiConfig.isConfigured();
     if (!aiConfigured) {
-      return this.runHeuristicWrite(input, plan, context);
+      return this.runHeuristicOrReject(input, 'AI_NOT_CONFIGURED', () =>
+        this.runHeuristicWrite(input, plan, context),
+      );
     }
     return this.runAiWrite(input, plan, context);
+  }
+
+  /**
+   * Heuristic is opt-in via CONTENT_AUTOMATION_ALLOW_HEURISTIC_FALLBACK=true.
+   * Default: fail the run so operators do not treat skeleton output as AI success.
+   */
+  private async runHeuristicOrReject(
+    input: AiOrchestratorInput,
+    reason: string,
+    run: () => Promise<AiOrchestratorResult>,
+  ): Promise<AiOrchestratorResult> {
+    if (this.featureConfig.isHeuristicFallbackAllowed()) {
+      return run();
+    }
+    const message = `HEURISTIC_FALLBACK_DISABLED: ${reason}`;
+    this.logger.warn(`${message} plan=${input.planId} task=${input.task}`);
+    await this.completeRun(input.aiRunId, {
+      status: AiRunStatus.FAILED,
+      provider: 'heuristic',
+      error: message.slice(0, 500),
+    });
+    this.audit.log('plan.ai.failed', {
+      planId: input.planId,
+      task: input.task,
+      error: message,
+      source: 'HEURISTIC',
+    });
+    throw new Error(message);
   }
 
   private async runHeuristicAnalyze(
@@ -164,7 +200,9 @@ export class AiOrchestratorService {
   ): Promise<AiOrchestratorResult> {
     const cfg = await this.aiConfig.resolveConfig();
     if (!cfg) {
-      return this.runHeuristicAnalyze(input, context, suggestedTitle);
+      return this.runHeuristicOrReject(input, 'AI_CONFIG_UNRESOLVED', () =>
+        this.runHeuristicAnalyze(input, context, suggestedTitle),
+      );
     }
 
     let prompt;
@@ -175,7 +213,9 @@ export class AiOrchestratorService {
         this.logger.warn(
           `Active analyze prompt missing — heuristic fallback plan=${input.planId}`,
         );
-        return this.runHeuristicAnalyze(input, context, suggestedTitle);
+        return this.runHeuristicOrReject(input, 'ANALYZE_PROMPT_MISSING', () =>
+          this.runHeuristicAnalyze(input, context, suggestedTitle),
+        );
       }
       throw err;
     }
@@ -328,14 +368,20 @@ export class AiOrchestratorService {
     context: Awaited<ReturnType<ContextBuilderService['buildFromPlan']>>,
   ): Promise<AiOrchestratorResult> {
     const cfg = await this.aiConfig.resolveConfig();
-    if (!cfg) return this.runHeuristicOutline(input, plan, context);
+    if (!cfg) {
+      return this.runHeuristicOrReject(input, 'AI_CONFIG_UNRESOLVED', () =>
+        this.runHeuristicOutline(input, plan, context),
+      );
+    }
 
     let prompt;
     try {
       prompt = await this.promptComposer.compose(AiTaskType.OUTLINE, context);
     } catch (err) {
       if (err instanceof NotFoundException) {
-        return this.runHeuristicOutline(input, plan, context);
+        return this.runHeuristicOrReject(input, 'OUTLINE_PROMPT_MISSING', () =>
+          this.runHeuristicOutline(input, plan, context),
+        );
       }
       throw err;
     }
@@ -362,7 +408,7 @@ export class AiOrchestratorService {
     context: Awaited<ReturnType<ContextBuilderService['buildFromPlan']>>,
   ): Promise<AiOrchestratorResult> {
     const doc = this.heuristicWrite.buildArticle(plan, context);
-    const report = this.qualityGate.runGate(plan, doc, context);
+    const report = await this.qualityGate.runGateAsync(plan, doc, context);
     if (!report.passed) {
       throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);
     }
@@ -389,14 +435,20 @@ export class AiOrchestratorService {
     context: Awaited<ReturnType<ContextBuilderService['buildFromPlan']>>,
   ): Promise<AiOrchestratorResult> {
     const cfg = await this.aiConfig.resolveConfig();
-    if (!cfg) return this.runHeuristicWrite(input, plan, context);
+    if (!cfg) {
+      return this.runHeuristicOrReject(input, 'AI_CONFIG_UNRESOLVED', () =>
+        this.runHeuristicWrite(input, plan, context),
+      );
+    }
 
     let prompt;
     try {
       prompt = await this.promptComposer.compose(AiTaskType.WRITE, context);
     } catch (err) {
       if (err instanceof NotFoundException) {
-        return this.runHeuristicWrite(input, plan, context);
+        return this.runHeuristicOrReject(input, 'WRITE_PROMPT_MISSING', () =>
+          this.runHeuristicWrite(input, plan, context),
+        );
       }
       throw err;
     }
@@ -404,7 +456,7 @@ export class AiOrchestratorService {
     return this.runAiJsonTask(input, cfg, prompt, context, async (parsed) => {
       const doc = validateAndBuildArticleDocument(parsed, context, 'AI');
       validateArticleDocumentLayer1(doc);
-      const report = this.qualityGate.runGate(plan, doc, context);
+      const report = await this.qualityGate.runGateAsync(plan, doc, context);
       if (!report.passed) {
         throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);
       }
@@ -539,7 +591,7 @@ export class AiOrchestratorService {
     planId: string,
     generationEpoch: number,
     doc: ArticleDocumentV1,
-    report: Awaited<ReturnType<QualityGateService['runGate']>>,
+    report: Awaited<ReturnType<QualityGateService['runGateAsync']>>,
   ): Promise<boolean> {
     const plan = await this.planRepository.findById(planId);
     if (!plan) throw new Error('Content plan not found');

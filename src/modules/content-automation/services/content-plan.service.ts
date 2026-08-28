@@ -348,30 +348,62 @@ export class ContentPlanService {
     id: string,
     force = false,
   ): Promise<{ cmsPageId: string; created: boolean; slug: string }> {
-    return this.planRepository.transaction(async (tx) => {
-      const plan = await this.planRepository.findByIdForUpdate(tx, id);
-      if (!plan) throw new NotFoundException('Content plan not found');
-      if (plan.status !== ContentPlanStatus.APPROVED) {
+    // Short lock: validate only — do not hold FOR UPDATE across CMS I/O.
+    const plan = await this.planRepository.transaction(async (tx) => {
+      const locked = await this.planRepository.findByIdForUpdate(tx, id);
+      if (!locked) throw new NotFoundException('Content plan not found');
+      if (locked.status !== ContentPlanStatus.APPROVED) {
         throw new BadRequestException('Create CMS draft requires APPROVED status');
       }
-      if (!isArticleDocumentV1(plan.articleDocument)) {
+      if (!isArticleDocumentV1(locked.articleDocument)) {
         throw new BadRequestException('Article document missing');
       }
-      const report = plan.qualityReport;
+      const report = locked.qualityReport;
       if (!isQualityReportV1(report) || !report.passed) {
         throw new BadRequestException('Quality gate must pass before CMS draft');
       }
+      return locked;
+    });
 
-      const context = await this.contextBuilder.build(id);
-      const result = await this.cmsAdapter.createOrUpdateBlogDraft(
-        userId,
-        plan,
-        plan.articleDocument,
-        context,
-        force,
-      );
+    if (!isArticleDocumentV1(plan.articleDocument)) {
+      throw new BadRequestException('Article document missing');
+    }
 
-      await this.planRepository.updateWithClient(tx, id, { cmsPageId: result.cmsPageId });
+    const context = await this.contextBuilder.build(id);
+    const result = await this.cmsAdapter.createOrUpdateBlogDraft(
+      userId,
+      plan,
+      plan.articleDocument,
+      context,
+      force,
+    );
+
+    // Short lock: attach cmsPageId; keep existing link if another writer won the race.
+    const attached = await this.planRepository.transaction(async (tx) => {
+      const locked = await this.planRepository.findByIdForUpdate(tx, id);
+      if (!locked) throw new NotFoundException('Content plan not found');
+      if (locked.status !== ContentPlanStatus.APPROVED) {
+        throw new BadRequestException('Create CMS draft requires APPROVED status');
+      }
+
+      if (locked.cmsPageId && locked.cmsPageId !== result.cmsPageId && !force) {
+        this.audit.log('plan.cms_draft.created', {
+          planId: id,
+          cmsPageId: locked.cmsPageId,
+          created: false,
+          note: 'kept_existing_cms_link',
+        });
+        return {
+          cmsPageId: locked.cmsPageId,
+          created: false,
+          slug: result.slug,
+        };
+      }
+
+      if (locked.cmsPageId !== result.cmsPageId) {
+        await this.planRepository.updateWithClient(tx, id, { cmsPageId: result.cmsPageId });
+      }
+
       this.audit.log('plan.cms_draft.created', {
         planId: id,
         cmsPageId: result.cmsPageId,
@@ -379,6 +411,8 @@ export class ContentPlanService {
       });
       return result;
     });
+
+    return attached;
   }
 
   async listAiRuns(planId: string) {

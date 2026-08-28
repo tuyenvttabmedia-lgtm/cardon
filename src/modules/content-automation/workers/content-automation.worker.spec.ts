@@ -29,6 +29,7 @@ describe('ContentAutomationWorker analyze retry behavior', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    config.isEnabled.mockReturnValue(true);
     worker = new ContentAutomationWorker(
       config as never,
       aiRunRepository as never,

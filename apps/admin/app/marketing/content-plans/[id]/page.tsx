@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
@@ -31,8 +31,23 @@ const TAB_LABELS: Record<Tab, string> = {
   aiRuns: cp.tabs.aiRuns,
 };
 
+const AI_POLL_INTERVAL_MS = 4_000;
+const AI_POLL_MAX_MS = 180_000;
+const TERMINAL_RUN_STATUSES = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
+
 function statusLabel(status: string) {
   return (cp.statusLabels as Record<string, string>)[status] ?? status;
+}
+
+function formatCost(costUsd: string | null): string {
+  if (costUsd == null || costUsd === '') return '—';
+  const n = Number(costUsd);
+  if (!Number.isFinite(n)) return costUsd;
+  return n.toFixed(4);
+}
+
+function hasActiveAiRun(runs: ContentAiRunListItem[]): boolean {
+  return runs.some((r) => r.status === 'QUEUED' || r.status === 'RUNNING');
 }
 
 export default function ContentPlanDetailPage() {
@@ -47,7 +62,9 @@ export default function ContentPlanDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [pollingAi, setPollingAi] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
+  const pollAbortRef = useRef(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,15 +78,28 @@ export default function ContentPlanDetailPage() {
       setContext(contextRes);
       setAiRuns(runsRes.items);
       setError(null);
-      setFeatureEnabled(true);
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : vi.app.requestFailed;
       setError(message);
-      if (err instanceof ApiClientError && (err.status === 503 || /disabled/i.test(err.message))) {
-        setFeatureEnabled(false);
-      }
     } finally {
       setLoading(false);
+    }
+  }, [planId]);
+
+  const refreshQuiet = useCallback(async (): Promise<{
+    plan: ContentPlanDetail;
+    runs: ContentAiRunListItem[];
+  } | null> => {
+    try {
+      const [planRes, runsRes] = await Promise.all([
+        contentAutomationApi.getPlan(planId),
+        contentAutomationApi.listAiRuns(planId),
+      ]);
+      setPlan(planRes);
+      setAiRuns(runsRes.items);
+      return { plan: planRes, runs: runsRes.items };
+    } catch {
+      return null;
     }
   }, [planId]);
 
@@ -81,12 +111,58 @@ export default function ContentPlanDetailPage() {
     void load();
   }, [load]);
 
-  async function runAction(label: string, fn: () => Promise<unknown>) {
+  useEffect(() => {
+    return () => {
+      pollAbortRef.current += 1;
+    };
+  }, []);
+
+  async function pollAiJob(token: number) {
+    setPollingAi(true);
+    const started = Date.now();
+    try {
+      while (Date.now() - started < AI_POLL_MAX_MS) {
+        if (token !== pollAbortRef.current) return;
+        await new Promise((r) => setTimeout(r, AI_POLL_INTERVAL_MS));
+        if (token !== pollAbortRef.current) return;
+        const snap = await refreshQuiet();
+        if (!snap) continue;
+        if (!hasActiveAiRun(snap.runs)) {
+          const latest = snap.runs[0];
+          if (latest?.status === 'FAILED' || latest?.status === 'CANCELLED') {
+            toast.error(latest.error ? `${cp.aiJobFailed}: ${latest.error}` : cp.aiJobFailed);
+          } else if (latest?.provider === 'heuristic') {
+            toast.error(cp.heuristicWarning);
+          } else {
+            toast.success(cp.aiJobDone);
+          }
+          return;
+        }
+      }
+      if (token === pollAbortRef.current) {
+        toast.error(cp.aiJobTimeout);
+      }
+    } finally {
+      if (token === pollAbortRef.current) {
+        setPollingAi(false);
+      }
+    }
+  }
+
+  async function runAction(
+    label: string,
+    fn: () => Promise<unknown>,
+    opts?: { pollAi?: boolean },
+  ) {
     setActionLoading(true);
     try {
       await fn();
       toast.success(label);
       await load();
+      if (opts?.pollAi) {
+        const token = ++pollAbortRef.current;
+        void pollAiJob(token);
+      }
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     } finally {
@@ -107,6 +183,7 @@ export default function ContentPlanDetailPage() {
     }
   }
 
+  const busy = actionLoading || pollingAi;
   const intelligence = plan?.intelligenceSnapshot;
   const outline = plan?.outline;
   const article = plan?.articleDocument;
@@ -122,6 +199,11 @@ export default function ContentPlanDetailPage() {
             <Link href="/configuration/content-ai" className="font-medium underline">
               Content AI
             </Link>
+          </p>
+        ) : null}
+        {pollingAi ? (
+          <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+            {cp.aiJobPolling}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -141,9 +223,13 @@ export default function ContentPlanDetailPage() {
             {plan?.status === 'DRAFT' ? (
               <Button
                 onClick={() =>
-                  void runAction(cp.actions.analyzeDone, () => contentAutomationApi.analyzePlan(planId))
+                  void runAction(
+                    cp.actions.analyzeDone,
+                    () => contentAutomationApi.analyzePlan(planId),
+                    { pollAi: true },
+                  )
                 }
-                disabled={actionLoading || featureEnabled === false}
+                disabled={busy || featureEnabled === false}
               >
                 {cp.actions.analyze}
               </Button>
@@ -151,11 +237,13 @@ export default function ContentPlanDetailPage() {
             {plan?.status === 'PLANNED' ? (
               <Button
                 onClick={() =>
-                  void runAction(cp.actions.generateOutlineDone, () =>
-                    contentAutomationApi.generateOutline(planId),
+                  void runAction(
+                    cp.actions.generateOutlineDone,
+                    () => contentAutomationApi.generateOutline(planId),
+                    { pollAi: true },
                   )
                 }
-                disabled={actionLoading || featureEnabled === false}
+                disabled={busy || featureEnabled === false}
               >
                 {cp.actions.generateOutline}
               </Button>
@@ -168,7 +256,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.approveOutline(planId),
                     )
                   }
-                  disabled={actionLoading}
+                  disabled={busy}
                 >
                   {cp.actions.approveOutline}
                 </Button>
@@ -179,7 +267,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectOutline(planId),
                     )
                   }
-                  disabled={actionLoading}
+                  disabled={busy}
                 >
                   {cp.actions.rejectOutline}
                 </Button>
@@ -188,11 +276,13 @@ export default function ContentPlanDetailPage() {
             {plan?.status === 'OUTLINE_APPROVED' ? (
               <Button
                 onClick={() =>
-                  void runAction(cp.actions.generateArticleDone, () =>
-                    contentAutomationApi.generateArticle(planId),
+                  void runAction(
+                    cp.actions.generateArticleDone,
+                    () => contentAutomationApi.generateArticle(planId),
+                    { pollAi: true },
                   )
                 }
-                disabled={actionLoading || featureEnabled === false}
+                disabled={busy || featureEnabled === false}
               >
                 {cp.actions.generateArticle}
               </Button>
@@ -204,7 +294,7 @@ export default function ContentPlanDetailPage() {
                     contentAutomationApi.runQualityGate(planId),
                   )
                 }
-                disabled={actionLoading}
+                disabled={busy}
               >
                 {cp.actions.runQualityGate}
               </Button>
@@ -217,7 +307,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.approveContent(planId),
                     )
                   }
-                  disabled={actionLoading}
+                  disabled={busy}
                 >
                   {cp.actions.approveContent}
                 </Button>
@@ -228,7 +318,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectContent(planId, 're-write'),
                     )
                   }
-                  disabled={actionLoading}
+                  disabled={busy}
                 >
                   {cp.actions.rejectRewrite}
                 </Button>
@@ -239,7 +329,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectContent(planId, 're-outline'),
                     )
                   }
-                  disabled={actionLoading}
+                  disabled={busy}
                 >
                   {cp.actions.rejectReOutline}
                 </Button>
@@ -252,7 +342,7 @@ export default function ContentPlanDetailPage() {
                     contentAutomationApi.createCmsDraft(planId),
                   )
                 }
-                disabled={actionLoading}
+                disabled={busy}
               >
                 {cp.actions.createCmsDraft}
               </Button>
@@ -266,7 +356,7 @@ export default function ContentPlanDetailPage() {
               </Link>
             ) : null}
             {article ? (
-              <Button variant="secondary" onClick={() => void loadPreview()} disabled={actionLoading}>
+              <Button variant="secondary" onClick={() => void loadPreview()} disabled={busy}>
                 {cp.actions.previewHtml}
               </Button>
             ) : null}
@@ -276,18 +366,18 @@ export default function ContentPlanDetailPage() {
                 onClick={() =>
                   void runAction(cp.actions.archiveDone, () => contentAutomationApi.archivePlan(planId))
                 }
-                disabled={actionLoading}
+                disabled={busy}
               >
                 {cp.actions.archive}
               </Button>
             ) : null}
-            <Button variant="secondary" onClick={() => void load()}>
+            <Button variant="secondary" onClick={() => void load()} disabled={busy}>
               {vi.app.refresh}
             </Button>
           </div>
         </div>
 
-        {error && featureEnabled !== false ? <ErrorMessage message={error} /> : null}
+        {error ? <ErrorMessage message={error} /> : null}
         {loading ? <p>{vi.app.loading}</p> : null}
 
         {plan ? (
@@ -381,27 +471,52 @@ export default function ContentPlanDetailPage() {
                           <th className="py-2 pr-3">Provider</th>
                           <th className="py-2 pr-3">Model</th>
                           <th className="py-2 pr-3">Tokens</th>
+                          <th className="py-2 pr-3">{cp.costUsd}</th>
                           <th className="py-2 pr-3">Lỗi</th>
                           <th className="py-2">{cp.updatedAt}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {aiRuns.map((run) => (
-                          <tr key={run.id} className="border-b align-top">
-                            <td className="py-2 pr-3 font-mono text-xs">{run.task}</td>
-                            <td className="py-2 pr-3">{run.status}</td>
-                            <td className="py-2 pr-3">{run.generationEpoch}</td>
-                            <td className="py-2 pr-3">{run.provider ?? '—'}</td>
-                            <td className="py-2 pr-3">{run.model ?? '—'}</td>
-                            <td className="py-2 pr-3">
-                              {run.tokensIn ?? '—'} / {run.tokensOut ?? '—'}
-                            </td>
-                            <td className="py-2 pr-3 text-xs text-red-600">{run.error ?? '—'}</td>
-                            <td className="py-2">
-                              {new Date(run.createdAt).toLocaleString('vi-VN')}
-                            </td>
-                          </tr>
-                        ))}
+                        {aiRuns.map((run) => {
+                          const isHeuristic = run.provider === 'heuristic';
+                          const isTerminal = TERMINAL_RUN_STATUSES.has(run.status);
+                          return (
+                            <tr
+                              key={run.id}
+                              className={`border-b align-top ${
+                                isHeuristic ? 'bg-amber-50/80' : ''
+                              }`}
+                            >
+                              <td className="py-2 pr-3 font-mono text-xs">{run.task}</td>
+                              <td className="py-2 pr-3">
+                                {run.status}
+                                {!isTerminal ? (
+                                  <span className="ml-1 text-xs text-sky-700">…</span>
+                                ) : null}
+                              </td>
+                              <td className="py-2 pr-3">{run.generationEpoch}</td>
+                              <td className="py-2 pr-3">
+                                {run.provider ?? '—'}
+                                {isHeuristic ? (
+                                  <span className="mt-1 block text-xs font-medium text-amber-800">
+                                    {cp.heuristicBadge}
+                                  </span>
+                                ) : null}
+                              </td>
+                              <td className="py-2 pr-3">{run.model ?? '—'}</td>
+                              <td className="py-2 pr-3">
+                                {run.tokensIn ?? '—'} / {run.tokensOut ?? '—'}
+                              </td>
+                              <td className="py-2 pr-3 font-mono text-xs">
+                                {formatCost(run.costUsd)}
+                              </td>
+                              <td className="py-2 pr-3 text-xs text-red-600">{run.error ?? '—'}</td>
+                              <td className="py-2">
+                                {new Date(run.createdAt).toLocaleString('vi-VN')}
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

@@ -5,15 +5,18 @@ import { Job } from 'bullmq';
 import { shouldRegisterWorkers } from '../../../config/process-role';
 import {
   CONTENT_AUTOMATION_JOB,
+  CONTENT_AUTOMATION_JOB_TIMEOUT_MS,
   CONTENT_AUTOMATION_LOCK_DURATION_MS,
   CONTENT_AUTOMATION_QUEUE,
 } from '../entities/content-automation.constants';
 import { ContentAutomationQueueJobData } from '../entities/content-automation.types';
 import { AiOrchestratorService } from '../orchestrators/ai-orchestrator.service';
+import { AiProviderError } from '../providers/ai-provider.interface';
 import { AiRunRepository } from '../repositories/ai-run.repository';
 import { ContentAutomationConfigService } from '../services/content-automation-config.service';
 import { ContentAutomationAuditService } from '../services/content-automation-audit.service';
 import { isAnalyzeJobRetryable } from '../utils/analyze-error.util';
+import { withTimeout } from '../utils/with-timeout.util';
 
 type ContentAutomationJobPayload = ContentAutomationQueueJobData & {
   aiRunId?: string;
@@ -118,13 +121,24 @@ export class ContentAutomationWorker extends WorkerHost {
       await this.aiRunRepository.completeRun(aiRunId, { status: AiRunStatus.RUNNING });
     }
 
+    const timeoutMs = this.resolveJobTimeoutMs();
+
     try {
-      const result = await this.orchestrator.execute({
-        planId,
-        task,
-        generationEpoch: job.data.generationEpoch,
-        aiRunId,
-      });
+      const result = await withTimeout(
+        this.orchestrator.execute({
+          planId,
+          task,
+          generationEpoch: job.data.generationEpoch,
+          aiRunId,
+        }),
+        timeoutMs,
+        () =>
+          new AiProviderError(
+            `Content automation soft timeout after ${timeoutMs}ms`,
+            'TIMEOUT',
+            true,
+          ),
+      );
 
       if (result.noop) {
         this.logger.log(`${task} noop plan=${planId} reason=${result.reason ?? 'unknown'}`);
@@ -153,6 +167,12 @@ export class ContentAutomationWorker extends WorkerHost {
         `AI job non-retryable failure plan=${planId} task=${task} — job will not retry`,
       );
     }
+  }
+
+  private resolveJobTimeoutMs(): number {
+    const raw = process.env.CONTENT_AUTOMATION_JOB_TIMEOUT_MS;
+    const parsed = raw ? Number.parseInt(raw, 10) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : CONTENT_AUTOMATION_JOB_TIMEOUT_MS;
   }
 }
 
