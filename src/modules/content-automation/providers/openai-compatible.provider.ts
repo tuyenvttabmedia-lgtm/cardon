@@ -1,11 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { ContentAiConfigService } from '../config/content-ai-config.service';
+import type { ResolvedContentAiConfig } from '../entities/content-ai.constants';
+import { CONTENT_AI_TEST_TIMEOUT_MS } from '../entities/content-ai.constants';
 import {
   AiCompletionRequest,
   AiCompletionResponse,
   AiProvider,
   AiProviderError,
 } from './ai-provider.interface';
+
+export interface AiConnectionProbeResult {
+  ok: true;
+  latencyMs: number;
+  model: string;
+  method: 'models' | 'chat';
+  message: string;
+}
 
 @Injectable()
 export class OpenAiCompatibleProvider implements AiProvider {
@@ -89,6 +99,90 @@ export class OpenAiCompatibleProvider implements AiProvider {
       tokensOut,
       model: body.model ?? request.model ?? cfg.model,
       latencyMs,
+    };
+  }
+
+  /**
+   * Lightweight connectivity probe for admin settings.
+   * Prefers GET /models (cheap auth check); falls back to a 1-token chat completion.
+   */
+  async probeConnection(cfg: ResolvedContentAiConfig): Promise<AiConnectionProbeResult> {
+    const base = cfg.baseUrl.replace(/\/$/, '');
+    const timeoutMs = Math.min(
+      cfg.timeoutMs || CONTENT_AI_TEST_TIMEOUT_MS,
+      CONTENT_AI_TEST_TIMEOUT_MS,
+    );
+    const started = Date.now();
+
+    try {
+      const modelsRes = await fetch(`${base}/models`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${cfg.apiKey}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (modelsRes.ok) {
+        return {
+          ok: true,
+          latencyMs: Date.now() - started,
+          model: cfg.model,
+          method: 'models',
+          message: `Kết nối OK (GET /models) — model cấu hình: ${cfg.model}`,
+        };
+      }
+
+      if (modelsRes.status === 401 || modelsRes.status === 403) {
+        const errBody = (await modelsRes.json().catch(() => ({}))) as {
+          error?: { message?: string };
+        };
+        throw this.mapHttpError(modelsRes.status, errBody.error?.message ?? 'Unauthorized');
+      }
+    } catch (err) {
+      if (err instanceof AiProviderError) throw err;
+    }
+
+    const chatStarted = Date.now();
+    let response: Response;
+    try {
+      response = await fetch(`${base}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cfg.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+          temperature: 0,
+        }),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err) {
+      const kind =
+        err instanceof Error && err.name === 'TimeoutError' ? 'TIMEOUT' : 'PROVIDER_UNAVAILABLE';
+      throw new AiProviderError(
+        err instanceof Error ? err.message : 'Provider request failed',
+        kind,
+        true,
+      );
+    }
+
+    const body = (await response.json().catch(() => ({}))) as {
+      model?: string;
+      error?: { message?: string };
+    };
+
+    if (!response.ok) {
+      throw this.mapHttpError(response.status, body.error?.message ?? 'Provider error');
+    }
+
+    return {
+      ok: true,
+      latencyMs: Date.now() - chatStarted,
+      model: body.model ?? cfg.model,
+      method: 'chat',
+      message: `Kết nối OK (chat/completions) — model: ${body.model ?? cfg.model}`,
     };
   }
 

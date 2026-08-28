@@ -69,4 +69,40 @@ describe('ContentAiConfigService', () => {
       expect.any(String),
     );
   });
+
+  it('clamps timeout above job soft wall-clock', async () => {
+    settingsRepository.findByKey.mockResolvedValue({
+      key: 'content.ai',
+      value: {
+        providerId: 'openai-compatible',
+        baseUrl: 'https://api.openai.com/v1',
+        model: 'gpt-4.1-mini',
+        apiKeyEnc: 'enc',
+        timeoutMs: 300_000,
+      },
+    });
+    encryption.decrypt.mockReturnValue('sk-test-key');
+
+    const cfg = await service.resolveConfig();
+    expect(cfg?.timeoutMs).toBeLessThanOrEqual(170_000);
+
+    const view = await service.getAdminView();
+    expect(view.maxAllowedTimeoutMs).toBe(170_000);
+    expect(view.jobTimeoutMs).toBe(180_000);
+  });
+
+  it('resolveConfigForProbe uses unsaved api key override', async () => {
+    settingsRepository.findByKey.mockResolvedValue(null);
+    encryption.isMaskedInput.mockReturnValue(false);
+
+    const cfg = await service.resolveConfigForProbe({
+      apiKey: 'sk-form-key',
+      baseUrl: 'https://example.com/v1',
+      model: 'custom-model',
+    });
+
+    expect(cfg?.apiKey).toBe('sk-form-key');
+    expect(cfg?.baseUrl).toBe('https://example.com/v1');
+    expect(cfg?.model).toBe('custom-model');
+  });
 });

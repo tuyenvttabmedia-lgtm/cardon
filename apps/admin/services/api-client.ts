@@ -1121,6 +1121,24 @@ export const settingsAdminApi = {
       body: stripSettingsReadonly(body as Record<string, unknown>),
     });
   },
+  testContentAiConnection(body?: {
+    baseUrl?: string;
+    model?: string;
+    apiKey?: string;
+    timeoutMs?: number;
+  }) {
+    return apiRequest<{
+      ok: boolean;
+      latencyMs?: number;
+      model?: string;
+      method?: 'models' | 'chat';
+      message: string;
+      errorKind?: string;
+    }>('/admin/settings/content-ai/test-connection', {
+      method: 'POST',
+      body: body ?? {},
+    });
+  },
   reloadAll() {
     return apiRequest<{ reloaded: boolean }>('/admin/settings/reload', { method: 'POST' });
   },

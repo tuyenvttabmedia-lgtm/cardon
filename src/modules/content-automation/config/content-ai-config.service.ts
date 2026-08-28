@@ -10,7 +10,12 @@ import {
   type ResolvedContentAiConfig,
   type StoredContentAiConfig,
 } from '../entities/content-ai.constants';
-import type { UpdateContentAiSettingsDto } from '../dto/content-ai-settings.dto';
+import { CONTENT_AUTOMATION_JOB_TIMEOUT_MS } from '../entities/content-automation.constants';
+import type {
+  TestContentAiConnectionDto,
+  UpdateContentAiSettingsDto,
+} from '../dto/content-ai-settings.dto';
+import { CONTENT_AI_MAX_TIMEOUT_MS } from '../dto/content-ai-settings.dto';
 
 export interface ContentAiAdminView {
   configured: boolean;
@@ -22,6 +27,9 @@ export interface ContentAiAdminView {
   maxTokens: number;
   temperature: number;
   source: 'database' | 'none';
+  /** Soft job wall-clock — provider timeout must stay below this. */
+  jobTimeoutMs: number;
+  maxAllowedTimeoutMs: number;
 }
 
 @Injectable()
@@ -66,9 +74,40 @@ export class ContentAiConfigService {
       baseUrl: stored.baseUrl?.trim() || CONTENT_AI_DEFAULT_BASE_URL,
       model: stored.model?.trim() || CONTENT_AI_DEFAULT_MODEL,
       apiKey,
-      timeoutMs: stored.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS,
+      timeoutMs: this.clampTimeout(stored.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS),
       maxTokens: stored.maxTokens ?? 4096,
       temperature: stored.temperature ?? 0.3,
+    };
+  }
+
+  /**
+   * Build probe config from saved settings + optional unsaved form overrides.
+   * Does not persist.
+   */
+  async resolveConfigForProbe(
+    dto: TestContentAiConnectionDto = {},
+  ): Promise<ResolvedContentAiConfig | null> {
+    const stored = await this.resolveConfig();
+
+    let apiKey = stored?.apiKey ?? '';
+    if (dto.apiKey?.trim() && !this.encryption.isMaskedInput(dto.apiKey)) {
+      apiKey = dto.apiKey.trim();
+    }
+
+    if (!apiKey) {
+      return null;
+    }
+
+    return {
+      providerId: stored?.providerId || CONTENT_AI_PROVIDER_OPENAI_COMPATIBLE,
+      baseUrl: dto.baseUrl?.trim() || stored?.baseUrl || CONTENT_AI_DEFAULT_BASE_URL,
+      model: dto.model?.trim() || stored?.model || CONTENT_AI_DEFAULT_MODEL,
+      apiKey,
+      timeoutMs: this.clampTimeout(
+        dto.timeoutMs ?? stored?.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS,
+      ),
+      maxTokens: stored?.maxTokens ?? 4096,
+      temperature: stored?.temperature ?? 0.3,
     };
   }
 
@@ -85,6 +124,8 @@ export class ContentAiConfigService {
         maxTokens: 4096,
         temperature: 0.3,
         source: 'none',
+        jobTimeoutMs: CONTENT_AUTOMATION_JOB_TIMEOUT_MS,
+        maxAllowedTimeoutMs: CONTENT_AI_MAX_TIMEOUT_MS,
       };
     }
 
@@ -103,10 +144,12 @@ export class ContentAiConfigService {
       baseUrl: stored.baseUrl?.trim() || CONTENT_AI_DEFAULT_BASE_URL,
       model: stored.model?.trim() || CONTENT_AI_DEFAULT_MODEL,
       apiKey: masked,
-      timeoutMs: stored.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS,
+      timeoutMs: this.clampTimeout(stored.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS),
       maxTokens: stored.maxTokens ?? 4096,
       temperature: stored.temperature ?? 0.3,
       source: 'database',
+      jobTimeoutMs: CONTENT_AUTOMATION_JOB_TIMEOUT_MS,
+      maxAllowedTimeoutMs: CONTENT_AI_MAX_TIMEOUT_MS,
     };
   }
 
@@ -126,7 +169,9 @@ export class ContentAiConfigService {
       baseUrl: dto.baseUrl?.trim() || existing.baseUrl || CONTENT_AI_DEFAULT_BASE_URL,
       model: dto.model?.trim() || existing.model || CONTENT_AI_DEFAULT_MODEL,
       apiKeyEnc,
-      timeoutMs: dto.timeoutMs ?? existing.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS,
+      timeoutMs: this.clampTimeout(
+        dto.timeoutMs ?? existing.timeoutMs ?? CONTENT_AI_DEFAULT_TIMEOUT_MS,
+      ),
       maxTokens: dto.maxTokens ?? existing.maxTokens ?? 4096,
       temperature: dto.temperature ?? existing.temperature ?? 0.3,
     };
@@ -138,5 +183,10 @@ export class ContentAiConfigService {
     );
 
     return this.getAdminView();
+  }
+
+  private clampTimeout(ms: number): number {
+    if (!Number.isFinite(ms) || ms < 5_000) return CONTENT_AI_DEFAULT_TIMEOUT_MS;
+    return Math.min(ms, CONTENT_AI_MAX_TIMEOUT_MS);
   }
 }
