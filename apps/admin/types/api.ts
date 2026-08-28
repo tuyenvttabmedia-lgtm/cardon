@@ -980,6 +980,7 @@ export type ConfigurationModuleId =
   | 'orders'
   | 'smtp'
   | 'telegram'
+  | 'content-ai'
   | 'webhooks'
   | 'security'
   | 'integrations'
@@ -1723,6 +1724,18 @@ export interface TelegramSettings extends SettingsSourceView {
   enabled?: boolean;
   chatId?: string;
   botToken?: string;
+}
+
+export interface ContentAiSettings {
+  configured: boolean;
+  providerId: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string | null;
+  timeoutMs: number;
+  maxTokens: number;
+  temperature: number;
+  source: 'database' | 'none';
 }
 
 export interface ProviderAlertSettings {

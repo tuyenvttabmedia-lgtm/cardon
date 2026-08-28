@@ -63,6 +63,7 @@ import type {
   SystemSettings,
   OrderSettings,
   TelegramSettings,
+  ContentAiSettings,
   SystemAuditLog,
   SystemAuditLogListResponse,
   SystemActivityLog,
@@ -1107,6 +1108,15 @@ export const settingsAdminApi = {
   },
   updateTelegram(body: Partial<TelegramSettings>) {
     return apiRequest<TelegramSettings>('/admin/settings/telegram', {
+      method: 'PUT',
+      body: stripSettingsReadonly(body as Record<string, unknown>),
+    });
+  },
+  getContentAi() {
+    return apiRequest<ContentAiSettings>('/admin/settings/content-ai');
+  },
+  updateContentAi(body: Partial<ContentAiSettings>) {
+    return apiRequest<ContentAiSettings>('/admin/settings/content-ai', {
       method: 'PUT',
       body: stripSettingsReadonly(body as Record<string, unknown>),
     });

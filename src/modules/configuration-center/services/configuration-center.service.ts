@@ -380,6 +380,7 @@ export class ConfigurationCenterService {
       telegram: SETTINGS_KEYS.TELEGRAM,
       maintenance: SETTINGS_KEYS.MAINTENANCE,
       'feature-flags': SETTINGS_KEYS.SYSTEM,
+      'content-ai': 'content.ai',
     };
     return map[module] ?? null;
   }
