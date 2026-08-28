@@ -16,26 +16,27 @@ import {
 } from '@/services/content-automation-api';
 import type { ContentPlanListItem } from '@/types/api';
 
+const cp = vi.contentPlans;
+
 const STATUS_OPTIONS = [
-  { value: '', label: 'Tất cả trạng thái' },
-  { value: 'DRAFT', label: 'DRAFT' },
-  { value: 'PLANNED', label: 'PLANNED' },
-  { value: 'OUTLINE_READY', label: 'OUTLINE_READY' },
-  { value: 'ARCHIVED', label: 'ARCHIVED' },
+  { value: '', label: cp.allStatuses },
+  ...Object.entries(cp.statusLabels).map(([value, label]) => ({ value, label })),
 ];
 
-const CONTENT_TYPES = [
-  { value: 'GUIDE', label: 'GUIDE' },
-  { value: 'TUTORIAL', label: 'TUTORIAL' },
-  { value: 'FAQ', label: 'FAQ' },
-  { value: 'EXPLAINER', label: 'EXPLAINER' },
-];
+const CONTENT_TYPES = Object.entries(cp.contentTypeLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
 
-const SEARCH_INTENTS = [
-  { value: 'INFORMATIONAL', label: 'INFORMATIONAL' },
-  { value: 'COMMERCIAL', label: 'COMMERCIAL' },
-  { value: 'TRANSACTIONAL', label: 'TRANSACTIONAL' },
-];
+const SEARCH_INTENTS = Object.entries(cp.searchIntentLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+const PRIORITIES = Object.entries(cp.priorityLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
 
 const EMPTY_FORM: CreateContentPlanInput = {
   topic: '',
@@ -44,6 +45,14 @@ const EMPTY_FORM: CreateContentPlanInput = {
   contentType: 'GUIDE',
   priority: 'MEDIUM',
 };
+
+function statusLabel(status: string) {
+  return (cp.statusLabels as Record<string, string>)[status] ?? status;
+}
+
+function contentTypeLabel(type: string) {
+  return (cp.contentTypeLabels as Record<string, string>)[type] ?? type;
+}
 
 export default function ContentPlansPage() {
   const router = useRouter();
@@ -59,6 +68,14 @@ export default function ContentPlansPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<CreateContentPlanInput>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
+  const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void contentAutomationApi
+      .status()
+      .then((s) => setFeatureEnabled(s.enabled))
+      .catch(() => setFeatureEnabled(null));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,8 +90,13 @@ export default function ContentPlansPage() {
       setTotal(res.total);
       setTotalPages(res.totalPages);
       setError(null);
+      setFeatureEnabled(true);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+      const message = err instanceof ApiClientError ? err.message : vi.app.requestFailed;
+      setError(message);
+      if (err instanceof ApiClientError && (err.status === 503 || /disabled/i.test(err.message))) {
+        setFeatureEnabled(false);
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +121,7 @@ export default function ContentPlansPage() {
         primaryKeyword: form.primaryKeyword.trim(),
         supportingKeywords: form.supportingKeywords?.filter(Boolean),
       });
-      toast.success('Đã tạo kế hoạch nội dung');
+      toast.success(cp.created);
       setShowCreate(false);
       setForm(EMPTY_FORM);
       router.push(`/marketing/content-plans/${plan.id}`);
@@ -116,20 +138,29 @@ export default function ContentPlansPage() {
         <MarketingNav />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">Kế hoạch nội dung (Content Automation)</h1>
-            <p className="text-sm text-muted-foreground">
-              M2 — CRUD + Content Intelligence (heuristic, không AI provider)
-            </p>
+            <h1 className="text-xl font-semibold">{cp.title}</h1>
+            <p className="text-sm text-muted-foreground">{cp.subtitle}</p>
           </div>
-          <Button onClick={() => setShowCreate(true)}>{vi.app.create}</Button>
+          <Button onClick={() => setShowCreate(true)} disabled={featureEnabled === false}>
+            {vi.app.create}
+          </Button>
         </div>
 
-        {error ? <ErrorMessage message={error} /> : null}
+        {featureEnabled === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.disabledBanner}{' '}
+            <Link href="/configuration/content-ai" className="font-medium underline">
+              Content AI
+            </Link>
+          </p>
+        ) : null}
+
+        {error && featureEnabled !== false ? <ErrorMessage message={error} /> : null}
 
         <Card className="space-y-4 p-4">
           <div className="grid gap-3 md:grid-cols-3">
             <Input
-              placeholder="Tìm chủ đề / từ khóa..."
+              placeholder={cp.searchPlaceholder}
               value={q}
               onChange={(e) => setQ(e.target.value)}
             />
@@ -148,17 +179,17 @@ export default function ContentPlansPage() {
           {loading ? (
             <p>{vi.app.loading}</p>
           ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chưa có kế hoạch nội dung.</p>
+            <p className="text-sm text-muted-foreground">{cp.empty}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b text-left">
-                    <th className="py-2 pr-4">Chủ đề</th>
-                    <th className="py-2 pr-4">Từ khóa chính</th>
-                    <th className="py-2 pr-4">Loại</th>
-                    <th className="py-2 pr-4">Trạng thái</th>
-                    <th className="py-2 pr-4">Cập nhật</th>
+                    <th className="py-2 pr-4">{cp.topic}</th>
+                    <th className="py-2 pr-4">{cp.primaryKeyword}</th>
+                    <th className="py-2 pr-4">{cp.type}</th>
+                    <th className="py-2 pr-4">{cp.status}</th>
+                    <th className="py-2 pr-4">{cp.updatedAt}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -173,8 +204,8 @@ export default function ContentPlansPage() {
                         </Link>
                       </td>
                       <td className="py-2 pr-4">{item.primaryKeyword}</td>
-                      <td className="py-2 pr-4">{item.contentType}</td>
-                      <td className="py-2 pr-4">{item.status}</td>
+                      <td className="py-2 pr-4">{contentTypeLabel(item.contentType)}</td>
+                      <td className="py-2 pr-4">{statusLabel(item.status)}</td>
                       <td className="py-2 pr-4">
                         {new Date(item.updatedAt).toLocaleString('vi-VN')}
                       </td>
@@ -187,7 +218,7 @@ export default function ContentPlansPage() {
 
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <span>
-              {total} kế hoạch · trang {page}/{totalPages}
+              {total} {cp.totalLabel} · {cp.pageLabel} {page}/{totalPages}
             </span>
             <div className="flex gap-2">
               <Button
@@ -195,14 +226,14 @@ export default function ContentPlansPage() {
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
-                Trước
+                {cp.prev}
               </Button>
               <Button
                 variant="secondary"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
-                Sau
+                {cp.next}
               </Button>
             </div>
           </div>
@@ -210,10 +241,10 @@ export default function ContentPlansPage() {
 
         {showCreate ? (
           <Card className="space-y-4 p-4">
-            <h2 className="font-medium">Tạo kế hoạch mới</h2>
+            <h2 className="font-medium">{cp.createTitle}</h2>
             <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => void handleCreate(e)}>
               <div>
-                <Label>Chủ đề *</Label>
+                <Label>{cp.topic} *</Label>
                 <Input
                   value={form.topic}
                   onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
@@ -221,7 +252,7 @@ export default function ContentPlansPage() {
                 />
               </div>
               <div>
-                <Label>Từ khóa chính *</Label>
+                <Label>{cp.primaryKeyword} *</Label>
                 <Input
                   value={form.primaryKeyword}
                   onChange={(e) => setForm((f) => ({ ...f, primaryKeyword: e.target.value }))}
@@ -229,7 +260,7 @@ export default function ContentPlansPage() {
                 />
               </div>
               <div>
-                <Label>Search intent</Label>
+                <Label>{cp.searchIntent}</Label>
                 <Select
                   value={form.searchIntent}
                   onChange={(e) => setForm((f) => ({ ...f, searchIntent: e.target.value }))}
@@ -242,7 +273,7 @@ export default function ContentPlansPage() {
                 </Select>
               </div>
               <div>
-                <Label>Content type</Label>
+                <Label>{cp.contentType}</Label>
                 <Select
                   value={form.contentType}
                   onChange={(e) => setForm((f) => ({ ...f, contentType: e.target.value }))}
@@ -255,14 +286,27 @@ export default function ContentPlansPage() {
                 </Select>
               </div>
               <div>
-                <Label>Góc nội dung (angle)</Label>
+                <Label>{cp.priority}</Label>
+                <Select
+                  value={form.priority ?? 'MEDIUM'}
+                  onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+                >
+                  {PRIORITIES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label>{cp.angle}</Label>
                 <Input
                   value={form.angle ?? ''}
                   onChange={(e) => setForm((f) => ({ ...f, angle: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label>Từ khóa phụ (phân cách bằng dấu phẩy)</Label>
+              <div className="md:col-span-2">
+                <Label>{cp.supportingKeywords}</Label>
                 <Input
                   value={(form.supportingKeywords ?? []).join(', ')}
                   onChange={(e) =>

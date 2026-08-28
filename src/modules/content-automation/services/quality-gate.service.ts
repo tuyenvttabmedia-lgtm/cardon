@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CmsPageStatus } from '@prisma/client';
+import { CmsPageStatus, CmsPageType } from '@prisma/client';
 import type { ContentPlan } from '@prisma/client';
 import type { ArticleDocumentV1 } from '../entities/article-document.types';
 import {
@@ -20,6 +20,53 @@ export class QualityGateService {
   constructor(private readonly cmsService: CmsService) {}
 
   runGate(
+    plan: ContentPlan,
+    doc: ArticleDocumentV1,
+    context: GenerationContext,
+  ): QualityReportV1 {
+    return this.runGateSync(plan, doc, context);
+  }
+
+  /** Async gate with CMS slug/title collision (Layer 2). */
+  async runGateAsync(
+    plan: ContentPlan,
+    doc: ArticleDocumentV1,
+    context: GenerationContext,
+  ): Promise<QualityReportV1> {
+    const report = this.runGateSync(plan, doc, context);
+    const slug = slugifyTitle(doc.title);
+    const titleLower = doc.title.trim().toLowerCase();
+
+    try {
+      const pages = await this.cmsService.listPages({
+        type: CmsPageType.BLOG_POST,
+      });
+      const conflict = pages.find(
+        (p) =>
+          p.id !== plan.cmsPageId &&
+          (p.slug === slug || p.title.trim().toLowerCase() === titleLower),
+      );
+      if (conflict) {
+        report.checks.push(
+          failed(
+            'SLUG_TITLE_COLLISION',
+            2,
+            `Slug/title conflicts with existing page ${conflict.id} (${conflict.slug})`,
+          ),
+        );
+        report.layer2Passed = !report.checks.some((c) => c.layer === 2 && !c.passed);
+        report.passed = report.layer1Passed && report.layer2Passed;
+      } else {
+        report.checks.push(passed('SLUG_UNIQUE', 2, `Slug available: ${slug}`));
+      }
+    } catch {
+      report.checks.push(warn('SLUG_CHECK_SKIPPED', 3, 'Could not verify slug uniqueness'));
+    }
+
+    return report;
+  }
+
+  private runGateSync(
     plan: ContentPlan,
     doc: ArticleDocumentV1,
     context: GenerationContext,

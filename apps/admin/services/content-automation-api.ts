@@ -2,6 +2,8 @@ import { apiRequest } from '@/services/api-client';
 import type {
   ContentAutomationContext,
   ContentAutomationStatus,
+  ContentAiRunDetail,
+  ContentAiRunListItem,
   ContentPlanDetail,
   ContentPlanListResponse,
   InternalLinkCandidate,
@@ -65,6 +67,14 @@ export const contentAutomationApi = {
 
   getPlanContext(id: string): Promise<ContentAutomationContext> {
     return apiRequest(`/admin/content-automation/plans/${id}/context`);
+  },
+
+  listAiRuns(planId: string): Promise<{ items: ContentAiRunListItem[] }> {
+    return apiRequest(`/admin/content-automation/plans/${planId}/ai-runs`);
+  },
+
+  getAiRun(id: string): Promise<ContentAiRunDetail> {
+    return apiRequest(`/admin/content-automation/ai-runs/${id}`);
   },
 
   createPlan(body: CreateContentPlanInput): Promise<ContentPlanDetail> {

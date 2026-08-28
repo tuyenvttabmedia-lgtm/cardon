@@ -27,6 +27,7 @@ import {
 } from '../mappers/content-plan.mapper';
 import { parsePlanReferences } from '../entities/plan-references.types';
 import { ContentPlanRepository } from '../repositories/content-plan.repository';
+import { AiRunRepository } from '../repositories/ai-run.repository';
 import { ContentAutomationQueueProducer } from '../producers/content-automation-queue.producer';
 import { ContentAutomationAuditService } from './content-automation-audit.service';
 import { ContextBuilderService } from './context-builder.service';
@@ -46,6 +47,7 @@ const EDITABLE_STATUSES: ContentPlanStatus[] = [
 export class ContentPlanService {
   constructor(
     private readonly planRepository: ContentPlanRepository,
+    private readonly aiRunRepository: AiRunRepository,
     private readonly queueProducer: ContentAutomationQueueProducer,
     private readonly contextBuilder: ContextBuilderService,
     private readonly audit: ContentAutomationAuditService,
@@ -270,8 +272,14 @@ export class ContentPlanService {
     if (!isArticleDocumentV1(plan.articleDocument)) {
       throw new BadRequestException('Article document missing');
     }
+    if (
+      plan.status !== ContentPlanStatus.CONTENT_READY &&
+      plan.status !== ContentPlanStatus.IN_REVIEW
+    ) {
+      throw new BadRequestException('Quality gate requires CONTENT_READY or IN_REVIEW status');
+    }
     const context = await this.contextBuilder.build(id);
-    const report = this.qualityGate.runGate(plan, plan.articleDocument, context);
+    const report = await this.qualityGate.runGateAsync(plan, plan.articleDocument, context);
     const updated = await this.planRepository.update(id, {
       qualityReport: report as object,
       ...(plan.status === ContentPlanStatus.CONTENT_READY && report.passed
@@ -288,7 +296,7 @@ export class ContentPlanService {
       throw new BadRequestException('Approve content requires IN_REVIEW status');
     }
     const report = plan.qualityReport;
-    if (isQualityReportV1(report) && !report.passed) {
+    if (!isQualityReportV1(report) || !report.passed) {
       throw new BadRequestException('Quality gate must pass before approval');
     }
     assertContentPlanTransition(plan.status, ContentPlanStatus.APPROVED);
@@ -340,30 +348,85 @@ export class ContentPlanService {
     id: string,
     force = false,
   ): Promise<{ cmsPageId: string; created: boolean; slug: string }> {
-    const plan = await this.requirePlan(id);
-    if (plan.status !== ContentPlanStatus.APPROVED) {
-      throw new BadRequestException('Create CMS draft requires APPROVED status');
-    }
-    if (!isArticleDocumentV1(plan.articleDocument)) {
-      throw new BadRequestException('Article document missing');
-    }
-    const report = plan.qualityReport;
-    if (isQualityReportV1(report) && !report.passed) {
-      throw new BadRequestException('Quality gate must pass before CMS draft');
-    }
+    return this.planRepository.transaction(async (tx) => {
+      const plan = await this.planRepository.findByIdForUpdate(tx, id);
+      if (!plan) throw new NotFoundException('Content plan not found');
+      if (plan.status !== ContentPlanStatus.APPROVED) {
+        throw new BadRequestException('Create CMS draft requires APPROVED status');
+      }
+      if (!isArticleDocumentV1(plan.articleDocument)) {
+        throw new BadRequestException('Article document missing');
+      }
+      const report = plan.qualityReport;
+      if (!isQualityReportV1(report) || !report.passed) {
+        throw new BadRequestException('Quality gate must pass before CMS draft');
+      }
 
-    const context = await this.contextBuilder.build(id);
-    const result = await this.cmsAdapter.createOrUpdateBlogDraft(
-      userId,
-      plan,
-      plan.articleDocument,
-      context,
-      force,
-    );
+      const context = await this.contextBuilder.build(id);
+      const result = await this.cmsAdapter.createOrUpdateBlogDraft(
+        userId,
+        plan,
+        plan.articleDocument,
+        context,
+        force,
+      );
 
-    await this.planRepository.update(id, { cmsPageId: result.cmsPageId });
-    this.audit.log('plan.cms_draft.created', { planId: id, cmsPageId: result.cmsPageId, created: result.created });
-    return result;
+      await this.planRepository.updateWithClient(tx, id, { cmsPageId: result.cmsPageId });
+      this.audit.log('plan.cms_draft.created', {
+        planId: id,
+        cmsPageId: result.cmsPageId,
+        created: result.created,
+      });
+      return result;
+    });
+  }
+
+  async listAiRuns(planId: string) {
+    await this.requirePlan(planId);
+    const items = await this.aiRunRepository.listByPlan(planId);
+    return {
+      items: items.map((run) => ({
+        id: run.id,
+        task: run.task,
+        status: run.status,
+        generationEpoch: run.generationEpoch,
+        provider: run.provider || null,
+        model: run.model || null,
+        promptVersion: run.promptVersion || null,
+        tokensIn: run.tokensIn,
+        tokensOut: run.tokensOut,
+        costUsd: run.costUsd != null ? String(run.costUsd) : null,
+        durationMs: run.durationMs,
+        error: run.error,
+        createdAt: run.createdAt.toISOString(),
+        finishedAt: run.finishedAt?.toISOString() ?? null,
+      })),
+    };
+  }
+
+  async getAiRun(runId: string) {
+    const run = await this.aiRunRepository.findById(runId);
+    if (!run) throw new NotFoundException('AI run not found');
+    return {
+      id: run.id,
+      contentPlanId: run.contentPlanId,
+      task: run.task,
+      status: run.status,
+      generationEpoch: run.generationEpoch,
+      provider: run.provider || null,
+      model: run.model || null,
+      promptVersion: run.promptVersion || null,
+      inputHash: run.inputHash,
+      contextRefs: run.contextRefs,
+      outputSnapshot: run.outputSnapshot,
+      tokensIn: run.tokensIn,
+      tokensOut: run.tokensOut,
+      costUsd: run.costUsd != null ? String(run.costUsd) : null,
+      durationMs: run.durationMs,
+      error: run.error,
+      createdAt: run.createdAt.toISOString(),
+      finishedAt: run.finishedAt?.toISOString() ?? null,
+    };
   }
 
   async getPreview(id: string): Promise<{ html: string }> {

@@ -69,4 +69,17 @@ describe('ContentAutomationWorker analyze retry behavior', () => {
 
     await expect(worker.process(baseJob)).resolves.toBeUndefined();
   });
+
+  it('cancels QUEUED ai_run when feature is disabled', async () => {
+    config.isEnabled.mockReturnValue(false);
+    aiRunRepository.findById.mockResolvedValue({ id: 'run-1', status: AiRunStatus.QUEUED });
+
+    await expect(worker.process(baseJob)).resolves.toBeUndefined();
+
+    expect(aiRunRepository.completeRun).toHaveBeenCalledWith('run-1', {
+      status: AiRunStatus.CANCELLED,
+      error: 'FEATURE_DISABLED',
+    });
+    expect(orchestrator.execute).not.toHaveBeenCalled();
+  });
 });

@@ -1,10 +1,12 @@
 import {
   Injectable,
   Logger,
+  NotFoundException,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { CmsPageStatus, ContentPlanStatus } from '@prisma/client';
+import { shouldRegisterWorkers } from '../../../config/process-role';
 import { CmsService } from '../../cms/services/cms.service';
 import { ContentPlanRepository } from '../repositories/content-plan.repository';
 import { ContentAutomationConfigService } from './content-automation-config.service';
@@ -26,6 +28,11 @@ export class ContentPlanPublishSyncService implements OnModuleInit, OnModuleDest
   ) {}
 
   onModuleInit(): void {
+    // Run only on worker (or all) — avoid duplicate timers on API + worker.
+    if (!shouldRegisterWorkers()) {
+      this.logger.log('Content plan publish sync skipped (API-only process)');
+      return;
+    }
     this.timer = setInterval(() => void this.syncPublishedPlans(), SYNC_INTERVAL_MS);
     this.logger.log('Content plan publish sync started (every 60s)');
   }
@@ -61,9 +68,17 @@ export class ContentPlanPublishSyncService implements OnModuleInit, OnModuleDest
             planId: plan.id,
             cmsPageId: plan.cmsPageId,
           });
-        } catch {
-          this.logger.warn(`Publish sync — CMS page missing for plan ${plan.id}`);
-          await this.planRepository.update(plan.id, { cmsPageId: null });
+        } catch (err) {
+          if (err instanceof NotFoundException) {
+            this.logger.warn(`Publish sync — CMS page missing for plan ${plan.id}, clearing link`);
+            await this.planRepository.update(plan.id, { cmsPageId: null });
+          } else {
+            this.logger.warn(
+              `Publish sync transient error plan=${plan.id}: ${
+                err instanceof Error ? err.message : 'unknown'
+              }`,
+            );
+          }
         }
       }
     } finally {

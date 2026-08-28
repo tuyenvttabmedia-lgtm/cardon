@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContentPlanStatus } from '@prisma/client';
 import { ContentPlanService } from './content-plan.service';
 import { ContentPlanRepository } from '../repositories/content-plan.repository';
+import { AiRunRepository } from '../repositories/ai-run.repository';
 import { ContentAutomationQueueProducer } from '../producers/content-automation-queue.producer';
 import { ContextBuilderService } from './context-builder.service';
 import { ContentAutomationAuditService } from './content-automation-audit.service';
@@ -16,10 +17,14 @@ describe('ContentPlanService', () => {
     update: jest.fn(),
     list: jest.fn(),
   };
+  const aiRunRepository = {
+    listByPlan: jest.fn(),
+    findById: jest.fn(),
+  };
   const queueProducer = { enqueueAnalyze: jest.fn() };
   const contextBuilder = { build: jest.fn() };
   const audit = { log: jest.fn() };
-  const qualityGate = { runGate: jest.fn() };
+  const qualityGate = { runGate: jest.fn(), runGateAsync: jest.fn() };
   const cmsAdapter = { createOrUpdateBlogDraft: jest.fn() };
 
   beforeEach(async () => {
@@ -28,6 +33,7 @@ describe('ContentPlanService', () => {
       providers: [
         ContentPlanService,
         { provide: ContentPlanRepository, useValue: planRepository },
+        { provide: AiRunRepository, useValue: aiRunRepository },
         { provide: ContentAutomationQueueProducer, useValue: queueProducer },
         { provide: ContextBuilderService, useValue: contextBuilder },
         { provide: ContentAutomationAuditService, useValue: audit },
