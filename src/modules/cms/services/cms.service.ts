@@ -61,6 +61,11 @@ export class CmsService {
     return page;
   }
 
+  /** Lightweight slug lookup (any status) — used by content-automation draft attach. */
+  findPageBySlug(slug: string) {
+    return this.repository.findPageBySlug(slug);
+  }
+
   async getPublishedPageForPublic(slug: string) {
     const page = await this.repository.findPublishedPageBySlug(slug);
     if (!page) return null;

@@ -13,6 +13,7 @@ import { ContentAutomationConfigService } from './content-automation-config.serv
 import { ContentAutomationAuditService } from './content-automation-audit.service';
 
 const SYNC_INTERVAL_MS = 60 * 1000;
+const SYNC_PAGE_SIZE = 100;
 
 @Injectable()
 export class ContentPlanPublishSyncService implements OnModuleInit, OnModuleDestroy {
@@ -46,40 +47,50 @@ export class ContentPlanPublishSyncService implements OnModuleInit, OnModuleDest
     this.running = true;
 
     try {
-      const { items } = await this.planRepository.list({
-        status: ContentPlanStatus.APPROVED,
-        skip: 0,
-        take: 100,
-      });
+      let skip = 0;
+      for (;;) {
+        const items = await this.planRepository.listApprovedWithCmsPage({
+          skip,
+          take: SYNC_PAGE_SIZE,
+        });
+        if (items.length === 0) break;
 
-      for (const plan of items) {
-        if (!plan.cmsPageId) continue;
+        for (const plan of items) {
+          if (!plan.cmsPageId) continue;
 
-        try {
-          const page = await this.cmsService.getPage(plan.cmsPageId);
-          if (page.status !== CmsPageStatus.PUBLISHED) continue;
+          try {
+            const page = await this.cmsService.getPage(plan.cmsPageId);
+            if (page.status !== CmsPageStatus.PUBLISHED) continue;
 
-          await this.planRepository.update(plan.id, {
-            status: ContentPlanStatus.PUBLISHED,
-            publishedAt: page.publishedAt ?? new Date(),
-          });
+            await this.planRepository.update(plan.id, {
+              status: ContentPlanStatus.PUBLISHED,
+              publishedAt: page.publishedAt ?? new Date(),
+            });
 
-          this.audit.log('plan.published.synced', {
-            planId: plan.id,
-            cmsPageId: plan.cmsPageId,
-          });
-        } catch (err) {
-          if (err instanceof NotFoundException) {
-            this.logger.warn(`Publish sync — CMS page missing for plan ${plan.id}, clearing link`);
-            await this.planRepository.update(plan.id, { cmsPageId: null });
-          } else {
-            this.logger.warn(
-              `Publish sync transient error plan=${plan.id}: ${
-                err instanceof Error ? err.message : 'unknown'
-              }`,
-            );
+            this.audit.log('plan.published.synced', {
+              planId: plan.id,
+              cmsPageId: plan.cmsPageId,
+            });
+          } catch (err) {
+            if (err instanceof NotFoundException) {
+              this.logger.warn(`Publish sync — CMS page missing for plan ${plan.id}, clearing link`);
+              await this.planRepository.update(plan.id, { cmsPageId: null });
+              this.audit.log('plan.cms_link.cleared', {
+                planId: plan.id,
+                reason: 'CMS_NOT_FOUND',
+              });
+            } else {
+              this.logger.warn(
+                `Publish sync transient error plan=${plan.id}: ${
+                  err instanceof Error ? err.message : 'unknown'
+                }`,
+              );
+            }
           }
         }
+
+        if (items.length < SYNC_PAGE_SIZE) break;
+        skip += items.length;
       }
     } finally {
       this.running = false;

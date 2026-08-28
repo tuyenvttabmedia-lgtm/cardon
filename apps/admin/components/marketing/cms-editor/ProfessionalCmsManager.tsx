@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { MediaLibraryPicker } from '@/components/marketing/MediaLibraryPicker';
 import { RequirePermission } from '@/components/layout/AdminShell';
@@ -50,6 +51,9 @@ interface Props {
 }
 
 export function ProfessionalCmsManager({ pageType, title }: Props) {
+  const searchParams = useSearchParams();
+  const deepLinkPageId = searchParams.get('pageId');
+  const deepLinkHandled = useRef<string | null>(null);
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [items, setItems] = useState<CmsPage[]>([]);
   const [categories, setCategories] = useState<CmsCategory[]>([]);
@@ -94,6 +98,14 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       void cmsAdminApi.listTags().then(setTags).catch(() => undefined);
     }
   }, [pageType]);
+
+  useEffect(() => {
+    if (!deepLinkPageId || deepLinkHandled.current === deepLinkPageId) return;
+    const page = items.find((p) => p.id === deepLinkPageId);
+    if (!page) return;
+    deepLinkHandled.current = deepLinkPageId;
+    openEditor(page);
+  }, [deepLinkPageId, items]);
 
   useEffect(() => {
     if (editingId) {

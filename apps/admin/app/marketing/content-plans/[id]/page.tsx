@@ -46,10 +46,6 @@ function formatCost(costUsd: string | null): string {
   return n.toFixed(4);
 }
 
-function hasActiveAiRun(runs: ContentAiRunListItem[]): boolean {
-  return runs.some((r) => r.status === 'QUEUED' || r.status === 'RUNNING');
-}
-
 export default function ContentPlanDetailPage() {
   const params = useParams<{ id: string }>();
   const planId = params.id;
@@ -64,6 +60,8 @@ export default function ContentPlanDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [pollingAi, setPollingAi] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [promptsReady, setPromptsReady] = useState<boolean | null>(null);
   const pollAbortRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -106,7 +104,11 @@ export default function ContentPlanDetailPage() {
   useEffect(() => {
     void contentAutomationApi
       .status()
-      .then((s) => setFeatureEnabled(s.enabled))
+      .then((s) => {
+        setFeatureEnabled(s.enabled);
+        setAiConfigured(s.aiConfigured ?? null);
+        setPromptsReady(s.promptsReady ?? null);
+      })
       .catch(() => undefined);
     void load();
   }, [load]);
@@ -117,7 +119,7 @@ export default function ContentPlanDetailPage() {
     };
   }, []);
 
-  async function pollAiJob(token: number) {
+  async function pollAiJob(token: number, aiRunId?: string) {
     setPollingAi(true);
     const started = Date.now();
     try {
@@ -125,13 +127,36 @@ export default function ContentPlanDetailPage() {
         if (token !== pollAbortRef.current) return;
         await new Promise((r) => setTimeout(r, AI_POLL_INTERVAL_MS));
         if (token !== pollAbortRef.current) return;
+
+        if (aiRunId) {
+          try {
+            const run = await contentAutomationApi.getAiRun(aiRunId);
+            await refreshQuiet();
+            if (TERMINAL_RUN_STATUSES.has(run.status)) {
+              if (run.status === 'FAILED' || run.status === 'CANCELLED') {
+                toast.error(run.error ? `${cp.aiJobFailed}: ${run.error}` : cp.aiJobFailed);
+              } else if (run.provider === 'heuristic') {
+                toast.error(cp.heuristicWarning);
+              } else {
+                toast.success(cp.aiJobDone);
+              }
+              return;
+            }
+            continue;
+          } catch {
+            // fall through to plan refresh
+          }
+        }
+
         const snap = await refreshQuiet();
         if (!snap) continue;
-        if (!hasActiveAiRun(snap.runs)) {
-          const latest = snap.runs[0];
-          if (latest?.status === 'FAILED' || latest?.status === 'CANCELLED') {
-            toast.error(latest.error ? `${cp.aiJobFailed}: ${latest.error}` : cp.aiJobFailed);
-          } else if (latest?.provider === 'heuristic') {
+        const tracked = aiRunId
+          ? snap.runs.find((r) => r.id === aiRunId)
+          : snap.runs[0];
+        if (tracked && TERMINAL_RUN_STATUSES.has(tracked.status)) {
+          if (tracked.status === 'FAILED' || tracked.status === 'CANCELLED') {
+            toast.error(tracked.error ? `${cp.aiJobFailed}: ${tracked.error}` : cp.aiJobFailed);
+          } else if (tracked.provider === 'heuristic') {
             toast.error(cp.heuristicWarning);
           } else {
             toast.success(cp.aiJobDone);
@@ -156,12 +181,19 @@ export default function ContentPlanDetailPage() {
   ) {
     setActionLoading(true);
     try {
-      await fn();
+      const result = await fn();
       toast.success(label);
       await load();
       if (opts?.pollAi) {
+        const aiRunId =
+          result &&
+          typeof result === 'object' &&
+          'aiRunId' in result &&
+          typeof (result as { aiRunId: unknown }).aiRunId === 'string'
+            ? (result as { aiRunId: string }).aiRunId
+            : undefined;
         const token = ++pollAbortRef.current;
-        void pollAiJob(token);
+        void pollAiJob(token, aiRunId);
       }
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
@@ -184,6 +216,7 @@ export default function ContentPlanDetailPage() {
   }
 
   const busy = actionLoading || pollingAi;
+  const mutationsDisabled = busy || featureEnabled === false;
   const intelligence = plan?.intelligenceSnapshot;
   const outline = plan?.outline;
   const article = plan?.articleDocument;
@@ -199,6 +232,19 @@ export default function ContentPlanDetailPage() {
             <Link href="/configuration/content-ai" className="font-medium underline">
               Content AI
             </Link>
+          </p>
+        ) : null}
+        {featureEnabled === true && aiConfigured === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.aiNotConfiguredBanner}{' '}
+            <Link href="/configuration/content-ai" className="font-medium underline">
+              Content AI
+            </Link>
+          </p>
+        ) : null}
+        {featureEnabled === true && promptsReady === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.promptsMissingBanner}
           </p>
         ) : null}
         {pollingAi ? (
@@ -229,7 +275,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={busy || featureEnabled === false}
+                disabled={mutationsDisabled}
               >
                 {cp.actions.analyze}
               </Button>
@@ -243,7 +289,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={busy || featureEnabled === false}
+                disabled={mutationsDisabled}
               >
                 {cp.actions.generateOutline}
               </Button>
@@ -256,7 +302,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.approveOutline(planId),
                     )
                   }
-                  disabled={busy}
+                  disabled={mutationsDisabled}
                 >
                   {cp.actions.approveOutline}
                 </Button>
@@ -267,7 +313,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectOutline(planId),
                     )
                   }
-                  disabled={busy}
+                  disabled={mutationsDisabled}
                 >
                   {cp.actions.rejectOutline}
                 </Button>
@@ -282,7 +328,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={busy || featureEnabled === false}
+                disabled={mutationsDisabled}
               >
                 {cp.actions.generateArticle}
               </Button>
@@ -294,7 +340,7 @@ export default function ContentPlanDetailPage() {
                     contentAutomationApi.runQualityGate(planId),
                   )
                 }
-                disabled={busy}
+                disabled={mutationsDisabled}
               >
                 {cp.actions.runQualityGate}
               </Button>
@@ -307,7 +353,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.approveContent(planId),
                     )
                   }
-                  disabled={busy}
+                  disabled={mutationsDisabled}
                 >
                   {cp.actions.approveContent}
                 </Button>
@@ -318,7 +364,7 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectContent(planId, 're-write'),
                     )
                   }
-                  disabled={busy}
+                  disabled={mutationsDisabled}
                 >
                   {cp.actions.rejectRewrite}
                 </Button>
@@ -329,27 +375,42 @@ export default function ContentPlanDetailPage() {
                       contentAutomationApi.rejectContent(planId, 're-outline'),
                     )
                   }
-                  disabled={busy}
+                  disabled={mutationsDisabled}
                 >
                   {cp.actions.rejectReOutline}
                 </Button>
               </>
             ) : null}
             {plan?.status === 'APPROVED' ? (
-              <Button
-                onClick={() =>
-                  void runAction(cp.actions.createCmsDraftDone, () =>
-                    contentAutomationApi.createCmsDraft(planId),
-                  )
-                }
-                disabled={busy}
-              >
-                {cp.actions.createCmsDraft}
-              </Button>
+              <>
+                <Button
+                  onClick={() =>
+                    void runAction(cp.actions.createCmsDraftDone, () =>
+                      contentAutomationApi.createCmsDraft(planId, false),
+                    )
+                  }
+                  disabled={mutationsDisabled}
+                >
+                  {cp.actions.createCmsDraft}
+                </Button>
+                {plan.cmsPageId ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() =>
+                      void runAction(cp.actions.createCmsDraftDone, () =>
+                        contentAutomationApi.createCmsDraft(planId, true),
+                      )
+                    }
+                    disabled={mutationsDisabled}
+                  >
+                    {cp.forceCmsUpdate}
+                  </Button>
+                ) : null}
+              </>
             ) : null}
             {plan?.cmsPageId ? (
               <Link
-                href="/marketing/articles"
+                href={`/marketing/articles?pageId=${encodeURIComponent(plan.cmsPageId)}`}
                 className="inline-flex items-center rounded-md border px-3 py-2 text-sm hover:bg-muted"
               >
                 {cp.openCms}
@@ -366,7 +427,7 @@ export default function ContentPlanDetailPage() {
                 onClick={() =>
                   void runAction(cp.actions.archiveDone, () => contentAutomationApi.archivePlan(planId))
                 }
-                disabled={busy}
+                disabled={mutationsDisabled}
               >
                 {cp.actions.archive}
               </Button>

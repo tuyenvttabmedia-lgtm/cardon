@@ -600,13 +600,22 @@ export class AiOrchestratorService {
     const shouldTransition = plan.status === ContentPlanStatus.OUTLINE_APPROVED;
     if (shouldTransition) {
       assertContentPlanTransition(plan.status, ContentPlanStatus.CONTENT_READY);
+      if (report.passed) {
+        assertContentPlanTransition(ContentPlanStatus.CONTENT_READY, ContentPlanStatus.IN_REVIEW);
+      }
     }
 
-    // Stay at CONTENT_READY so admin can explicitly run quality gate → IN_REVIEW.
+    // When quality already passed during write, advance to IN_REVIEW (spec §6).
+    const nextStatus = shouldTransition
+      ? report.passed
+        ? ContentPlanStatus.IN_REVIEW
+        : ContentPlanStatus.CONTENT_READY
+      : undefined;
+
     const updated = await this.planRepository.updateIfGenerationEpoch(planId, generationEpoch, {
       articleDocument: doc as object,
       qualityReport: report as object,
-      ...(shouldTransition ? { status: ContentPlanStatus.CONTENT_READY } : {}),
+      ...(nextStatus ? { status: nextStatus } : {}),
     });
 
     return Boolean(updated && shouldTransition);

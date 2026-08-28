@@ -69,11 +69,17 @@ export default function ContentPlansPage() {
   const [form, setForm] = useState<CreateContentPlanInput>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
+  const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
+  const [promptsReady, setPromptsReady] = useState<boolean | null>(null);
 
   useEffect(() => {
     void contentAutomationApi
       .status()
-      .then((s) => setFeatureEnabled(s.enabled))
+      .then((s) => {
+        setFeatureEnabled(s.enabled);
+        setAiConfigured(s.aiConfigured ?? null);
+        setPromptsReady(s.promptsReady ?? null);
+      })
       .catch(() => setFeatureEnabled(null));
   }, []);
 
@@ -150,8 +156,21 @@ export default function ContentPlansPage() {
             </Link>
           </p>
         ) : null}
+        {featureEnabled === true && aiConfigured === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.aiNotConfiguredBanner}{' '}
+            <Link href="/configuration/content-ai" className="font-medium underline">
+              Content AI
+            </Link>
+          </p>
+        ) : null}
+        {featureEnabled === true && promptsReady === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.promptsMissingBanner}
+          </p>
+        ) : null}
 
-        {error && featureEnabled !== false ? <ErrorMessage message={error} /> : null}
+        {error ? <ErrorMessage message={error} /> : null}
 
         <Card className="space-y-4 p-4">
           <div className="grid gap-3 md:grid-cols-3">

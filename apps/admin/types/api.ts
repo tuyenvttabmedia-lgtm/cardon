@@ -1997,4 +1997,7 @@ export interface ContentAutomationStatus {
   enabled: boolean;
   queue: string;
   version: string;
+  aiConfigured?: boolean;
+  promptsReady?: boolean;
+  heuristicFallbackAllowed?: boolean;
 }

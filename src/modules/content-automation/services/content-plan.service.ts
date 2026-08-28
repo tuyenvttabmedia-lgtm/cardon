@@ -387,12 +387,22 @@ export class ContentPlanService {
       }
 
       if (locked.cmsPageId && locked.cmsPageId !== result.cmsPageId && !force) {
-        this.audit.log('plan.cms_draft.created', {
-          planId: id,
-          cmsPageId: locked.cmsPageId,
-          created: false,
-          note: 'kept_existing_cms_link',
-        });
+        if (result.created) {
+          this.audit.log('plan.cms_draft.created', {
+            planId: id,
+            cmsPageId: locked.cmsPageId,
+            created: false,
+            note: 'orphan_cms_page',
+            orphanCmsPageId: result.cmsPageId,
+          });
+        } else {
+          this.audit.log('plan.cms_draft.created', {
+            planId: id,
+            cmsPageId: locked.cmsPageId,
+            created: false,
+            note: 'kept_existing_cms_link',
+          });
+        }
         return {
           cmsPageId: locked.cmsPageId,
           created: false,
@@ -408,6 +418,7 @@ export class ContentPlanService {
         planId: id,
         cmsPageId: result.cmsPageId,
         created: result.created,
+        resolvedSlugConflict: result.resolvedSlugConflict ?? false,
       });
       return result;
     });

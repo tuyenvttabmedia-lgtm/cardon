@@ -136,7 +136,8 @@ export class ContentAutomationWorker extends WorkerHost {
           new AiProviderError(
             `Content automation soft timeout after ${timeoutMs}ms`,
             'TIMEOUT',
-            true,
+            // Do not BullMQ-retry: in-flight provider call is not aborted; retry doubles spend.
+            false,
           ),
       );
 
