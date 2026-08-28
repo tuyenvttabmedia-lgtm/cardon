@@ -6,6 +6,7 @@ export type ConfigurationModuleId =
   | 'orders'
   | 'smtp'
   | 'telegram'
+  | 'content-ai'
   | 'webhooks'
   | 'security'
   | 'integrations'
@@ -39,6 +40,13 @@ export const CONFIGURATION_SEARCH_INDEX: ConfigurationSearchEntry[] = [
   { id: 'sepay', module: 'payment', label: 'SePay', keywords: ['sepay', 'payment', 'vietqr'], href: '/configuration/payment' },
   { id: 'order-limit', module: 'orders', label: 'Order Limit', keywords: ['order', 'limit', 'timeout', 'đơn hàng'], href: '/configuration/orders' },
   { id: 'telegram', module: 'telegram', label: 'Telegram', keywords: ['telegram', 'bot', 'notification'], href: '/configuration/telegram' },
+  {
+    id: 'content-ai',
+    module: 'content-ai',
+    label: 'Content AI',
+    keywords: ['content', 'ai', 'openai', 'llm', 'automation', 'gpt'],
+    href: '/configuration/content-ai',
+  },
   { id: 'webhook', module: 'webhooks', label: 'Webhook URLs', keywords: ['webhook', 'callback', 'signature'], href: '/configuration/webhooks' },
   { id: 'provider-esale', module: 'providers', label: 'Provider eSale', keywords: ['provider', 'esale', 'card'], href: '/configuration/providers' },
   { id: 'feature-flags', module: 'feature-flags', label: 'Feature Flags', keywords: ['feature', 'flag', 'topup', 'registration'], href: '/configuration/system' },
@@ -56,6 +64,7 @@ export const MODULE_AUDIT_RESOURCE: Partial<Record<ConfigurationModuleId, System
   system: SystemAuditResource.FEATURE_FLAG,
   orders: SystemAuditResource.SETTING,
   telegram: SystemAuditResource.SETTING,
+  'content-ai': SystemAuditResource.SETTING,
   maintenance: SystemAuditResource.SETTING,
 };
 

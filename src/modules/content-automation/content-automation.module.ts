@@ -11,6 +11,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { ContentAiConfigService } from './config/content-ai-config.service';
 
 import { ContentAutomationAdminController } from './controllers/content-automation-admin.controller';
+import { ContentAiSettingsController } from './controllers/content-ai-settings.controller';
 
 import { AiWorkerGuardService } from './guards/ai-worker-guard.service';
 
@@ -64,7 +65,7 @@ import { contentAutomationWorkerProviders } from './workers/content-automation.w
 
 @Module({
   imports: [AuthModule, CmsModule, ProductModule, SettingsModule],
-  controllers: [ContentAutomationAdminController],
+  controllers: [ContentAutomationAdminController, ContentAiSettingsController],
   providers: [
     ContentAutomationConfigService,
     ContentAiConfigService,

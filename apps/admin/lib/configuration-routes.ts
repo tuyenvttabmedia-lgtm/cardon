@@ -11,6 +11,7 @@ export const CONFIGURATION_SECTIONS = [
   { href: '/configuration/orders', label: vi.configuration.orders, title: vi.settings.orderTitle, subtitle: vi.configuration.ordersSubtitle },
   { href: '/configuration/smtp', label: vi.configuration.smtp, title: vi.settings.smtpTitle, subtitle: vi.configuration.smtpSubtitle },
   { href: '/configuration/telegram', label: vi.configuration.telegram, title: vi.configuration.telegramTitle, subtitle: vi.configuration.telegramSubtitle },
+  { href: '/configuration/content-ai', label: vi.configuration.contentAi, title: vi.configuration.contentAiTitle, subtitle: vi.configuration.contentAiSubtitle },
   { href: '/configuration/webhooks', label: vi.configuration.webhooks, title: vi.configuration.webhooksTitle, subtitle: vi.configuration.webhooksSubtitle },
   { href: '/configuration/audit', label: vi.configuration.audit, title: vi.systemAudit.title, subtitle: vi.systemAudit.subtitle, permission: 'audit.read' },
 ] as const;
