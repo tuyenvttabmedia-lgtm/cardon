@@ -1295,9 +1295,17 @@ export const vi = {
       aiRuns: 'Lịch sử AI',
     },
     disabledBanner:
-      'Content Automation đang TẮT (CONTENT_AUTOMATION_ENABLED=false). Có thể cấu hình AI tại Cấu hình → Content AI, nhưng chưa chạy phân tích/viết bài.',
+      'Content Automation đang TẮT (CONTENT_AUTOMATION_ENABLED=false). Có thể xem kế hoạch / lịch sử AI, cấu hình Content AI; chưa chạy phân tích/viết bài.',
     openCms: 'Mở bài trên CMS',
     emptyAiRuns: 'Chưa có lần chạy AI.',
+    aiJobPolling: 'Đang chạy AI… trang sẽ tự làm mới.',
+    aiJobDone: 'Job AI đã hoàn tất',
+    aiJobFailed: 'Job AI thất bại',
+    aiJobTimeout: 'Hết thời gian chờ job AI — bấm Làm mới để kiểm tra lại.',
+    costUsd: 'Chi phí (USD)',
+    heuristicBadge: 'Heuristic (không phải AI)',
+    heuristicWarning:
+      'Lần chạy này dùng heuristic skeleton — không phải nội dung AI thật. Kiểm tra Content AI / prompt seed.',
     emptyIntelligence: 'Chưa có phân tích — bấm «Phân tích» khi kế hoạch ở trạng thái Nháp.',
     emptyOutline: 'Chưa có dàn ý — bấm «Tạo dàn ý» khi ở trạng thái Đã phân tích.',
     emptyArticle: 'Chưa có bài viết — bấm «Viết bài» sau khi dàn ý đã được duyệt.',

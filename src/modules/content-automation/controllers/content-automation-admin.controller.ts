@@ -48,7 +48,7 @@ export class ContentAutomationAdminController {
     return {
       enabled: this.config.isEnabled(),
       queue: this.config.getQueueName(),
-      version: '1.0-m4-hardened',
+      version: '1.0-m4-ops',
     };
   }
 
@@ -61,38 +61,33 @@ export class ContentAutomationAdminController {
     return this.planService.create(user.id, dto);
   }
 
+  /** Read-only — available when flag OFF so ops can inspect plans/history. */
   @Get('plans')
-  @UseGuards(ContentAutomationEnabledGuard)
   listPlans(@Query() query: ListContentPlansQueryDto) {
     return this.planService.list(query);
   }
 
   @Get('plans/:id')
-  @UseGuards(ContentAutomationEnabledGuard)
   getPlan(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.getById(id);
   }
 
   @Get('plans/:id/context')
-  @UseGuards(ContentAutomationEnabledGuard)
   getPlanContext(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.getContext(id);
   }
 
   @Get('plans/:id/preview')
-  @UseGuards(ContentAutomationEnabledGuard)
   getPreview(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.getPreview(id);
   }
 
   @Get('plans/:id/ai-runs')
-  @UseGuards(ContentAutomationEnabledGuard)
   listAiRuns(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.listAiRuns(id);
   }
 
   @Get('ai-runs/:id')
-  @UseGuards(ContentAutomationEnabledGuard)
   getAiRun(@Param('id', ParseUUIDPipe) id: string) {
     return this.planService.getAiRun(id);
   }

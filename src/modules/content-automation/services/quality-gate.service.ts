@@ -59,8 +59,13 @@ export class QualityGateService {
       } else {
         report.checks.push(passed('SLUG_UNIQUE', 2, `Slug available: ${slug}`));
       }
-    } catch {
-      report.checks.push(warn('SLUG_CHECK_SKIPPED', 3, 'Could not verify slug uniqueness'));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not verify slug uniqueness';
+      report.checks.push(
+        failed('SLUG_CHECK_FAILED', 2, `Slug uniqueness check failed: ${message}`),
+      );
+      report.layer2Passed = !report.checks.some((c) => c.layer === 2 && !c.passed);
+      report.passed = report.layer1Passed && report.layer2Passed;
     }
 
     return report;
