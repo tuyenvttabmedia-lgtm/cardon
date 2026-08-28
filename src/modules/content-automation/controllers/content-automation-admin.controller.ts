@@ -27,7 +27,14 @@ import {
   UpdateContentPlanDto,
 } from '../dto/content-plan.dto';
 import { CONTENT_AUTOMATION_PERMISSION } from '../entities/content-automation.constants';
+import {
+  CONTENT_AI_PROMPT_KEY_ANALYZE,
+  CONTENT_AI_PROMPT_KEY_OUTLINE,
+  CONTENT_AI_PROMPT_KEY_WRITE,
+} from '../entities/content-ai.constants';
+import { ContentAiConfigService } from '../config/content-ai-config.service';
 import { ContentAutomationEnabledGuard } from '../guards/content-automation-enabled.guard';
+import { AiPromptRepository } from '../repositories/ai-prompt.repository';
 import { ContentAutomationConfigService } from '../services/content-automation-config.service';
 import { ContentPlanService } from '../services/content-plan.service';
 import { InternalLinkCandidateService } from '../services/internal-link-candidate.service';
@@ -38,17 +45,32 @@ import { InternalLinkCandidateService } from '../services/internal-link-candidat
 export class ContentAutomationAdminController {
   constructor(
     private readonly config: ContentAutomationConfigService,
+    private readonly aiConfig: ContentAiConfigService,
+    private readonly promptRepository: AiPromptRepository,
     private readonly planService: ContentPlanService,
     private readonly linkCandidates: InternalLinkCandidateService,
   ) {}
 
   /** Always available so admin UI can show enabled/disabled banner. */
   @Get('status')
-  getStatus() {
+  async getStatus() {
+    const [aiConfigured, prompts] = await Promise.all([
+      this.aiConfig.isConfigured(),
+      this.promptRepository.listActive(),
+    ]);
+    const keys = new Set(prompts.map((p) => p.key));
+    const promptsReady =
+      keys.has(CONTENT_AI_PROMPT_KEY_ANALYZE) &&
+      keys.has(CONTENT_AI_PROMPT_KEY_OUTLINE) &&
+      keys.has(CONTENT_AI_PROMPT_KEY_WRITE);
+
     return {
       enabled: this.config.isEnabled(),
       queue: this.config.getQueueName(),
-      version: '1.0-m4-ops',
+      version: '1.0-m4-ops2',
+      aiConfigured,
+      promptsReady,
+      heuristicFallbackAllowed: this.config.isHeuristicFallbackAllowed(),
     };
   }
 

@@ -49,6 +49,24 @@ export class ContentPlanRepository {
   }
 
   /**
+   * APPROVED plans that already have a CMS link — used by publish sync (paginated).
+   */
+  listApprovedWithCmsPage(params: {
+    skip: number;
+    take: number;
+  }): Promise<ContentPlan[]> {
+    return this.prisma.contentPlan.findMany({
+      where: {
+        status: ContentPlanStatus.APPROVED,
+        cmsPageId: { not: null },
+      },
+      orderBy: { updatedAt: 'asc' },
+      skip: params.skip,
+      take: params.take,
+    });
+  }
+
+  /**
    * Row-lock plan for critical writes (CMS draft). Caller must use the same tx client.
    */
   async findByIdForUpdate(

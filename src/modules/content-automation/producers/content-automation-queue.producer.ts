@@ -4,12 +4,14 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { AiRunStatus, AiTaskType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import {
   CONTENT_AUTOMATION_JOB,
+  CONTENT_AUTOMATION_LOCK_DURATION_MS,
   CONTENT_AUTOMATION_QUEUE,
   CONTENT_AUTOMATION_QUEUE_OPTIONS,
   CONTENT_AUTOMATION_RATE_LIMIT_PER_HOUR,
@@ -19,8 +21,13 @@ import { buildBullMqJobId } from '../entities/idempotency.util';
 import { AiRunRepository } from '../repositories/ai-run.repository';
 import { ContentAutomationConfigService } from '../services/content-automation-config.service';
 
+/** Extra grace beyond BullMQ lock before reclaiming a stuck active ai_run. */
+const STALE_ACTIVE_GRACE_MS = 30_000;
+
 @Injectable()
 export class ContentAutomationQueueProducer {
+  private readonly logger = new Logger(ContentAutomationQueueProducer.name);
+
   constructor(
     @InjectQueue(CONTENT_AUTOMATION_QUEUE) private readonly queue: Queue,
     private readonly config: ContentAutomationConfigService,
@@ -79,6 +86,9 @@ export class ContentAutomationQueueProducer {
       throw new ServiceUnavailableException('Content Automation is disabled');
     }
 
+    const jobId = buildBullMqJobId(data.planId, data.task, data.generationEpoch);
+    await this.reclaimStaleActiveIfNeeded(data, jobId);
+
     const active = await this.aiRunRepository.findActiveByIdempotency(
       data.planId,
       data.task,
@@ -98,7 +108,7 @@ export class ContentAutomationQueueProducer {
     );
     if (succeeded?.status === AiRunStatus.SUCCEEDED) {
       return {
-        jobId: buildBullMqJobId(data.planId, data.task, data.generationEpoch),
+        jobId,
         aiRunId: succeeded.id,
         reused: true,
       };
@@ -123,7 +133,6 @@ export class ContentAutomationQueueProducer {
       status: AiRunStatus.QUEUED,
     });
 
-    const jobId = buildBullMqJobId(data.planId, data.task, data.generationEpoch);
     await this.removeTerminalJobIfExists(jobId);
 
     try {
@@ -140,6 +149,44 @@ export class ContentAutomationQueueProducer {
     }
 
     return { jobId, aiRunId: aiRun.id };
+  }
+
+  /**
+   * If an active ai_run is orphaned (no BullMQ job / terminal job / older than lock+grace),
+   * cancel it so operators are not stuck on JOB_ALREADY_ACTIVE forever.
+   */
+  private async reclaimStaleActiveIfNeeded(
+    data: ContentAutomationQueueJobData,
+    jobId: string,
+  ): Promise<void> {
+    const active = await this.aiRunRepository.findActiveByIdempotency(
+      data.planId,
+      data.task,
+      data.generationEpoch,
+    );
+    if (!active) return;
+
+    const ageMs = Date.now() - active.createdAt.getTime();
+    const staleAfter = CONTENT_AUTOMATION_LOCK_DURATION_MS + STALE_ACTIVE_GRACE_MS;
+    const existing = await this.queue.getJob(jobId);
+    const state = existing ? await existing.getState() : null;
+    const jobGoneOrTerminal =
+      !existing || state === 'failed' || state === 'completed' || state === 'unknown';
+
+    if (!jobGoneOrTerminal && ageMs < staleAfter) {
+      return;
+    }
+
+    this.logger.warn(
+      `Reclaiming stale ai_run=${active.id} plan=${data.planId} task=${data.task} ageMs=${ageMs} jobState=${state ?? 'missing'}`,
+    );
+    await this.aiRunRepository.completeRun(active.id, {
+      status: AiRunStatus.CANCELLED,
+      error: 'STALE_ACTIVE_RUN_RECLAIMED',
+    });
+    if (existing && (state === 'failed' || state === 'completed')) {
+      await existing.remove().catch(() => undefined);
+    }
   }
 
   /** Allow re-enqueue after FAILED/COMPLETED by clearing leftover BullMQ job with same id. */

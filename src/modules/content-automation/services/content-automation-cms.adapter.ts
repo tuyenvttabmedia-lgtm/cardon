@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CmsPageStatus, CmsPageType } from '@prisma/client';
@@ -15,10 +16,14 @@ export interface CreateCmsDraftResult {
   cmsPageId: string;
   created: boolean;
   slug: string;
+  /** True when an existing slug conflict was resolved by attaching that page. */
+  resolvedSlugConflict?: boolean;
 }
 
 @Injectable()
 export class ContentAutomationCmsAdapter {
+  private readonly logger = new Logger(ContentAutomationCmsAdapter.name);
+
   constructor(private readonly cmsService: CmsService) {}
 
   async createOrUpdateBlogDraft(
@@ -31,6 +36,13 @@ export class ContentAutomationCmsAdapter {
     const pageLookup = new Map(context.existingContent.map((c) => [c.pageId, c]));
     const html = renderArticleDocumentHtml(doc, pageLookup);
     const slug = slugifyTitle(doc.title);
+    const seoPayload = {
+      metaTitle: doc.seo.metaTitle,
+      metaDescription: doc.seo.metaDescription,
+      focusKeyword: doc.seo.focusKeyword,
+      canonicalUrl: doc.seo.canonicalUrl,
+      robots: doc.seo.robots ?? 'index,follow',
+    };
 
     if (plan.cmsPageId && !force) {
       try {
@@ -51,13 +63,7 @@ export class ContentAutomationCmsAdapter {
         title: doc.title,
         content: html,
         excerpt: doc.excerpt,
-        seo: {
-          metaTitle: doc.seo.metaTitle,
-          metaDescription: doc.seo.metaDescription,
-          focusKeyword: doc.seo.focusKeyword,
-          canonicalUrl: doc.seo.canonicalUrl,
-          robots: doc.seo.robots ?? 'index,follow',
-        },
+        seo: seoPayload,
       });
 
       return { cmsPageId: plan.cmsPageId, created: false, slug: existing.slug };
@@ -71,21 +77,47 @@ export class ContentAutomationCmsAdapter {
         content: html,
         excerpt: doc.excerpt,
         status: CmsPageStatus.DRAFT,
-        seo: {
-          metaTitle: doc.seo.metaTitle,
-          metaDescription: doc.seo.metaDescription,
-          focusKeyword: doc.seo.focusKeyword,
-          canonicalUrl: doc.seo.canonicalUrl,
-          robots: doc.seo.robots ?? 'index,follow',
-        },
+        seo: seoPayload,
       });
 
       return { cmsPageId: page.id, created: true, slug: page.slug };
     } catch (err) {
-      if (err instanceof ConflictException) {
+      if (!(err instanceof ConflictException)) throw err;
+
+      const existing = await this.cmsService.findPageBySlug(slug);
+      if (!existing || existing.type !== CmsPageType.BLOG_POST) {
         throw new ConflictException({ error: 'SLUG_CONFLICT', message: 'Slug already exists' });
       }
-      throw err;
+
+      if (
+        existing.status === CmsPageStatus.PUBLISHED ||
+        existing.status === CmsPageStatus.ARCHIVED
+      ) {
+        throw new ConflictException({
+          error: 'SLUG_CONFLICT',
+          message: 'Slug already exists on a published/archived page',
+        });
+      }
+
+      this.logger.warn(
+        `Slug conflict resolved by attaching existing draft page=${existing.id} slug=${slug} plan=${plan.id}`,
+      );
+
+      if (force) {
+        await this.cmsService.updatePage(existing.id, {
+          title: doc.title,
+          content: html,
+          excerpt: doc.excerpt,
+          seo: seoPayload,
+        });
+      }
+
+      return {
+        cmsPageId: existing.id,
+        created: false,
+        slug: existing.slug,
+        resolvedSlugConflict: true,
+      };
     }
   }
 }
