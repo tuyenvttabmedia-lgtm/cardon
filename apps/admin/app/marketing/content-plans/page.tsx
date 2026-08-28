@@ -143,7 +143,7 @@ export default function ContentPlansPage() {
             <h1 className="text-xl font-semibold">{cp.title}</h1>
             <p className="text-sm text-muted-foreground">{cp.subtitle}</p>
           </div>
-          <Button onClick={() => setShowCreate(true)} disabled={featureEnabled === false}>
+          <Button onClick={() => setShowCreate(true)}>
             {vi.app.create}
           </Button>
         </div>

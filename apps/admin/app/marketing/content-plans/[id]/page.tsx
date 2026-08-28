@@ -216,7 +216,9 @@ export default function ContentPlanDetailPage() {
   }
 
   const busy = actionLoading || pollingAi;
-  const mutationsDisabled = busy || featureEnabled === false;
+  // Plan metadata edits + quality/approve/CMS stay available; only AI enqueue needs flag ON.
+  const aiActionsDisabled = busy || featureEnabled === false;
+  const mutationsDisabled = busy;
   const intelligence = plan?.intelligenceSnapshot;
   const outline = plan?.outline;
   const article = plan?.articleDocument;
@@ -275,7 +277,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={mutationsDisabled}
+                disabled={aiActionsDisabled}
               >
                 {cp.actions.analyze}
               </Button>
@@ -289,7 +291,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={mutationsDisabled}
+                disabled={aiActionsDisabled}
               >
                 {cp.actions.generateOutline}
               </Button>
@@ -328,7 +330,7 @@ export default function ContentPlanDetailPage() {
                     { pollAi: true },
                   )
                 }
-                disabled={mutationsDisabled}
+                disabled={aiActionsDisabled}
               >
                 {cp.actions.generateArticle}
               </Button>
