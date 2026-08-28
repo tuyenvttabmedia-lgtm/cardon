@@ -1881,3 +1881,83 @@ export interface AdminStaff {
   lastLoginAt: string | null;
   createdAt: string;
 }
+
+export interface ContentPlanListItem {
+  id: string;
+  status: string;
+  action: string;
+  topic: string;
+  primaryKeyword: string;
+  searchIntent: string;
+  contentType: string;
+  priority: string;
+  suggestedTitle: string | null;
+  generationEpoch: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContentPlanDetail extends ContentPlanListItem {
+  audience: string | null;
+  businessObjective: string | null;
+  sourceType: string;
+  sourceRefId: string | null;
+  cmsPageId: string | null;
+  targetPageId: string | null;
+  references: {
+    supportingKeywords?: string[];
+    angle?: string;
+    factVariantIds?: string[];
+    adminNotes?: string;
+  };
+  intelligenceSnapshot: Record<string, unknown> | null;
+  outline: Record<string, unknown> | null;
+  articleDocument: Record<string, unknown> | null;
+  qualityReport: Record<string, unknown> | null;
+  outlineApprovedAt: string | null;
+  contentApprovedAt: string | null;
+  publishedAt: string | null;
+  createdById: string;
+}
+
+export interface ContentPlanListResponse {
+  items: ContentPlanListItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface ContentAutomationContext {
+  userProvided: {
+    topic: string;
+    primaryKeyword: string;
+    searchIntent: string;
+    contentType: string;
+    audience: string | null;
+    businessObjective: string | null;
+    supportingKeywords: string[];
+    angle: string | null;
+  };
+  brandContext: Record<string, unknown>;
+  factContext: { refs: Array<Record<string, unknown>>; source: string };
+  existingContent: Array<Record<string, unknown>>;
+  internalLinkCandidates: Array<Record<string, unknown>>;
+  aiGenerated: Record<string, never>;
+}
+
+export interface InternalLinkCandidate {
+  targetPageId: string;
+  anchorText: string;
+  reason: string;
+  confidence: number;
+  validated: boolean;
+  validationError?: string;
+  publicPath?: string;
+}
+
+export interface ContentAutomationStatus {
+  enabled: boolean;
+  queue: string;
+  version: string;
+}

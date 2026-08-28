@@ -12,6 +12,7 @@ import { ProductModule } from './modules/product/product.module';
 import { ProviderModule } from './modules/provider/provider.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WebhookDeliveryModule } from './modules/webhook-delivery/webhook-delivery.module';
+import { ContentAutomationModule } from './modules/content-automation/content-automation.module';
 import { QueueModule } from './queue/queue.module';
 import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
 
@@ -35,6 +36,7 @@ import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
     OrderRevenueReconcileModule,
     SystemHealthModule,
     WebhookDeliveryModule,
+    ContentAutomationModule,
   ],
   providers: [WorkerHeartbeatService],
 })

@@ -489,6 +489,7 @@ model User {
   agentInviteUsed         AgentInvite?  @relation("AgentInviteUsedBy")
   supportTickets          SupportTicket[] @relation("SupportTicketCustomer")
   cardAccessLogs          CardAccessLog[]
+  contentPlans            ContentPlan[]
 
   @@index([deletedAt])
   @@map("users")
@@ -2142,4 +2143,143 @@ model SupportTicketMessage {
 
   @@index([ticketId])
   @@map("support_ticket_messages")
+}
+
+// =============================================================================
+// CONTENT AUTOMATION (M1 Foundation)
+// =============================================================================
+
+enum ContentPlanStatus {
+  DRAFT
+  PLANNED
+  OUTLINE_READY
+  OUTLINE_APPROVED
+  CONTENT_READY
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentPlanAction {
+  CREATE
+  UPDATE
+  MERGE
+  IGNORE
+}
+
+enum ContentPlanSearchIntent {
+  INFORMATIONAL
+  NAVIGATIONAL
+  COMMERCIAL
+  TRANSACTIONAL
+  TROUBLESHOOTING
+}
+
+enum ContentPlanContentType {
+  GUIDE
+  TUTORIAL
+  TROUBLESHOOTING
+  COMPARISON
+  EXPLAINER
+  PROMOTION
+  PRODUCT
+  NEWS
+  FAQ
+}
+
+enum AiRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum AiTaskType {
+  ANALYZE
+  OUTLINE
+  WRITE
+  QUALITY_CHECK
+  REGENERATE_SECTION
+}
+
+model ContentPlan {
+  id                   String                  @id @default(uuid()) @db.Uuid
+  status               ContentPlanStatus       @default(DRAFT)
+  action               ContentPlanAction       @default(CREATE)
+  generationEpoch      Int                     @default(0) @map("generation_epoch")
+  sourceType           String                  @default("MANUAL") @map("source_type") @db.VarChar(32)
+  sourceRefId          String?                 @map("source_ref_id") @db.Uuid
+  topic                String                  @db.VarChar(512)
+  primaryKeyword       String                  @map("primary_keyword") @db.VarChar(256)
+  searchIntent         ContentPlanSearchIntent @map("search_intent")
+  contentType          ContentPlanContentType  @map("content_type")
+  audience             String?                 @db.VarChar(256)
+  businessObjective    String?                 @map("business_objective") @db.VarChar(256)
+  priority             String                  @default("MEDIUM") @db.VarChar(16)
+  suggestedTitle       String?                 @map("suggested_title") @db.VarChar(255)
+  intelligenceSnapshot Json?                   @map("intelligence_snapshot")
+  outline              Json?
+  articleDocument      Json?                   @map("article_document")
+  qualityReport        Json?                   @map("quality_report")
+  references           Json?
+  cmsPageId            String?                 @unique @map("cms_page_id") @db.Uuid
+  targetPageId         String?                 @map("target_page_id") @db.Uuid
+  createdById          String                  @map("created_by_id") @db.Uuid
+  outlineApprovedAt    DateTime?               @map("outline_approved_at") @db.Timestamptz(6)
+  contentApprovedAt    DateTime?               @map("content_approved_at") @db.Timestamptz(6)
+  publishedAt          DateTime?               @map("published_at") @db.Timestamptz(6)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  aiRuns    AiRun[]
+
+  @@index([status])
+  @@index([createdById])
+  @@index([primaryKeyword])
+  @@map("content_plans")
+}
+
+model AiRun {
+  id              String       @id @default(uuid()) @db.Uuid
+  contentPlanId   String       @map("content_plan_id") @db.Uuid
+  task            AiTaskType
+  generationEpoch Int          @default(0) @map("generation_epoch")
+  provider        String       @default("") @db.VarChar(64)
+  model           String       @default("") @db.VarChar(128)
+  promptVersion   String       @default("") @map("prompt_version") @db.VarChar(128)
+  status          AiRunStatus  @default(QUEUED)
+  inputHash       String?      @map("input_hash") @db.VarChar(128)
+  contextRefs     Json?        @map("context_refs")
+  inputSnapshot   Json?        @map("input_snapshot")
+  outputSnapshot  Json?        @map("output_snapshot")
+  tokensIn        Int?         @map("tokens_in")
+  tokensOut       Int?         @map("tokens_out")
+  costUsd         Decimal?     @map("cost_usd") @db.Decimal(12, 6)
+  durationMs      Int?         @map("duration_ms")
+  error           String?      @db.Text
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  finishedAt      DateTime?    @map("finished_at") @db.Timestamptz(6)
+
+  contentPlan ContentPlan @relation(fields: [contentPlanId], references: [id], onDelete: Cascade)
+
+  @@index([contentPlanId, createdAt(sort: Desc)])
+  @@index([contentPlanId, task, generationEpoch])
+  @@index([status])
+  @@map("ai_runs")
+}
+
+model AiPromptTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @db.VarChar(128)
+  version   String   @db.VarChar(32)
+  content   String   @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([key, version])
+  @@map("ai_prompt_templates")
 }

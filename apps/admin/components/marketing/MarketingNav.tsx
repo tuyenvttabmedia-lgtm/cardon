@@ -7,6 +7,7 @@ import { vi } from '@/lib/i18n/vi';
 const TABS = [
   { href: '/marketing', label: 'Dashboard' },
   { href: '/marketing/articles', label: vi.nav.articles },
+  { href: '/marketing/content-plans', label: 'Kế hoạch nội dung' },
   { href: '/marketing/pages', label: vi.nav.pages },
   { href: '/marketing/contacts', label: 'Liên hệ' },
   { href: '/marketing/faq', label: 'FAQ' },
