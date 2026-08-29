@@ -86,6 +86,30 @@ const AI_POLL_INTERVAL_MS = 4_000;
 const AI_POLL_MAX_MS = 180_000;
 const TERMINAL_RUN_STATUSES = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
 
+/** Map pipeline status → tab the reviewer should see next. */
+function tabForPlanStatus(status: string): Tab | null {
+  switch (status) {
+    case 'DRAFT':
+      return 'overview';
+    case 'PLANNED':
+      return 'intelligence';
+    case 'OUTLINE_READY':
+    case 'OUTLINE_APPROVED':
+      return 'outline';
+    case 'CONTENT_READY':
+      return 'article';
+    case 'IN_REVIEW':
+      return 'quality';
+    case 'APPROVED':
+    case 'PUBLISHED':
+      return 'article';
+    case 'ARCHIVED':
+      return 'overview';
+    default:
+      return null;
+  }
+}
+
 function statusLabel(status: string) {
   return (cp.statusLabels as Record<string, string>)[status] ?? status;
 }
@@ -135,6 +159,13 @@ export default function ContentPlanDetailPage() {
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
   const [promptsReady, setPromptsReady] = useState<boolean | null>(null);
   const pollAbortRef = useRef(0);
+  const initialTabSyncedRef = useRef(false);
+
+  const syncTabToStatus = useCallback((status: string | undefined | null) => {
+    if (!status) return;
+    const next = tabForPlanStatus(status);
+    if (next) setTab(next);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -196,6 +227,16 @@ export default function ContentPlanDetailPage() {
   }, [load]);
 
   useEffect(() => {
+    initialTabSyncedRef.current = false;
+  }, [planId]);
+
+  useEffect(() => {
+    if (!plan || initialTabSyncedRef.current) return;
+    syncTabToStatus(plan.status);
+    initialTabSyncedRef.current = true;
+  }, [plan, syncTabToStatus]);
+
+  useEffect(() => {
     return () => {
       pollAbortRef.current += 1;
     };
@@ -213,14 +254,16 @@ export default function ContentPlanDetailPage() {
         if (aiRunId) {
           try {
             const run = await contentAutomationApi.getAiRun(aiRunId);
-            await refreshQuiet();
+            const snap = await refreshQuiet();
             if (TERMINAL_RUN_STATUSES.has(run.status)) {
               if (run.status === 'FAILED' || run.status === 'CANCELLED') {
                 toast.error(run.error ? `${cp.aiJobFailed}: ${run.error}` : cp.aiJobFailed);
               } else if (run.provider === 'heuristic') {
                 toast.error(cp.heuristicWarning);
+                if (snap?.plan.status) syncTabToStatus(snap.plan.status);
               } else {
                 toast.success(cp.aiJobDone);
+                if (snap?.plan.status) syncTabToStatus(snap.plan.status);
               }
               return;
             }
@@ -240,8 +283,10 @@ export default function ContentPlanDetailPage() {
             toast.error(tracked.error ? `${cp.aiJobFailed}: ${tracked.error}` : cp.aiJobFailed);
           } else if (tracked.provider === 'heuristic') {
             toast.error(cp.heuristicWarning);
+            syncTabToStatus(snap.plan.status);
           } else {
             toast.success(cp.aiJobDone);
+            syncTabToStatus(snap.plan.status);
           }
           return;
         }
@@ -268,6 +313,7 @@ export default function ContentPlanDetailPage() {
       if (!opts?.skipReload) {
         await load();
       }
+      // Immediate tab switch for sync actions; AI jobs also sync again after poll.
       if (opts?.switchTab) {
         setTab(opts.switchTab);
       }
@@ -355,7 +401,7 @@ export default function ContentPlanDetailPage() {
                   void runAction(
                     cp.actions.analyzeDone,
                     () => contentAutomationApi.analyzePlan(planId),
-                    { pollAi: true },
+                    { pollAi: true, switchTab: 'intelligence' },
                   )
                 }
                 disabled={aiActionsDisabled}
@@ -369,7 +415,7 @@ export default function ContentPlanDetailPage() {
                   void runAction(
                     cp.actions.generateOutlineDone,
                     () => contentAutomationApi.generateOutline(planId),
-                    { pollAi: true },
+                    { pollAi: true, switchTab: 'outline' },
                   )
                 }
                 disabled={aiActionsDisabled}
@@ -381,8 +427,10 @@ export default function ContentPlanDetailPage() {
               <>
                 <Button
                   onClick={() =>
-                    void runAction(cp.actions.approveOutlineDone, () =>
-                      contentAutomationApi.approveOutline(planId),
+                    void runAction(
+                      cp.actions.approveOutlineDone,
+                      () => contentAutomationApi.approveOutline(planId),
+                      { switchTab: 'outline' },
                     )
                   }
                   disabled={mutationsDisabled}
@@ -392,8 +440,10 @@ export default function ContentPlanDetailPage() {
                 <Button
                   variant="secondary"
                   onClick={() =>
-                    void runAction(cp.actions.rejectOutlineDone, () =>
-                      contentAutomationApi.rejectOutline(planId),
+                    void runAction(
+                      cp.actions.rejectOutlineDone,
+                      () => contentAutomationApi.rejectOutline(planId),
+                      { switchTab: 'intelligence' },
                     )
                   }
                   disabled={mutationsDisabled}
@@ -408,7 +458,7 @@ export default function ContentPlanDetailPage() {
                   void runAction(
                     cp.actions.generateArticleDone,
                     () => contentAutomationApi.generateArticle(planId),
-                    { pollAi: true },
+                    { pollAi: true, switchTab: 'article' },
                   )
                 }
                 disabled={aiActionsDisabled}
@@ -434,8 +484,10 @@ export default function ContentPlanDetailPage() {
               <>
                 <Button
                   onClick={() =>
-                    void runAction(cp.actions.approveContentDone, () =>
-                      contentAutomationApi.approveContent(planId),
+                    void runAction(
+                      cp.actions.approveContentDone,
+                      () => contentAutomationApi.approveContent(planId),
+                      { switchTab: 'article' },
                     )
                   }
                   disabled={mutationsDisabled}
@@ -445,8 +497,10 @@ export default function ContentPlanDetailPage() {
                 <Button
                   variant="secondary"
                   onClick={() =>
-                    void runAction(cp.actions.rejectRewriteDone, () =>
-                      contentAutomationApi.rejectContent(planId, 're-write'),
+                    void runAction(
+                      cp.actions.rejectRewriteDone,
+                      () => contentAutomationApi.rejectContent(planId, 're-write'),
+                      { switchTab: 'outline' },
                     )
                   }
                   disabled={mutationsDisabled}
@@ -456,8 +510,10 @@ export default function ContentPlanDetailPage() {
                 <Button
                   variant="secondary"
                   onClick={() =>
-                    void runAction(cp.actions.rejectReOutlineDone, () =>
-                      contentAutomationApi.rejectContent(planId, 're-outline'),
+                    void runAction(
+                      cp.actions.rejectReOutlineDone,
+                      () => contentAutomationApi.rejectContent(planId, 're-outline'),
+                      { switchTab: 'intelligence' },
                     )
                   }
                   disabled={mutationsDisabled}
