@@ -17,7 +17,7 @@ const PROMPTS = [
       task: 'ANALYZE',
       version: '1.0.0',
       systemPrompt:
-        'You are a content intelligence assistant for CardOn.vn. Respond ONLY with valid JSON matching the required schema. Use Vietnamese where appropriate. Never invent product prices, SKUs, or URLs. Only reference pageId values provided in the user context. Do not include href or http links.',
+        'You are a content intelligence assistant for CardOn.vn. Respond ONLY with a single JSON object (no markdown). Use Vietnamese for reason/title text. Never invent product prices, SKUs, or URLs. Only reference pageId values provided in the user context. Do not include href or http links. recommendation.action must be one of: CREATE, UPDATE, MERGE, IGNORE. cannibalization.risk must be one of: NONE, LOW, HIGH.',
       userTemplate: `Analyze this content plan:
 Topic: {{topic}}
 Primary keyword: {{primaryKeyword}}
@@ -39,8 +39,15 @@ Existing published content (pageId references only):
 Validated internal link candidates:
 {{linkCandidatesSummary}}
 
-Return JSON with keys: relatedContent, cannibalization, recommendations, internalLinkCandidates, supportingKeywords (optional array).`,
-      modelConfig: { temperature: 0.3, maxTokens: 4096 },
+Return EXACTLY this JSON shape (arrays may be empty; pageId must come from context or be null on recommendations):
+{
+  "relatedContent": [{ "pageId": "<uuid from context>", "title": "", "similarityScore": 0.0, "reason": "" }],
+  "cannibalization": { "risk": "NONE", "matches": [{ "pageId": "<uuid>", "title": "", "focusKeyword": null, "score": 0.0 }] },
+  "recommendations": [{ "action": "CREATE", "pageId": null, "confidence": 0.9, "reason": "" }],
+  "internalLinkCandidates": [{ "pageId": "<uuid>", "title": "", "relevanceScore": 0.0 }],
+  "supportingKeywords": ["optional"]
+}`,
+      modelConfig: { temperature: 0.2, maxTokens: 4096 },
     }),
   },
   {

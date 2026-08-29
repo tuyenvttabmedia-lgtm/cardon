@@ -4,6 +4,10 @@ import {
   INTELLIGENCE_SNAPSHOT_VERSION,
   type IntelligenceSnapshotV1,
 } from '../entities/intelligence-snapshot.types';
+import {
+  coerceAnalyzePayload,
+  summarizeAnalyzePayloadKeys,
+} from './analyze-output.normalize';
 
 const VALID_ACTIONS = new Set<string>(Object.values(ContentPlanAction));
 const VALID_RISKS = new Set(['NONE', 'LOW', 'HIGH']);
@@ -50,7 +54,8 @@ export function validateAndBuildAiSnapshot(
   context: GenerationContext,
 ): IntelligenceSnapshotV1 {
   validateNoHref(raw);
-  const payload = parsePayload(raw);
+  const coerced = coerceAnalyzePayload(raw);
+  const payload = parsePayload(coerced);
   const allowedPageIds = buildAllowedPageIds(context);
 
   validatePageIds(payload, allowedPageIds);
@@ -89,8 +94,14 @@ function parsePayload(raw: unknown): AiAnalyzeOutputPayload {
 
   const obj = raw as Record<string, unknown>;
 
-  if (!Array.isArray(obj.relatedContent) || !obj.cannibalization || !Array.isArray(obj.recommendations)) {
-    throw new AnalyzeOutputValidationError('Missing required analyze output fields');
+  if (
+    !Array.isArray(obj.relatedContent) ||
+    !obj.cannibalization ||
+    !Array.isArray(obj.recommendations)
+  ) {
+    throw new AnalyzeOutputValidationError(
+      `Missing required analyze output fields (need relatedContent, cannibalization, recommendations; got keys: ${summarizeAnalyzePayloadKeys(obj)})`,
+    );
   }
 
   const cannibal = obj.cannibalization as Record<string, unknown>;
