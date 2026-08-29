@@ -74,7 +74,12 @@ function collectFullText(doc: ArticleDocumentV1): string {
     .join(' ');
 }
 
-function findDupOpening(sections: ArticleBlock[]): boolean {
+/** Count paragraph → ul/ol pairs with high token overlap (article-wide). */
+export function countParaListDupPairs(
+  sections: ArticleBlock[],
+  threshold = 0.5,
+): number {
+  let count = 0;
   for (let i = 0; i < sections.length - 1; i++) {
     const cur = sections[i];
     const next = sections[i + 1];
@@ -82,9 +87,9 @@ function findDupOpening(sections: ArticleBlock[]): boolean {
     if (next.type !== 'ul' && next.type !== 'ol') continue;
     const listText = (next.items ?? []).join(' ');
     if (!listText) continue;
-    if (textSimilarity(cur.text, listText) >= 0.55) return true;
+    if (textSimilarity(cur.text, listText) >= threshold) count += 1;
   }
-  return false;
+  return count;
 }
 
 function topicTokens(plan: ContentPlan): Set<string> {
@@ -108,10 +113,16 @@ export function runEditorialSoftChecks(
 ): QualityCheckItem[] {
   const checks: QualityCheckItem[] = [];
 
-  // DUP_OPENING: paragraph paraphrased as list immediately after
+  // DUP_OPENING: paragraph paraphrased as list immediately after (count all pairs)
+  const dupPairs = countParaListDupPairs(doc.sections);
   checks.push(
-    findDupOpening(doc.sections)
-      ? warn('DUP_OPENING', 'Đoạn mở bị lặp lại gần như nguyên văn bằng list ngay bên dưới')
+    dupPairs > 0
+      ? warn(
+          'DUP_OPENING',
+          dupPairs === 1
+            ? 'Có 1 cặp đoạn→list paraphrase nhau — giữ một dạng thôi'
+            : `Có ${dupPairs} cặp đoạn→list paraphrase nhau — bài tip đang bị nhân đôi nội dung`,
+        )
       : passed('DUP_OPENING', 'Không phát hiện paragraph trùng list ngay sau'),
   );
 
@@ -227,6 +238,23 @@ export function runEditorialSoftChecks(
           `Có thể bịa thời hạn chính sách: «${durationHits[0].slice(0, 80)}…» — chỉ nêu nếu có trong fact`,
         )
       : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số tháng bịa'),
+  );
+
+  // Soft: refund / licensing claims often invented for digital cards
+  const policyBlob = normalizeText(collectFullText(doc));
+  const inventedPolicy: string[] = [];
+  if (/hoan tien|hoan lai|refund/.test(policyBlob)) inventedPolicy.push('hoàn tiền');
+  if (/duoc cap phep|giay phep kinh doanh/.test(policyBlob)) inventedPolicy.push('cấp phép');
+  if (/han su dung.*(the|ma)|the.{0,20}han su dung/.test(policyBlob)) {
+    inventedPolicy.push('hạn sử dụng thẻ');
+  }
+  checks.push(
+    inventedPolicy.length > 0
+      ? warn(
+          'INVENTED_POLICY',
+          `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ hoặc chỉ nêu nếu có trong fact`,
+        )
+      : passed('INVENTED_POLICY', 'Không thấy claim hoàn tiền/cấp phép/hạn dùng dễ bịa'),
   );
 
   return checks;
