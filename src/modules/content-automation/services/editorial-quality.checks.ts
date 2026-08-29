@@ -185,6 +185,37 @@ export function runEditorialSoftChecks(
     );
   }
 
+  // Topics about top-up / history should mention CardOn order/history check
+  const topicBlob = normalizeText(`${plan.topic} ${plan.primaryKeyword}`);
+  const topupTopic =
+    /lich su nap|nap tien|the dien thoai|top ?up|nap the/.test(topicBlob) &&
+    !/garena|zing|vcoin|game/.test(topicBlob);
+  if (topupTopic) {
+    const bodyNorm = normalizeText(collectFullText(doc));
+    const hasCardonHistory =
+      bodyNorm.includes('cardon') &&
+      (/lich su|don hang|trang thai|giao dich/.test(bodyNorm) || bodyNorm.includes('cardon'));
+    checks.push(
+      hasCardonHistory
+        ? passed('CARDON_TOPUP_SECTION', 'Có nhắc kiểm tra/giao dịch trên CardOn')
+        : warn(
+            'CARDON_TOPUP_SECTION',
+            'Topic nạp tiền/lịch sử nạp nhưng thiếu mục kiểm tra trên CardOn',
+          ),
+    );
+  }
+
+  // Thin teaser: opening too long for GUIDE-like intros
+  const firstPara = doc.sections.find((s) => s.type === 'paragraph' && s.text);
+  if (firstPara?.text) {
+    const sentences = firstPara.text.split(/[.!?…]+/).filter((s) => s.trim().length > 12);
+    checks.push(
+      sentences.length > 3
+        ? warn('INTRO_TOO_LONG', `Đoạn mở ~${sentences.length} câu (nên ≤3)`)
+        : passed('INTRO_TOO_LONG', 'Độ dài đoạn mở ổn'),
+    );
+  }
+
   return checks;
 }
 
