@@ -93,6 +93,87 @@ describe('editorial-quality.checks', () => {
     const checks = runEditorialSoftChecks(basePlan(), doc, emptyContext());
     const dup = checks.find((c) => c.code === 'DUP_OPENING');
     expect(dup?.severity).toBe('warning');
+    expect(dup?.message).toMatch(/1 cặp/);
+  });
+
+  it('counts multiple paragraph→list paraphrase pairs', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ game',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ game online',
+      },
+      sections: [
+        {
+          id: 'p1',
+          type: 'paragraph',
+          text: 'Chọn nhà cung cấp uy tín và kiểm tra mệnh giá thẻ phù hợp.',
+        },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Chọn nhà cung cấp uy tín',
+            'Kiểm tra mệnh giá thẻ phù hợp',
+          ],
+        },
+        {
+          id: 'p2',
+          type: 'paragraph',
+          text: 'Lưu biên lai giao dịch và mã thẻ để đối chiếu khi cần.',
+        },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Lưu biên lai giao dịch',
+            'Giữ mã thẻ để đối chiếu khi cần',
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ game online',
+        primaryKeyword: 'mua thẻ game online',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext(),
+    );
+    const dup = checks.find((c) => c.code === 'DUP_OPENING');
+    expect(dup?.severity).toBe('warning');
+    expect(dup?.message).toMatch(/2 cặp/);
+  });
+
+  it('flags invented refund/licensing claims', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ game',
+      },
+      sections: [
+        {
+          id: '1',
+          type: 'paragraph',
+          text: 'Nên chọn phương thức có bảo mật và hỗ trợ hoàn tiền khi có sự cố tại cửa hàng được cấp phép.',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(basePlan(), doc, emptyContext());
+    const policy = checks.find((c) => c.code === 'INVENTED_POLICY');
+    expect(policy?.severity).toBe('warning');
   });
 
   it('flags off-topic CTA H2 early on troubleshooting', () => {
