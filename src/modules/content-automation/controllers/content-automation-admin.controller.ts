@@ -127,6 +127,11 @@ export class ContentAutomationAdminController {
     return this.planService.archive(id);
   }
 
+  @Post('plans/:id/restore')
+  restorePlan(@Param('id', ParseUUIDPipe) id: string) {
+    return this.planService.restore(id);
+  }
+
   @Post('plans/:id/analyze')
   @UseGuards(ContentAutomationEnabledGuard)
   async analyzePlan(

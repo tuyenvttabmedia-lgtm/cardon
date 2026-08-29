@@ -265,6 +265,7 @@ export default function ContentPlansPage() {
                   onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
                   required
                 />
+                <p className="text-xs text-muted-foreground">{cp.topicHint}</p>
               </div>
               <div>
                 <Label>{cp.primaryKeyword} *</Label>

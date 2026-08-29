@@ -7,7 +7,7 @@ import { ArticlePreviewModal } from '@/components/marketing/cms-editor/ArticlePr
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
-import { Button } from '@/components/ui/Form';
+import { Button, Input, Label, Select } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { vi } from '@/lib/i18n/vi';
 import { ApiClientError } from '@/services/api-client';
@@ -50,6 +50,23 @@ const TAB_LABELS: Record<Tab, string> = {
   aiRuns: cp.tabs.aiRuns,
 };
 
+const EDITABLE_STATUSES = new Set(['DRAFT', 'PLANNED']);
+
+const CONTENT_TYPES = Object.entries(cp.contentTypeLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+const SEARCH_INTENTS = Object.entries(cp.searchIntentLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
+
+const PRIORITIES = Object.entries(cp.priorityLabels).map(([value, label]) => ({
+  value,
+  label,
+}));
+
 const AI_POLL_INTERVAL_MS = 4_000;
 const AI_POLL_MAX_MS = 180_000;
 const TERMINAL_RUN_STATUSES = new Set(['SUCCEEDED', 'FAILED', 'CANCELLED']);
@@ -83,6 +100,15 @@ export default function ContentPlanDetailPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    topic: '',
+    primaryKeyword: '',
+    suggestedTitle: '',
+    searchIntent: 'INFORMATIONAL',
+    contentType: 'GUIDE',
+    priority: 'MEDIUM',
+  });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -103,6 +129,14 @@ export default function ContentPlanDetailPage() {
       setPlan(planRes);
       setContext(contextRes);
       setAiRuns(runsRes.items);
+      setEditForm({
+        topic: planRes.topic,
+        primaryKeyword: planRes.primaryKeyword,
+        suggestedTitle: planRes.suggestedTitle ?? '',
+        searchIntent: planRes.searchIntent,
+        contentType: planRes.contentType,
+        priority: planRes.priority,
+      });
       setError(null);
     } catch (err) {
       const message = err instanceof ApiClientError ? err.message : vi.app.requestFailed;
@@ -206,7 +240,7 @@ export default function ContentPlanDetailPage() {
     label: string,
     fn: () => Promise<unknown>,
     opts?: { pollAi?: boolean; switchTab?: Tab },
-  ) {
+  ): Promise<boolean> {
     setActionLoading(true);
     try {
       const result = await fn();
@@ -226,8 +260,10 @@ export default function ContentPlanDetailPage() {
         const token = ++pollAbortRef.current;
         void pollAiJob(token, aiRunId);
       }
+      return true;
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+      return false;
     } finally {
       setActionLoading(false);
     }
@@ -452,6 +488,16 @@ export default function ContentPlanDetailPage() {
                 {previewLoading ? vi.app.loading : cp.actions.previewHtml}
               </Button>
             ) : null}
+            {plan && plan.status === 'ARCHIVED' ? (
+              <Button
+                onClick={() =>
+                  void runAction(cp.actions.restoreDone, () => contentAutomationApi.restorePlan(planId))
+                }
+                disabled={mutationsDisabled}
+              >
+                {cp.actions.restore}
+              </Button>
+            ) : null}
             {plan && plan.status !== 'ARCHIVED' ? (
               <Button
                 variant="secondary"
@@ -530,25 +576,141 @@ export default function ContentPlanDetailPage() {
 
             {tab === 'overview' ? (
               <Card className="space-y-3 p-4 text-sm">
-                <Row label={cp.topic} value={plan.topic} />
-                <Row label={cp.primaryKeyword} value={plan.primaryKeyword} />
-                <Row label={cp.status} value={statusLabel(plan.status)} />
-                <Row
-                  label={cp.contentType}
-                  value={
-                    (cp.contentTypeLabels as Record<string, string>)[plan.contentType] ??
-                    plan.contentType
-                  }
-                />
-                <Row
-                  label={cp.searchIntent}
-                  value={
-                    (cp.searchIntentLabels as Record<string, string>)[plan.searchIntent] ??
-                    plan.searchIntent
-                  }
-                />
-                <Row label={cp.suggestedTitle} value={plan.suggestedTitle ?? '—'} />
-                <Row label={cp.cmsPageId} value={plan.cmsPageId ?? '—'} />
+                {plan.status && EDITABLE_STATUSES.has(plan.status) ? (
+                  <div className="flex justify-end">
+                    <Button
+                      variant="secondary"
+                      onClick={() => setEditing((v) => !v)}
+                      disabled={mutationsDisabled}
+                    >
+                      {editing ? vi.app.cancel : cp.editTitle}
+                    </Button>
+                  </div>
+                ) : null}
+                {editing && EDITABLE_STATUSES.has(plan.status) ? (
+                  <form
+                    className="space-y-3"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void (async () => {
+                        const ok = await runAction(cp.saveEditDone, () =>
+                          contentAutomationApi.updatePlan(planId, {
+                            topic: editForm.topic.trim(),
+                            primaryKeyword: editForm.primaryKeyword.trim(),
+                            suggestedTitle: editForm.suggestedTitle.trim() || null,
+                            searchIntent: editForm.searchIntent,
+                            contentType: editForm.contentType,
+                            priority: editForm.priority,
+                          }),
+                        );
+                        if (ok) setEditing(false);
+                      })();
+                    }}
+                  >
+                    <div>
+                      <Label>{cp.topic}</Label>
+                      <Input
+                        value={editForm.topic}
+                        onChange={(e) => setEditForm((f) => ({ ...f, topic: e.target.value }))}
+                        required
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">{cp.topicHint}</p>
+                    </div>
+                    <div>
+                      <Label>{cp.suggestedTitle}</Label>
+                      <Input
+                        value={editForm.suggestedTitle}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, suggestedTitle: e.target.value }))
+                        }
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">{cp.suggestedTitleHint}</p>
+                    </div>
+                    <div>
+                      <Label>{cp.primaryKeyword}</Label>
+                      <Input
+                        value={editForm.primaryKeyword}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, primaryKeyword: e.target.value }))
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <Label>{cp.contentType}</Label>
+                        <Select
+                          value={editForm.contentType}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, contentType: e.target.value }))
+                          }
+                        >
+                          {CONTENT_TYPES.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>{cp.searchIntent}</Label>
+                        <Select
+                          value={editForm.searchIntent}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, searchIntent: e.target.value }))
+                          }
+                        >
+                          {SEARCH_INTENTS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>{cp.priority}</Label>
+                        <Select
+                          value={editForm.priority}
+                          onChange={(e) =>
+                            setEditForm((f) => ({ ...f, priority: e.target.value }))
+                          }
+                        >
+                          {PRIORITIES.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </Select>
+                      </div>
+                    </div>
+                    <Button type="submit" disabled={mutationsDisabled}>
+                      {cp.saveEdit}
+                    </Button>
+                  </form>
+                ) : (
+                  <>
+                    <Row label={cp.topic} value={plan.topic} />
+                    <Row label={cp.primaryKeyword} value={plan.primaryKeyword} />
+                    <Row label={cp.status} value={statusLabel(plan.status)} />
+                    <Row
+                      label={cp.contentType}
+                      value={
+                        (cp.contentTypeLabels as Record<string, string>)[plan.contentType] ??
+                        plan.contentType
+                      }
+                    />
+                    <Row
+                      label={cp.searchIntent}
+                      value={
+                        (cp.searchIntentLabels as Record<string, string>)[plan.searchIntent] ??
+                        plan.searchIntent
+                      }
+                    />
+                    <Row label={cp.suggestedTitle} value={plan.suggestedTitle ?? '—'} />
+                    <Row label={cp.cmsPageId} value={plan.cmsPageId ?? '—'} />
+                    <p className="pt-2 text-xs text-muted-foreground">{cp.topicHint}</p>
+                  </>
+                )}
               </Card>
             ) : null}
 

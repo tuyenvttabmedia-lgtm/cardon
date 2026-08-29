@@ -160,6 +160,20 @@ export class ContentPlanService {
     return mapContentPlanDetail(updated);
   }
 
+  async restore(id: string): Promise<ContentPlanDetailView> {
+    const plan = await this.requirePlan(id);
+    if (plan.status !== ContentPlanStatus.ARCHIVED) {
+      throw new BadRequestException('Only ARCHIVED plans can be restored');
+    }
+    assertContentPlanTransition(plan.status, ContentPlanStatus.DRAFT);
+    const updated = await this.planRepository.update(id, {
+      status: ContentPlanStatus.DRAFT,
+      action: ContentPlanAction.CREATE,
+    });
+    this.audit.log('plan.restored', { planId: id });
+    return mapContentPlanDetail(updated);
+  }
+
   async archive(
     id: string,
     existing?: Awaited<ReturnType<ContentPlanRepository['findById']>>,

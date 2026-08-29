@@ -12,6 +12,12 @@ describe('content-plan-state.machine', () => {
     );
   });
 
+  it('allows ARCHIVED -> DRAFT restore', () => {
+    expect(canTransitionContentPlan(ContentPlanStatus.ARCHIVED, ContentPlanStatus.DRAFT)).toBe(
+      true,
+    );
+  });
+
   it('blocks DRAFT -> PUBLISHED', () => {
     expect(canTransitionContentPlan(ContentPlanStatus.DRAFT, ContentPlanStatus.PUBLISHED)).toBe(
       false,
