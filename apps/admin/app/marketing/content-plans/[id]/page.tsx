@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ArticlePreviewModal } from '@/components/marketing/cms-editor/ArticlePreviewModal';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
@@ -18,6 +19,24 @@ import type {
 } from '@/types/api';
 
 type Tab = 'overview' | 'intelligence' | 'outline' | 'article' | 'quality' | 'context' | 'aiRuns';
+
+type QualityCheck = {
+  code: string;
+  layer: 1 | 2 | 3;
+  severity: 'error' | 'warning' | 'info';
+  message: string;
+  passed: boolean;
+};
+
+type QualityReport = {
+  version?: string;
+  checkedAt?: string;
+  passed?: boolean;
+  layer1Passed?: boolean;
+  layer2Passed?: boolean;
+  layer3Score?: number;
+  checks?: QualityCheck[];
+};
 
 const cp = vi.contentPlans;
 
@@ -46,6 +65,13 @@ function formatCost(costUsd: string | null): string {
   return n.toFixed(4);
 }
 
+function parseQualityReport(raw: unknown): QualityReport | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const obj = raw as QualityReport;
+  if (!Array.isArray(obj.checks)) return null;
+  return obj;
+}
+
 export default function ContentPlanDetailPage() {
   const params = useParams<{ id: string }>();
   const planId = params.id;
@@ -54,7 +80,9 @@ export default function ContentPlanDetailPage() {
   const [plan, setPlan] = useState<ContentPlanDetail | null>(null);
   const [context, setContext] = useState<ContentAutomationContext | null>(null);
   const [aiRuns, setAiRuns] = useState<ContentAiRunListItem[]>([]);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -177,13 +205,16 @@ export default function ContentPlanDetailPage() {
   async function runAction(
     label: string,
     fn: () => Promise<unknown>,
-    opts?: { pollAi?: boolean },
+    opts?: { pollAi?: boolean; switchTab?: Tab },
   ) {
     setActionLoading(true);
     try {
       const result = await fn();
       toast.success(label);
       await load();
+      if (opts?.switchTab) {
+        setTab(opts.switchTab);
+      }
       if (opts?.pollAi) {
         const aiRunId =
           result &&
@@ -202,72 +233,64 @@ export default function ContentPlanDetailPage() {
     }
   }
 
-  async function loadPreview() {
-    setActionLoading(true);
+  async function openPreview() {
+    setPreviewLoading(true);
     try {
       const res = await contentAutomationApi.getPreview(planId);
-      setPreviewHtml(res.html);
-      setTab('article');
+      setPreviewHtml(res.html || '');
+      setPreviewOpen(true);
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     } finally {
-      setActionLoading(false);
+      setPreviewLoading(false);
     }
   }
 
-  const busy = actionLoading || pollingAi;
   // Plan metadata edits + quality/approve/CMS stay available; only AI enqueue needs flag ON.
+  const busy = actionLoading || pollingAi;
   const aiActionsDisabled = busy || featureEnabled === false;
   const mutationsDisabled = busy;
   const intelligence = plan?.intelligenceSnapshot;
   const outline = plan?.outline;
   const article = plan?.articleDocument;
-  const quality = plan?.qualityReport as { passed?: boolean; checks?: unknown[] } | null;
+  const quality = parseQualityReport(plan?.qualityReport);
+  const articleTitle =
+    (typeof article?.title === 'string' && article.title) ||
+    plan?.suggestedTitle ||
+    plan?.topic ||
+    '';
+  const articleExcerpt =
+    typeof article?.excerpt === 'string' ? article.excerpt : '';
 
   return (
     <RequirePermission permission="cms.manage">
       <div className="space-y-4">
         <MarketingNav />
-        {featureEnabled === false ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {cp.disabledBanner}{' '}
-            <Link href="/configuration/content-ai" className="font-medium underline">
-              Content AI
-            </Link>
-          </p>
-        ) : null}
-        {featureEnabled === true && aiConfigured === false ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {cp.aiNotConfiguredBanner}{' '}
-            <Link href="/configuration/content-ai" className="font-medium underline">
-              Content AI
-            </Link>
-          </p>
-        ) : null}
-        {featureEnabled === true && promptsReady === false ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {cp.promptsMissingBanner}
-          </p>
-        ) : null}
-        {pollingAi ? (
-          <p className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-            {cp.aiJobPolling}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <Link href="/marketing/content-plans" className="text-sm text-primary hover:underline">
+            <Link href="/marketing/content-plans" className="text-sm text-muted-foreground hover:underline">
               {cp.backToList}
             </Link>
-            <h1 className="text-xl font-semibold">{plan?.topic ?? cp.title}</h1>
+            <h1 className="mt-1 text-xl font-semibold">{plan?.topic ?? cp.title}</h1>
             {plan ? (
               <p className="text-sm text-muted-foreground">
                 {statusLabel(plan.status)} · {plan.primaryKeyword} · {cp.generationEpoch}{' '}
                 {plan.generationEpoch}
+                {quality ? (
+                  <>
+                    {' '}
+                    ·{' '}
+                    <span className={quality.passed ? 'text-emerald-700' : 'text-red-700'}>
+                      {quality.passed ? cp.qualityPassed : cp.qualityFailed}
+                    </span>
+                  </>
+                ) : null}
               </p>
             ) : null}
+            {pollingAi ? <p className="mt-1 text-sm text-amber-800">{cp.aiJobPolling}</p> : null}
           </div>
           <div className="flex flex-wrap gap-2">
+            {/* action buttons preserved below via existing conditions */}
             {plan?.status === 'DRAFT' ? (
               <Button
                 onClick={() =>
@@ -338,8 +361,10 @@ export default function ContentPlanDetailPage() {
             {plan?.status === 'CONTENT_READY' || plan?.status === 'IN_REVIEW' ? (
               <Button
                 onClick={() =>
-                  void runAction(cp.actions.runQualityGateDone, () =>
-                    contentAutomationApi.runQualityGate(planId),
+                  void runAction(
+                    cp.actions.runQualityGateDone,
+                    () => contentAutomationApi.runQualityGate(planId),
+                    { switchTab: 'quality' },
                   )
                 }
                 disabled={mutationsDisabled}
@@ -419,8 +444,12 @@ export default function ContentPlanDetailPage() {
               </Link>
             ) : null}
             {article ? (
-              <Button variant="secondary" onClick={() => void loadPreview()} disabled={busy}>
-                {cp.actions.previewHtml}
+              <Button
+                variant="secondary"
+                onClick={() => void openPreview()}
+                disabled={busy || previewLoading}
+              >
+                {previewLoading ? vi.app.loading : cp.actions.previewHtml}
               </Button>
             ) : null}
             {plan && plan.status !== 'ARCHIVED' ? (
@@ -439,6 +468,28 @@ export default function ContentPlanDetailPage() {
             </Button>
           </div>
         </div>
+
+        {featureEnabled === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.disabledBanner}{' '}
+            <Link href="/configuration/content-ai" className="font-medium underline">
+              Content AI
+            </Link>
+          </p>
+        ) : null}
+        {featureEnabled === true && aiConfigured === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.aiNotConfiguredBanner}{' '}
+            <Link href="/configuration/content-ai" className="font-medium underline">
+              Content AI
+            </Link>
+          </p>
+        ) : null}
+        {featureEnabled === true && promptsReady === false ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {cp.promptsMissingBanner}
+          </p>
+        ) : null}
 
         {error ? <ErrorMessage message={error} /> : null}
         {loading ? <p>{vi.app.loading}</p> : null}
@@ -466,6 +517,13 @@ export default function ContentPlanDetailPage() {
                   onClick={() => setTab(t)}
                 >
                   {TAB_LABELS[t]}
+                  {t === 'quality' && quality ? (
+                    <span
+                      className={`ml-1 inline-block h-2 w-2 rounded-full ${
+                        quality.passed ? 'bg-emerald-400' : 'bg-red-400'
+                      }`}
+                    />
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -502,20 +560,20 @@ export default function ContentPlanDetailPage() {
 
             {tab === 'article' ? (
               <div className="space-y-4">
+                <div className="flex justify-end">
+                  <Button
+                    variant="secondary"
+                    onClick={() => void openPreview()}
+                    disabled={busy || previewLoading || !article}
+                  >
+                    {previewLoading ? vi.app.loading : cp.actions.previewHtml}
+                  </Button>
+                </div>
                 <JsonCard data={article} empty={cp.emptyArticle} />
-                {previewHtml ? (
-                  <Card className="p-4">
-                    <h3 className="mb-2 font-medium">{cp.htmlPreview}</h3>
-                    <div
-                      className="prose max-w-none rounded border bg-white p-4 text-sm"
-                      dangerouslySetInnerHTML={{ __html: previewHtml }}
-                    />
-                  </Card>
-                ) : null}
               </div>
             ) : null}
 
-            {tab === 'quality' ? <JsonCard data={quality} empty={cp.emptyQuality} /> : null}
+            {tab === 'quality' ? <QualityReportPanel report={quality} /> : null}
 
             {tab === 'context' && context ? <JsonCard data={context} empty="" /> : null}
 
@@ -542,21 +600,10 @@ export default function ContentPlanDetailPage() {
                       <tbody>
                         {aiRuns.map((run) => {
                           const isHeuristic = run.provider === 'heuristic';
-                          const isTerminal = TERMINAL_RUN_STATUSES.has(run.status);
                           return (
-                            <tr
-                              key={run.id}
-                              className={`border-b align-top ${
-                                isHeuristic ? 'bg-amber-50/80' : ''
-                              }`}
-                            >
-                              <td className="py-2 pr-3 font-mono text-xs">{run.task}</td>
-                              <td className="py-2 pr-3">
-                                {run.status}
-                                {!isTerminal ? (
-                                  <span className="ml-1 text-xs text-sky-700">…</span>
-                                ) : null}
-                              </td>
+                            <tr key={run.id} className="border-b align-top">
+                              <td className="py-2 pr-3">{run.task}</td>
+                              <td className="py-2 pr-3">{run.status}</td>
                               <td className="py-2 pr-3">{run.generationEpoch}</td>
                               <td className="py-2 pr-3">
                                 {run.provider ?? '—'}
@@ -588,6 +635,16 @@ export default function ContentPlanDetailPage() {
             ) : null}
           </>
         ) : null}
+
+        <ArticlePreviewModal
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          title={articleTitle}
+          content={previewHtml}
+          featuredImage=""
+          excerpt={articleExcerpt}
+          pageLayout="ARTICLE"
+        />
       </div>
     </RequirePermission>
   );
@@ -611,5 +668,96 @@ function JsonCard({ data, empty }: { data: unknown; empty: string }) {
         <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">{JSON.stringify(data, null, 2)}</pre>
       )}
     </Card>
+  );
+}
+
+function QualityReportPanel({ report }: { report: QualityReport | null }) {
+  if (!report) {
+    return (
+      <Card className="p-4 text-sm">
+        <p className="text-muted-foreground">{cp.emptyQuality}</p>
+      </Card>
+    );
+  }
+
+  const checks = report.checks ?? [];
+  const failed = checks.filter((c) => !c.passed);
+  const passed = checks.filter((c) => c.passed);
+
+  return (
+    <div className="space-y-4">
+      <Card
+        className={`space-y-2 border p-4 ${
+          report.passed
+            ? 'border-emerald-200 bg-emerald-50'
+            : 'border-red-200 bg-red-50'
+        }`}
+      >
+        <p className={`text-base font-semibold ${report.passed ? 'text-emerald-900' : 'text-red-900'}`}>
+          {report.passed ? cp.qualityPassed : cp.qualityFailed}
+        </p>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span>
+            {cp.qualityLayer1}: {report.layer1Passed ? '✓' : '✗'}
+          </span>
+          <span>
+            {cp.qualityLayer2}: {report.layer2Passed ? '✓' : '✗'}
+          </span>
+          <span>
+            {cp.qualityScore}: {report.layer3Score ?? '—'}
+          </span>
+          {report.checkedAt ? (
+            <span className="text-muted-foreground">
+              {cp.qualityCheckedAt}: {new Date(report.checkedAt).toLocaleString('vi-VN')}
+            </span>
+          ) : null}
+        </div>
+      </Card>
+
+      {failed.length > 0 ? (
+        <Card className="p-4">
+          <h3 className="mb-3 font-medium text-red-800">{cp.qualityCheckFailed}</h3>
+          <ul className="space-y-2">
+            {failed.map((c, i) => (
+              <li
+                key={`${c.code}-fail-${i}`}
+                className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm"
+              >
+                <span className="font-mono text-xs text-red-700">L{c.layer} · {c.code}</span>
+                <p className="mt-1 text-red-900">{c.message}</p>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
+
+      <Card className="p-4">
+        <h3 className="mb-3 font-medium">{cp.qualityCheckPassed}</h3>
+        <ul className="space-y-2">
+          {passed.map((c, i) => (
+            <li
+              key={`${c.code}-ok-${i}`}
+              className="rounded border border-slate-200 bg-white px-3 py-2 text-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <span className="font-mono text-xs text-slate-500">L{c.layer} · {c.code}</span>
+                  <p className="mt-1 text-slate-800">{c.message}</p>
+                </div>
+                <span
+                  className={`shrink-0 rounded px-2 py-0.5 text-xs ${
+                    c.severity === 'warning'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-emerald-100 text-emerald-800'
+                  }`}
+                >
+                  {c.severity === 'warning' ? cp.qualityCheckWarn : cp.qualityCheckPassed}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </div>
   );
 }
