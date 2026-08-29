@@ -14,6 +14,10 @@ import {
   contentAutomationApi,
   type CreateContentPlanInput,
 } from '@/services/content-automation-api';
+import {
+  parseSupportingKeywords,
+  suggestContentAngles,
+} from '@/lib/content-plan-form';
 import type { ContentPlanListItem } from '@/types/api';
 
 const cp = vi.contentPlans;
@@ -67,6 +71,7 @@ export default function ContentPlansPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState<CreateContentPlanInput>(EMPTY_FORM);
+  const [supportingKeywordsText, setSupportingKeywordsText] = useState('');
   const [creating, setCreating] = useState(false);
   const [featureEnabled, setFeatureEnabled] = useState<boolean | null>(null);
   const [aiConfigured, setAiConfigured] = useState<boolean | null>(null);
@@ -121,11 +126,13 @@ export default function ContentPlansPage() {
         ...form,
         topic: form.topic.trim(),
         primaryKeyword: form.primaryKeyword.trim(),
-        supportingKeywords: form.supportingKeywords?.filter(Boolean),
+        angle: form.angle?.trim() || undefined,
+        supportingKeywords: parseSupportingKeywords(supportingKeywordsText),
       });
       toast.success(cp.created);
       setShowCreate(false);
       setForm(EMPTY_FORM);
+      setSupportingKeywordsText('');
       router.push(`/marketing/content-plans/${plan.id}`);
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
@@ -354,28 +361,49 @@ export default function ContentPlansPage() {
                 <Input
                   value={form.angle ?? ''}
                   onChange={(e) => setForm((f) => ({ ...f, angle: e.target.value }))}
+                  placeholder="Vd: so sánh loại thẻ + hướng dẫn mua trên CardOn; FAQ ≤ 3"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">{cp.angleHint}</p>
+                {form.topic.trim().length >= 4 ? (
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">{cp.angleSuggest}</p>
+                    <div className="flex flex-col gap-1">
+                      {suggestContentAngles(form.topic, form.contentType).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          className="rounded border border-dashed px-2 py-1.5 text-left text-xs hover:border-admin-400 hover:bg-admin-50"
+                          onClick={() => setForm((f) => ({ ...f, angle: s }))}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <div className="md:col-span-2">
                 <Label>{cp.supportingKeywords}</Label>
                 <Input
-                  value={(form.supportingKeywords ?? []).join(', ')}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      supportingKeywords: e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    }))
-                  }
+                  value={supportingKeywordsText}
+                  onChange={(e) => setSupportingKeywordsText(e.target.value)}
+                  placeholder="thẻ garena, thẻ zing, mua thẻ game online"
                 />
+                <p className="mt-1 text-xs text-muted-foreground">{cp.supportingKeywordsHint}</p>
               </div>
               <div className="md:col-span-2 flex gap-2">
                 <Button type="submit" disabled={creating}>
                   {creating ? vi.app.loading : vi.app.create}
                 </Button>
-                <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setShowCreate(false);
+                    setForm(EMPTY_FORM);
+                    setSupportingKeywordsText('');
+                  }}
+                >
                   {vi.app.cancel}
                 </Button>
               </div>

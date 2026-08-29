@@ -1273,9 +1273,9 @@ export const vi = {
     next: 'Sau',
     backToList: '← Danh sách kế hoạch',
     created: 'Đã tạo kế hoạch nội dung',
-    topic: 'Chủ đề (ý tưởng / góc bài)',
+    topic: 'Chủ đề (ý tưởng bài)',
     topicHint:
-      'Chủ đề dùng để lập kế hoạch, không bắt buộc là tiêu đề SEO cuối cùng. Tiêu đề bài viết nằm ở «Tiêu đề đề xuất» / bài viết sau khi AI viết.',
+      'Mô tả ý bài / vấn đề cần viết — không bắt buộc là tiêu đề SEO. Tiêu đề nằm ở «Tiêu đề đề xuất».',
     suggestedTitleHint: 'Tiêu đề SEO / H1 bài viết. Danh mục (vd. Hướng dẫn) gắn ở CMS category, không nhét vào tiêu đề.',
     editTitle: 'Sửa kế hoạch',
     saveEdit: 'Lưu thay đổi',
@@ -1289,9 +1289,14 @@ export const vi = {
     restoreDone: 'Đã mở lại kế hoạch về Nháp',
     primaryKeyword: 'Từ khóa chính',
     supportingKeywords: 'Từ khóa phụ (phân cách bằng dấu phẩy)',
+    supportingKeywordsHint:
+      'Có thể gõ nhiều từ, có dấu cách. Ví dụ: thẻ garena, thẻ zing, mua thẻ game online',
     searchIntent: 'Ý định tìm kiếm',
     contentType: 'Loại nội dung',
     angle: 'Góc nội dung',
+    angleHint:
+      'Cách tiếp cận riêng để AI viết khác bài chung chung (vd. so sánh loại thẻ + flow mua trên CardOn; FAQ ≤ 3). Không phải tiêu đề.',
+    angleSuggest: 'Gợi ý góc (bấm để điền)',
     audience: 'Đối tượng đọc',
     businessObjective: 'Mục tiêu kinh doanh',
     priority: 'Mức ưu tiên',
