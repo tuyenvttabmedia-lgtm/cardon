@@ -12,6 +12,11 @@ import { useToast } from '@/components/ui/Toast';
 import { vi } from '@/lib/i18n/vi';
 import { ApiClientError } from '@/services/api-client';
 import { contentAutomationApi } from '@/services/content-automation-api';
+import {
+  formatSupportingKeywords,
+  parseSupportingKeywords,
+  suggestContentAngles,
+} from '@/lib/content-plan-form';
 import type {
   ContentAiRunListItem,
   ContentAutomationContext,
@@ -119,6 +124,8 @@ export default function ContentPlanDetailPage() {
     searchIntent: 'INFORMATIONAL',
     contentType: 'GUIDE',
     priority: 'MEDIUM',
+    angle: '',
+    supportingKeywordsText: '',
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,6 +154,8 @@ export default function ContentPlanDetailPage() {
         searchIntent: planRes.searchIntent,
         contentType: planRes.contentType,
         priority: planRes.priority,
+        angle: planRes.references?.angle ?? '',
+        supportingKeywordsText: formatSupportingKeywords(planRes.references?.supportingKeywords),
       });
       setError(null);
     } catch (err) {
@@ -645,6 +654,10 @@ export default function ContentPlanDetailPage() {
                             searchIntent: editForm.searchIntent,
                             contentType: editForm.contentType,
                             priority: editForm.priority,
+                            angle: editForm.angle.trim() || null,
+                            supportingKeywords: parseSupportingKeywords(
+                              editForm.supportingKeywordsText,
+                            ),
                           }),
                         );
                         if (ok) setEditing(false);
@@ -727,6 +740,52 @@ export default function ContentPlanDetailPage() {
                         </Select>
                       </div>
                     </div>
+                    <div>
+                      <Label>{cp.angle}</Label>
+                      <Input
+                        value={editForm.angle}
+                        onChange={(e) => setEditForm((f) => ({ ...f, angle: e.target.value }))}
+                        placeholder="Vd: so sánh loại thẻ + hướng dẫn mua trên CardOn; FAQ ≤ 3"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">{cp.angleHint}</p>
+                      {editForm.topic.trim().length >= 4 ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {cp.angleSuggest}
+                          </p>
+                          <div className="flex flex-col gap-1">
+                            {suggestContentAngles(editForm.topic, editForm.contentType).map(
+                              (s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  className="rounded border border-dashed px-2 py-1.5 text-left text-xs hover:border-admin-400 hover:bg-admin-50"
+                                  onClick={() => setEditForm((f) => ({ ...f, angle: s }))}
+                                >
+                                  {s}
+                                </button>
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div>
+                      <Label>{cp.supportingKeywords}</Label>
+                      <Input
+                        value={editForm.supportingKeywordsText}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            supportingKeywordsText: e.target.value,
+                          }))
+                        }
+                        placeholder="thẻ garena, thẻ zing, mua thẻ game online"
+                      />
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {cp.supportingKeywordsHint}
+                      </p>
+                    </div>
                     <Button type="submit" disabled={mutationsDisabled}>
                       {cp.saveEdit}
                     </Button>
@@ -751,6 +810,13 @@ export default function ContentPlanDetailPage() {
                       }
                     />
                     <Row label={cp.suggestedTitle} value={plan.suggestedTitle ?? '—'} />
+                    <Row label={cp.angle} value={plan.references?.angle ?? '—'} />
+                    <Row
+                      label={cp.supportingKeywords}
+                      value={
+                        formatSupportingKeywords(plan.references?.supportingKeywords) || '—'
+                      }
+                    />
                     <Row label={cp.cmsPageId} value={plan.cmsPageId ?? '—'} />
                     <p className="pt-2 text-xs text-muted-foreground">{cp.topicHint}</p>
                   </>
