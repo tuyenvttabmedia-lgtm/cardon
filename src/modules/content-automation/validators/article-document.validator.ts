@@ -5,6 +5,7 @@ import {
   type ArticleBlockType,
   type ArticleDocumentV1,
 } from '../entities/article-document.types';
+import { coerceArticleDocument } from './article-document.normalize';
 
 const VALID_BLOCK_TYPES = new Set<ArticleBlockType>([
   'paragraph',
@@ -33,7 +34,8 @@ export function validateAndBuildArticleDocument(
   source: 'AI' | 'HEURISTIC',
 ): ArticleDocumentV1 {
   validateNoHref(raw);
-  const doc = parseDocument(raw, context);
+  const coerced = coerceArticleDocument(raw);
+  const doc = parseDocument(coerced, context);
 
   return {
     ...doc,
@@ -117,11 +119,16 @@ function parseBlock(item: unknown, index: number, allowedPageIds: Set<string>): 
   const type = requireString(row.type, `sections[${index}].type`) as ArticleBlockType;
 
   if (!VALID_BLOCK_TYPES.has(type)) {
-    throw new ArticleDocumentValidationError(`Invalid block type: ${type}`);
+    throw new ArticleDocumentValidationError(
+      `Invalid block type: ${type} (allowed: paragraph,h2,h3,ul,ol,blockquote,table,image,internalLink,faq,callout)`,
+    );
   }
 
   const block: ArticleBlock = {
-    id: requireString(row.id, `sections[${index}].id`),
+    id:
+      typeof row.id === 'string' && row.id.trim()
+        ? row.id.trim()
+        : `blk-${index + 1}`,
     type,
   };
 

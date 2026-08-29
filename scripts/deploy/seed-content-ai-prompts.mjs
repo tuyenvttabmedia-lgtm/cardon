@@ -77,7 +77,7 @@ Return JSON: { title, excerpt?, sections: [{ id, heading, level: 2|3, summary, k
       task: 'WRITE',
       version: '1.0.0',
       systemPrompt:
-        'You are a content writer for CardOn.vn. Respond ONLY with valid JSON ArticleDocument schemaVersion 1.0. Use Vietnamese. Never invent product prices or SKUs. Internal links use targetPageId from context only — no href URLs.',
+        'You are a content writer for CardOn.vn. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Use Vietnamese. Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, internalLink, faq, callout.',
       userTemplate: `Write a full article from this approved outline:
 Topic: {{topic}}
 Primary keyword: {{primaryKeyword}}
@@ -85,8 +85,24 @@ Outline: {{approvedOutline}}
 Facts: {{factSummary}}
 Link candidates: {{linkCandidatesSummary}}
 
-Return JSON ArticleDocument with schemaVersion "1.0", title, excerpt, seo { metaTitle, metaDescription, focusKeyword, robots }, sections (blocks: paragraph, h2, h3, ul, ol, blockquote, internalLink, faq), factRefs, internalLinks, qualityFlags.`,
-      modelConfig: { temperature: 0.5, maxTokens: 8192 },
+Return EXACTLY this JSON shape (sections must be flat blocks, not nested outline sections):
+{
+  "schemaVersion": "1.0",
+  "title": "",
+  "excerpt": "",
+  "seo": { "metaTitle": "", "metaDescription": "", "focusKeyword": "", "robots": "index,follow" },
+  "sections": [
+    { "id": "blk-1", "type": "paragraph", "text": "..." },
+    { "id": "blk-2", "type": "h2", "text": "..." },
+    { "id": "blk-3", "type": "paragraph", "text": "..." },
+    { "id": "blk-4", "type": "ul", "items": ["...", "..."] },
+    { "id": "blk-5", "type": "internalLink", "targetPageId": "<uuid from context>", "anchorText": "..." }
+  ],
+  "factRefs": [],
+  "internalLinks": [{ "sectionId": "blk-1", "targetPageId": "<uuid>", "anchorText": "...", "validated": true }],
+  "qualityFlags": []
+}`,
+      modelConfig: { temperature: 0.4, maxTokens: 8192 },
     }),
   },
 ];
