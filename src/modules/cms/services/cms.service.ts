@@ -564,6 +564,10 @@ export class CmsService {
     return this.repository.deleteCategory(id);
   }
 
+  async getCategoryBySlug(slug: string) {
+    return this.repository.findCategoryBySlug(slug);
+  }
+
   async getCategoryForPublic(slug: string) {
     const category = await this.repository.findCategoryBySlug(slug);
     if (!category) return null;

@@ -75,10 +75,9 @@ export class HeuristicAnalyzeStrategy {
   }
 
   suggestTitle(plan: ContentPlan): string {
-    const base = plan.topic.trim();
-    if (plan.contentType === 'GUIDE') return `Hướng dẫn: ${base}`;
-    if (plan.contentType === 'FAQ') return `FAQ: ${base}`;
-    return base.slice(0, 255);
+    // Topic is the planning subject; do not prepend content-type labels
+    // (those belong on CMS category, not in the SEO H1).
+    return plan.topic.trim().slice(0, 255);
   }
 
   private existingContentScore(

@@ -34,7 +34,7 @@ const ALLOWED_TRANSITIONS: Readonly<Record<ContentPlanStatus, readonly ContentPl
     ContentPlanStatus.ARCHIVED,
   ],
   [ContentPlanStatus.PUBLISHED]: [ContentPlanStatus.ARCHIVED],
-  [ContentPlanStatus.ARCHIVED]: [],
+  [ContentPlanStatus.ARCHIVED]: [ContentPlanStatus.DRAFT],
 };
 
 export function canTransitionContentPlan(

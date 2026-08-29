@@ -89,6 +89,10 @@ export const contentAutomationApi = {
     return apiRequest(`/admin/content-automation/plans/${id}/archive`, { method: 'POST' });
   },
 
+  restorePlan(id: string): Promise<ContentPlanDetail> {
+    return apiRequest(`/admin/content-automation/plans/${id}/restore`, { method: 'POST' });
+  },
+
   analyzePlan(id: string): Promise<{ jobId: string; aiRunId: string; reused?: boolean }> {
     return apiRequest(`/admin/content-automation/plans/${id}/analyze`, { method: 'POST' });
   },

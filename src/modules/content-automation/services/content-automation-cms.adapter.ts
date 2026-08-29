@@ -10,6 +10,10 @@ import { CmsService } from '../../cms/services/cms.service';
 import type { ArticleDocumentV1 } from '../entities/article-document.types';
 import type { GenerationContext } from '../entities/generation-context.types';
 import { renderArticleDocumentHtml } from '../renderers/article-document.renderer';
+import {
+  cleanSeoArticleTitle,
+  preferredCmsCategorySlug,
+} from '../utils/cms-title-category.util';
 import { slugifyTitle } from '../utils/slug.util';
 
 export interface CreateCmsDraftResult {
@@ -35,9 +39,11 @@ export class ContentAutomationCmsAdapter {
   ): Promise<CreateCmsDraftResult> {
     const pageLookup = new Map(context.existingContent.map((c) => [c.pageId, c]));
     const html = renderArticleDocumentHtml(doc, pageLookup);
-    const slug = slugifyTitle(doc.title);
+    const title = cleanSeoArticleTitle(doc.title, plan.topic);
+    const slug = slugifyTitle(title);
+    const categoryId = await this.resolveCategoryId(plan.contentType);
     const seoPayload = {
-      metaTitle: doc.seo.metaTitle,
+      metaTitle: cleanSeoArticleTitle(doc.seo.metaTitle, title),
       metaDescription: doc.seo.metaDescription,
       focusKeyword: doc.seo.focusKeyword,
       canonicalUrl: doc.seo.canonicalUrl,
@@ -60,10 +66,11 @@ export class ContentAutomationCmsAdapter {
       }
 
       await this.cmsService.updatePage(plan.cmsPageId, {
-        title: doc.title,
+        title,
         content: html,
         excerpt: doc.excerpt,
         seo: seoPayload,
+        ...(categoryId ? { categoryId } : {}),
       });
 
       return { cmsPageId: plan.cmsPageId, created: false, slug: existing.slug };
@@ -73,11 +80,12 @@ export class ContentAutomationCmsAdapter {
       const page = await this.cmsService.createPage(authorId, {
         type: CmsPageType.BLOG_POST,
         slug,
-        title: doc.title,
+        title,
         content: html,
         excerpt: doc.excerpt,
         status: CmsPageStatus.DRAFT,
         seo: seoPayload,
+        ...(categoryId ? { categoryId } : {}),
       });
 
       return { cmsPageId: page.id, created: true, slug: page.slug };
@@ -105,10 +113,11 @@ export class ContentAutomationCmsAdapter {
 
       if (force) {
         await this.cmsService.updatePage(existing.id, {
-          title: doc.title,
+          title,
           content: html,
           excerpt: doc.excerpt,
           seo: seoPayload,
+          ...(categoryId ? { categoryId } : {}),
         });
       }
 
@@ -118,6 +127,18 @@ export class ContentAutomationCmsAdapter {
         slug: existing.slug,
         resolvedSlugConflict: true,
       };
+    }
+  }
+
+  private async resolveCategoryId(contentType: ContentPlan['contentType']): Promise<string | null> {
+    const slug = preferredCmsCategorySlug(contentType);
+    if (!slug) return null;
+    try {
+      const category = await this.cmsService.getCategoryBySlug(slug);
+      return category?.id ?? null;
+    } catch {
+      this.logger.warn(`CMS category slug not found for contentType=${contentType} slug=${slug}`);
+      return null;
     }
   }
 }

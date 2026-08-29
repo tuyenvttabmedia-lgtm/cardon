@@ -19,6 +19,7 @@ import type { ArticleDocumentV1 } from '../entities/article-document.types';
 import { HeuristicOutlineStrategy } from '../strategies/heuristic-outline.strategy';
 import { HeuristicWriteStrategy } from '../strategies/heuristic-write.strategy';
 import { QualityGateService } from '../services/quality-gate.service';
+import { cleanSeoArticleTitle } from '../utils/cms-title-category.util';
 import {
   AnalyzeOutputValidationError,
   validateAndBuildAiSnapshot,
@@ -644,9 +645,23 @@ export class AiOrchestratorService {
         : ContentPlanStatus.CONTENT_READY
       : undefined;
 
+    const cleanedTitle = cleanSeoArticleTitle(doc.title, plan.topic);
+    const cleanedDoc =
+      cleanedTitle === doc.title
+        ? doc
+        : {
+            ...doc,
+            title: cleanedTitle,
+            seo: {
+              ...doc.seo,
+              metaTitle: cleanSeoArticleTitle(doc.seo.metaTitle, cleanedTitle),
+            },
+          };
+
     const updated = await this.planRepository.updateIfGenerationEpoch(planId, generationEpoch, {
-      articleDocument: doc as object,
+      articleDocument: cleanedDoc as object,
       qualityReport: report as object,
+      suggestedTitle: cleanedTitle,
       ...(nextStatus ? { status: nextStatus } : {}),
     });
 
