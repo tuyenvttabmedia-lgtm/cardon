@@ -148,6 +148,28 @@ export class QualityGateService {
       checks.push(warn('META_LENGTH', 3, 'Meta description length outside 120-160'));
     }
 
+    if (plan.contentType === 'TROUBLESHOOTING') {
+      const hasOl = doc.sections.some((s) => s.type === 'ol' && (s.items?.length ?? 0) >= 4);
+      const hasH3 = doc.sections.some((s) => s.type === 'h3');
+      const hasFaq =
+        doc.sections.some((s) => s.type === 'faq' && (s.faqItems?.length ?? 0) >= 3);
+      checks.push(
+        hasOl
+          ? passed('TS_OL_STEPS', 3, 'Troubleshooting has ordered steps (ol)')
+          : warn('TS_OL_STEPS', 3, 'Troubleshooting missing ol with ≥4 steps'),
+      );
+      checks.push(
+        hasH3
+          ? passed('TS_H3_CAUSES', 3, 'Troubleshooting has H3 subsections')
+          : warn('TS_H3_CAUSES', 3, 'Troubleshooting missing H3 cause groups'),
+      );
+      checks.push(
+        hasFaq
+          ? passed('TS_FAQ', 3, 'Troubleshooting has FAQ block')
+          : warn('TS_FAQ', 3, 'Troubleshooting missing FAQ (≥3 items)'),
+      );
+    }
+
     return buildReport(checks);
   }
 }
