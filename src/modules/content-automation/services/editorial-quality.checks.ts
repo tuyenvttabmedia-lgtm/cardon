@@ -188,7 +188,7 @@ export function runEditorialSoftChecks(
   // Topics about top-up / history should mention CardOn order/history check
   const topicBlob = normalizeText(`${plan.topic} ${plan.primaryKeyword}`);
   const topupTopic =
-    /lich su nap|nap tien|the dien thoai|top ?up|nap the/.test(topicBlob) &&
+    /lich su nap|nap tien|the dien thoai|top ?up|nap the|ma qr|quet ma qr/.test(topicBlob) &&
     !/garena|zing|vcoin|game/.test(topicBlob);
   if (topupTopic) {
     const bodyNorm = normalizeText(collectFullText(doc));
@@ -215,6 +215,19 @@ export function runEditorialSoftChecks(
         : passed('INTRO_TOO_LONG', 'Độ dài đoạn mở ổn'),
     );
   }
+
+  // Invented retention / policy durations in FAQ or body (soft)
+  const durationHits = collectFullText(doc).match(
+    /\b\d+\s*(tháng|năm|ngày|giờ)\b.*(lưu|lịch sử|bảo quản|lưu trữ)|lưu trữ.{0,40}\d+\s*(tháng|năm)/gi,
+  );
+  checks.push(
+    durationHits && durationHits.length > 0
+      ? warn(
+          'INVENTED_DURATION',
+          `Có thể bịa thời hạn chính sách: «${durationHits[0].slice(0, 80)}…» — chỉ nêu nếu có trong fact`,
+        )
+      : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số tháng bịa'),
+  );
 
   return checks;
 }
