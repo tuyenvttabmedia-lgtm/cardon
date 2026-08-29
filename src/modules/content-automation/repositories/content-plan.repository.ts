@@ -31,6 +31,10 @@ export class ContentPlanRepository {
     return this.prisma.contentPlan.update({ where: { id }, data });
   }
 
+  delete(id: string): Promise<ContentPlan> {
+    return this.prisma.contentPlan.delete({ where: { id } });
+  }
+
   /**
    * Persist only when generation_epoch still matches the job epoch (spec §15).
    * Returns null when the plan was bumped (stale job) or missing.

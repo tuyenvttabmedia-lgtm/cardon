@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArticlePreviewModal } from '@/components/marketing/cms-editor/ArticlePreviewModal';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
@@ -50,7 +50,17 @@ const TAB_LABELS: Record<Tab, string> = {
   aiRuns: cp.tabs.aiRuns,
 };
 
-const EDITABLE_STATUSES = new Set(['DRAFT', 'PLANNED']);
+/** Metadata editable except PUBLISHED (blocked on API). */
+const EDITABLE_STATUSES = new Set([
+  'DRAFT',
+  'PLANNED',
+  'OUTLINE_READY',
+  'OUTLINE_APPROVED',
+  'CONTENT_READY',
+  'IN_REVIEW',
+  'APPROVED',
+  'ARCHIVED',
+]);
 
 const CONTENT_TYPES = Object.entries(cp.contentTypeLabels).map(([value, label]) => ({
   value,
@@ -92,6 +102,7 @@ function parseQualityReport(raw: unknown): QualityReport | null {
 export default function ContentPlanDetailPage() {
   const params = useParams<{ id: string }>();
   const planId = params.id;
+  const router = useRouter();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>('overview');
   const [plan, setPlan] = useState<ContentPlanDetail | null>(null);
@@ -239,13 +250,15 @@ export default function ContentPlanDetailPage() {
   async function runAction(
     label: string,
     fn: () => Promise<unknown>,
-    opts?: { pollAi?: boolean; switchTab?: Tab },
+    opts?: { pollAi?: boolean; switchTab?: Tab; skipReload?: boolean },
   ): Promise<boolean> {
     setActionLoading(true);
     try {
       const result = await fn();
       toast.success(label);
-      await load();
+      if (!opts?.skipReload) {
+        await load();
+      }
       if (opts?.switchTab) {
         setTab(opts.switchTab);
       }
@@ -498,6 +511,18 @@ export default function ContentPlanDetailPage() {
                 {cp.actions.restore}
               </Button>
             ) : null}
+            {plan && plan.status && EDITABLE_STATUSES.has(plan.status) ? (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setTab('overview');
+                  setEditing((v) => !v);
+                }}
+                disabled={mutationsDisabled}
+              >
+                {editing ? vi.app.cancel : cp.editTitle}
+              </Button>
+            ) : null}
             {plan && plan.status !== 'ARCHIVED' ? (
               <Button
                 variant="secondary"
@@ -507,6 +532,25 @@ export default function ContentPlanDetailPage() {
                 disabled={mutationsDisabled}
               >
                 {cp.actions.archive}
+              </Button>
+            ) : null}
+            {plan && plan.status !== 'PUBLISHED' ? (
+              <Button
+                variant="danger"
+                onClick={() => {
+                  if (!window.confirm(cp.deleteConfirm)) return;
+                  void (async () => {
+                    const ok = await runAction(
+                      cp.actions.deleteDone,
+                      () => contentAutomationApi.deletePlan(planId),
+                      { skipReload: true },
+                    );
+                    if (ok) router.push('/marketing/content-plans');
+                  })();
+                }}
+                disabled={mutationsDisabled}
+              >
+                {cp.actions.delete}
               </Button>
             ) : null}
             <Button variant="secondary" onClick={() => void load()} disabled={busy}>

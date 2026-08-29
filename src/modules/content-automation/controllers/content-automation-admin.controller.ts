@@ -132,6 +132,12 @@ export class ContentAutomationAdminController {
     return this.planService.restore(id);
   }
 
+  @Post('plans/:id/delete')
+  @HttpCode(HttpStatus.OK)
+  deletePlan(@Param('id', ParseUUIDPipe) id: string) {
+    return this.planService.remove(id);
+  }
+
   @Post('plans/:id/analyze')
   @UseGuards(ContentAutomationEnabledGuard)
   async analyzePlan(

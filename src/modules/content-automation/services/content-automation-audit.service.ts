@@ -5,6 +5,7 @@ export type ContentAutomationAuditEvent =
   | 'plan.updated'
   | 'plan.archived'
   | 'plan.restored'
+  | 'plan.deleted'
   | 'plan.analyze.requested'
   | 'plan.analyze.completed'
   | 'plan.analyze.failed'
