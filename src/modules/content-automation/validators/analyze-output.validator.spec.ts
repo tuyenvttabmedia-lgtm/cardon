@@ -66,6 +66,27 @@ describe('analyze-output.validator', () => {
     expect(snapshot.version).toBe('1');
   });
 
+  it('accepts snake_case and wrapped AI payloads', () => {
+    const snapshot = validateAndBuildAiSnapshot(
+      {
+        result: {
+          related_content: [
+            { page_id: 'p1', title: 'Title', similarity_score: 0.8, reason: 'match' },
+          ],
+          cannibalization: { risk: 'NONE', matches: [] },
+          recommendations: [
+            { action: ContentPlanAction.CREATE, page_id: null, confidence: 0.9, reason: 'ok' },
+          ],
+          internal_link_candidates: [],
+        },
+      },
+      context,
+    );
+
+    expect(snapshot.source).toBe('AI');
+    expect(snapshot.relatedContent[0]?.pageId).toBe('p1');
+  });
+
   it('rejects unknown pageId', () => {
     expect(() =>
       validateAndBuildAiSnapshot(
