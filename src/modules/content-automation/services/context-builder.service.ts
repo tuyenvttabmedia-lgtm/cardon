@@ -32,7 +32,9 @@ export class ContextBuilderService {
       await Promise.all([
         this.brandContext.getBrandContext(),
         this.factContext.buildFactContext(variantIds),
-        this.existingContent.findByKeyword(plan.primaryKeyword, 10),
+        // Keep same limit as link candidates so quality gate LINK_EXISTS
+        // can resolve every validated candidate from existingContent too.
+        this.existingContent.findByKeyword(plan.primaryKeyword, 20),
         this.linkCandidates.listCandidates({
           keyword: plan.primaryKeyword,
           excludePageId: plan.cmsPageId ?? plan.targetPageId ?? undefined,

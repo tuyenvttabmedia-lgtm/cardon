@@ -19,6 +19,7 @@ import type { ArticleDocumentV1 } from '../entities/article-document.types';
 import { HeuristicOutlineStrategy } from '../strategies/heuristic-outline.strategy';
 import { HeuristicWriteStrategy } from '../strategies/heuristic-write.strategy';
 import { QualityGateService } from '../services/quality-gate.service';
+import { stripUnresolvedInternalLinks } from '../utils/internal-link-resolve.util';
 import { cleanSeoArticleTitle } from '../utils/cms-title-category.util';
 import {
   AnalyzeOutputValidationError,
@@ -424,7 +425,10 @@ export class AiOrchestratorService {
     plan: NonNullable<Awaited<ReturnType<ContentPlanRepository['findById']>>>,
     context: Awaited<ReturnType<ContextBuilderService['buildFromPlan']>>,
   ): Promise<AiOrchestratorResult> {
-    const doc = this.heuristicWrite.buildArticle(plan, context);
+    const { doc } = stripUnresolvedInternalLinks(
+      this.heuristicWrite.buildArticle(plan, context),
+      context,
+    );
     const report = await this.qualityGate.runGateAsync(plan, doc, context);
     if (!report.passed) {
       throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);
@@ -471,8 +475,9 @@ export class AiOrchestratorService {
     }
 
     return this.runAiJsonTask(input, cfg, prompt, context, async (parsed) => {
-      const doc = validateAndBuildArticleDocument(parsed, context, 'AI');
-      validateArticleDocumentLayer1(doc);
+      const built = validateAndBuildArticleDocument(parsed, context, 'AI');
+      validateArticleDocumentLayer1(built);
+      const { doc } = stripUnresolvedInternalLinks(built, context);
       const report = await this.qualityGate.runGateAsync(plan, doc, context);
       if (!report.passed) {
         throw new Error(`Quality gate failed: ${report.checks.filter((c) => !c.passed).map((c) => c.code).join(', ')}`);

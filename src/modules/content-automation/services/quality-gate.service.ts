@@ -13,6 +13,7 @@ import {
   validateArticleDocumentLayer1,
 } from '../validators/article-document.validator';
 import { CmsService } from '../../cms/services/cms.service';
+import { resolveInternalLinkTarget } from '../utils/internal-link-resolve.util';
 import { slugifyTitle } from '../utils/slug.util';
 import { runEditorialSoftChecks } from './editorial-quality.checks';
 
@@ -113,7 +114,8 @@ export class QualityGateService {
     }
 
     for (const link of doc.internalLinks) {
-      const page = context.existingContent.find((c) => c.pageId === link.targetPageId);
+      // Candidates may include pages outside the top-N existingContent slice.
+      const page = resolveInternalLinkTarget(context, link.targetPageId);
       if (!page) {
         checks.push(failed('LINK_EXISTS', 2, `Internal link page missing: ${link.targetPageId}`));
       } else if (page.status !== CmsPageStatus.PUBLISHED && page.type === 'BLOG_POST') {
