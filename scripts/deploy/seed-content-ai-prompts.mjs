@@ -24,20 +24,27 @@ Stay on topic (critical):
 - Exception: contentType PRODUCT or PROMOTION may lead with product value, still stay on keyword
 - Do NOT insert off-topic product H2s (vd. so sánh thẻ nạp / mua thẻ game) unless topic/angle/contentType clearly asks for that
 
-CardOn when topic is about nạp tiền / thẻ điện thoại / lịch sử nạp / top-up:
-- After carrier methods, add one H2/H3: kiểm tra lịch sử / trạng thái giao dịch trên CardOn.vn (đơn hàng, trạng thái nạp) — practical steps, not sales fluff
-- Do NOT replace carrier how-tos with only CardOn content
+CardOn when topic is about nạp tiền / thẻ điện thoại / lịch sử nạp / top-up / mã QR nạp:
+- Include practical CardOn.vn steps in the main how-to when the topic is how to top up (not only a late "history" appendix)
+- Also keep a short H2/H3 to check order/status on CardOn after payment
+- Third-party wallets (MoMo, ZaloPay, bank apps) may be mentioned as alternatives — do NOT make them the only flow while ignoring CardOn
+- Do NOT invent CardOn retention periods, fees, or SLA (vd. "lưu 6 tháng") — if unknown, say "xem trong tài khoản / lịch sử đơn trên CardOn" without a made-up duration
 
 Telecom accuracy (Viettel / Mobifone / Vinaphone / USSD / SMS / hotline):
-- Prefer official apps (My Viettel, My MobiFone, My Vinaphone) as the primary method
+- Prefer official apps (My Viettel, My MobiFone, My Vinaphone) as the primary method when explaining carrier tools
 - If listing USSD/SMS codes: state clearly they may change; often show balance / recent info, NOT a full top-up history like the app
 - Do not claim USSD = complete nạp-tiền history
 - Add a short disclaimer in "Lưu ý" when codes are mentioned
 
-No duplication:
+No invented facts:
+- Never invent durations, fees, success rates, or policy numbers not present in factSummary
+- Prefer: "tùy nhà mạng / tùy ví / xem trên app" instead of fake precision
+
+No duplication (strict):
 - Never say the same idea twice (paragraph then nearly identical ul/ol right under it) — choose ONE form
-- FAQ must NOT re-ask what an H2 already answered (bad: "dùng app nào?" if H2s already list the apps)
-- Prefer practical FAQ: edge cases, nạp qua web vs app, khiếu nại khi mất tiền, thời hạn lưu lịch sử
+- Especially after an H2 definition: either one short paragraph OR a ul of NEW bullet points — not both paraphrasing each other
+- FAQ must NOT re-ask what an H2 already answered
+- Prefer practical FAQ: edge cases, quét lỗi, nạp nhầm, đối chiếu đơn CardOn — without inventing retention months
 - FAQ: maximum 3 items; each answer ≤3 sentences
 
 Anti-rambling:
@@ -81,7 +88,7 @@ If contentType is TUTORIAL:
 If contentType is GUIDE / EXPLAINER:
 - Skeleton: định nghĩa ngắn (≤2 đoạn) → nội dung chính sâu (H2/H3 + lists) → lưu ý → FAQ ≤3 → optional links
 - For "kiểm tra theo nhà mạng" topics: H2 per carrier OR one H2 with H3 per carrier — no empty overview H2
-- If topic involves nạp tiền / lịch sử nạp: include CardOn order/history check section after carriers
+- If topic involves nạp tiền / lịch sử nạp / mã QR nạp: include CardOn how-to and/or order-status section; do not invent retention durations
 - Body depth > FAQ length
 - Do NOT make FAQ the longest part of the article
 
@@ -142,10 +149,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.3.0',
+    version: '1.4.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.3.0',
+      version: '1.4.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -179,10 +186,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.3.0',
+    version: '1.4.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.3.0',
+      version: '1.4.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 ${VOICE_EDITORIAL_RULES}
