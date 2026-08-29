@@ -518,6 +518,8 @@ export class AiOrchestratorService {
       });
     }
 
+    let lastRawPreview: string | null = null;
+    let lastResponseKeys: string | null = null;
     try {
       const response = await this.aiProvider.complete({
         model: cfg.model,
@@ -528,6 +530,14 @@ export class AiOrchestratorService {
         temperature: prompt.modelConfig.temperature,
         jsonMode: true,
       });
+
+      lastRawPreview = response.rawText.slice(0, 1500);
+      lastResponseKeys =
+        response.parsedJson &&
+        typeof response.parsedJson === 'object' &&
+        !Array.isArray(response.parsedJson)
+          ? Object.keys(response.parsedJson as object).slice(0, 30).join(',')
+          : typeof response.parsedJson;
 
       const result = await onSuccess(response.parsedJson);
       const costUsd = estimateCostUsd(response.model, response.tokensIn, response.tokensOut);
@@ -569,6 +579,12 @@ export class AiOrchestratorService {
         inputHash,
         contextRefs: contextRefs as object,
         error: message.slice(0, 500),
+        outputSnapshot: {
+          source: 'AI',
+          validationError: message.slice(0, 300),
+          responseKeys: lastResponseKeys,
+          rawPreview: lastRawPreview,
+        },
       });
 
       this.audit.log('plan.analyze.failed', {
