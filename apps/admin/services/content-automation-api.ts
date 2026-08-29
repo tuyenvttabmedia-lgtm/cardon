@@ -93,6 +93,10 @@ export const contentAutomationApi = {
     return apiRequest(`/admin/content-automation/plans/${id}/restore`, { method: 'POST' });
   },
 
+  deletePlan(id: string): Promise<{ deleted: true; id: string; cmsPageId: string | null }> {
+    return apiRequest(`/admin/content-automation/plans/${id}/delete`, { method: 'POST' });
+  },
+
   analyzePlan(id: string): Promise<{ jobId: string; aiRunId: string; reused?: boolean }> {
     return apiRequest(`/admin/content-automation/plans/${id}/analyze`, { method: 'POST' });
   },

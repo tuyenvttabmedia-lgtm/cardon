@@ -1280,6 +1280,11 @@ export const vi = {
     editTitle: 'Sửa kế hoạch',
     saveEdit: 'Lưu thay đổi',
     saveEditDone: 'Đã cập nhật kế hoạch',
+    delete: 'Xóa',
+    deleteConfirm:
+      'Xóa vĩnh viễn kế hoạch này và lịch sử AI? Trang CMS (nếu có) không bị xóa.',
+    deleteDone: 'Đã xóa kế hoạch',
+    actionsCol: 'Thao tác',
     restore: 'Mở lại (Nháp)',
     restoreDone: 'Đã mở lại kế hoạch về Nháp',
     primaryKeyword: 'Từ khóa chính',
@@ -1364,6 +1369,8 @@ export const vi = {
       archiveDone: 'Đã lưu trữ',
       restore: 'Mở lại (Nháp)',
       restoreDone: 'Đã mở lại kế hoạch',
+      delete: 'Xóa',
+      deleteDone: 'Đã xóa kế hoạch',
     },
     statusLabels: {
       DRAFT: 'Nháp',

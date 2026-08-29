@@ -41,6 +41,12 @@ import { renderArticleDocumentHtml } from '../renderers/article-document.rendere
 const EDITABLE_STATUSES: ContentPlanStatus[] = [
   ContentPlanStatus.DRAFT,
   ContentPlanStatus.PLANNED,
+  ContentPlanStatus.OUTLINE_READY,
+  ContentPlanStatus.OUTLINE_APPROVED,
+  ContentPlanStatus.CONTENT_READY,
+  ContentPlanStatus.IN_REVIEW,
+  ContentPlanStatus.APPROVED,
+  ContentPlanStatus.ARCHIVED,
 ];
 
 @Injectable()
@@ -172,6 +178,23 @@ export class ContentPlanService {
     });
     this.audit.log('plan.restored', { planId: id });
     return mapContentPlanDetail(updated);
+  }
+
+  /**
+   * Hard-delete plan (+ cascaded AI runs). Does not delete linked CMS page.
+   * PUBLISHED plans are blocked — unpublish/archive in CMS first if needed.
+   */
+  async remove(id: string): Promise<{ deleted: true; id: string; cmsPageId: string | null }> {
+    const plan = await this.requirePlan(id);
+    if (plan.status === ContentPlanStatus.PUBLISHED) {
+      throw new BadRequestException(
+        'Cannot delete a PUBLISHED plan — archive it first or unlink the CMS page',
+      );
+    }
+    const cmsPageId = plan.cmsPageId;
+    await this.planRepository.delete(id);
+    this.audit.log('plan.deleted', { planId: id, cmsPageId, topic: plan.topic });
+    return { deleted: true, id, cmsPageId };
   }
 
   async archive(

@@ -205,6 +205,7 @@ export default function ContentPlansPage() {
                     <th className="py-2 pr-4">{cp.type}</th>
                     <th className="py-2 pr-4">{cp.status}</th>
                     <th className="py-2 pr-4">{cp.updatedAt}</th>
+                    <th className="py-2 pr-4">{cp.actionsCol}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -223,6 +224,40 @@ export default function ContentPlansPage() {
                       <td className="py-2 pr-4">{statusLabel(item.status)}</td>
                       <td className="py-2 pr-4">
                         {new Date(item.updatedAt).toLocaleString('vi-VN')}
+                      </td>
+                      <td className="py-2 pr-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/marketing/content-plans/${item.id}`}
+                            className="inline-flex items-center rounded-md border px-2 py-1 text-xs hover:bg-muted"
+                          >
+                            {cp.editTitle}
+                          </Link>
+                          {item.status !== 'PUBLISHED' ? (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => {
+                                if (!window.confirm(cp.deleteConfirm)) return;
+                                void (async () => {
+                                  try {
+                                    await contentAutomationApi.deletePlan(item.id);
+                                    toast.success(cp.deleteDone);
+                                    await load();
+                                  } catch (err) {
+                                    toast.error(
+                                      err instanceof ApiClientError
+                                        ? err.message
+                                        : vi.app.requestFailed,
+                                    );
+                                  }
+                                })();
+                              }}
+                            >
+                              {cp.delete}
+                            </Button>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
