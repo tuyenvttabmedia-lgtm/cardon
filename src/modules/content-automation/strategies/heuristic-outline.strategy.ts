@@ -128,13 +128,13 @@ export class HeuristicOutlineStrategy {
         id: 'sec-faq',
         heading: 'Câu hỏi thường gặp',
         level: 2,
-        summary: 'Writer MUST emit type faq với 3–5 faqItems.',
+        summary: 'Writer MUST emit type faq với 2–3 faqItems.',
         keyPoints: [
           `Đã chuyển khoản nhưng đơn "${plan.primaryKeyword}" vẫn lỗi?`,
           'Có bị trừ tiền hai lần không?',
           'Bao lâu thì đơn được cập nhật?',
         ],
-        targetWordCount: 180,
+        targetWordCount: 140,
       },
     ];
   }

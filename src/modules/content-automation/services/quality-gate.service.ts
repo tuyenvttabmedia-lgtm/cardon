@@ -14,6 +14,7 @@ import {
 } from '../validators/article-document.validator';
 import { CmsService } from '../../cms/services/cms.service';
 import { slugifyTitle } from '../utils/slug.util';
+import { runEditorialSoftChecks } from './editorial-quality.checks';
 
 @Injectable()
 export class QualityGateService {
@@ -151,8 +152,9 @@ export class QualityGateService {
     if (plan.contentType === 'TROUBLESHOOTING') {
       const hasOl = doc.sections.some((s) => s.type === 'ol' && (s.items?.length ?? 0) >= 4);
       const hasH3 = doc.sections.some((s) => s.type === 'h3');
-      const hasFaq =
-        doc.sections.some((s) => s.type === 'faq' && (s.faqItems?.length ?? 0) >= 3);
+      const faqCount = doc.sections
+        .filter((s) => s.type === 'faq')
+        .reduce((n, s) => n + (s.faqItems?.length ?? 0), 0);
       checks.push(
         hasOl
           ? passed('TS_OL_STEPS', 3, 'Troubleshooting has ordered steps (ol)')
@@ -164,11 +166,13 @@ export class QualityGateService {
           : warn('TS_H3_CAUSES', 3, 'Troubleshooting missing H3 cause groups'),
       );
       checks.push(
-        hasFaq
-          ? passed('TS_FAQ', 3, 'Troubleshooting has FAQ block')
-          : warn('TS_FAQ', 3, 'Troubleshooting missing FAQ (≥3 items)'),
+        faqCount >= 2 && faqCount <= 3
+          ? passed('TS_FAQ', 3, `Troubleshooting FAQ count OK (${faqCount})`)
+          : warn('TS_FAQ', 3, `Troubleshooting FAQ should be 2–3 items (found ${faqCount})`),
       );
     }
+
+    checks.push(...runEditorialSoftChecks(plan, doc, context));
 
     return buildReport(checks);
   }
