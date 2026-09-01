@@ -377,7 +377,12 @@ export function runEditorialSoftChecks(
   // Soft: empty overview H2 before real content
   const emptyOverview = doc.sections.some((s, i) => {
     if (s.type !== 'h2') return false;
-    if (!/tổng quan|giới thiệu|tổng quát/i.test(s.text ?? '')) return false;
+    const h2Norm = normalizeText(s.text ?? '');
+    if (
+      !/tong quan|gioi thieu|tong quat|la gi|cach thuc hoat dong/.test(h2Norm)
+    ) {
+      return false;
+    }
     const next = doc.sections[i + 1];
     if (!next || (next.type !== 'ul' && next.type !== 'ol' && next.type !== 'paragraph')) {
       return true;
@@ -387,7 +392,7 @@ export function runEditorialSoftChecks(
     );
     // Thin if mostly definition fluff without concrete steps/codes/CardOn depth
     const hasDepth =
-      /cardon|\*1\d|#|buoc|dang nhap|momo|my viettel|my mobifone|my vinaphone/.test(
+      /cardon|\*1\d|#|buoc \d|dang nhap|momo|my viettel|my mobifone|my vinaphone|chon the|menh gia/.test(
         blob,
       );
     return !hasDepth && blob.split(' ').filter(Boolean).length < 80;
@@ -396,10 +401,60 @@ export function runEditorialSoftChecks(
     emptyOverview
       ? warn(
           'EMPTY_OVERVIEW_H2',
-          'H2 Tổng quan/Giới thiệu mỏng — bỏ và đi thẳng vào các cách nạp/mua',
+          'H2 Tổng quan/Giới thiệu/là gì mỏng — bỏ và đi thẳng vào bước mua hoặc nội dung chính',
         )
       : passed('EMPTY_OVERVIEW_H2', 'Không thấy H2 tổng quan trống'),
   );
+
+  // Soft: buy-card GUIDE should lead with buy flow, not refund stack
+  const buyGuideTopicBlob = normalizeText(
+    `${plan.topic} ${plan.primaryKeyword} ${context.userProvided.angle ?? ''}`,
+  );
+  const isBuyCardGuide =
+    (plan.contentType === 'GUIDE' || plan.contentType === 'EXPLAINER') &&
+    /mua (ma )?the|mua the dien thoai|mua the game|nhan ma tu dong|scoin|zing|garena/.test(
+      buyGuideTopicBlob,
+    ) &&
+    !/hoan tien|chinh sach hoan|refund/.test(buyGuideTopicBlob);
+
+  if (isBuyCardGuide) {
+    const refundH2Count = doc.sections.filter(
+      (s) =>
+        s.type === 'h2' &&
+        /hoan tien|chinh sach hoan|yeu cau hoan|doi tra/.test(
+          normalizeText(s.text ?? ''),
+        ),
+    ).length;
+    checks.push(
+      refundH2Count >= 2
+        ? warn(
+            'REFUND_HEAVY_GUIDE',
+            `Bài mua mã thẻ có ${refundH2Count} H2 về hoàn tiền/đổi trả — gộp thành một mục ngắn, ưu tiên bước mua CardOn`,
+          )
+        : passed('REFUND_HEAVY_GUIDE', 'Không lạm dụng H2 hoàn tiền trên bài mua thẻ'),
+    );
+
+    const hasBuyFlowH2 = doc.sections.some(
+      (s) =>
+        s.type === 'h2' &&
+        /cach mua|huong dan mua|mua tren cardon|mua ma the tren/.test(
+          normalizeText(s.text ?? ''),
+        ),
+    );
+    const hasBuyOl = doc.sections.some((s) => {
+      if (s.type !== 'ol' || (s.items?.length ?? 0) < 4) return false;
+      const blob = normalizeText((s.items ?? []).join(' '));
+      return /chon|menh gia|thanh toan|cardon|don hang|ma the/.test(blob);
+    });
+    checks.push(
+      hasBuyFlowH2 && hasBuyOl
+        ? passed('MISSING_BUY_FLOW', 'Có H2 + ol bước mua trên CardOn')
+        : warn(
+            'MISSING_BUY_FLOW',
+            'Bài mua mã thẻ thiếu H2 + ol bước mua trên CardOn — đưa luồng mua lên trước chính sách hoàn tiền',
+          ),
+    );
+  }
 
   // Soft: CardOn receive-code tip cluster repeated across many sections
   const cardonTipRe =
