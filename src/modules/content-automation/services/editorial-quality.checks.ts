@@ -240,10 +240,11 @@ export function runEditorialSoftChecks(
       : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số tháng bịa'),
   );
 
-  // Soft: refund / licensing claims often invented for digital cards
+  // Soft: refund / licensing / exchange / expiry claims often invented for digital cards
   const policyBlob = normalizeText(collectFullText(doc));
   const inventedPolicy: string[] = [];
   if (/hoan tien|hoan lai|refund/.test(policyBlob)) inventedPolicy.push('hoàn tiền');
+  if (/doi tra|doi lai the|tra hang.*the/.test(policyBlob)) inventedPolicy.push('đổi trả');
   if (/duoc cap phep|giay phep kinh doanh/.test(policyBlob)) inventedPolicy.push('cấp phép');
   if (/han su dung.*(the|ma)|the.{0,20}han su dung/.test(policyBlob)) {
     inventedPolicy.push('hạn sử dụng thẻ');
@@ -254,8 +255,63 @@ export function runEditorialSoftChecks(
           'INVENTED_POLICY',
           `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ hoặc chỉ nêu nếu có trong fact`,
         )
-      : passed('INVENTED_POLICY', 'Không thấy claim hoàn tiền/cấp phép/hạn dùng dễ bịa'),
+      : passed('INVENTED_POLICY', 'Không thấy claim hoàn tiền/đổi trả/cấp phép/hạn dùng dễ bịa'),
   );
+
+  // Soft: invented instant-delivery SLA
+  const instantHits = collectFullText(doc).match(
+    /ngay lập tức|tức thì|trong vài giây|nhận mã ngay|gửi ngay lập tức|tự động gửi mã thẻ ngay/gi,
+  );
+  checks.push(
+    instantHits && instantHits.length >= 2
+      ? warn(
+          'INVENTED_SLA',
+          `Lặp claim giao mã tức thì («${instantHits[0]}») — tránh SLA bịa; nói mã hiện trên đơn/email sau thanh toán thành công`,
+        )
+      : passed('INVENTED_SLA', 'Không thấy SLA giao mã tức thì bị lặp'),
+  );
+
+  // Soft: empty generic advantages H2
+  const genericAdv = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/ưu điểm|lợi ích|tại sao nên/i.test(s.text ?? '')) return false;
+    const next = doc.sections[i + 1];
+    if (!next || (next.type !== 'ul' && next.type !== 'ol')) return false;
+    const listNorm = normalizeText((next.items ?? []).join(' '));
+    const fluff =
+      (/nhanh|tien loi|an toan|pho bien|khong can/.test(listNorm) ? 1 : 0) +
+      (/rui ro|mat the|hu hong|gia/.test(listNorm) ? 1 : 0) +
+      (/de dang|luu tru|thiet bi/.test(listNorm) ? 1 : 0);
+    return fluff >= 2 && !listNorm.includes('cardon');
+  });
+  checks.push(
+    genericAdv
+      ? warn(
+          'GENERIC_ADVANTAGES',
+          'H2 ưu điểm chỉ toàn nhanh/tiện/an toàn chung chung — gộp vào định nghĩa/how-to hoặc thêm tip CardOn cụ thể',
+        )
+      : passed('GENERIC_ADVANTAGES', 'Không thấy H2 ưu điểm filler thuần'),
+  );
+
+  // Soft: thin bolted secondary brand H2 (e.g. Zing) when topic is broader auto-code buy
+  const thinBrandH2 = doc.sections.find(
+    (s) => s.type === 'h2' && /zing|garena|vcoin|funcard/i.test(s.text ?? ''),
+  );
+  const brandInTopic = /zing|garena|vcoin|funcard/.test(topicBlob);
+  if (
+    /mua the game|nhan ma tu dong|ma tu dong/.test(topicBlob) &&
+    !brandInTopic &&
+    thinBrandH2
+  ) {
+    checks.push(
+      warn(
+        'THIN_BRAND_H2',
+        `H2 thương hiệu phụ «${thinBrandH2.text}» có vẻ gắn SEO mỏng — bỏ hoặc viết sâu bước mua/check cụ thể`,
+      ),
+    );
+  } else {
+    checks.push(passed('THIN_BRAND_H2', 'Không thấy H2 thương hiệu phụ lệch đề rõ'));
+  }
 
   return checks;
 }

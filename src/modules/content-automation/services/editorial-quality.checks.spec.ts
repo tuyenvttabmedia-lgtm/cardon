@@ -176,6 +176,56 @@ describe('editorial-quality.checks', () => {
     expect(policy?.severity).toBe('warning');
   });
 
+  it('flags generic advantages and invented SLA on auto-code guides', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ nhận mã tự động',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ game online nhận mã tự động',
+      },
+      sections: [
+        {
+          id: 'h1',
+          type: 'h2',
+          text: 'Ưu điểm của việc mua thẻ game online nhận mã tự động',
+        },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Nhanh chóng nhận mã thẻ ngay sau khi thanh toán',
+            'Tiện lợi, không cần đến cửa hàng vật lý',
+            'Giảm thiểu rủi ro mất thẻ hoặc hư hỏng',
+          ],
+        },
+        {
+          id: 'p1',
+          type: 'paragraph',
+          text: 'Hệ thống gửi ngay lập tức. Bạn nhận mã ngay. Mã được gửi ngay lập tức qua email.',
+        },
+        { id: 'h2', type: 'h2', text: 'Thông tin về thẻ Zing và vai trò' },
+        { id: 'u2', type: 'ul', items: ['Thẻ Zing phổ biến và được nhiều game thủ tin dùng'] },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ game online nhận mã tự động',
+        primaryKeyword: 'mua thẻ game online nhận mã tự động',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'GENERIC_ADVANTAGES')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_SLA')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'THIN_BRAND_H2')?.severity).toBe('warning');
+  });
+
   it('flags off-topic CTA H2 early on troubleshooting', () => {
     const doc: ArticleDocumentV1 = {
       schemaVersion: '1.0',
