@@ -268,7 +268,7 @@ export function runEditorialSoftChecks(
 
   // Soft: invented instant-delivery SLA
   const instantHits = collectFullText(doc).match(
-    /ngay lập tức|tức thì|trong vài giây|nhận mã ngay|gửi ngay lập tức|tự động gửi mã thẻ ngay/gi,
+    /ngay lập tức|tức thì|trong vài giây|nhận mã ngay|gửi ngay lập tức|tự động gửi mã thẻ ngay|thường hiện ngay/gi,
   );
   checks.push(
     instantHits && instantHits.length >= 2
@@ -370,6 +370,55 @@ export function runEditorialSoftChecks(
           'H2 phương thức thanh toán trùng với bước mua đã liệt kê thanh toán — gộp lại một chỗ',
         )
       : passed('OVERLAPPING_PAYMENT', 'Không thấy H2 thanh toán chồng bước mua'),
+  );
+
+  // Soft: empty overview H2 before real content
+  const emptyOverview = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/tổng quan|giới thiệu|tổng quát/i.test(s.text ?? '')) return false;
+    const next = doc.sections[i + 1];
+    if (!next || (next.type !== 'ul' && next.type !== 'ol' && next.type !== 'paragraph')) {
+      return true;
+    }
+    const blob = normalizeText(
+      [next.text ?? '', ...(next.items ?? [])].join(' '),
+    );
+    // Thin if mostly definition fluff without concrete steps/codes/CardOn depth
+    const hasDepth =
+      /cardon|\*1\d|#|buoc|dang nhap|momo|my viettel|my mobifone|my vinaphone/.test(
+        blob,
+      );
+    return !hasDepth && blob.split(' ').filter(Boolean).length < 80;
+  });
+  checks.push(
+    emptyOverview
+      ? warn(
+          'EMPTY_OVERVIEW_H2',
+          'H2 Tổng quan/Giới thiệu mỏng — bỏ và đi thẳng vào các cách nạp/mua',
+        )
+      : passed('EMPTY_OVERVIEW_H2', 'Không thấy H2 tổng quan trống'),
+  );
+
+  // Soft: CardOn receive-code tip cluster repeated across many sections
+  const cardonTipRe =
+    /(lich su don|trang don).{0,40}(email|spam)|(email|spam).{0,40}(ho tro|lien he).{0,20}cardon|ma the.{0,30}(email|spam|lich su)/;
+  let cardonTipSections = 0;
+  for (let i = 0; i < doc.sections.length; i++) {
+    const s = doc.sections[i];
+    const chunk = normalizeText(
+      [s.text ?? '', ...(s.items ?? []), ...(s.faqItems ?? []).flatMap((f) => [f.question, f.answer])].join(
+        ' ',
+      ),
+    );
+    if (chunk.includes('cardon') && cardonTipRe.test(chunk)) cardonTipSections += 1;
+  }
+  checks.push(
+    cardonTipSections >= 3
+      ? warn(
+          'REPEATED_CARDON_TIPS',
+          `Cụm tip CardOn (đơn/email/spam/hỗ trợ) lặp ở ${cardonTipSections} chỗ — giữ một mục thôi`,
+        )
+      : passed('REPEATED_CARDON_TIPS', 'Tip CardOn nhận mã không bị nhân đôi quá mức'),
   );
 
   return checks;

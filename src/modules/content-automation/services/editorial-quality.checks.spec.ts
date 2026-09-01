@@ -245,6 +245,59 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'OVERLAPPING_PAYMENT')?.severity).toBe('warning');
   });
 
+  it('flags empty overview and repeated CardOn receive tips', () => {
+    const tip =
+      'Thanh toán thành công, mã thẻ hiện trên lịch sử đơn CardOn. Kiểm tra email hoặc spam. Liên hệ hỗ trợ CardOn nếu cần.';
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Nạp tiền Viettel',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'nạp tiền điện thoại viettel',
+      },
+      sections: [
+        { id: 'h0', type: 'h2', text: 'Tổng quan về nạp tiền điện thoại Viettel' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Nạp tiền điện thoại là cách bổ sung tài khoản',
+            'Viettel là nhà mạng lớn với nhiều hình thức',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Hướng dẫn nạp qua CardOn' },
+        { id: 'u1', type: 'ul', items: [tip] },
+        { id: 'h2', type: 'h2', text: 'Kiểm tra lịch sử trên CardOn' },
+        { id: 'u2', type: 'ul', items: [tip] },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Không nhận mã trên CardOn?',
+              answer: tip,
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Nạp tiền điện thoại Viettel',
+        primaryKeyword: 'nạp tiền điện thoại viettel',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
+  });
+
   it('flags generic advantages and invented SLA on auto-code guides', () => {
     const doc: ArticleDocumentV1 = {
       schemaVersion: '1.0',
