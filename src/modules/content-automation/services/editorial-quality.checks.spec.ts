@@ -298,6 +298,38 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
   });
 
+  it('flags invented SIM lock day windows', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'SIM lâu không sử dụng',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'sim lâu không sử dụng',
+      },
+      sections: [
+        {
+          id: '1',
+          type: 'paragraph',
+          text: 'SIM Viettel trả trước nếu không phát sinh cước hoặc nạp tiền trong 90 ngày có thể bị khóa tạm thời.',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'SIM lâu không sử dụng',
+        primaryKeyword: 'sim lâu không sử dụng',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_DURATION')?.severity).toBe('warning');
+  });
+
   it('flags generic advantages and invented SLA on auto-code guides', () => {
     const doc: ArticleDocumentV1 = {
       schemaVersion: '1.0',

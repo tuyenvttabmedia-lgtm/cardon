@@ -227,17 +227,18 @@ export function runEditorialSoftChecks(
     );
   }
 
-  // Invented retention / policy durations in FAQ or body (soft)
-  const durationHits = collectFullText(doc).match(
-    /\b\d+\s*(tháng|năm|ngày|giờ)\b.*(lưu|lịch sử|bảo quản|lưu trữ)|lưu trữ.{0,40}\d+\s*(tháng|năm)/gi,
+  // Invented retention / policy durations / carrier lock windows (soft)
+  const fullText = collectFullText(doc);
+  const durationHits = fullText.match(
+    /\b\d+\s*(tháng|năm|ngày|giờ)\b.{0,40}(lưu|lịch sử|bảo quản|lưu trữ|khóa|thu hồi|không sử dụng|không phát sinh)|(?:khóa|thu hồi|không sử dụng).{0,40}\b\d+\s*(tháng|năm|ngày)/gi,
   );
   checks.push(
     durationHits && durationHits.length > 0
       ? warn(
           'INVENTED_DURATION',
-          `Có thể bịa thời hạn chính sách: «${durationHits[0].slice(0, 80)}…» — chỉ nêu nếu có trong fact`,
+          `Có thể bịa thời hạn/chính sách («${durationHits[0].slice(0, 80)}») — chỉ nêu nếu có trong fact; với SIM hãy bảo xem app/tổng đài`,
         )
-      : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số tháng bịa'),
+      : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số ngày/tháng bịa'),
   );
 
   // Soft: refund / licensing / exchange / expiry — only POSITIVE invented promises
