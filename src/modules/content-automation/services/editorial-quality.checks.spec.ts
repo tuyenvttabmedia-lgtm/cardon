@@ -151,15 +151,34 @@ describe('editorial-quality.checks', () => {
     expect(dup?.message).toMatch(/2 cặp/);
   });
 
-  it('flags invented refund/licensing claims', () => {
-    const doc: ArticleDocumentV1 = {
+  it('allows "không đổi trả" but flags positive hoàn tiền promise', () => {
+    const okDoc: ArticleDocumentV1 = {
       schemaVersion: '1.0',
-      title: 'Mua thẻ',
+      title: 'Scoin',
       seo: {
         metaTitle: 'x'.repeat(30),
         metaDescription: 'y'.repeat(130),
-        focusKeyword: 'mua thẻ game',
+        focusKeyword: 'mua thẻ scoin',
       },
+      sections: [
+        {
+          id: '1',
+          type: 'paragraph',
+          text: 'Mã thẻ thường không được đổi trả; nếu gặp lỗi, liên hệ nơi mua kèm mã đơn hàng.',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    expect(
+      runEditorialSoftChecks(basePlan(), okDoc, emptyContext()).find(
+        (c) => c.code === 'INVENTED_POLICY',
+      )?.severity,
+    ).toBe('info');
+
+    const badDoc: ArticleDocumentV1 = {
+      ...okDoc,
       sections: [
         {
           id: '1',
@@ -167,13 +186,63 @@ describe('editorial-quality.checks', () => {
           text: 'Nên chọn phương thức có bảo mật và hỗ trợ hoàn tiền khi có sự cố tại cửa hàng được cấp phép.',
         },
       ],
+    };
+    expect(
+      runEditorialSoftChecks(basePlan(), badDoc, emptyContext()).find(
+        (c) => c.code === 'INVENTED_POLICY',
+      )?.severity,
+    ).toBe('warning');
+  });
+
+  it('flags FAQ repeating H2 and overlapping payment section', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ Scoin',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ scoin online',
+      },
+      sections: [
+        { id: 'h1', type: 'h2', text: 'Các bước mua thẻ Scoin online' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Chọn mệnh giá trên CardOn',
+            'Thanh toán qua MoMo hoặc chuyển khoản ngân hàng',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách kiểm tra mã thẻ Scoin sau khi mua trên CardOn' },
+        { id: 'u2', type: 'ul', items: ['Xem lịch sử đơn hàng'] },
+        { id: 'h3', type: 'h2', text: 'Phương thức thanh toán an toàn khi mua thẻ Scoin online' },
+        { id: 'u3', type: 'ul', items: ['MoMo', 'ZaloPay', 'Chuyển khoản'] },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Làm thế nào để kiểm tra đơn hàng và mã thẻ trên CardOn?',
+              answer: 'Đăng nhập và xem lịch sử đơn.',
+            },
+          ],
+        },
+      ],
       factRefs: [],
       internalLinks: [],
       qualityFlags: [],
     };
-    const checks = runEditorialSoftChecks(basePlan(), doc, emptyContext());
-    const policy = checks.find((c) => c.code === 'INVENTED_POLICY');
-    expect(policy?.severity).toBe('warning');
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ Scoin online',
+        primaryKeyword: 'mua thẻ scoin online',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'FAQ_REPEATS_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'OVERLAPPING_PAYMENT')?.severity).toBe('warning');
   });
 
   it('flags generic advantages and invented SLA on auto-code guides', () => {

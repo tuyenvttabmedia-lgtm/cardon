@@ -240,11 +240,19 @@ export function runEditorialSoftChecks(
       : passed('INVENTED_DURATION', 'Không thấy thời hạn chính sách kiểu số tháng bịa'),
   );
 
-  // Soft: refund / licensing / exchange / expiry claims often invented for digital cards
+  // Soft: refund / licensing / exchange / expiry — only POSITIVE invented promises
+  // Saying "thường không đổi trả" is OK and should not warn.
   const policyBlob = normalizeText(collectFullText(doc));
   const inventedPolicy: string[] = [];
-  if (/hoan tien|hoan lai|refund/.test(policyBlob)) inventedPolicy.push('hoàn tiền');
-  if (/doi tra|doi lai the|tra hang.*the/.test(policyBlob)) inventedPolicy.push('đổi trả');
+  if (/(ho tro|co the|duoc)\s*hoan tien|hoan tien khi/.test(policyBlob)) {
+    inventedPolicy.push('hoàn tiền');
+  }
+  if (
+    /(?<!khong\s)(ho tro|co the|duoc)\s*doi tra/.test(policyBlob) &&
+    !/thuong khong.{0,24}doi tra|ma so thuong khong/.test(policyBlob)
+  ) {
+    inventedPolicy.push('đổi trả');
+  }
   if (/duoc cap phep|giay phep kinh doanh/.test(policyBlob)) inventedPolicy.push('cấp phép');
   if (/han su dung.*(the|ma)|the.{0,20}han su dung/.test(policyBlob)) {
     inventedPolicy.push('hạn sử dụng thẻ');
@@ -312,6 +320,57 @@ export function runEditorialSoftChecks(
   } else {
     checks.push(passed('THIN_BRAND_H2', 'Không thấy H2 thương hiệu phụ lệch đề rõ'));
   }
+
+  // Soft: FAQ question restates an existing H2
+  const h2Texts = doc.sections
+    .filter((s) => s.type === 'h2' && s.text)
+    .map((s) => s.text as string);
+  const faqQuestions = doc.sections
+    .filter((s) => s.type === 'faq')
+    .flatMap((s) => (s.faqItems ?? []).map((f) => f.question));
+  const isCheckOrderTopic = (s: string) => {
+    const n = normalizeText(s);
+    return /kiem tra|lich su don|xem ma|xem don/.test(n) && /cardon|don hang|ma the/.test(n);
+  };
+  const faqDupH2 = faqQuestions.find((q) =>
+    h2Texts.some(
+      (h) =>
+        textSimilarity(q, h) >= 0.4 ||
+        (isCheckOrderTopic(q) && isCheckOrderTopic(h)),
+    ),
+  );
+  checks.push(
+    faqDupH2
+      ? warn(
+          'FAQ_REPEATS_H2',
+          `FAQ trùng H2 («${faqDupH2.slice(0, 60)}») — đổi sang edge case khác`,
+        )
+      : passed('FAQ_REPEATS_H2', 'FAQ không trùng tiêu đề H2'),
+  );
+
+  // Soft: separate payment H2 when buy steps already mention payment methods
+  const paymentH2Idx = doc.sections.findIndex(
+    (s) => s.type === 'h2' && /phương thức thanh toán|thanh toán an toàn/i.test(s.text ?? ''),
+  );
+  const buyStepsMentionPay = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/bước|cách mua|quy trình|mua thẻ/i.test(s.text ?? '')) return false;
+    const following = doc.sections.slice(i + 1, i + 4);
+    const blob = normalizeText(
+      following
+        .flatMap((b) => [b.text ?? '', ...(b.items ?? [])])
+        .join(' '),
+    );
+    return /momo|zalopay|chuyen khoan|vi dien tu|thanh toan/.test(blob);
+  });
+  checks.push(
+    paymentH2Idx >= 0 && buyStepsMentionPay
+      ? warn(
+          'OVERLAPPING_PAYMENT',
+          'H2 phương thức thanh toán trùng với bước mua đã liệt kê thanh toán — gộp lại một chỗ',
+        )
+      : passed('OVERLAPPING_PAYMENT', 'Không thấy H2 thanh toán chồng bước mua'),
+  );
 
   return checks;
 }
