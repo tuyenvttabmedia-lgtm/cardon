@@ -376,6 +376,39 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'TS_SUPPORT_H2')?.severity).toBe('warning');
   });
 
+  it('flags đổi/hoàn promise and resale advice', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua nhầm thẻ',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua nhầm thẻ điện thoại',
+      },
+      sections: [
+        {
+          id: '1',
+          type: 'paragraph',
+          text: 'Liên hệ nơi bán để yêu cầu hỗ trợ đổi hoặc hoàn tiền. Nếu không được, cân nhắc bán lại thẻ cho người cần.',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua nhầm thẻ điện thoại',
+        primaryKeyword: 'mua nhầm thẻ điện thoại',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_POLICY')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'GRAY_MARKET_RESALE')?.severity).toBe('warning');
+  });
+
   it('flags generic advantages and invented SLA on auto-code guides', () => {
     const doc: ArticleDocumentV1 = {
       schemaVersion: '1.0',

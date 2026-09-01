@@ -23,6 +23,7 @@ function normalizeText(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -245,8 +246,8 @@ export function runEditorialSoftChecks(
   // Saying "thường không đổi trả" is OK and should not warn.
   const policyBlob = normalizeText(collectFullText(doc));
   const inventedPolicy: string[] = [];
-  if (/(ho tro|co the|duoc)\s*hoan tien|hoan tien khi/.test(policyBlob)) {
-    inventedPolicy.push('hoàn tiền');
+  if (/(ho tro|co the|duoc)\s*hoan tien|hoan tien khi|doi hoac hoan|ho tro doi/.test(policyBlob)) {
+    inventedPolicy.push('hoàn tiền/đổi');
   }
   if (
     /(?<!khong\s)(ho tro|co the|duoc)\s*doi tra/.test(policyBlob) &&
@@ -454,6 +455,19 @@ export function runEditorialSoftChecks(
         : warn('TS_SUPPORT_H2', 'Thiếu H2 khi nào cần hỗ trợ nhà mạng/CardOn'),
     );
   }
+
+  // Soft: advise reselling unused phone/game codes
+  const resaleAdvice = /ban lai (the|ma)|sang nhuong ma the|ban ma the cho nguoi/.test(
+    normalizeText(collectFullText(doc)),
+  );
+  checks.push(
+    resaleAdvice
+      ? warn(
+          'GRAY_MARKET_RESALE',
+          'Khuyên bán lại/sang nhượng mã thẻ — bỏ; hướng dẫn liên hệ nơi bán + dùng đúng nhà mạng nếu còn dùng được',
+        )
+      : passed('GRAY_MARKET_RESALE', 'Không khuyên bán lại mã thẻ'),
+  );
 
   return checks;
 }
