@@ -330,6 +330,52 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'INVENTED_DURATION')?.severity).toBe('warning');
   });
 
+  it('flags invented carrier causes and missing troubleshooting ol', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Nạp tiền bị từ chối',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'nạp tiền điện thoại online bị từ chối',
+      },
+      sections: [
+        { id: 'h1', type: 'h2', text: 'Triệu chứng' },
+        { id: 'u1', type: 'ul', items: ['Thông báo lỗi'] },
+        { id: 'h2', type: 'h2', text: 'Nguyên nhân từ nhà mạng' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Vinaphone: giới hạn số lần nạp trong ngày hoặc lỗi xác thực giao dịch',
+            'Viettel: hệ thống My Viettel đang bảo trì',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Cách xử lý' },
+        {
+          id: 'u3',
+          type: 'ul',
+          items: ['Kiểm tra số', 'Thử lại', 'Liên hệ hỗ trợ'],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Nạp tiền điện thoại online bị từ chối',
+        primaryKeyword: 'nạp tiền điện thoại online bị từ chối',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext(),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_CARRIER_CAUSE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TS_FIX_OL')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TS_SUPPORT_H2')?.severity).toBe('warning');
+  });
+
   it('flags generic advantages and invented SLA on auto-code guides', () => {
     const doc: ArticleDocumentV1 = {
       schemaVersion: '1.0',
