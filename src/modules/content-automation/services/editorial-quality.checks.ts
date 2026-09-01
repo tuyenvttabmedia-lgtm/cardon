@@ -422,6 +422,39 @@ export function runEditorialSoftChecks(
       : passed('REPEATED_CARDON_TIPS', 'Tip CardOn nhận mã không bị nhân đôi quá mức'),
   );
 
+  // Soft: speculative per-carrier invented failure policies in troubleshooting
+  const bodyNormForCause = normalizeText(collectFullText(doc));
+  const inventedCarrierCause =
+    /vinaphone.{0,48}(gioi han|so lan nap)|mobifone.{0,48}(chi loi|chi bi)|viettel.{0,48}(dang bao tri my viettel|bao tri my viettel)|gioi han so lan nap trong ngay/.test(
+      bodyNormForCause,
+    );
+  checks.push(
+    inventedCarrierCause
+      ? warn(
+          'INVENTED_CARRIER_CAUSE',
+          'Có vẻ bịa nguyên nhân riêng theo nhà mạng (giới hạn lần nạp / bảo trì cụ thể) — dùng nhóm nguyên nhân chung + bảo kiểm tra app/tổng đài',
+        )
+      : passed('INVENTED_CARRIER_CAUSE', 'Không thấy nguyên nhân nhà mạng bịa kiểu cứng'),
+  );
+
+  // Soft: troubleshooting should use ol for fix steps (mirrors gate TS_OL_STEPS)
+  if (plan.contentType === 'TROUBLESHOOTING') {
+    const hasOl = doc.sections.some((s) => s.type === 'ol' && (s.items?.length ?? 0) >= 4);
+    const hasSupportH2 = doc.sections.some(
+      (s) => s.type === 'h2' && /hỗ trợ|tổng đài|khi nào cần/i.test(s.text ?? ''),
+    );
+    checks.push(
+      hasOl
+        ? passed('TS_FIX_OL', 'Troubleshooting có ol bước xử lý')
+        : warn('TS_FIX_OL', 'Troubleshooting thiếu ol ≥4 bước xử lý — đừng dùng ul cho toàn bộ cách xử lý'),
+    );
+    checks.push(
+      hasSupportH2
+        ? passed('TS_SUPPORT_H2', 'Có H2 hỗ trợ/tổng đài')
+        : warn('TS_SUPPORT_H2', 'Thiếu H2 khi nào cần hỗ trợ nhà mạng/CardOn'),
+    );
+  }
+
   return checks;
 }
 
