@@ -483,6 +483,75 @@ describe('editorial-quality.checks', () => {
     expect(off?.severity).toBe('warning');
   });
 
+  it('flags refund-heavy buy-card guide missing CardOn buy flow', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua mã thẻ online',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua mã thẻ online',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua mã thẻ online là hình thức mua thẻ điện thoại hoặc thẻ game dưới dạng mã số.',
+        },
+        {
+          id: 'h0',
+          type: 'h2',
+          text: 'Mua mã thẻ online là gì và cách thức hoạt động',
+        },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Mã thẻ online là dãy số dùng để nạp tiền điện thoại hoặc thẻ game',
+            'Người dùng mua qua website hoặc app',
+            'Mã thẻ thường được gửi tự động sau khi thanh toán thành công',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Chính sách hoàn tiền khi mua mã thẻ online' },
+        { id: 'u1', type: 'ul', items: ['Thường không hoàn tiền', 'Liên hệ hỗ trợ nếu lỗi'] },
+        { id: 'h2', type: 'h2', text: 'Nguyên nhân phổ biến dẫn đến yêu cầu hoàn tiền' },
+        { id: 'u2', type: 'ul', items: ['Thanh toán xong không nhận mã', 'Mã lỗi'] },
+        {
+          id: 'h3',
+          type: 'h2',
+          text: 'Cách xử lý khi cần hoàn tiền hoặc giải quyết sự cố mua mã thẻ online',
+        },
+        { id: 'u3', type: 'ul', items: ['Kiểm tra lịch sử đơn CardOn', 'Liên hệ hỗ trợ'] },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua mã thẻ online',
+        primaryKeyword: 'mua mã thẻ online',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Mua mã thẻ online',
+          primaryKeyword: 'mua mã thẻ online',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REFUND_HEAVY_GUIDE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
