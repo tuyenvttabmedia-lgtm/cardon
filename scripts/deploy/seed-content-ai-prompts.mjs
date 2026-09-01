@@ -42,8 +42,11 @@ Telecom accuracy (Viettel / Mobifone / Vinaphone / USSD / SMS / hotline):
 No invented facts:
 - Never invent durations, fees, success rates, refund/exchange policies, licensing claims, or card expiry rules not present in factSummary
 - Do NOT invent carrier SIM inactivity / lock windows (vd. "90 ngày", "6 tháng không phát sinh cước sẽ bị khóa") — policies change; prefer: "theo quy định từng nhà mạng tại thời điểm kiểm tra; xem trên app My Viettel/My MobiFone/My Vinaphone hoặc hỏi tổng đài"
-- Do NOT promise "hỗ trợ hoàn tiền" / "được đổi trả" for game cards / digital codes unless factSummary says so
-- OK to say: "mã số thường không đổi trả; nếu lỗi giao dịch thì liên hệ hỗ trợ nơi mua kèm mã đơn"
+- Do NOT promise "hỗ trợ hoàn tiền" / "được đổi trả" / "đổi hoặc hoàn tiền" for phone/game digital codes unless factSummary says so
+- OK to say: "mã số thường không đổi trả; nếu lỗi giao dịch hoặc nghi giao sai từ hệ thống, liên hệ hỗ trợ nơi mua kèm mã đơn để được xem xét theo chính sách — không hứa đổi/hoàn"
+- Do NOT advise "bán lại thẻ / sang nhượng mã thẻ" as a fix (gray-market / risky)
+- For "mua nhầm thẻ" topics: symptoms = sai nhà mạng / sai mệnh giá / mã lỗi khi nạp — do NOT pad with "không nhận được mã" (that is a different problem; cover once under support/CardOn if needed)
+- Cách xử lý MUST be type "ol"; never tell users to expect a refund — tell them to contact seller with order proof
 - Do NOT claim shops are "được cấp phép" without a concrete basis — prefer "uy tín, có hỗ trợ, có lịch sử đơn"
 - Do NOT invent delivery SLA ("ngay lập tức", "tức thì", "trong vài giây", "thường hiện ngay") for auto codes — prefer "thường hiện trên trang đơn / lịch sử đơn sau thanh toán thành công"
 - Do NOT invent carrier-specific failure causes as hard facts (vd. "Vinaphone giới hạn số lần nạp/ngày", "Mobifone chỉ lỗi nhập sai mã", "Viettel đang bảo trì My Viettel") unless in factSummary
@@ -88,6 +91,7 @@ Banned filler phrases (do not use):
 Internal links:
 - Only link candidates that share the same topic/intent as this plan
 - If no good match → omit internalLink (do not force unrelated links like game cards into a SIM/telecom article)
+- For "mua nhầm thẻ": prefer links about kiểm tra nhà mạng của số, nạp thẻ, lỗi nạp — NOT unrelated "không gọi được" / "nạp bao nhiêu là đủ" unless clearly relevant
 - Anchor text natural Vietnamese, not Title Case spam
 
 Respect admin Angle when provided — treat it as mandatory editorial brief.
@@ -104,7 +108,7 @@ If contentType is TROUBLESHOOTING:
   4) H2 Khi nào cần hỗ trợ / gọi nhà mạng hoặc CardOn (ul checklist)
   5) FAQ type "faq" with 2–3 items (edge cases only; do not restate the CardOn check H2)
   6) Optional H2 Tham khảo thêm with on-topic internalLink only
-- Forbidden: early product-comparison H2s; inventing fake carrier/payment flows; inventing per-carrier daily limits / exclusive error modes; using ul instead of ol for the main fix steps
+- Forbidden: early product-comparison H2s; inventing fake carrier/payment flows; inventing per-carrier daily limits / exclusive error modes; using ul instead of ol for the main fix steps; advising resale of unused codes; promising đổi/hoàn tiền
 
 If contentType is TUTORIAL:
 - Prerequisites (ul) → numbered steps (ol) → expected result
@@ -194,10 +198,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.10.0',
+    version: '1.11.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.10.0',
+      version: '1.11.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -231,10 +235,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.10.0',
+    version: '1.11.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.10.0',
+      version: '1.11.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -258,12 +262,13 @@ ${STRUCTURE_RULES}
 
 Self-check before returning JSON:
 1) Scan every consecutive paragraph→ul/ol pair — if similarity is high, keep ONLY the list
-2) No positive invented hoàn tiền/đổi trả/cấp phép/hạn dùng/"ngay lập tức"/"thường hiện ngay" (saying "thường không đổi trả" is OK)
+2) No positive invented hoàn tiền/đổi trả/"đổi hoặc hoàn"/cấp phép/hạn dùng/"ngay lập tức" (saying "thường không đổi trả" + liên hệ hỗ trợ xem xét is OK; never advise bán lại thẻ)
 3) No empty "Tổng quan"/"ưu điểm" fluff; no redundant payment H2; CardOn email/spam/hỗ trợ tip only once
 4) If topic is nạp tiền nhà mạng: My app + CardOn how-to + USSD disclaimer; skip empty overview
 5) If topic is SIM khóa/lâu không dùng: NO invented N-day lock windows; verify via app/tổng đài
-6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm nguyên nhân → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no "Bài viết này sẽ giúp bạn"
-7) FAQ ≤3 and must not restate an existing H2 (especially check-order on CardOn)
+6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers
+7) If topic is mua nhầm thẻ: symptoms stay on wrong carrier/denomination; ol steps; no promised refund/resale
+8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
 
 Return EXACTLY this JSON shape (sections must be flat blocks, not nested outline sections):
 {
