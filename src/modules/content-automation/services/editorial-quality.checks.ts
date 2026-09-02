@@ -281,6 +281,34 @@ export function runEditorialSoftChecks(
       : passed('INVENTED_SLA', 'Không thấy SLA giao mã tức thì bị lặp'),
   );
 
+  // Soft: invented phone-card digit lengths (unless from facts — gate is soft warn)
+  const inventedCardDigits =
+    /(viettel|mobifone|vinaphone|ma the).{0,40}\d{1,2}\s*(hoac|den|-|–)?\s*\d{0,2}\s*so|\d{1,2}\s*(hoac|den)\s*\d{1,2}\s*so/.test(
+      policyBlob,
+    );
+  checks.push(
+    inventedCardDigits
+      ? warn(
+          'INVENTED_CARD_DIGITS',
+          'Có vẻ bịa độ dài mã thẻ (vd. 13/15 số) — bỏ số cụ thể; bảo nhập đúng mã theo nhà mạng trên app/USSD',
+        )
+      : passed('INVENTED_CARD_DIGITS', 'Không thấy claim độ dài mã thẻ bịa'),
+  );
+
+  // Soft: invented unlimited purchase quantity
+  const inventedQty =
+    /khong gioi han so luong|khong bi gioi han so luong|hau het.{0,40}khong gioi han/.test(
+      policyBlob,
+    );
+  checks.push(
+    inventedQty
+      ? warn(
+          'INVENTED_QUANTITY_CLAIM',
+          'Claim không giới hạn số lượng — bỏ; bảo chọn số lượng trên trang sản phẩm / theo thông báo hệ thống',
+        )
+      : passed('INVENTED_QUANTITY_CLAIM', 'Không thấy claim không giới hạn số lượng'),
+  );
+
   // Soft: empty generic advantages H2
   const genericAdv = doc.sections.some((s, i) => {
     if (s.type !== 'h2') return false;
@@ -412,7 +440,7 @@ export function runEditorialSoftChecks(
   );
   const isBuyCardGuide =
     (plan.contentType === 'GUIDE' || plan.contentType === 'EXPLAINER') &&
-    /mua (ma )?the|mua the dien thoai|mua the game|nhan ma tu dong|scoin|zing|garena/.test(
+    /mua .{0,24}(ma )?the|mua the dien thoai|ma the dien thoai|mua the game|nhan ma tu dong|scoin|zing|garena|mua nhieu/.test(
       buyGuideTopicBlob,
     ) &&
     !/hoan tien|chinh sach hoan|refund/.test(buyGuideTopicBlob);
@@ -437,22 +465,61 @@ export function runEditorialSoftChecks(
     const hasBuyFlowH2 = doc.sections.some(
       (s) =>
         s.type === 'h2' &&
-        /cach mua|huong dan mua|mua tren cardon|mua ma the tren/.test(
+        /cach mua|huong dan mua|mua tren cardon|mua ma the tren|mua nhieu/.test(
           normalizeText(s.text ?? ''),
         ),
     );
     const hasBuyOl = doc.sections.some((s) => {
       if (s.type !== 'ol' || (s.items?.length ?? 0) < 4) return false;
       const blob = normalizeText((s.items ?? []).join(' '));
-      return /chon|menh gia|thanh toan|cardon|don hang|ma the/.test(blob);
+      return /chon|menh gia|thanh toan|cardon|don hang|ma the|so luong/.test(blob);
     });
     checks.push(
       hasBuyFlowH2 && hasBuyOl
         ? passed('MISSING_BUY_FLOW', 'Có H2 + ol bước mua trên CardOn')
         : warn(
             'MISSING_BUY_FLOW',
-            'Bài mua mã thẻ thiếu H2 + ol bước mua trên CardOn — đưa luồng mua lên trước chính sách hoàn tiền',
+            'Bài mua mã thẻ thiếu H2 + ol bước mua trên CardOn — đưa luồng mua lên trước fluff so sánh/đặc điểm nhà mạng',
           ),
+    );
+
+    const isMultiBuy = /mua nhieu|so luong|nhieu ma the/.test(buyGuideTopicBlob);
+    if (isMultiBuy) {
+      const buyOlHasQty = doc.sections.some((s) => {
+        if (s.type !== 'ol') return false;
+        return /so luong|nhieu ma|chon so/.test(normalizeText((s.items ?? []).join(' ')));
+      });
+      checks.push(
+        buyOlHasQty
+          ? passed('MULTI_BUY_QTY_STEP', 'Bước mua có nhắc số lượng')
+          : warn(
+              'MULTI_BUY_QTY_STEP',
+              'Topic mua nhiều mã thẻ nhưng ol mua thiếu bước chọn số lượng',
+            ),
+      );
+    }
+
+    // Thin per-carrier "Đặc điểm mã thẻ X" fluff (digit myths / generic tips)
+    const thinCarrierSpecs = doc.sections.some((s, i) => {
+      if (s.type !== 'h2') return false;
+      if (!/dac diem ma the|ma the (viettel|mobifone|vinaphone)/.test(normalizeText(s.text ?? ''))) {
+        return false;
+      }
+      const next = doc.sections[i + 1];
+      if (!next || (next.type !== 'ul' && next.type !== 'ol' && next.type !== 'paragraph')) {
+        return true;
+      }
+      const blob = normalizeText([next.text ?? '', ...(next.items ?? [])].join(' '));
+      const hasDepth = /cardon|buoc|so luong|thanh toan|dang nhap/.test(blob);
+      return !hasDepth;
+    });
+    checks.push(
+      thinCarrierSpecs
+        ? warn(
+            'THIN_CARRIER_SPECS_H2',
+            'H2 Đặc điểm mã thẻ theo nhà mạng mỏng/bịa — gộp 1 mục so sánh ngắn hoặc bỏ, ưu tiên bước mua CardOn',
+          )
+        : passed('THIN_CARRIER_SPECS_H2', 'Không thấy H2 đặc điểm nhà mạng filler'),
     );
   }
 

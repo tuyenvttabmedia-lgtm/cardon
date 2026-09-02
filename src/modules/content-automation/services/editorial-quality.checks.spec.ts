@@ -552,6 +552,119 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
   });
 
+  it('flags multi-buy phone-card fluff: digits, quantity claim, thin carrier H2, missing ol', () => {
+    const tip =
+      'Mã hiện trên đơn CardOn. Kiểm tra email hoặc spam. Liên hệ hỗ trợ CardOn nếu cần.';
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua nhiều mã thẻ điện thoại',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua nhiều mã thẻ điện thoại',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mã thẻ điện thoại là dãy số dùng để nạp tiền. Bạn có thể mua nhiều mã cùng lúc.',
+        },
+        {
+          id: 'h0',
+          type: 'h2',
+          text: 'Mã thẻ điện thoại là gì và có thể mua nhiều cùng lúc không?',
+        },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Mã thẻ điện thoại là dãy số dùng để nạp tiền',
+            'Có thể mua nhiều mã thẻ cùng lúc',
+            'Giúp dự trữ hoặc nạp cho nhiều số',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Đặc điểm mã thẻ Viettel' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Mã thẻ Viettel thường gồm 13 hoặc 15 số',
+            'Có thể mua nhiều mã thẻ Viettel trên nền tảng uy tín',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Đặc điểm mã thẻ Mobifone' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: ['Mã thẻ Mobifone thường có 12 hoặc 15 số', 'Chú ý nhập đúng mã khi nạp'],
+        },
+        {
+          id: 'h3',
+          type: 'h2',
+          text: 'Hướng dẫn mua nhiều mã thẻ điện thoại cùng lúc trên CardOn.vn',
+        },
+        {
+          id: 'u3',
+          type: 'ul',
+          items: [
+            'Chọn loại thẻ',
+            'Chọn mệnh giá',
+            'Thanh toán MoMo',
+            tip,
+            'Liên hệ hỗ trợ nếu cần',
+          ],
+        },
+        { id: 'h4', type: 'h2', text: 'Cách kiểm tra mã thẻ trên CardOn.vn' },
+        { id: 'u4', type: 'ul', items: [tip] },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Không nhận mã sau thanh toán?',
+              answer: tip,
+            },
+            {
+              question: 'Có bị giới hạn số lượng không?',
+              answer:
+                'Hầu hết các nền tảng bán thẻ không giới hạn số lượng mã thẻ bạn có thể mua cùng lúc.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua nhiều mã thẻ điện thoại cùng lúc',
+        primaryKeyword: 'mua nhiều mã thẻ điện thoại',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Mua nhiều mã thẻ điện thoại cùng lúc',
+          primaryKeyword: 'mua nhiều mã thẻ điện thoại',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_CARD_DIGITS')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_QUANTITY_CLAIM')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'THIN_CARRIER_SPECS_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'MULTI_BUY_QTY_STEP')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
