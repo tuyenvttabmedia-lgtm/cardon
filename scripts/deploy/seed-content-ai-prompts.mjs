@@ -44,8 +44,10 @@ No invented facts:
 - Do NOT invent carrier SIM inactivity / lock windows (vd. "90 ngày", "6 tháng không phát sinh cước sẽ bị khóa") — policies change; prefer: "theo quy định từng nhà mạng tại thời điểm kiểm tra; xem trên app My Viettel/My MobiFone/My Vinaphone hoặc hỏi tổng đài"
 - Do NOT promise "hỗ trợ hoàn tiền" / "được đổi trả" / "đổi hoặc hoàn tiền" for phone/game digital codes unless factSummary says so
 - OK to say: "mã số thường không đổi trả; nếu lỗi giao dịch hoặc nghi giao sai từ hệ thống, liên hệ hỗ trợ nơi mua kèm mã đơn để được xem xét theo chính sách — không hứa đổi/hoàn"
+- Do NOT soft-promise exchange as a product feature (vd. "có thể hỗ trợ đổi thẻ", "một số NCC hỗ trợ đổi khi sai mệnh giá") — that reads as invented đổi policy; keep only "liên hệ hỗ trợ kèm mã đơn để được xem xét"
 - Do NOT advise "bán lại thẻ / sang nhượng mã thẻ" as a fix (gray-market / risky)
-- For "mua nhầm thẻ" topics: symptoms = sai nhà mạng / sai mệnh giá / mã lỗi khi nạp — do NOT pad with "không nhận được mã" (that is a different problem; cover once under support/CardOn if needed)
+- For "mua nhầm thẻ / sai mệnh giá thẻ game": symptoms = sai mệnh giá / sai loại game-publisher / mã lỗi khi nạp — do NOT pad with "không nhận được mã" (that is a different problem; cover once under support/CardOn if needed)
+- If cùng loại game/publisher nhưng sai mệnh giá: do NOT tell users "tránh sử dụng mã" — mã vẫn nạp được đúng giá trị đã mua; họ có thể dùng hoặc mua thêm đúng mệnh giá cần
 - Cách xử lý MUST be type "ol"; never tell users to expect a refund — tell them to contact seller with order proof
 - Do NOT claim shops are "được cấp phép" without a concrete basis — prefer "uy tín, có hỗ trợ, có lịch sử đơn"
 - Do NOT invent delivery SLA ("ngay lập tức", "tức thì", "trong vài giây", "thường hiện ngay") for auto codes — prefer "thường hiện trên trang đơn / lịch sử đơn sau thanh toán thành công"
@@ -95,7 +97,7 @@ Internal links:
 - Only link candidates that share the same topic/intent as this plan
 - If no good match → omit internalLink (do not force unrelated links like game cards into a SIM/telecom article)
 - For "mua nhầm thẻ": prefer links about kiểm tra nhà mạng của số, nạp thẻ, lỗi nạp — NOT unrelated "không gọi được" / "nạp bao nhiêu là đủ" unless clearly relevant
-- Anchor text natural Vietnamese, not Title Case spam
+- Anchor text natural Vietnamese sentence case, not Title Case spam (vd. BAD: "Nạp Sai Mệnh Giá Thẻ Game Phải Làm Sao?"; GOOD: "nạp sai mệnh giá thẻ game phải làm sao")
 
 Respect admin Angle when provided — treat it as mandatory editorial brief.
 `.trim();
@@ -134,6 +136,13 @@ If contentType is GUIDE / EXPLAINER:
   4) fold check-order into buy steps OR one short H2 once (không lặp email/spam/hỗ trợ ở FAQ)
   5) H2 lưu ý an toàn (không chia sẻ mã; lưu biên lai; tránh mua dư nếu chưa dùng)
   6) FAQ: nhiều nhà mạng trong một lần? giới hạn số lượng? → bảo xem trang sản phẩm CardOn / thông báo hệ thống — NEVER "không giới hạn"
+- For "mua thẻ game sai mệnh giá / mua nhầm mệnh giá / sai loại thẻ game": preferred order =
+  1) short opening (what went wrong) — NO empty "là gì và nguyên nhân" H2 that restates intro
+  2) H2 triệu chứng / dấu hiệu (ul): sai mệnh giá trên đơn, không đủ credit trong game, sai publisher…
+  3) H2 nguyên nhân thường gặp (ul ngắn)
+  4) H2 cách xử lý — MUST type "ol" ≥5: kiểm tra đơn CardOn → liên hệ hỗ trợ kèm mã đơn → nếu cùng game có thể dùng đúng giá trị đã mua hoặc mua thêm đúng mệnh giá — NEVER hứa đổi/hoàn; NEVER "có thể hỗ trợ đổi thẻ" as a soft promise; NEVER bán lại mã
+  5) H2 cách mua đúng mệnh giá trên CardOn (ul/ol ngắn phòng tránh)
+  6) FAQ ≤3: hoàn tiền? đổi được không? — trả lời "thường không"; kiểm tra mã đã dùng? — xem trang nạp game
 - If topic/angle is explicitly about hoàn tiền / chính sách hoàn tiền: use TROUBLESHOOTING or GUIDE with ONE policy H2 + ONE xử lý ol — do NOT also add separate H2 "nguyên nhân hoàn tiền" + "chính sách hoàn tiền" + "cách xử lý hoàn tiền" (merge)
 - General "mua mã thẻ online" GUIDE must NOT be >40% refund-focused unless angle says so
 - For "nạp tiền Viettel/Mobifone/Vinaphone / thẻ điện thoại": preferred order =
@@ -216,10 +225,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.13.0',
+    version: '1.14.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.13.0',
+      version: '1.14.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -253,10 +262,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.13.0',
+    version: '1.14.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.13.0',
+      version: '1.14.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -285,7 +294,7 @@ Self-check before returning JSON:
 4) If topic is nạp tiền nhà mạng: My app + CardOn how-to + USSD disclaimer; skip empty overview
 5) If topic is SIM khóa/lâu không dùng: NO invented N-day lock windows; verify via app/tổng đài
 6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers
-7) If topic is mua nhầm thẻ: symptoms stay on wrong carrier/denomination; ol steps; no promised refund/resale
+7) If topic is mua nhầm thẻ / sai mệnh giá thẻ game: triệu chứng→nguyên nhân→xử lý ol; no soft "hỗ trợ đổi thẻ"; no "tránh dùng mã" khi cùng game; no promised refund/resale; no Title Case anchors
 8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
 9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
 10) If topic is mua nhiều mã thẻ / số lượng: CardOn buy ol must include số lượng; no invented digit lengths; no "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s; CardOn tip once
