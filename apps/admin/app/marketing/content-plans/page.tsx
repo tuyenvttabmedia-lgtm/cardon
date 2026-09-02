@@ -119,11 +119,11 @@ export default function ContentPlansPage() {
     setPage(1);
   }, [q, status]);
 
-  function closeCreateForm() {
+  const closeCreateForm = useCallback(() => {
     setShowCreate(false);
     setForm(EMPTY_FORM);
     setSupportingKeywordsText('');
-  }
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
