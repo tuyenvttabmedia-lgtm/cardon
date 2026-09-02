@@ -246,12 +246,16 @@ export function runEditorialSoftChecks(
   // Saying "thường không đổi trả" is OK and should not warn.
   const policyBlob = normalizeText(collectFullText(doc));
   const inventedPolicy: string[] = [];
-  if (/(ho tro|co the|duoc)\s*hoan tien|hoan tien khi|doi hoac hoan|ho tro doi/.test(policyBlob)) {
+  if (
+    /(ho tro|co the|duoc)\s*hoan tien|hoan tien khi|doi hoac hoan|ho tro doi( the| tra)?|co the (ho tro )?doi the|ho tro doi the/.test(
+      policyBlob,
+    )
+  ) {
     inventedPolicy.push('hoàn tiền/đổi');
   }
   if (
     /(?<!khong\s)(ho tro|co the|duoc)\s*doi tra/.test(policyBlob) &&
-    !/thuong khong.{0,24}doi tra|ma so thuong khong/.test(policyBlob)
+    !/thuong khong.{0,24}doi tra|ma so thuong khong|khong nen ky vong/.test(policyBlob)
   ) {
     inventedPolicy.push('đổi trả');
   }
@@ -263,7 +267,7 @@ export function runEditorialSoftChecks(
     inventedPolicy.length > 0
       ? warn(
           'INVENTED_POLICY',
-          `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ hoặc chỉ nêu nếu có trong fact`,
+          `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ soft-hứa đổi/hoàn; chỉ «liên hệ hỗ trợ kèm mã đơn để xem xét»`,
         )
       : passed('INVENTED_POLICY', 'Không thấy claim hoàn tiền/đổi trả/cấp phép/hạn dùng dễ bịa'),
   );
@@ -420,9 +424,11 @@ export function runEditorialSoftChecks(
     );
     // Thin if mostly definition fluff without concrete steps/codes/CardOn depth
     const hasDepth =
-      /cardon|\*1\d|#|buoc \d|dang nhap|momo|my viettel|my mobifone|my vinaphone|chon the|menh gia/.test(
+      /cardon|\*1\d|#|buoc \d|dang nhap|momo|my viettel|my mobifone|my vinaphone|chon the|so luong|thanh toan (qua|bang|momo)/.test(
         blob,
       );
+    // "là gì" H2s almost always fluff unless they already contain a real how-to
+    if (/la gi/.test(h2Norm) && !hasDepth) return true;
     return !hasDepth && blob.split(' ').filter(Boolean).length < 80;
   });
   checks.push(
@@ -589,6 +595,62 @@ export function runEditorialSoftChecks(
           'Khuyên bán lại/sang nhượng mã thẻ — bỏ; hướng dẫn liên hệ nơi bán + dùng đúng nhà mạng nếu còn dùng được',
         )
       : passed('GRAY_MARKET_RESALE', 'Không khuyên bán lại mã thẻ'),
+  );
+
+  // Soft: wrong-denom / mua nhầm topics need ol fix steps even if GUIDE
+  const isWrongCardTopic =
+    /sai menh gia|mua nham|sai loai the|nham menh gia|doi the game sai/.test(topicBlob);
+  if (isWrongCardTopic) {
+    const hasFixOl = doc.sections.some(
+      (s) => s.type === 'ol' && (s.items?.length ?? 0) >= 4,
+    );
+    checks.push(
+      hasFixOl
+        ? passed('WRONG_CARD_FIX_OL', 'Topic sai mệnh giá/mua nhầm có ol xử lý')
+        : warn(
+            'WRONG_CARD_FIX_OL',
+            'Topic sai mệnh giá/mua nhầm thiếu ol ≥4 bước xử lý — đừng chỉ dùng ul',
+          ),
+    );
+
+    const avoidUseWrong =
+      /tranh su dung ma the sai|khong (nen )?dung ma the sai|tranh dung ma.{0,20}sai menh gia/.test(
+        policyBlob,
+      );
+    checks.push(
+      avoidUseWrong
+        ? warn(
+            'WRONG_DENOM_AVOID_USE',
+            'Khuyên tránh dùng mã sai mệnh giá — nếu cùng game/publisher thì mã vẫn dùng đúng giá trị đã mua',
+          )
+        : passed('WRONG_DENOM_AVOID_USE', 'Không khuyên bỏ phí mã cùng loại game'),
+    );
+  }
+
+  // Soft: Title Case spam on internal link anchors
+  const anchors: string[] = [];
+  for (const link of doc.internalLinks) {
+    if (link.anchorText) anchors.push(link.anchorText);
+  }
+  for (const s of doc.sections) {
+    if (s.type === 'internalLink' && s.anchorText) anchors.push(s.anchorText);
+  }
+  const titleCaseAnchor = anchors.find((a) => {
+    const words = a
+      .replace(/[?!.…]+$/g, '')
+      .split(/\s+/)
+      .filter((w) => w.length >= 2);
+    if (words.length < 4) return false;
+    const capped = words.filter((w) => /^[A-ZÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ]/.test(w));
+    return capped.length / words.length >= 0.7;
+  });
+  checks.push(
+    titleCaseAnchor
+      ? warn(
+          'TITLE_CASE_ANCHOR',
+          `Anchor Title Case («${titleCaseAnchor.slice(0, 50)}») — dùng sentence case tiếng Việt`,
+        )
+      : passed('TITLE_CASE_ANCHOR', 'Anchor internal link không bị Title Case spam'),
   );
 
   return checks;

@@ -665,6 +665,97 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
   });
 
+  it('flags wrong-denom game-card guide: soft đổi, ul-only fix, avoid-use, Title Case anchors', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ game sai mệnh giá',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ game sai mệnh giá',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua thẻ game sai mệnh giá là trường hợp phổ biến khi chọn nhầm giá trị thẻ.',
+        },
+        {
+          id: 'h0',
+          type: 'h2',
+          text: 'Mua thẻ game sai mệnh giá là gì và nguyên nhân thường gặp',
+        },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Mua thẻ có giá trị khác nhu cầu', 'Chọn nhầm mệnh giá khi mua'],
+        },
+        { id: 'h1', type: 'h2', text: 'Chính sách đổi thẻ game sai mệnh giá' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Thường không đổi trả',
+            'Một số nhà cung cấp có thể hỗ trợ đổi thẻ khi lỗi hệ thống',
+            'Không nên kỳ vọng hoàn tiền tự do',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý khi mua thẻ game sai mệnh giá' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Kiểm tra đơn trên CardOn',
+            'Liên hệ hỗ trợ kèm mã đơn',
+            'Tránh sử dụng mã thẻ sai mệnh giá để không mất quyền lợi',
+            'Cân nhắc mua thẻ mới đúng mệnh giá',
+          ],
+        },
+        {
+          id: 'lnk',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000099',
+          anchorText: 'Nạp Sai Mệnh Giá Thẻ Game Phải Làm Sao?',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [
+        {
+          sectionId: 'lnk',
+          targetPageId: '00000000-0000-0000-0000-000000000099',
+          anchorText: 'Nạp Sai Mệnh Giá Thẻ Game Phải Làm Sao?',
+          validated: true,
+        },
+      ],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ game sai mệnh giá',
+        primaryKeyword: 'mua thẻ game sai mệnh giá',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Mua thẻ game sai mệnh giá',
+          primaryKeyword: 'mua thẻ game sai mệnh giá',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_POLICY')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'WRONG_CARD_FIX_OL')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'WRONG_DENOM_AVOID_USE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
