@@ -50,6 +50,8 @@ No invented facts:
 - Do NOT claim shops are "được cấp phép" without a concrete basis — prefer "uy tín, có hỗ trợ, có lịch sử đơn"
 - Do NOT invent delivery SLA ("ngay lập tức", "tức thì", "trong vài giây", "thường hiện ngay") for auto codes — prefer "thường hiện trên trang đơn / lịch sử đơn sau thanh toán thành công"
 - Do NOT invent carrier-specific failure causes as hard facts (vd. "Vinaphone giới hạn số lần nạp/ngày", "Mobifone chỉ lỗi nhập sai mã", "Viettel đang bảo trì My Viettel") unless in factSummary
+- Do NOT invent phone-card digit lengths (vd. "mã Viettel gồm 13 hoặc 15 số", "Mobifone 12 số") unless in factSummary — prefer "độ dài/định dạng mã theo từng nhà mạng; nhập đúng mã trên app hoặc USSD"
+- Do NOT invent purchase quantity limits (vd. "không giới hạn số lượng", "hầu hết nền tảng không giới hạn") — prefer "chọn số lượng trên trang sản phẩm CardOn; nếu hệ thống báo giới hạn thì giảm số lượng hoặc chia đơn"
 - For multi-carrier troubleshooting: use H3 groups by cause type (sai thông tin / thanh toán / nhà mạng / nhà cung cấp) OR H3 per carrier with ONLY "có thể bảo trì/quá tải — kiểm tra thông báo trên app / tổng đài", never invent unique fake policies per carrier
 - Prefer: "tùy nhà mạng / tùy ví / xem trên app / liên hệ hỗ trợ nơi mua" instead of fake precision
 
@@ -72,9 +74,10 @@ Anti-rambling:
 - Prefer ul / ol / h3 / faq / callout over long prose walls
 - One job per H2; no filler transitions
 - For GUIDE "lưu ý / tips" topics: target 5–7 H2 max; merge overlapping tip sections
-- Skip empty "Tổng quan" / "Giới thiệu" / "là gì và cách thức hoạt động" H2 that only restates the intro before the real methods list — fold 1 definition sentence into the opening, then go to buy steps
+- Skip empty "Tổng quan" / "Giới thiệu" / "là gì và cách thức hoạt động" / "là gì và có thể mua nhiều…" H2 that only restates the intro before the real methods list — fold 1 definition sentence into the opening, then go to buy steps
 - Skip empty "ưu điểm" / "tại sao nên mua online" lists filled only with tiết kiệm thời gian / tiện lợi / không ra cửa hàng — definition H2 = what the card is + where it works; put at most ONE short online benefit in the intro
 - Do NOT bolt on a thin secondary-brand H2 (vd. "Thông tin về thẻ Zing") unless angle/supporting keyword requires it AND you add concrete buy/check steps (not "phổ biến / nhiều game thủ tin dùng")
+- Do NOT add thin "Đặc điểm mã thẻ Viettel/Mobifone/Vinaphone" H2s that only invent digit counts or say "uy tín / chú ý nhập đúng mã" — either one short comparison list (no invented digits) OR skip and go to CardOn buy steps
 - Do NOT add a thin teaser H2 that only says "mỗi nhà mạng khác nhau…" right before detailed per-carrier H2/H3 — go straight into carriers or use one short sentence under the main H2
 
 Banned filler phrases (do not use):
@@ -124,6 +127,13 @@ If contentType is GUIDE / EXPLAINER:
   4) optional H2 kiểm tra đơn/mã trên CardOn (once: lịch sử đơn + spam + hỗ trợ)
   5) H2 lưu ý an toàn khi mua
   6) FAQ edge cases (mua nhầm mệnh giá/nhà mạng; mã lỗi) — do NOT FAQ-repeat CardOn check-order
+- For "mua nhiều mã thẻ / mua số lượng / multi quantity thẻ điện thoại": preferred order =
+  1) short opening (yes you can buy multiple; use for reserve / nhiều số) — NO empty "là gì" H2
+  2) H2 cách mua nhiều trên CardOn (MUST type "ol": chọn nhà mạng → mệnh giá → số lượng → thanh toán → nhận các mã trên chi tiết đơn/email) — do NOT use ul for the main buy flow
+  3) optional ONE short H2 so sánh nhà mạng (3–5 bullets max, NO invented digit lengths) — skip thin per-carrier "Đặc điểm mã thẻ X" fluff H2s
+  4) fold check-order into buy steps OR one short H2 once (không lặp email/spam/hỗ trợ ở FAQ)
+  5) H2 lưu ý an toàn (không chia sẻ mã; lưu biên lai; tránh mua dư nếu chưa dùng)
+  6) FAQ: nhiều nhà mạng trong một lần? giới hạn số lượng? → bảo xem trang sản phẩm CardOn / thông báo hệ thống — NEVER "không giới hạn"
 - If topic/angle is explicitly about hoàn tiền / chính sách hoàn tiền: use TROUBLESHOOTING or GUIDE with ONE policy H2 + ONE xử lý ol — do NOT also add separate H2 "nguyên nhân hoàn tiền" + "chính sách hoàn tiền" + "cách xử lý hoàn tiền" (merge)
 - General "mua mã thẻ online" GUIDE must NOT be >40% refund-focused unless angle says so
 - For "nạp tiền Viettel/Mobifone/Vinaphone / thẻ điện thoại": preferred order =
@@ -206,10 +216,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.12.0',
+    version: '1.13.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.12.0',
+      version: '1.13.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -243,10 +253,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.12.0',
+    version: '1.13.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.12.0',
+      version: '1.13.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -278,6 +288,7 @@ Self-check before returning JSON:
 7) If topic is mua nhầm thẻ: symptoms stay on wrong carrier/denomination; ol steps; no promised refund/resale
 8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
 9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
+10) If topic is mua nhiều mã thẻ / số lượng: CardOn buy ol must include số lượng; no invented digit lengths; no "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s; CardOn tip once
 
 Return EXACTLY this JSON shape (sections must be flat blocks, not nested outline sections):
 {
