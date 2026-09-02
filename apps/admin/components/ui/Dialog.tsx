@@ -28,6 +28,10 @@ export function useDismissableLayer<T extends HTMLElement>(
 ) {
   const ref = useRef<T | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  // Keep latest onClose without re-running the open effect (avoids stealing
+  // focus back to [data-autofocus] on every parent re-render while typing).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +48,7 @@ export function useDismissableLayer<T extends HTMLElement>(
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !ref.current) return;
@@ -74,7 +78,7 @@ export function useDismissableLayer<T extends HTMLElement>(
       document.body.style.overflow = previousOverflow;
       openerRef.current?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return ref;
 }
