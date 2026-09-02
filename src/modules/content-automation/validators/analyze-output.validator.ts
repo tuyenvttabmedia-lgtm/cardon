@@ -57,8 +57,7 @@ export function validateAndBuildAiSnapshot(
   const coerced = coerceAnalyzePayload(raw);
   const payload = parsePayload(coerced);
   const allowedPageIds = buildAllowedPageIds(context);
-
-  validatePageIds(payload, allowedPageIds);
+  const sanitized = sanitizeUnknownPageIds(payload, allowedPageIds);
 
   return {
     version: INTELLIGENCE_SNAPSHOT_VERSION,
@@ -70,20 +69,20 @@ export function validateAndBuildAiSnapshot(
       supportingKeywords: [
         ...new Set([
           ...(context.userProvided.supportingKeywords ?? []),
-          ...(payload.supportingKeywords ?? []),
+          ...(sanitized.supportingKeywords ?? []),
         ]),
       ].slice(0, 10),
       angle: context.userProvided.angle ?? undefined,
     },
-    relatedContent: payload.relatedContent,
-    cannibalization: payload.cannibalization,
-    recommendations: payload.recommendations.map((r) => ({
+    relatedContent: sanitized.relatedContent,
+    cannibalization: sanitized.cannibalization,
+    recommendations: sanitized.recommendations.map((r) => ({
       action: r.action as ContentPlanAction,
       pageId: r.pageId,
       confidence: r.confidence,
       reason: r.reason,
     })),
-    internalLinkCandidates: payload.internalLinkCandidates,
+    internalLinkCandidates: sanitized.internalLinkCandidates,
   };
 }
 
@@ -214,19 +213,48 @@ function buildAllowedPageIds(context: GenerationContext): Set<string> {
   return ids;
 }
 
-function validatePageIds(payload: AiAnalyzeOutputPayload, allowed: Set<string>): void {
-  const check = (pageId: string, field: string) => {
-    if (!allowed.has(pageId)) {
-      throw new AnalyzeOutputValidationError(`${field} pageId not in allowed context: ${pageId}`);
-    }
-  };
+/**
+ * Models often invent UUIDs. Drop unknown pageIds instead of failing the whole
+ * analyze job (mirrors stripUnresolvedInternalLinks on the write path).
+ * Recommendations that need a pageId (UPDATE/MERGE) become CREATE with null pageId
+ * when the id is missing from context.
+ */
+function sanitizeUnknownPageIds(
+  payload: AiAnalyzeOutputPayload,
+  allowed: Set<string>,
+): AiAnalyzeOutputPayload {
+  const relatedContent = payload.relatedContent.filter((row) => allowed.has(row.pageId));
+  const matches = payload.cannibalization.matches.filter((row) => allowed.has(row.pageId));
+  const internalLinkCandidates = payload.internalLinkCandidates.filter((row) =>
+    allowed.has(row.pageId),
+  );
 
-  for (const row of payload.relatedContent) check(row.pageId, 'relatedContent');
-  for (const row of payload.cannibalization.matches) check(row.pageId, 'cannibalization');
-  for (const row of payload.recommendations) {
-    if (row.pageId) check(row.pageId, 'recommendation');
+  const recommendations = payload.recommendations.map((row) => {
+    if (!row.pageId || allowed.has(row.pageId)) return row;
+    if (row.action === 'UPDATE' || row.action === 'MERGE') {
+      return {
+        ...row,
+        action: 'CREATE',
+        pageId: null,
+        reason: `${row.reason} (pageId ngoài context đã bỏ)`,
+      };
+    }
+    return { ...row, pageId: null };
+  });
+
+  let risk = payload.cannibalization.risk;
+  if (matches.length === 0 && risk !== 'NONE' && payload.cannibalization.matches.length > 0) {
+    // All matches were invented — do not keep HIGH/LOW without evidence
+    risk = 'NONE';
   }
-  for (const row of payload.internalLinkCandidates) check(row.pageId, 'internalLinkCandidate');
+
+  return {
+    ...payload,
+    relatedContent,
+    cannibalization: { risk, matches },
+    recommendations,
+    internalLinkCandidates,
+  };
 }
 
 function validateNoHref(raw: unknown): void {

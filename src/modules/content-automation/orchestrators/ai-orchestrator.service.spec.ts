@@ -248,7 +248,55 @@ describe('AiOrchestratorService', () => {
     );
   });
 
-  it('fails when AI output validation fails', async () => {
+  it('fails when AI output contains href/URLs', async () => {
+    aiConfig.isConfigured.mockResolvedValue(true);
+    aiConfig.resolveConfig.mockResolvedValue({
+      providerId: 'openai-compatible',
+      baseUrl: 'https://api.openai.com/v1',
+      model: 'gpt-4.1-mini',
+      apiKey: 'sk-test',
+      timeoutMs: 1000,
+      maxTokens: 1000,
+      temperature: 0.3,
+    });
+    promptComposer.compose.mockResolvedValue({
+      key: 'content.analyze',
+      version: '1.0.0',
+      systemPrompt: 'system',
+      userPrompt: 'user',
+      modelConfig: { temperature: 0.3, maxTokens: 1000 },
+    });
+    aiProvider.complete.mockResolvedValue({
+      rawText: '{}',
+      parsedJson: {
+        relatedContent: [],
+        cannibalization: { risk: 'NONE', matches: [] },
+        recommendations: [],
+        internalLinkCandidates: [],
+        href: 'https://example.com',
+      },
+      tokensIn: 10,
+      tokensOut: 10,
+      model: 'gpt-4.1-mini',
+      latencyMs: 100,
+    });
+
+    await expect(
+      orchestrator.execute({
+        planId: 'plan-1',
+        task: AiTaskType.ANALYZE,
+        generationEpoch: 0,
+        aiRunId: 'run-1',
+      }),
+    ).rejects.toBeInstanceOf(AnalyzeOutputValidationError);
+
+    expect(aiRunRepository.completeRun).toHaveBeenCalledWith(
+      'run-1',
+      expect.objectContaining({ status: AiRunStatus.FAILED }),
+    );
+  });
+
+  it('sanitizes hallucinated analyze pageIds and succeeds', async () => {
     aiConfig.isConfigured.mockResolvedValue(true);
     aiConfig.resolveConfig.mockResolvedValue({
       providerId: 'openai-compatible',
@@ -273,8 +321,16 @@ describe('AiOrchestratorService', () => {
           { pageId: 'unknown-page', title: 'Bad', similarityScore: 0.9, reason: 'x' },
         ],
         cannibalization: { risk: 'NONE', matches: [] },
-        recommendations: [],
-        internalLinkCandidates: [],
+        recommendations: [
+          { action: 'CREATE', pageId: null, confidence: 0.9, reason: 'ok' },
+        ],
+        internalLinkCandidates: [
+          {
+            pageId: 'd7fbb0fd-6616-45fa-8e90-3e3ba28abf20',
+            title: 'Hallucinated',
+            relevanceScore: 0.5,
+          },
+        ],
       },
       tokensIn: 10,
       tokensOut: 10,
@@ -282,21 +338,18 @@ describe('AiOrchestratorService', () => {
       latencyMs: 100,
     });
 
-    await expect(
-      orchestrator.execute({
-        planId: 'plan-1',
-        task: AiTaskType.ANALYZE,
-        generationEpoch: 0,
-        aiRunId: 'run-1',
-      }),
-    ).rejects.toBeInstanceOf(AnalyzeOutputValidationError);
+    await orchestrator.execute({
+      planId: 'plan-1',
+      task: AiTaskType.ANALYZE,
+      generationEpoch: 0,
+      aiRunId: 'run-1',
+    });
 
     expect(aiRunRepository.completeRun).toHaveBeenCalledWith(
       'run-1',
-      expect.objectContaining({ status: AiRunStatus.FAILED }),
+      expect.objectContaining({ status: AiRunStatus.SUCCEEDED }),
     );
   });
-
   it('falls back to heuristic when analyze prompt template is missing and fallback allowed', async () => {
     aiConfig.isConfigured.mockResolvedValue(true);
     aiConfig.resolveConfig.mockResolvedValue({

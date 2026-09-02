@@ -87,20 +87,47 @@ describe('analyze-output.validator', () => {
     expect(snapshot.relatedContent[0]?.pageId).toBe('p1');
   });
 
-  it('rejects unknown pageId', () => {
-    expect(() =>
-      validateAndBuildAiSnapshot(
-        {
-          relatedContent: [
-            { pageId: 'bad-id', title: 'X', similarityScore: 1, reason: 'x' },
+  it('strips unknown pageIds instead of failing the job', () => {
+    const snapshot = validateAndBuildAiSnapshot(
+      {
+        relatedContent: [
+          { pageId: 'p1', title: 'Title', similarityScore: 0.8, reason: 'match' },
+          { pageId: 'd7fbb0fd-6616-45fa-8e90-3e3ba28abf20', title: 'Hallucinated', similarityScore: 0.5, reason: 'x' },
+        ],
+        cannibalization: {
+          risk: 'HIGH',
+          matches: [
+            {
+              pageId: 'bad-id',
+              title: 'X',
+              focusKeyword: null,
+              score: 0.9,
+            },
           ],
-          cannibalization: { risk: 'NONE', matches: [] },
-          recommendations: [],
-          internalLinkCandidates: [],
         },
-        context,
-      ),
-    ).toThrow(AnalyzeOutputValidationError);
+        recommendations: [
+          {
+            action: ContentPlanAction.UPDATE,
+            pageId: 'missing-page',
+            confidence: 0.8,
+            reason: 'update old',
+          },
+        ],
+        internalLinkCandidates: [
+          { pageId: 'p1', title: 'Title', relevanceScore: 0.7 },
+          { pageId: 'd7fbb0fd-6616-45fa-8e90-3e3ba28abf20', title: 'Bad', relevanceScore: 0.4 },
+        ],
+      },
+      context,
+    );
+
+    expect(snapshot.relatedContent).toHaveLength(1);
+    expect(snapshot.relatedContent[0]?.pageId).toBe('p1');
+    expect(snapshot.cannibalization.matches).toHaveLength(0);
+    expect(snapshot.cannibalization.risk).toBe('NONE');
+    expect(snapshot.internalLinkCandidates).toHaveLength(1);
+    expect(snapshot.recommendations[0]?.action).toBe(ContentPlanAction.CREATE);
+    expect(snapshot.recommendations[0]?.pageId).toBeNull();
   });
 
   it('rejects href in output', () => {
