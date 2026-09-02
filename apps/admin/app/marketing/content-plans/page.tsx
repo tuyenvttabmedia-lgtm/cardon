@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
+import { Dialog } from '@/components/ui/Dialog';
 import { Button, Input, Label, Select } from '@/components/ui/Form';
 import { useToast } from '@/components/ui/Toast';
 import { vi } from '@/lib/i18n/vi';
@@ -118,6 +119,12 @@ export default function ContentPlansPage() {
     setPage(1);
   }, [q, status]);
 
+  function closeCreateForm() {
+    setShowCreate(false);
+    setForm(EMPTY_FORM);
+    setSupportingKeywordsText('');
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreating(true);
@@ -130,9 +137,7 @@ export default function ContentPlansPage() {
         supportingKeywords: parseSupportingKeywords(supportingKeywordsText),
       });
       toast.success(cp.created);
-      setShowCreate(false);
-      setForm(EMPTY_FORM);
-      setSupportingKeywordsText('');
+      closeCreateForm();
       router.push(`/marketing/content-plans/${plan.id}`);
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
@@ -296,120 +301,121 @@ export default function ContentPlansPage() {
           </div>
         </Card>
 
-        {showCreate ? (
-          <Card className="space-y-4 p-4">
-            <h2 className="font-medium">{cp.createTitle}</h2>
-            <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => void handleCreate(e)}>
-              <div>
-                <Label>{cp.topic} *</Label>
-                <Input
-                  value={form.topic}
-                  onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">{cp.topicHint}</p>
-              </div>
-              <div>
-                <Label>{cp.primaryKeyword} *</Label>
-                <Input
-                  value={form.primaryKeyword}
-                  onChange={(e) => setForm((f) => ({ ...f, primaryKeyword: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label>{cp.searchIntent}</Label>
-                <Select
-                  value={form.searchIntent}
-                  onChange={(e) => setForm((f) => ({ ...f, searchIntent: e.target.value }))}
-                >
-                  {SEARCH_INTENTS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <Label>{cp.contentType}</Label>
-                <Select
-                  value={form.contentType}
-                  onChange={(e) => setForm((f) => ({ ...f, contentType: e.target.value }))}
-                >
-                  {CONTENT_TYPES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <Label>{cp.priority}</Label>
-                <Select
-                  value={form.priority ?? 'MEDIUM'}
-                  onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-                >
-                  {PRIORITIES.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-              <div>
-                <Label>{cp.angle}</Label>
-                <Input
-                  value={form.angle ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, angle: e.target.value }))}
-                  placeholder="Vd: so sánh loại thẻ + hướng dẫn mua trên CardOn; FAQ ≤ 3"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">{cp.angleHint}</p>
-                {form.topic.trim().length >= 4 ? (
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground">{cp.angleSuggest}</p>
-                    <div className="flex flex-col gap-1">
-                      {suggestContentAngles(form.topic, form.contentType).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className="rounded border border-dashed px-2 py-1.5 text-left text-xs hover:border-admin-400 hover:bg-admin-50"
-                          onClick={() => setForm((f) => ({ ...f, angle: s }))}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
+        <Dialog
+          open={showCreate}
+          onClose={closeCreateForm}
+          title={cp.createTitle}
+          size="xl"
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={closeCreateForm}>
+                {vi.app.cancel}
+              </Button>
+              <Button type="submit" form="content-plan-create-form" disabled={creating}>
+                {creating ? vi.app.loading : vi.app.create}
+              </Button>
+            </>
+          }
+        >
+          <form
+            id="content-plan-create-form"
+            className="grid gap-3 md:grid-cols-2"
+            onSubmit={(e) => void handleCreate(e)}
+          >
+            <div>
+              <Label>{cp.topic} *</Label>
+              <Input
+                data-autofocus
+                value={form.topic}
+                onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
+                required
+              />
+              <p className="text-xs text-muted-foreground">{cp.topicHint}</p>
+            </div>
+            <div>
+              <Label>{cp.primaryKeyword} *</Label>
+              <Input
+                value={form.primaryKeyword}
+                onChange={(e) => setForm((f) => ({ ...f, primaryKeyword: e.target.value }))}
+                required
+              />
+            </div>
+            <div>
+              <Label>{cp.searchIntent}</Label>
+              <Select
+                value={form.searchIntent}
+                onChange={(e) => setForm((f) => ({ ...f, searchIntent: e.target.value }))}
+              >
+                {SEARCH_INTENTS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>{cp.contentType}</Label>
+              <Select
+                value={form.contentType}
+                onChange={(e) => setForm((f) => ({ ...f, contentType: e.target.value }))}
+              >
+                {CONTENT_TYPES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>{cp.priority}</Label>
+              <Select
+                value={form.priority ?? 'MEDIUM'}
+                onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
+              >
+                {PRIORITIES.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label>{cp.angle}</Label>
+              <Input
+                value={form.angle ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, angle: e.target.value }))}
+                placeholder="Vd: so sánh loại thẻ + hướng dẫn mua trên CardOn; FAQ ≤ 3"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{cp.angleHint}</p>
+              {form.topic.trim().length >= 4 ? (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">{cp.angleSuggest}</p>
+                  <div className="flex flex-col gap-1">
+                    {suggestContentAngles(form.topic, form.contentType).map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className="rounded border border-dashed px-2 py-1.5 text-left text-xs hover:border-admin-400 hover:bg-admin-50"
+                        onClick={() => setForm((f) => ({ ...f, angle: s }))}
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
-                ) : null}
-              </div>
-              <div className="md:col-span-2">
-                <Label>{cp.supportingKeywords}</Label>
-                <Input
-                  value={supportingKeywordsText}
-                  onChange={(e) => setSupportingKeywordsText(e.target.value)}
-                  placeholder="thẻ garena, thẻ zing, mua thẻ game online"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">{cp.supportingKeywordsHint}</p>
-              </div>
-              <div className="md:col-span-2 flex gap-2">
-                <Button type="submit" disabled={creating}>
-                  {creating ? vi.app.loading : vi.app.create}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    setShowCreate(false);
-                    setForm(EMPTY_FORM);
-                    setSupportingKeywordsText('');
-                  }}
-                >
-                  {vi.app.cancel}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="md:col-span-2">
+              <Label>{cp.supportingKeywords}</Label>
+              <Input
+                value={supportingKeywordsText}
+                onChange={(e) => setSupportingKeywordsText(e.target.value)}
+                placeholder="thẻ garena, thẻ zing, mua thẻ game online"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{cp.supportingKeywordsHint}</p>
+            </div>
+          </form>
+        </Dialog>
       </div>
     </RequirePermission>
   );
