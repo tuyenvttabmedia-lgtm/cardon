@@ -13,6 +13,8 @@ const FILLER_PHRASES = [
   'ngày càng được ưa chuộng',
   'ưu nhược điểm riêng',
   'linh hoạt trong việc',
+  'gây ra nhiều phiền toái',
+  'thiệt hại không đáng có',
 ];
 
 const CTA_H2_RE =
@@ -625,6 +627,73 @@ export function runEditorialSoftChecks(
       hasSupportH2
         ? passed('TS_SUPPORT_H2', 'Có H2 hỗ trợ/tổng đài')
         : warn('TS_SUPPORT_H2', 'Thiếu H2 khi nào cần hỗ trợ nhà mạng/CardOn'),
+    );
+
+    // FAQ that re-asks "không nhận mã" when fix ol already covers check-order + support
+    let fixBlob = '';
+    for (let i = 0; i < doc.sections.length; i++) {
+      const s = doc.sections[i];
+      if (s.type === 'h2' && /cach xu ly|xu ly tung buoc|khac phuc/.test(normalizeText(s.text ?? ''))) {
+        fixBlob = normalizeText(
+          doc.sections
+            .slice(i + 1, i + 5)
+            .flatMap((b) => [b.text ?? '', ...(b.items ?? [])])
+            .join(' '),
+        );
+        break;
+      }
+    }
+    const fixCoversNoCode =
+      /(lich su|chi tiet|trang) don|email|spam/.test(fixBlob) &&
+      /(lien he|ho tro)/.test(fixBlob);
+    const faqNoCodeRestates = doc.sections
+      .filter((s) => s.type === 'faq')
+      .flatMap((s) => s.faqItems ?? [])
+      .some((f) => {
+        const q = normalizeText(f.question);
+        return (
+          fixCoversNoCode &&
+          /khong nhan (duoc )?ma|ma the khong (nhan|ve|hien)/.test(q)
+        );
+      });
+    checks.push(
+      faqNoCodeRestates
+        ? warn(
+            'FAQ_RESTATES_FIX',
+            'FAQ «không nhận mã» lặp lại ol xử lý/check-order — đổi sang edge case khác (mã lỗi nạp, gian lận, mua nhầm)',
+          )
+        : passed('FAQ_RESTATES_FIX', 'FAQ không lặp lại bước xử lý không nhận mã'),
+    );
+  }
+
+  // Soft: vague wait-window SLA
+  const inventedWait =
+    /thoi gian cho hop ly|sau (mot )?thoi gian cho|cho (vai|mot vai) (phut|gio)/.test(
+      policyBlob,
+    );
+  checks.push(
+    inventedWait
+      ? warn(
+          'INVENTED_WAIT_WINDOW',
+          'Claim «thời gian chờ hợp lý»/chờ X phút — bỏ; bảo kiểm tra đơn/email rồi liên hệ hỗ trợ nếu chưa thấy mã',
+        )
+      : passed('INVENTED_WAIT_WINDOW', 'Không thấy cửa sổ chờ SLA bịa'),
+  );
+
+  // Soft: fraud/unusual-tx topic linking to delivery-SLA articles
+  const isFraudTopic =
+    /giao dich.{0,24}bat thuong|gian lan|giao dich la|tru tien khong/.test(topicBlob);
+  if (isFraudTopic) {
+    const slaLink = [...doc.internalLinks.map((l) => l.anchorText ?? ''), ...doc.sections.filter((s) => s.type === 'internalLink').map((s) => s.anchorText ?? '')]
+      .map((a) => normalizeText(a))
+      .find((a) => /bao lau nhan|nhan ma sau bao|sla|giao ma trong/.test(a));
+    checks.push(
+      slaLink
+        ? warn(
+            'DELIVERY_SLA_LINK',
+            'Topic giao dịch bất thường/gian lận nhưng link bài «bao lâu nhận mã» — đổi sang không nhận mã / mua nhầm / lỗi nạp',
+          )
+        : passed('DELIVERY_SLA_LINK', 'Link nội bộ không lệch sang SLA giao mã'),
     );
   }
 

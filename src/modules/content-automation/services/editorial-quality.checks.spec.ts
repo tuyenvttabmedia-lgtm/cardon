@@ -947,6 +947,110 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
   });
 
+  it('flags unusual-tx troubleshooting: filler opener, wait SLA, FAQ restates fix, delivery-SLA link', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Giao dịch mua thẻ bất thường',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'giao dịch mua thẻ bất thường',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Giao dịch mua thẻ bất thường có thể gây ra nhiều phiền toái nếu không xử lý. Tránh thiệt hại không đáng có.',
+        },
+        { id: 'h0', type: 'h2', text: 'Triệu chứng nhận biết giao dịch mua thẻ bất thường' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Giao dịch mua thẻ không do bạn thực hiện',
+            'Trừ tiền nhưng không nhận được mã thẻ',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Nguyên nhân phổ biến' },
+        { id: 'h1a', type: 'h3', text: 'Vấn đề thanh toán' },
+        { id: 'u1', type: 'ul', items: ['Thanh toán lỗi hệ thống'] },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý từng bước khi phát hiện giao dịch mua thẻ bất thường' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Kiểm tra chi tiết đơn hàng trên lịch sử đơn CardOn',
+            'Xác nhận mã thẻ trên trang đơn hoặc email, kiểm tra spam',
+            'Liên hệ hỗ trợ nơi bán kèm mã đơn',
+            'Nếu nghi gian lận, liên hệ ngân hàng hoặc ví',
+            'Lưu biên lai và bằng chứng',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Khi nào cần hỗ trợ từ nhà mạng hoặc CardOn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Không nhận được mã thẻ sau thời gian chờ hợp lý',
+            'Phát hiện giao dịch không do bạn thực hiện',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi không nhận được mã thẻ sau khi thanh toán thì phải làm sao?',
+              answer:
+                'Kiểm tra lịch sử đơn và email spam. Liên hệ hỗ trợ nơi mua kèm mã đơn.',
+            },
+          ],
+        },
+        {
+          id: 'lnk',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000099',
+          anchorText: 'Mua thẻ game online bao lâu nhận được mã?',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [
+        {
+          sectionId: 'lnk',
+          targetPageId: '00000000-0000-0000-0000-000000000099',
+          anchorText: 'Mua thẻ game online bao lâu nhận được mã?',
+          validated: true,
+        },
+      ],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Giao dịch mua thẻ bất thường',
+        primaryKeyword: 'giao dịch mua thẻ bất thường',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Giao dịch mua thẻ bất thường',
+          primaryKeyword: 'giao dịch mua thẻ bất thường',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TROUBLESHOOTING',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'FILLER_PHRASES')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_WAIT_WINDOW')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'FAQ_RESTATES_FIX')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'DELIVERY_SLA_LINK')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TS_FIX_OL')?.severity).toBe('info');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
