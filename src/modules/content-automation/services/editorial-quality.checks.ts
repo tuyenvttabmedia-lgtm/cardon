@@ -455,7 +455,7 @@ export function runEditorialSoftChecks(
     if (s.type !== 'h2') return false;
     const h2Norm = normalizeText(s.text ?? '');
     if (
-      !/tong quan|gioi thieu|tong quat|la gi|cach thuc hoat dong/.test(h2Norm)
+      !/tong quan|gioi thieu|tong quat|la gi|cach thuc hoat dong|vai tro trong game|vai tro cua the/.test(h2Norm)
     ) {
       return false;
     }
@@ -515,7 +515,7 @@ export function runEditorialSoftChecks(
     const hasBuyFlowH2 = doc.sections.some(
       (s) =>
         s.type === 'h2' &&
-        /cach mua|huong dan mua|cac buoc mua|mua tren cardon|mua ma the tren|mua nhieu|mua the dien thoai/.test(
+        /cach mua|huong dan mua|cac buoc mua|mua tren cardon|mua ma the tren|mua nhieu|mua the dien thoai|mua the scoin|mua the (zing|garena)/.test(
           normalizeText(s.text ?? ''),
         ),
     );
@@ -695,6 +695,52 @@ export function runEditorialSoftChecks(
           `Anchor Title Case («${titleCaseAnchor.slice(0, 50)}») — dùng sentence case tiếng Việt`,
         )
       : passed('TITLE_CASE_ANCHOR', 'Anchor internal link không bị Title Case spam'),
+  );
+
+  // Soft: redeem/nạp H2 mixed with CardOn buy/receive tips
+  const redeemMixedBuy = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/cach nap|nap the|nap (scoin|zing|garena|vcoin)|nap vao game/.test(normalizeText(s.text ?? ''))) {
+      return false;
+    }
+    const following = doc.sections.slice(i + 1, i + 4);
+    const blob = normalizeText(
+      following.flatMap((b) => [b.text ?? '', ...(b.items ?? [])]).join(' '),
+    );
+    return (
+      /(trang don|lich su don|chi tiet don|email|spam)/.test(blob) &&
+      /(ma the|ma scoin).{0,40}(hien|nhan|gui)/.test(blob)
+    );
+  });
+  checks.push(
+    redeemMixedBuy
+      ? warn(
+          'REDEEM_MIXED_BUY_TIP',
+          'H2 nạp vào game lẫn tip nhận mã trên đơn/email CardOn — tách: mua/check-order vs nạp cổng game',
+        )
+      : passed('REDEEM_MIXED_BUY_TIP', 'H2 nạp không lẫn tip nhận mã đơn CardOn'),
+  );
+
+  // Soft: long game catalog without change-disclaimer (Scoin/Zing-style)
+  const gameListNoDisclaimer = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/danh sach.*game|game dung the|cac game (dung|ho tro|nap)|game pho bien/.test(normalizeText(s.text ?? ''))) {
+      return false;
+    }
+    const next = doc.sections[i + 1];
+    if (!next || (next.type !== 'ul' && next.type !== 'ol')) return false;
+    const items = next.items ?? [];
+    if (items.length < 4) return false;
+    const blob = normalizeText([s.text ?? '', ...items].join(' '));
+    return !/thay doi|kiem tra cong|chinh thuc|tuy thoi diem|co the khac/.test(blob);
+  });
+  checks.push(
+    gameListNoDisclaimer
+      ? warn(
+          'GAME_LIST_NO_DISCLAIMER',
+          'Danh sách game cứng ≥4 mục thiếu disclaimer «có thể thay đổi / kiểm tra cổng nạp chính thức»',
+        )
+      : passed('GAME_LIST_NO_DISCLAIMER', 'Không thấy catalog game cứng thiếu disclaimer'),
   );
 
   return checks;

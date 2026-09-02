@@ -41,6 +41,7 @@ Telecom accuracy (Viettel / Mobifone / Vinaphone / USSD / SMS / hotline):
 
 No invented facts:
 - Never invent durations, fees, success rates, refund/exchange policies, licensing claims, or card expiry rules not present in factSummary
+- Do NOT invent exhaustive game catalogs for Scoin/Zing/Garena/Funcard (vd. liệt kê 5–10 tên game cứng) unless in factSummary — prefer 2–4 ví dụ phổ biến + "danh sách game hỗ trợ có thể thay đổi; kiểm tra cổng nạp chính thức VTC/nhà phát hành trước khi mua"
 - Do NOT invent carrier SIM inactivity / lock windows (vd. "90 ngày", "6 tháng không phát sinh cước sẽ bị khóa") — policies change; prefer: "theo quy định từng nhà mạng tại thời điểm kiểm tra; xem trên app My Viettel/My MobiFone/My Vinaphone hoặc hỏi tổng đài"
 - Do NOT promise "hỗ trợ hoàn tiền" / "được đổi trả" / "đổi hoặc hoàn tiền" for phone/game digital codes unless factSummary says so
 - OK to say: "mã số thường không đổi trả; nếu lỗi giao dịch hoặc nghi giao sai từ hệ thống, liên hệ hỗ trợ nơi mua kèm mã đơn để được xem xét theo chính sách — không hứa đổi/hoàn"
@@ -124,12 +125,19 @@ If contentType is GUIDE / EXPLAINER:
 - Skeleton: định nghĩa ngắn (≤2 đoạn) → nội dung chính sâu (H2/H3 + lists) → lưu ý → FAQ ≤3 → optional links
 - For tip / "lưu ý khi mua" angles: after opening, use H2 + ul (or H2 + short unique paragraph + DIFFERENT ul) — never paragraph≈list pairs
 - For "mua thẻ / mua mã thẻ / nhận mã tự động / Scoin / Zing / Garena": preferred order =
-  1) short opening (what it is + who it's for) — NO empty "là gì / cách thức hoạt động" H2 that only restates the intro
+  1) short opening (what it is + who it's for) — NO empty "là gì / cách thức hoạt động" / "Tổng quan về thẻ … và vai trò" H2 that only restates the intro
   2) H2 cách mua trên CardOn (ol 5–7 bước: chọn thẻ → mệnh giá → thanh toán → nhận mã trên đơn/email)
   3) ONE short H2 or callout "Lưu ý / chính sách mã số" (2–4 bullets: thường không đổi trả; liên hệ hỗ trợ nếu lỗi giao dịch) — NOT a whole refund article
   4) optional H2 kiểm tra đơn/mã trên CardOn (once: lịch sử đơn + spam + hỗ trợ)
   5) H2 lưu ý an toàn khi mua
   6) FAQ edge cases (mua nhầm mệnh giá/nhà mạng; mã lỗi) — do NOT FAQ-repeat CardOn check-order
+- For "thẻ Scoin / game dùng thẻ Scoin / nạp Scoin" (and similar Zing/Garena brand guides): preferred order =
+  1) short opening (Scoin = thẻ VTC; dùng để nạp game VTC/đối tác) — NO empty "Tổng quan / vai trò" H2
+  2) H2 cách mua thẻ Scoin trên CardOn (MUST type "ol") — thiếu bước mua là fail editorial
+  3) optional ONE short H2 game phổ biến (≤4 ví dụ + disclaimer danh sách thay đổi / kiểm tra cổng nạp chính thức) — NEVER hard-code long invented catalogs
+  4) H2 cách nạp Scoin vào game (MUST type "ol": cổng nạp game/VTC → chọn thẻ Scoin → nhập mã/seri → xác nhận) — do NOT mix "mã hiện trên đơn CardOn / email / spam" into this redeem H2 (that belongs only in buy or check-order)
+  5) H2 lưu ý (không đổi trả; đúng mệnh giá; không chia sẻ mã)
+  6) optional check-order CardOn once — FAQ: game nào? mua nhầm? không nhận mã? (không lặp check-order)
 - For "mua thẻ điện thoại online / mua thẻ online 24/7": preferred order =
   1) short opening (online = chủ động nạp; CardOn 1 câu) — NO stacked marketing H2s
   2) H2 cách mua trên CardOn (MUST type "ol": nhà mạng → mệnh giá → số lượng nếu cần → thanh toán ví/NH → mã trên đơn/email) — do NOT use ul for main buy steps
@@ -235,10 +243,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.15.0',
+    version: '1.16.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.15.0',
+      version: '1.16.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -272,10 +280,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.15.0',
+    version: '1.16.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.15.0',
+      version: '1.16.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -309,6 +317,7 @@ Self-check before returning JSON:
 9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
 10) If topic is mua nhiều mã thẻ / số lượng: CardOn buy ol must include số lượng; no invented digit lengths; no "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s; CardOn tip once
 11) If topic is mua thẻ điện thoại online / 24/7: lead with CardOn buy ol; at most ONE benefit H2; no closing "Bắt đầu ngay" rehash; no SLA "nhận mã ngay"; CardOn tip once; FAQ ≠ check-order H2
+12) If topic is thẻ Scoin / Zing / Garena brand: CardOn buy ol required; redeem nạp = separate ol without đơn/email/spam tips; game list ≤4 + disclaimer; no empty Tổng quan; CardOn tip once
 
 Return EXACTLY this JSON shape (sections must be flat blocks, not nested outline sections):
 {
