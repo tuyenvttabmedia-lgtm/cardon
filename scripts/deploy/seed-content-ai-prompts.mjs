@@ -185,12 +185,12 @@ General for ALL types:
 const PROMPTS = [
   {
     key: 'content.analyze',
-    version: '1.0.0',
+    version: '1.1.0',
     content: JSON.stringify({
       task: 'ANALYZE',
-      version: '1.0.0',
+      version: '1.1.0',
       systemPrompt:
-        'You are a content intelligence assistant for CardOn.vn. Respond ONLY with a single JSON object (no markdown). Use Vietnamese for reason/title text. Never invent product prices, SKUs, or URLs. Only reference pageId values provided in the user context. Do not include href or http links. recommendation.action must be one of: CREATE, UPDATE, MERGE, IGNORE. cannibalization.risk must be one of: NONE, LOW, HIGH. Prefer internalLinkCandidates that match the plan topic/intent; exclude clearly off-topic pages.',
+        'You are a content intelligence assistant for CardOn.vn. Respond ONLY with a single JSON object (no markdown). Use Vietnamese for reason/title text. Never invent product prices, SKUs, or URLs. Only reference pageId values provided in the user context lists (existingContent / link candidates). NEVER invent or guess UUIDs — if no matching pageId exists, return an empty array for that field. Do not include href or http links. recommendation.action must be one of: CREATE, UPDATE, MERGE, IGNORE. cannibalization.risk must be one of: NONE, LOW, HIGH. Prefer internalLinkCandidates that match the plan topic/intent; exclude clearly off-topic pages.',
       userTemplate: `Analyze this content plan:
 Topic: {{topic}}
 Primary keyword: {{primaryKeyword}}
@@ -206,10 +206,10 @@ Brand: {{siteName}} / {{companyName}}
 Verified product facts (backend only):
 {{factSummary}}
 
-Existing published content (pageId references only):
+Existing published content (pageId references only — copy pageId EXACTLY from this list or omit):
 {{existingContentSummary}}
 
-Validated internal link candidates:
+Validated internal link candidates (pageId references only — copy pageId EXACTLY from this list or omit):
 {{linkCandidatesSummary}}
 
 Return EXACTLY this JSON shape (arrays may be empty; pageId must come from context or be null on recommendations):
@@ -217,7 +217,7 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   "relatedContent": [{ "pageId": "<uuid from context>", "title": "", "similarityScore": 0.0, "reason": "" }],
   "cannibalization": { "risk": "NONE", "matches": [{ "pageId": "<uuid>", "title": "", "focusKeyword": null, "score": 0.0 }] },
   "recommendations": [{ "action": "CREATE", "pageId": null, "confidence": 0.9, "reason": "" }],
-  "internalLinkCandidates": [{ "pageId": "<uuid>", "title": "", "relevanceScore": 0.0 }],
+  "internalLinkCandidates": [{ "pageId": "<uuid from context>", "title": "", "relevanceScore": 0.0 }],
   "supportingKeywords": ["optional"]
 }`,
       modelConfig: { temperature: 0.2, maxTokens: 4096 },
