@@ -858,6 +858,95 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'GENERIC_ADVANTAGES')?.severity).toBe('warning');
   });
 
+  it('flags Scoin guide: empty overview, missing buy ol, redeem mixed buy tip, game list, repeated tips', () => {
+    const tip =
+      'Mã thẻ thường hiện trên trang đơn CardOn hoặc email. Kiểm tra spam. Liên hệ hỗ trợ CardOn.';
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Thẻ Scoin dùng game nào',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'thẻ scoin',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Thẻ Scoin dùng để nạp tiền vào các game do VTC phát hành hoặc hợp tác.',
+        },
+        { id: 'h0', type: 'h2', text: 'Tổng quan về thẻ Scoin và vai trò trong game' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Thẻ Scoin là thẻ game dùng để nạp tiền vào game VTC',
+            'Giúp mua vật phẩm, nâng cấp trong game',
+            'Phù hợp với người chơi game online tại Việt Nam',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Danh sách các game dùng thẻ Scoin' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Game Võ Lâm Truyền Kỳ (VLTK)',
+            'Game Đột Kích (Crossfire)',
+            'Game Gunny Origin',
+            'Game Audition',
+            'Game Thục Sơn Kỳ Hiệp',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách nạp thẻ Scoin vào game' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Truy cập trang nạp tiền chính thức của game',
+            'Chọn phương thức nạp bằng thẻ Scoin',
+            'Nhập mã thẻ và seri',
+            tip,
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Kiểm tra đơn hàng và mã thẻ Scoin trên CardOn' },
+        { id: 'u3', type: 'ul', items: [tip] },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [{ question: 'Không nhận được mã thẻ sau khi mua?', answer: tip }],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Thẻ Scoin dùng được cho game nào',
+        primaryKeyword: 'thẻ scoin',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Thẻ Scoin dùng được cho game nào',
+          primaryKeyword: 'thẻ scoin',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REDEEM_MIXED_BUY_TIP')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'GAME_LIST_NO_DISCLAIMER')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
