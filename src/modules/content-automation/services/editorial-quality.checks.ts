@@ -274,7 +274,7 @@ export function runEditorialSoftChecks(
 
   // Soft: invented instant-delivery SLA
   const instantHits = collectFullText(doc).match(
-    /ngay lập tức|tức thì|trong vài giây|nhận mã ngay|gửi ngay lập tức|tự động gửi mã thẻ ngay|thường hiện ngay/gi,
+    /ngay lập tức|tức thì|trong vài giây|nhận mã ngay|gửi ngay lập tức|tự động gửi mã thẻ ngay|thường hiện ngay|nhận mã thẻ nhanh chóng|giao mã tự động|giao mã.{0,12}nhanh/gi,
   );
   checks.push(
     instantHits && instantHits.length >= 2
@@ -321,18 +321,62 @@ export function runEditorialSoftChecks(
     if (!next || (next.type !== 'ul' && next.type !== 'ol')) return false;
     const listNorm = normalizeText((next.items ?? []).join(' '));
     const fluff =
-      (/nhanh|tien loi|an toan|pho bien|khong can/.test(listNorm) ? 1 : 0) +
-      (/rui ro|mat the|hu hong|gia/.test(listNorm) ? 1 : 0) +
-      (/de dang|luu tru|thiet bi/.test(listNorm) ? 1 : 0);
-    return fluff >= 2 && !listNorm.includes('cardon');
+      (/nhanh|tien loi|an toan|pho bien|khong can|chu dong|tiet kiem thoi gian/.test(listNorm)
+        ? 1
+        : 0) +
+      (/rui ro|mat the|hu hong|gia|the gia|chinh hang/.test(listNorm) ? 1 : 0) +
+      (/de dang|luu tru|thiet bi|than thien|linh hoat|da dang/.test(listNorm) ? 1 : 0);
+    const hasConcreteHowTo = /buoc \d|chon (nha mang|menh gia)|so luong|dang nhap/.test(listNorm);
+    return fluff >= 2 && !hasConcreteHowTo;
   });
   checks.push(
     genericAdv
       ? warn(
           'GENERIC_ADVANTAGES',
-          'H2 ưu điểm chỉ toàn nhanh/tiện/an toàn chung chung — gộp vào định nghĩa/how-to hoặc thêm tip CardOn cụ thể',
+          'H2 ưu điểm/lợi ích/tại sao chỉ filler nhanh–tiện–chính hãng — gộp 1 mục ngắn hoặc bỏ, ưu tiên bước mua',
         )
       : passed('GENERIC_ADVANTAGES', 'Không thấy H2 ưu điểm filler thuần'),
+  );
+
+  // Soft: stacked marketing benefit H2s on buy guides
+  const advantageH2Count = doc.sections.filter(
+    (s) =>
+      s.type === 'h2' &&
+      /tai sao nen|loi ich|uu diem|bat dau ngay|mua ngay (hom nay|tai)/.test(
+        normalizeText(s.text ?? ''),
+      ),
+  ).length;
+  checks.push(
+    advantageH2Count >= 2
+      ? warn(
+          'DUPLICATE_ADVANTAGE_H2',
+          `Có ${advantageH2Count} H2 kiểu tại sao/lợi ích/bắt đầu ngay — giữ tối đa 1, bỏ phần lặp`,
+        )
+      : passed('DUPLICATE_ADVANTAGE_H2', 'Không chồng nhiều H2 marketing lợi ích'),
+  );
+
+  // Soft: closing CTA H2 that only restates buy flow
+  const closingCta = doc.sections.some((s, i) => {
+    if (s.type !== 'h2') return false;
+    if (!/bat dau ngay|mua ngay|san sang mua|ket luan/.test(normalizeText(s.text ?? ''))) {
+      return false;
+    }
+    // Near end of article (last 35% of blocks)
+    if (i < doc.sections.length * 0.55) return false;
+    const next = doc.sections[i + 1];
+    if (!next || (next.type !== 'ul' && next.type !== 'ol' && next.type !== 'paragraph')) {
+      return true;
+    }
+    const blob = normalizeText([next.text ?? '', ...(next.items ?? [])].join(' '));
+    return /chon (the|nha mang)|thanh toan|nhan ma|truy cap cardon/.test(blob);
+  });
+  checks.push(
+    closingCta
+      ? warn(
+          'CLOSING_CTA_REHASH',
+          'H2 kết/CTA «bắt đầu ngay» chỉ lặp lại bước mua — bỏ H2, để CTA ngắn sau lưu ý nếu cần',
+        )
+      : passed('CLOSING_CTA_REHASH', 'Không thấy H2 CTA cuối bài lặp bước mua'),
   );
 
   // Soft: thin bolted secondary brand H2 (e.g. Zing) when topic is broader auto-code buy
@@ -471,7 +515,7 @@ export function runEditorialSoftChecks(
     const hasBuyFlowH2 = doc.sections.some(
       (s) =>
         s.type === 'h2' &&
-        /cach mua|huong dan mua|mua tren cardon|mua ma the tren|mua nhieu/.test(
+        /cach mua|huong dan mua|cac buoc mua|mua tren cardon|mua ma the tren|mua nhieu|mua the dien thoai/.test(
           normalizeText(s.text ?? ''),
         ),
     );

@@ -756,6 +756,108 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
   });
 
+  it('flags stacked benefit H2s and closing CTA rehash on phone-card online guide', () => {
+    const tip =
+      'Mã hiện trên đơn CardOn. Kiểm tra email hoặc spam. Liên hệ hỗ trợ CardOn nếu cần.';
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ điện thoại online 24/7',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ điện thoại online',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua thẻ điện thoại online giúp nạp tiền mọi lúc. CardOn cung cấp thẻ chính hãng.',
+        },
+        { id: 'h0', type: 'h2', text: 'Tại sao nên mua thẻ điện thoại online 24/7?' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Chủ động mua bất cứ lúc nào, tiết kiệm thời gian',
+            'Tránh thẻ giả nhờ nguồn chính hãng',
+            'Nhận mã thẻ nhanh chóng trên trang đơn và email',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Các bước mua thẻ điện thoại nhanh chóng trên CardOn.vn' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Chọn nhà mạng và mệnh giá',
+            'Thanh toán MoMo',
+            tip,
+            'Liên hệ hỗ trợ nếu cần',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Lợi ích khi mua thẻ điện thoại tại CardOn.vn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Nguồn thẻ chính hãng, giao diện thân thiện',
+            'Giao mã tự động, nhanh sau thanh toán',
+            'Thanh toán linh hoạt, hỗ trợ tận tình',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Cách kiểm tra đơn hàng và mã thẻ trên CardOn' },
+        { id: 'u3', type: 'ul', items: [tip] },
+        {
+          id: 'h4',
+          type: 'h2',
+          text: 'Mua thẻ điện thoại online 24/7 tại CardOn: Bắt đầu ngay hôm nay',
+        },
+        {
+          id: 'u4',
+          type: 'ul',
+          items: [
+            'Truy cập CardOn.vn và chọn thẻ',
+            'Thanh toán và nhận mã trên trang chi tiết đơn hàng',
+            'Liên hệ hỗ trợ nếu cần',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [{ question: 'Mã thẻ không nhận được sau khi thanh toán?', answer: tip }],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ điện thoại online 24/7',
+        primaryKeyword: 'mua thẻ điện thoại online',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Mua thẻ điện thoại online 24/7',
+          primaryKeyword: 'mua thẻ điện thoại online',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'DUPLICATE_ADVANTAGE_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'CLOSING_CTA_REHASH')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_SLA')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'GENERIC_ADVANTAGES')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
