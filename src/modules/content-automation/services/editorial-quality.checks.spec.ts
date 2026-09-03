@@ -1051,6 +1051,117 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'TS_FIX_OL')?.severity).toBe('info');
   });
 
+  it('flags e-card buy-error guide: wait hours, FAQ restates fix, promo brand + Title Case links', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Lỗi khi mua thẻ điện tử online',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'lỗi khi mua thẻ điện tử online',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua thẻ điện tử online đôi khi gặp lỗi phổ biến khiến mất tiền hoặc không dùng được mã.',
+        },
+        { id: 'h0', type: 'h2', text: 'Triệu chứng thường gặp khi mua thẻ điện tử online sai sót' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Không nhận được mã thẻ sau thanh toán', 'Mã sai mệnh giá hoặc nhà mạng'],
+        },
+        { id: 'h1', type: 'h2', text: 'Nguyên nhân phổ biến' },
+        { id: 'h1a', type: 'h3', text: 'Lỗi thanh toán' },
+        { id: 'u1', type: 'ul', items: ['Thanh toán bị gián đoạn'] },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý từng bước khi gặp lỗi mua thẻ điện tử online' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Kiểm tra trạng thái đơn trên lịch sử đơn CardOn',
+            'Xem email xác nhận và thư mục spam',
+            'Đối chiếu mệnh giá và nhà mạng',
+            'Liên hệ hỗ trợ nơi mua kèm mã đơn',
+            'Nếu nghi gian lận, liên hệ ngân hàng hoặc ví',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Khi nào cần liên hệ hỗ trợ nhà mạng hoặc CardOn.vn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Thanh toán thành công nhưng không nhận được mã thẻ sau nhiều giờ',
+            'Mã thẻ không sử dụng được khi nạp',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Không nhận được mã thẻ sau khi thanh toán phải làm sao?',
+              answer: 'Kiểm tra lịch sử đơn và email spam. Liên hệ hỗ trợ kèm mã đơn.',
+            },
+          ],
+        },
+        {
+          id: 'lnk1',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000091',
+          anchorText: 'Mua Thẻ Garena Giá Rẻ Ở Đâu? Kinh Nghiệm Không Bị Lừa',
+        },
+        {
+          id: 'lnk2',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000092',
+          anchorText: 'Thẻ Vcoin Chính Hãng: Tránh Mua Phải Thẻ Không Rõ Nguồn Gốc',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [
+        {
+          sectionId: 'lnk1',
+          targetPageId: '00000000-0000-0000-0000-000000000091',
+          anchorText: 'Mua Thẻ Garena Giá Rẻ Ở Đâu? Kinh Nghiệm Không Bị Lừa',
+          validated: true,
+        },
+        {
+          sectionId: 'lnk2',
+          targetPageId: '00000000-0000-0000-0000-000000000092',
+          anchorText: 'Thẻ Vcoin Chính Hãng: Tránh Mua Phải Thẻ Không Rõ Nguồn Gốc',
+          validated: true,
+        },
+      ],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Lỗi khi mua thẻ điện tử online',
+        primaryKeyword: 'lỗi khi mua thẻ điện tử online',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Lỗi khi mua thẻ điện tử online',
+          primaryKeyword: 'lỗi khi mua thẻ điện tử online',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TROUBLESHOOTING',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_WAIT_WINDOW')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'FAQ_RESTATES_FIX')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'PROMO_BRAND_LINK')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(

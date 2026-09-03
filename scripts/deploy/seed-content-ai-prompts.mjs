@@ -100,7 +100,7 @@ Internal links:
 - Only link candidates that share the same topic/intent as this plan
 - If no good match → omit internalLink (do not force unrelated links like game cards into a SIM/telecom article)
 - For "mua nhầm thẻ": prefer links about kiểm tra nhà mạng của số, nạp thẻ, lỗi nạp — NOT unrelated "không gọi được" / "nạp bao nhiêu là đủ" unless clearly relevant
-- For "giao dịch bất thường / gian lận mua thẻ": prefer links about không nhận mã, mua nhầm mệnh giá, lỗi nạp — NOT "bao lâu nhận mã" / delivery-SLA articles
+- For "giao dịch bất thường / gian lận mua thẻ" or "lỗi mua thẻ điện tử": prefer links about không nhận mã, mua nhầm mệnh giá, lỗi nạp, giao dịch bất thường — NOT "bao lâu nhận mã" / brand "giá rẻ" / "chính hãng tránh lừa" promo pages
 - Anchor text natural Vietnamese sentence case, not Title Case spam (vd. BAD: "Nạp Sai Mệnh Giá Thẻ Game Phải Làm Sao?"; GOOD: "nạp sai mệnh giá thẻ game phải làm sao")
 
 Respect admin Angle when provided — treat it as mandatory editorial brief.
@@ -118,7 +118,7 @@ If contentType is TROUBLESHOOTING:
   5) FAQ type "faq" with 2–3 items (edge cases only; do not restate the CardOn check H2 OR the main fix ol)
   6) Optional H2 Tham khảo thêm with on-topic internalLink only
 - Forbidden: early product-comparison H2s; inventing fake carrier/payment flows; inventing per-carrier daily limits / exclusive error modes; using ul instead of ol for the main fix steps; advising resale of unused codes; promising đổi/hoàn tiền
-- Do NOT invent vague wait SLAs ("sau thời gian chờ hợp lý", "vài phút đến vài giờ") — say "nếu chưa thấy mã trên đơn/email, liên hệ hỗ trợ kèm mã đơn"
+- Do NOT invent vague wait SLAs ("sau thời gian chờ hợp lý", "sau nhiều giờ", "vài phút đến vài giờ") — say "nếu chưa thấy mã trên đơn/email, liên hệ hỗ trợ kèm mã đơn"
 - Do NOT invent formal khiếu nại / hoàn tiền procedures — "liên hệ hỗ trợ nơi mua + ngân hàng/ví nếu nghi gian lận"
 - FAQ answers: ≤3 short sentences each — NOT a second copy of the fix ol as bullets
 - For "giao dịch mua thẻ bất thường / gian lận / giao dịch lạ / trừ tiền không rõ":
@@ -128,6 +128,12 @@ If contentType is TROUBLESHOOTING:
   4) Cách xử lý ol: kiểm tra đơn CardOn → đối chiếu mã → liên hệ hỗ trợ nơi bán kèm mã đơn → nếu nghi gian lận thì liên hệ ngân hàng/ví để khóa — tránh dùng mã từ nguồn không rõ
   5) Hỗ trợ ul + FAQ edge (mua nhầm / mã lỗi nạp) — do NOT FAQ "không nhận mã" nếu ol đã cover
   6) Internal links: không nhận mã / mua nhầm / lỗi nạp — NOT "bao lâu nhận mã" (SLA delivery)
+- For "lỗi khi mua thẻ điện tử online / lỗi mua thẻ online / sai sót mua thẻ":
+  1) Prefer contentType TROUBLESHOOTING with the same skeleton (triệu chứng → nguyên nhân H3 → xử lý ol → hỗ trợ → FAQ)
+  2) Triệu chứng stay on: không nhận mã / sai mệnh giá-nhà mạng / mã lỗi khi nạp / trừ tiền không mã
+  3) Do NOT FAQ-repeat "không nhận mã" if fix ol already has check đơn + email/spam + hỗ trợ
+  4) Do NOT invent "sau nhiều giờ" wait windows
+  5) Internal links: lỗi nạp / mua nhầm / không nhận mã / giao dịch bất thường — NOT brand-promo "Garena giá rẻ" / "Vcoin chính hãng" / "mua có an toàn không" Title Case spam unless topic is that brand
 
 If contentType is TUTORIAL:
 - Prerequisites (ul) → numbered steps (ol) → expected result
@@ -255,10 +261,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.17.0',
+    version: '1.18.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.17.0',
+      version: '1.18.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -292,10 +298,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.17.0',
+    version: '1.18.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.17.0',
+      version: '1.18.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -323,7 +329,7 @@ Self-check before returning JSON:
 3) No empty "Tổng quan"/"ưu điểm" fluff; no redundant payment H2; CardOn email/spam/hỗ trợ tip only once
 4) If topic is nạp tiền nhà mạng: My app + CardOn how-to + USSD disclaimer; skip empty overview
 5) If topic is SIM khóa/lâu không dùng: NO invented N-day lock windows; verify via app/tổng đài
-6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers; no "thời gian chờ hợp lý"; FAQ must not restate fix ol; no "bao lâu nhận mã" links on fraud topics
+6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers; no "thời gian chờ hợp lý"/"sau nhiều giờ"; FAQ must not restate fix ol; no "bao lâu nhận mã" or brand-promo giá rẻ links on lỗi/gian lận topics
 7) If topic is mua nhầm thẻ / sai mệnh giá thẻ game: triệu chứng→nguyên nhân→xử lý ol; no soft "hỗ trợ đổi thẻ"; no "tránh dùng mã" khi cùng game; no promised refund/resale; no Title Case anchors
 8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
 9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
