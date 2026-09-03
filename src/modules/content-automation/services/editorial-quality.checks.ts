@@ -263,7 +263,9 @@ export function runEditorialSoftChecks(
   ) {
     inventedPolicy.push('đổi trả');
   }
-  if (/duoc cap phep|giay phep kinh doanh/.test(policyBlob)) inventedPolicy.push('cấp phép');
+  if (/duoc cap phep|giay phep kinh doanh|co chung nhan|chung nhan (va|va )?\s*phan hoi/.test(policyBlob)) {
+    inventedPolicy.push('cấp phép/chứng nhận');
+  }
   if (/han su dung.*(the|ma)|the.{0,20}han su dung/.test(policyBlob)) {
     inventedPolicy.push('hạn sử dụng thẻ');
   }
@@ -271,9 +273,34 @@ export function runEditorialSoftChecks(
     inventedPolicy.length > 0
       ? warn(
           'INVENTED_POLICY',
-          `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ soft-hứa đổi/hoàn; chỉ «liên hệ hỗ trợ kèm mã đơn để xem xét»`,
+          `Có thể bịa chính sách («${inventedPolicy.join(', ')}») — bỏ soft-hứa đổi/hoàn/chứng nhận; chỉ «liên hệ hỗ trợ kèm mã đơn để xem xét»`,
         )
       : passed('INVENTED_POLICY', 'Không thấy claim hoàn tiền/đổi trả/cấp phép/hạn dùng dễ bịa'),
+  );
+
+  // Soft: absolute safety marketing
+  const absoluteSafe = /rat an toan|hoan toan an toan|an toan 100/.test(policyBlob);
+  checks.push(
+    absoluteSafe
+      ? warn(
+          'ABSOLUTE_SAFE_CLAIM',
+          'Claim «rất/hoàn toàn an toàn» — đổi sang điều kiện (uy tín + TT ví/NH) thay vì tuyệt đối',
+        )
+      : passed('ABSOLUTE_SAFE_CLAIM', 'Không thấy claim an toàn tuyệt đối'),
+  );
+
+  // Soft: invent multi-platform "no account required"
+  const inventNoAccountPlatforms =
+    /nhieu nen tang.{0,48}khong (bat buoc|can).{0,24}(dang ky )?tai khoan|khong can tai khoan.{0,40}(nhieu nen tang|cac website|moi nen tang)|tat ca deu cho phep nap khong can tai khoan/.test(
+      policyBlob,
+    );
+  checks.push(
+    inventNoAccountPlatforms
+      ? warn(
+          'INVENTED_NO_ACCOUNT_PLATFORMS',
+          'Bịa «nhiều/mọi nền tảng không cần tài khoản» — chỉ nói CardOn guest + vẫn cần email nếu topic hỏi đăng ký',
+        )
+      : passed('INVENTED_NO_ACCOUNT_PLATFORMS', 'Không bịa claim không-cần-TK đa nền tảng'),
   );
 
   // Soft: invented instant-delivery SLA
@@ -598,6 +625,83 @@ export function runEditorialSoftChecks(
         )
       : passed('REPEATED_CARDON_TIPS', 'Tip CardOn nhận mã không bị nhân đôi quá mức'),
   );
+
+  // Soft: dual overlapping "Lưu ý / an toàn" H2s
+  const safetyH2Count = doc.sections.filter(
+    (s) =>
+      s.type === 'h2' &&
+      /luu y|an toan khi (nap|mua)|an toan khi nap tien/.test(normalizeText(s.text ?? '')),
+  ).length;
+  checks.push(
+    safetyH2Count >= 2
+      ? warn(
+          'OVERLAPPING_SAFETY_H2',
+          `Có ${safetyH2Count} H2 lưu ý/an toàn chồng nhau — gộp thành một mục`,
+        )
+      : passed('OVERLAPPING_SAFETY_H2', 'Không thấy nhiều H2 lưu ý/an toàn chồng'),
+  );
+
+  // Soft: thin Viettel/Mobifone/Vinaphone comparison filler on non-COMPARISON guides
+  const thinCarrierCompare =
+    plan.contentType !== 'COMPARISON' &&
+    doc.sections.some((s, i) => {
+      if (s.type !== 'h2') return false;
+      const h = normalizeText(s.text ?? '');
+      if (!/so sanh.*(viettel|mobifone|vinaphone|nha mang)|viettel.{0,20}mobifone.{0,20}vinaphone/.test(h)) {
+        return false;
+      }
+      const following = doc.sections.slice(i + 1, i + 4);
+      const blob = normalizeText(
+        following.flatMap((b) => [b.text ?? '', ...(b.items ?? [])]).join(' '),
+      );
+      const hasDepth = /ussd|\*1|cu phap|so du|buoc \d|chon menh gia/.test(blob);
+      return !hasDepth;
+    });
+  checks.push(
+    thinCarrierCompare
+      ? warn(
+          'THIN_CARRIER_COMPARE',
+          'H2 so sánh Viettel/Mobifone/Vinaphone mỏng (My app + thẻ cào) — bỏ hoặc thay bằng 1 bullet trong cách nạp',
+        )
+      : passed('THIN_CARRIER_COMPARE', 'Không thấy so sánh nhà mạng filler'),
+  );
+
+  // Soft: "cần đăng ký tài khoản?" topics must link no-account claim with guest email
+  const isNoAccountTopic =
+    /dang ky tai khoan|khong can tai khoan|co can (dang ky|tai khoan)/.test(topicBlob);
+  if (isNoAccountTopic) {
+    let answerBlob = '';
+    for (let i = 0; i < doc.sections.length; i++) {
+      const s = doc.sections[i];
+      if (
+        s.type === 'h2' &&
+        /dang ky tai khoan|khong can tai khoan|co can (dang ky|tai khoan)/.test(
+          normalizeText(s.text ?? ''),
+        )
+      ) {
+        answerBlob = normalizeText(
+          [s.text ?? '', ...doc.sections.slice(i + 1, i + 3).flatMap((b) => [b.text ?? '', ...(b.items ?? [])])].join(
+            ' ',
+          ),
+        );
+        break;
+      }
+    }
+    const claimsNoAccount = /khong (bat buoc |can )?(dang ky )?tai khoan|khong can dang ky/.test(
+      answerBlob || policyBlob,
+    );
+    const hasGuestEmailNuance =
+      /email/.test(answerBlob) &&
+      /khong (bat buoc |can )?(dang ky )?tai khoan|khong can dang ky|guest/.test(answerBlob);
+    checks.push(
+      claimsNoAccount && !hasGuestEmailNuance
+        ? warn(
+            'GUEST_EMAIL_MISSING',
+            'H2 trả lời không cần đăng ký TK thiếu nuance guest vẫn cần email để nhận mã/tra cứu đơn',
+          )
+        : passed('GUEST_EMAIL_MISSING', 'Guest/no-account topic có nhắc email hoặc không claim zero-ID'),
+    );
+  }
 
   // Soft: speculative per-carrier invented failure policies in troubleshooting
   const bodyNormForCause = normalizeText(collectFullText(doc));
