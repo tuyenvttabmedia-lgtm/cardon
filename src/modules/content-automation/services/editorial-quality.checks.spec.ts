@@ -1285,6 +1285,137 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
   });
 
+  it('flags no-account topup guide: multi-platform invent, dual safety, thin carrier compare, absolute safe', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Nạp tiền điện thoại online có cần đăng ký tài khoản không?',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'nạp tiền điện thoại online có cần đăng ký tài khoản',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Nạp tiền điện thoại online tiện lợi. Nhiều người hỏi có cần đăng ký tài khoản không.',
+        },
+        { id: 'h0', type: 'h2', text: 'Nạp tiền điện thoại online có cần đăng ký tài khoản không?' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: [
+            'Không bắt buộc đăng ký tài khoản tại nhiều nền tảng, bao gồm CardOn.vn',
+            'Có thể nạp bằng cách nhập số điện thoại và chọn mệnh giá mà không cần tài khoản',
+          ],
+        },
+        { id: 'h1', type: 'h2', text: 'Các cách nạp tiền điện thoại phổ biến hiện nay' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: ['Thẻ cào USSD', 'App nhà mạng', 'CardOn.vn không cần tài khoản'],
+        },
+        { id: 'h2', type: 'h2', text: 'Hướng dẫn nạp tiền điện thoại trên CardOn.vn không cần tài khoản' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Truy cập trang nạp tiền trên CardOn.vn',
+            'Chọn nhà mạng và nhập số điện thoại',
+            'Chọn mệnh giá rồi thanh toán MoMo hoặc chuyển khoản',
+            'Mã thẻ hiện trên trang đơn và gửi qua email nếu có',
+            'Kiểm tra email spam, liên hệ hỗ trợ nếu cần',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Kiểm tra đơn hàng và mã thẻ trên CardOn.vn sau khi nạp tiền' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Xem lịch sử đơn hàng trên CardOn.vn',
+            'Kiểm tra email nhận mã thẻ kể cả spam',
+            'Liên hệ hỗ trợ CardOn nếu không nhận được mã',
+          ],
+        },
+        { id: 'h4', type: 'h2', text: 'Lưu ý khi nạp tiền điện thoại online không cần tài khoản' },
+        {
+          id: 'u3',
+          type: 'ul',
+          items: ['Chọn website uy tín như CardOn', 'Lưu biên lai', 'Kiểm tra email và spam'],
+        },
+        {
+          id: 'h5',
+          type: 'h2',
+          text: 'So sánh nhanh cách nạp tiền Viettel, Mobifone và Vinaphone online',
+        },
+        {
+          id: 'u4',
+          type: 'ul',
+          items: [
+            'Viettel: My Viettel, thẻ cào, CardOn',
+            'Mobifone: My Mobifone, thẻ cào, website uy tín',
+            'Vinaphone: My Vinaphone, thẻ cào',
+            'Tất cả đều cho phép nạp không cần tài khoản trên các nền tảng trung gian',
+          ],
+        },
+        { id: 'h6', type: 'h2', text: 'Lưu ý an toàn khi nạp tiền điện thoại online' },
+        {
+          id: 'u5',
+          type: 'ul',
+          items: [
+            'Chỉ nạp trên trang uy tín, có chứng nhận và phản hồi tốt',
+            'Không chia sẻ OTP',
+            'Thanh toán MoMo hoặc ngân hàng',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Nạp tiền online không cần tài khoản có an toàn không?',
+              answer: 'Nếu chọn CardOn và thanh toán ví điện tử thì rất an toàn.',
+            },
+            {
+              question: 'Nếu không nhận được mã thẻ sau khi thanh toán thì làm sao?',
+              answer: 'Kiểm tra email spam rồi liên hệ hỗ trợ CardOn kèm mã đơn.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Nạp tiền điện thoại online có cần đăng ký tài khoản không',
+        primaryKeyword: 'nạp tiền điện thoại online có cần đăng ký tài khoản',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Nạp tiền điện thoại online có cần đăng ký tài khoản không',
+          primaryKeyword: 'nạp tiền điện thoại online có cần đăng ký tài khoản',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_NO_ACCOUNT_PLATFORMS')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'GUEST_EMAIL_MISSING')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'OVERLAPPING_SAFETY_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'THIN_CARRIER_COMPARE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_POLICY')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'ABSOLUTE_SAFE_CLAIM')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
