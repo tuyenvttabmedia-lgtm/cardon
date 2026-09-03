@@ -203,9 +203,14 @@ export function runEditorialSoftChecks(
 
   // Topics about top-up / history should mention CardOn order/history check
   const topicBlob = normalizeText(`${plan.topic} ${plan.primaryKeyword}`);
+  const isVoiceSimSymptomTopic =
+    /chi cuoc goi khan cap|emergency calls? only|khan cap|khong goi duoc|mat song|sim (loi|hong|long)|goi khan cap/.test(
+      topicBlob,
+    ) && !/nap tien|mua the|top ?up|lich su nap/.test(topicBlob);
   const topupTopic =
     /lich su nap|nap tien|the dien thoai|top ?up|nap the|ma qr|quet ma qr/.test(topicBlob) &&
-    !/garena|zing|vcoin|game/.test(topicBlob);
+    !/garena|zing|vcoin|game/.test(topicBlob) &&
+    !isVoiceSimSymptomTopic;
   if (topupTopic) {
     const bodyNorm = normalizeText(collectFullText(doc));
     const hasCardonHistory =
@@ -218,6 +223,53 @@ export function runEditorialSoftChecks(
             'CARDON_TOPUP_SECTION',
             'Topic nạp tiền/lịch sử nạp nhưng thiếu mục kiểm tra trên CardOn',
           ),
+    );
+  }
+
+  // Soft: force CardOn / game card into voice-SIM symptom troubleshooting
+  if (isVoiceSimSymptomTopic) {
+    const bodyNorm = normalizeText(collectFullText(doc));
+    const cardonHits = (bodyNorm.match(/cardon/g) ?? []).length;
+    const cardonInFixOl = doc.sections.some((s, i) => {
+      if (s.type !== 'h2') return false;
+      if (!/cach xu ly|xu ly tung buoc|khac phuc/.test(normalizeText(s.text ?? ''))) return false;
+      const following = doc.sections.slice(i + 1, i + 5);
+      return following.some(
+        (b) =>
+          b.type === 'ol' &&
+          /cardon|the game|lich su don/.test(normalizeText((b.items ?? []).join(' '))),
+      );
+    });
+    checks.push(
+      cardonInFixOl || cardonHits >= 2
+        ? warn(
+            'OFF_TOPIC_CARDON_VOICE',
+            'Topic chỉ gọi khẩn cấp/mất sóng nhưng nhét CardOn vào ol xử lý hoặc lặp nhiều lần — chỉ FAQ edge nạp ĐT nếu cần',
+          )
+        : passed('OFF_TOPIC_CARDON_VOICE', 'Không nhét CardOn vào troubleshooting sóng/SIM'),
+    );
+
+    const gameCardNoise = /the game|the garena|the scoin|the zing|the vcoin/.test(bodyNorm);
+    checks.push(
+      gameCardNoise
+        ? warn(
+            'OFF_TOPIC_GAME_CARD_VOICE',
+            'Topic gọi khẩn cấp/mất sóng nhưng nhắc thẻ game — bỏ hoàn toàn',
+          )
+        : passed('OFF_TOPIC_GAME_CARD_VOICE', 'Không nhắc thẻ game trong bài sóng/SIM'),
+    );
+
+    const inventTopupLock =
+      /sim.{0,48}khoa.{0,48}khong nap|khoa.{0,40}(do |vi )?khong nap tien|bi khoa do khong nap/.test(
+        bodyNorm,
+      );
+    checks.push(
+      inventTopupLock
+        ? warn(
+            'INVENTED_SIM_TOPUP_LOCK',
+            'Claim khóa SIM vì không nạp tiền/chưa chính chủ kiểu cứng — tách: hết tiền mất thoại vs khóa SIM xem app/tổng đài',
+          )
+        : passed('INVENTED_SIM_TOPUP_LOCK', 'Không bịa khóa SIM vì không nạp tiền'),
     );
   }
 
