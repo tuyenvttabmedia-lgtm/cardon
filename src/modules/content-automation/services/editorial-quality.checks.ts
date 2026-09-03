@@ -668,33 +668,56 @@ export function runEditorialSoftChecks(
 
   // Soft: vague wait-window SLA
   const inventedWait =
-    /thoi gian cho hop ly|sau (mot )?thoi gian cho|cho (vai|mot vai) (phut|gio)/.test(
+    /thoi gian cho hop ly|sau (mot )?thoi gian cho|cho (vai|mot vai) (phut|gio)|sau nhieu gio|sau \d+\s*(gio|phut)/.test(
       policyBlob,
     );
   checks.push(
     inventedWait
       ? warn(
           'INVENTED_WAIT_WINDOW',
-          'Claim «thời gian chờ hợp lý»/chờ X phút — bỏ; bảo kiểm tra đơn/email rồi liên hệ hỗ trợ nếu chưa thấy mã',
+          'Claim «thời gian chờ hợp lý»/«sau nhiều giờ» — bỏ; bảo kiểm tra đơn/email rồi liên hệ hỗ trợ nếu chưa thấy mã',
         )
       : passed('INVENTED_WAIT_WINDOW', 'Không thấy cửa sổ chờ SLA bịa'),
   );
 
-  // Soft: fraud/unusual-tx topic linking to delivery-SLA articles
-  const isFraudTopic =
-    /giao dich.{0,24}bat thuong|gian lan|giao dich la|tru tien khong/.test(topicBlob);
-  if (isFraudTopic) {
-    const slaLink = [...doc.internalLinks.map((l) => l.anchorText ?? ''), ...doc.sections.filter((s) => s.type === 'internalLink').map((s) => s.anchorText ?? '')]
-      .map((a) => normalizeText(a))
-      .find((a) => /bao lau nhan|nhan ma sau bao|sla|giao ma trong/.test(a));
-    checks.push(
-      slaLink
-        ? warn(
-            'DELIVERY_SLA_LINK',
-            'Topic giao dịch bất thường/gian lận nhưng link bài «bao lâu nhận mã» — đổi sang không nhận mã / mua nhầm / lỗi nạp',
-          )
-        : passed('DELIVERY_SLA_LINK', 'Link nội bộ không lệch sang SLA giao mã'),
+  // Soft: fraud / card-buy-error topics linking to delivery-SLA or brand-promo pages
+  const isCardErrorTsTopic =
+    /giao dich.{0,24}bat thuong|gian lan|giao dich la|tru tien khong|loi (khi )?mua the|mua the.{0,20}(sai sot|loi)|the dien tu online/.test(
+      topicBlob,
     );
+  if (isCardErrorTsTopic || plan.contentType === 'TROUBLESHOOTING') {
+    const allAnchors = [
+      ...doc.internalLinks.map((l) => l.anchorText ?? ''),
+      ...doc.sections.filter((s) => s.type === 'internalLink').map((s) => s.anchorText ?? ''),
+    ].map((a) => normalizeText(a));
+
+    if (isCardErrorTsTopic) {
+      const slaLink = allAnchors.find((a) =>
+        /bao lau nhan|nhan ma sau bao|sla|giao ma trong/.test(a),
+      );
+      checks.push(
+        slaLink
+          ? warn(
+              'DELIVERY_SLA_LINK',
+              'Topic lỗi/gian lận mua thẻ nhưng link bài «bao lâu nhận mã» — đổi sang không nhận mã / mua nhầm / lỗi nạp',
+            )
+          : passed('DELIVERY_SLA_LINK', 'Link nội bộ không lệch sang SLA giao mã'),
+      );
+
+      const promoBrand = allAnchors.find((a) =>
+        /(garena|vcoin|zing|scoin).{0,40}(gia re|chinh hang|khong bi lua)|mua the.{0,20}(gia re|an toan khong)/.test(
+          a,
+        ),
+      );
+      checks.push(
+        promoBrand
+          ? warn(
+              'PROMO_BRAND_LINK',
+              'Topic lỗi mua thẻ điện tử chung nhưng link promo brand (giá rẻ/chính hãng/an toàn) — đổi sang bài lỗi nạp / mua nhầm / không nhận mã',
+            )
+          : passed('PROMO_BRAND_LINK', 'Không thấy link promo brand lệch đề troubleshooting'),
+      );
+    }
   }
 
   // Soft: advise reselling unused phone/game codes
