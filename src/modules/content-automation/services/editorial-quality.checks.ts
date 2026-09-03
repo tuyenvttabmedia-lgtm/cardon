@@ -9,6 +9,8 @@ const FILLER_PHRASES = [
   'nhanh chóng tiện lợi và an toàn',
   'mang lại nhiều lợi ích',
   'gây lo lắng',
+  'gây khó chịu',
+  'mất tiền oan',
   'xu hướng hiện nay',
   'ngày càng được ưa chuộng',
   'ưu nhược điểm riêng',
@@ -680,9 +682,9 @@ export function runEditorialSoftChecks(
       : passed('INVENTED_WAIT_WINDOW', 'Không thấy cửa sổ chờ SLA bịa'),
   );
 
-  // Soft: fraud / card-buy-error topics linking to delivery-SLA or brand-promo pages
+  // Soft: fraud / card-buy-error / hung-tx topics linking to delivery-SLA or brand-promo pages
   const isCardErrorTsTopic =
-    /giao dich.{0,24}bat thuong|gian lan|giao dich la|tru tien khong|loi (khi )?mua the|mua the.{0,20}(sai sot|loi)|the dien tu online/.test(
+    /giao dich.{0,24}(bat thuong|bi treo|treo)|don treo|treo (don|giao dich)|gian lan|giao dich la|tru tien khong|loi (khi )?mua the|mua the.{0,24}(sai sot|loi|bi treo)|the dien tu online|thanh toan.{0,24}khong nhan ma/.test(
       topicBlob,
     );
   if (isCardErrorTsTopic || plan.contentType === 'TROUBLESHOOTING') {
@@ -699,13 +701,13 @@ export function runEditorialSoftChecks(
         slaLink
           ? warn(
               'DELIVERY_SLA_LINK',
-              'Topic lỗi/gian lận mua thẻ nhưng link bài «bao lâu nhận mã» — đổi sang không nhận mã / mua nhầm / lỗi nạp',
+              'Topic lỗi/gian lận/treo mua thẻ nhưng link bài «bao lâu nhận mã» — đổi sang không nhận mã / mua nhầm / lỗi nạp',
             )
           : passed('DELIVERY_SLA_LINK', 'Link nội bộ không lệch sang SLA giao mã'),
       );
 
       const promoBrand = allAnchors.find((a) =>
-        /(garena|vcoin|zing|scoin).{0,40}(gia re|chinh hang|khong bi lua)|mua the.{0,20}(gia re|an toan khong)/.test(
+        /(garena|vcoin|zing|scoin).{0,40}(gia re|chinh hang|khong bi lua)|mua the.{0,24}(gia re|an toan khong)|the dien thoai.{0,24}nap game|nap game duoc khong/.test(
           a,
         ),
       );
@@ -713,11 +715,52 @@ export function runEditorialSoftChecks(
         promoBrand
           ? warn(
               'PROMO_BRAND_LINK',
-              'Topic lỗi mua thẻ điện tử chung nhưng link promo brand (giá rẻ/chính hãng/an toàn) — đổi sang bài lỗi nạp / mua nhầm / không nhận mã',
+              'Topic lỗi/treo mua thẻ nhưng link promo/an toàn hoặc «thẻ ĐT nạp game» lệch đề — đổi sang lỗi nạp / mua nhầm / không nhận mã',
             )
           : passed('PROMO_BRAND_LINK', 'Không thấy link promo brand lệch đề troubleshooting'),
       );
     }
+  }
+
+  // Soft: hung-tx topic leading causes with redeem/expiry (not payment hang)
+  const isHungTxTopic = /bi treo|treo (don|giao dich)|don treo|giao dich.{0,16}treo/.test(
+    topicBlob,
+  );
+  if (isHungTxTopic) {
+    let causeBlob = '';
+    for (let i = 0; i < doc.sections.length; i++) {
+      const s = doc.sections[i];
+      if (s.type === 'h2' && /nguyen nhan/.test(normalizeText(s.text ?? ''))) {
+        causeBlob = normalizeText(
+          doc.sections
+            .slice(i + 1, i + 12)
+            .flatMap((b) => [b.text ?? '', ...(b.items ?? [])])
+            .join(' '),
+        );
+        break;
+      }
+    }
+    const redeemLead =
+      /(het han|da (duoc )?su dung|nhap sai khi nap)/.test(causeBlob) &&
+      !/thanh toan|dong bo|dang xu ly|bao tri|nha cung cap/.test(causeBlob);
+    checks.push(
+      redeemLead
+        ? warn(
+            'HUNG_TX_WRONG_CAUSE',
+            'Topic treo giao dịch nhưng nguyên nhân chỉ kiểu mã hết hạn/nhập sai nạp — ưu tiên thanh toán/đồng bộ/nhà cung cấp',
+          )
+        : passed('HUNG_TX_WRONG_CAUSE', 'Nguyên nhân treo không lệch sang lỗi nạp thuần'),
+    );
+
+    const promiseResend = /gui lai ma the|se gui (lai )?ma/.test(policyBlob);
+    checks.push(
+      promiseResend
+        ? warn(
+            'PROMISE_RESEND_CODE',
+            'Hứa hỗ trợ «gửi lại mã thẻ» — chỉ nói kiểm tra/hỗ trợ theo trạng thái đơn',
+          )
+        : passed('PROMISE_RESEND_CODE', 'Không hứa gửi lại mã thẻ'),
+    );
   }
 
   // Soft: advise reselling unused phone/game codes

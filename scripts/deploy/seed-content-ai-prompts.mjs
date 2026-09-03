@@ -92,7 +92,7 @@ Banned filler phrases (do not use):
 - "không phải ai cũng biết", "rất phổ biến", "được nhiều game thủ tin dùng" as empty openers/praise
 - "thao tác cần thiết", "phù hợp với nhu cầu và điều kiện của từng người dùng" as empty openers
 - "Bài viết này sẽ giúp bạn", "khiến người dùng bối rối", "cách phổ biến để duy trì liên lạc"
-- "gây ra nhiều phiền toái", "thiệt hại không đáng có", "xử lý sự cố nhanh chóng" as empty openers
+- "gây ra nhiều phiền toái", "thiệt hại không đáng có", "gây khó chịu", "mất tiền oan" as empty openers, "xử lý sự cố nhanh chóng" as empty openers
 - Vague mechanism fluff: "dựa trên hệ thống kết nối giữa nhà cung cấp và đơn vị bán hàng"
 - Generic praise without evidence ("nhà mạng lớn với nhiều hình thức đa dạng")
 
@@ -100,7 +100,7 @@ Internal links:
 - Only link candidates that share the same topic/intent as this plan
 - If no good match → omit internalLink (do not force unrelated links like game cards into a SIM/telecom article)
 - For "mua nhầm thẻ": prefer links about kiểm tra nhà mạng của số, nạp thẻ, lỗi nạp — NOT unrelated "không gọi được" / "nạp bao nhiêu là đủ" unless clearly relevant
-- For "giao dịch bất thường / gian lận mua thẻ" or "lỗi mua thẻ điện tử": prefer links about không nhận mã, mua nhầm mệnh giá, lỗi nạp, giao dịch bất thường — NOT "bao lâu nhận mã" / brand "giá rẻ" / "chính hãng tránh lừa" promo pages
+- For "giao dịch bất thường / gian lận mua thẻ" or "lỗi mua thẻ điện tử" or "giao dịch bị treo / đơn treo": prefer links about không nhận mã, mua nhầm mệnh giá, lỗi nạp, giao dịch bất thường — NOT "bao lâu nhận mã" / "mua thẻ có an toàn không" / brand "giá rẻ" / "thẻ ĐT nạp game được không" / Title Case promo
 - Anchor text natural Vietnamese sentence case, not Title Case spam (vd. BAD: "Nạp Sai Mệnh Giá Thẻ Game Phải Làm Sao?"; GOOD: "nạp sai mệnh giá thẻ game phải làm sao")
 
 Respect admin Angle when provided — treat it as mandatory editorial brief.
@@ -134,6 +134,13 @@ If contentType is TROUBLESHOOTING:
   3) Do NOT FAQ-repeat "không nhận mã" if fix ol already has check đơn + email/spam + hỗ trợ
   4) Do NOT invent "sau nhiều giờ" wait windows
   5) Internal links: lỗi nạp / mua nhầm / không nhận mã / giao dịch bất thường — NOT brand-promo "Garena giá rẻ" / "Vcoin chính hãng" / "mua có an toàn không" Title Case spam unless topic is that brand
+- For "giao dịch mua thẻ bị treo / đơn treo / trạng thái đang xử lý / thanh toán rồi không nhận mã (treo)":
+  1) Prefer TROUBLESHOOTING; opening 1–2 câu định nghĩa treo = đã TT nhưng mã chưa về / trạng thái không rõ — NO "gây khó chịu / mất tiền oan" filler opener
+  2) Triệu chứng: trừ tiền không mã; đang xử lý/không phản hồi; không email; không hiện trên lịch sử đơn; báo lỗi nhưng vẫn trừ tiền
+  3) Nguyên nhân H3 lead with thanh toán/đồng bộ/nhà cung cấp delay — NOT lead with "mã hết hạn / nhập sai khi nạp game" (đó là lỗi nạp, không phải treo giao dịch)
+  4) Cách xử lý ol: check đơn CardOn → email/spam → reload trang đơn → đối chiếu TT ví/NH → hỗ trợ kèm mã đơn → nếu nghi gian lận thì NH/ví — do NOT promise "hỗ trợ sẽ gửi lại mã"
+  5) FAQ edge: hoàn tiền? (thường không; ưu tiên xác minh đơn) / tránh treo lần sau — do NOT FAQ "không nhận mã phải làm sao" nếu ol đã cover check đơn+email+hỗ trợ
+  6) Internal links: không nhận mã / mua nhầm / lỗi nạp / giao dịch bất thường — NOT "bao lâu nhận mã" / "mua thẻ có an toàn không" / "thẻ ĐT nạp game được không"
 
 If contentType is TUTORIAL:
 - Prerequisites (ul) → numbered steps (ol) → expected result
@@ -261,10 +268,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.18.0',
+    version: '1.19.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.18.0',
+      version: '1.19.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -298,10 +305,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.18.0',
+    version: '1.19.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.18.0',
+      version: '1.19.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -329,7 +336,7 @@ Self-check before returning JSON:
 3) No empty "Tổng quan"/"ưu điểm" fluff; no redundant payment H2; CardOn email/spam/hỗ trợ tip only once
 4) If topic is nạp tiền nhà mạng: My app + CardOn how-to + USSD disclaimer; skip empty overview
 5) If topic is SIM khóa/lâu không dùng: NO invented N-day lock windows; verify via app/tổng đài
-6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers; no "thời gian chờ hợp lý"/"sau nhiều giờ"; FAQ must not restate fix ol; no "bao lâu nhận mã" or brand-promo giá rẻ links on lỗi/gian lận topics
+6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers; no "thời gian chờ hợp lý"/"sau nhiều giờ"; FAQ must not restate fix ol; no "bao lâu nhận mã" or brand-promo/an toàn/nạp-game cross-topic links on lỗi/gian lận/bị treo topics; treo ≠ lead nguyên nhân "mã hết hạn"
 7) If topic is mua nhầm thẻ / sai mệnh giá thẻ game: triệu chứng→nguyên nhân→xử lý ol; no soft "hỗ trợ đổi thẻ"; no "tránh dùng mã" khi cùng game; no promised refund/resale; no Title Case anchors
 8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
 9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
