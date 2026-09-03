@@ -1416,6 +1416,104 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
   });
 
+  it('flags emergency-calls guide: forced CardOn/game card, invented SIM topup lock', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Điện thoại báo chỉ cuộc gọi khẩn cấp',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'chỉ cuộc gọi khẩn cấp',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Khi điện thoại chỉ cho phép gọi số khẩn cấp, bạn không gọi được bình thường.',
+        },
+        { id: 'h0', type: 'h2', text: 'Triệu chứng khi điện thoại báo chỉ cuộc gọi khẩn cấp' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Hiển thị Emergency calls only', 'Không gọi được số thường', 'Mất sóng'],
+        },
+        { id: 'h1', type: 'h2', text: 'Nguyên nhân khiến điện thoại báo chỉ cuộc gọi khẩn cấp' },
+        { id: 'h1a', type: 'h3', text: 'Nguyên nhân liên quan đến SIM' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'SIM bị khóa do không nạp tiền hoặc chưa đăng ký chính chủ',
+            'SIM lỏng hoặc hỏng',
+          ],
+        },
+        { id: 'h1b', type: 'h3', text: 'Nguyên nhân do thanh toán' },
+        {
+          id: 'u1b',
+          type: 'ul',
+          items: ['Hết tiền trả trước', 'Nạp thẻ điện thoại hoặc thẻ game không thành công'],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý từng bước khi điện thoại báo chỉ cuộc gọi khẩn cấp' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Tháo lắp lại SIM',
+            'Khởi động lại máy',
+            'Tắt chế độ máy bay',
+            'Kiểm tra số dư trên My Viettel',
+            'Nếu vẫn lỗi, kiểm tra đơn hàng thẻ điện thoại trên CardOn',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Khi nào cần liên hệ hỗ trợ nhà mạng hoặc CardOn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Vẫn không gọi được sau khi thử các bước',
+            'Không nhận được mã thẻ khi mua trên CardOn',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Nếu đã nạp thẻ trên CardOn nhưng vẫn không gọi được thì sao?',
+              answer: 'Kiểm tra lịch sử đơn CardOn và liên hệ hỗ trợ kèm mã đơn.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Điện thoại báo chỉ cuộc gọi khẩn cấp',
+        primaryKeyword: 'chỉ cuộc gọi khẩn cấp',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Điện thoại báo chỉ cuộc gọi khẩn cấp',
+          primaryKeyword: 'chỉ cuộc gọi khẩn cấp',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TROUBLESHOOTING',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'OFF_TOPIC_CARDON_VOICE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'OFF_TOPIC_GAME_CARD_VOICE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_SIM_TOPUP_LOCK')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
