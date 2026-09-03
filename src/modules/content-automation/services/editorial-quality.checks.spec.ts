@@ -1162,6 +1162,129 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
   });
 
+  it('flags hung e-card tx guide: filler opener, FAQ restates, SLA + off-topic links, promise resend', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Giao dịch mua thẻ điện tử bị treo',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'giao dịch mua thẻ điện tử bị treo',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Giao dịch mua thẻ điện tử bị treo gây khó chịu và cần xử lý kịp thời để tránh mất tiền oan.',
+        },
+        { id: 'h0', type: 'h2', text: 'Triệu chứng giao dịch mua thẻ điện tử bị treo' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Thanh toán đã trừ tiền nhưng không nhận được mã', 'Trạng thái đang xử lý'],
+        },
+        { id: 'h1', type: 'h2', text: 'Nguyên nhân phổ biến khiến mua thẻ điện tử bị treo' },
+        { id: 'h1a', type: 'h3', text: 'Lỗi trong quá trình thanh toán' },
+        { id: 'u1', type: 'ul', items: ['Thanh toán bị gián đoạn hoặc lỗi mạng'] },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý khi giao dịch mua thẻ điện tử bị treo' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Kiểm tra trạng thái đơn trên lịch sử mua thẻ CardOn',
+            'Xem email kể cả thư mục spam',
+            'Tải lại trang đơn hàng',
+            'Đối chiếu giao dịch trên ví hoặc ngân hàng',
+            'Liên hệ hỗ trợ nơi mua kèm mã đơn',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Khi nào cần liên hệ hỗ trợ nhà mạng hoặc CardOn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: ['Không nhận được mã sau thanh toán thành công', 'Trạng thái đơn không rõ'],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi đã thanh toán nhưng không nhận được mã thẻ, phải làm sao?',
+              answer:
+                'Kiểm tra lịch sử đơn và email spam. Liên hệ hỗ trợ nơi mua kèm mã đơn để được gửi lại mã thẻ.',
+            },
+          ],
+        },
+        {
+          id: 'lnk1',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000093',
+          anchorText: 'Mua thẻ game online có an toàn không?',
+        },
+        {
+          id: 'lnk2',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000094',
+          anchorText: 'Mua Thẻ Game Online Bao Lâu Nhận Được Mã?',
+        },
+        {
+          id: 'lnk3',
+          type: 'internalLink',
+          targetPageId: '00000000-0000-0000-0000-000000000095',
+          anchorText: 'Thẻ Điện Thoại Có Nạp Game Được Không?',
+        },
+      ],
+      factRefs: [],
+      internalLinks: [
+        {
+          sectionId: 'lnk1',
+          targetPageId: '00000000-0000-0000-0000-000000000093',
+          anchorText: 'Mua thẻ game online có an toàn không?',
+          validated: true,
+        },
+        {
+          sectionId: 'lnk2',
+          targetPageId: '00000000-0000-0000-0000-000000000094',
+          anchorText: 'Mua Thẻ Game Online Bao Lâu Nhận Được Mã?',
+          validated: true,
+        },
+        {
+          sectionId: 'lnk3',
+          targetPageId: '00000000-0000-0000-0000-000000000095',
+          anchorText: 'Thẻ Điện Thoại Có Nạp Game Được Không?',
+          validated: true,
+        },
+      ],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Giao dịch mua thẻ điện tử bị treo',
+        primaryKeyword: 'giao dịch mua thẻ điện tử bị treo',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Giao dịch mua thẻ điện tử bị treo',
+          primaryKeyword: 'giao dịch mua thẻ điện tử bị treo',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TROUBLESHOOTING',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'FILLER_PHRASES')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'FAQ_RESTATES_FIX')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'DELIVERY_SLA_LINK')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'PROMO_BRAND_LINK')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'PROMISE_RESEND_CODE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TITLE_CASE_ANCHOR')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
