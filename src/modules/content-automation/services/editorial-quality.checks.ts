@@ -686,6 +686,33 @@ export function runEditorialSoftChecks(
           )
         : passed('THIN_CARRIER_SPECS_H2', 'Không thấy H2 đặc điểm nhà mạng filler'),
     );
+
+    const buyBody = normalizeText(collectFullText(doc));
+    const sameUssdAllCarriers =
+      /viettel.{0,100}(bam |goi )?100/.test(buyBody) &&
+      /vinaphone.{0,100}(bam |goi )?100/.test(buyBody) &&
+      /mobifone.{0,100}(bam |goi )?100/.test(buyBody);
+    const inventRedeemLock =
+      /nhap sai.{0,32}(bi )?khoa|khoa.{0,24}nhap sai|gioi han so lan nap/.test(buyBody);
+    checks.push(
+      sameUssdAllCarriers || inventRedeemLock
+        ? warn(
+            'BUY_PHONE_REDEEM_MYTH',
+            'Bài mua thẻ ĐT bịa USSD *100* cho cả 3 nhà mạng hoặc myth khóa/giới hạn lần nạp — ưu tiên My app + disclaimer mã USSD có thể khác',
+          )
+        : passed('BUY_PHONE_REDEEM_MYTH', 'Không thấy myth nạp USSD/khóa theo nhà mạng'),
+    );
+
+    const inventPhoneReceiveCode =
+      /nhap so dien thoai.{0,24}nhan ma|so dien thoai nhan ma the|sdt nhan ma/.test(buyBody);
+    checks.push(
+      inventPhoneReceiveCode
+        ? warn(
+            'INVENTED_PHONE_RECEIVE_CODE',
+            'Bịa bước «nhập SĐT để nhận mã thẻ» — trên CardOn mã thường hiện trên đơn/email (guest cần email)',
+          )
+        : passed('INVENTED_PHONE_RECEIVE_CODE', 'Không bịa SĐT làm kênh nhận mã thẻ'),
+    );
   }
 
   // Soft: CardOn receive-code tip cluster repeated across many sections
@@ -790,7 +817,7 @@ export function runEditorialSoftChecks(
   // Soft: speculative per-carrier invented failure policies in troubleshooting
   const bodyNormForCause = normalizeText(collectFullText(doc));
   const inventedCarrierCause =
-    /vinaphone.{0,48}(gioi han|so lan nap)|mobifone.{0,48}(chi loi|chi bi)|viettel.{0,48}(dang bao tri my viettel|bao tri my viettel)|gioi han so lan nap trong ngay/.test(
+    /vinaphone.{0,64}(gioi han|so lan nap)|mobifone.{0,64}(chi loi|chi bi|nhap sai.{0,24}khoa|bi khoa.{0,24}nhap sai)|viettel.{0,48}(dang bao tri my viettel|bao tri my viettel)|gioi han so lan nap|nhap sai ma.{0,32}(bi )?khoa/.test(
       bodyNormForCause,
     );
   checks.push(

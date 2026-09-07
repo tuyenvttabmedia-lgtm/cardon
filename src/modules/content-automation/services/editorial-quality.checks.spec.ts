@@ -1614,6 +1614,99 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'SMS_VOICE_WRONG_CAUSE_H3')?.severity).toBe('warning');
   });
 
+  it('flags phone-card buy guide: redeem myths, phone-receive invent, repeated tips', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Cách mua thẻ điện thoại online',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'cách mua thẻ điện thoại online',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua thẻ điện thoại online giúp nạp tiền Viettel, Vinaphone, Mobifone không cần ra cửa hàng.',
+        },
+        { id: 'h0', type: 'h2', text: 'Chuẩn bị trước khi mua thẻ điện thoại online' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Xác định nhà mạng', 'Chuẩn bị email để nhận mã thẻ'],
+        },
+        { id: 'h1', type: 'h2', text: 'Hướng dẫn cách mua thẻ điện thoại online từng bước trên CardOn.vn' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Truy cập CardOn.vn',
+            'Chọn nhà mạng và mệnh giá',
+            'Nhập số điện thoại nhận mã thẻ nếu cần',
+            'Thanh toán MoMo hoặc chuyển khoản',
+            'Mã thẻ hiện trên trang đơn hàng và gửi qua email',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách kiểm tra mã thẻ điện thoại sau khi mua trên CardOn.vn' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Xem lịch sử đơn hàng trên CardOn',
+            'Kiểm tra email kể cả spam',
+            'Liên hệ hỗ trợ CardOn nếu không nhận mã',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Cách mua thẻ điện thoại cho các nhà mạng phổ biến' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: [
+            'Thẻ Viettel: My Viettel hoặc bấm *100*MãThẻ#',
+            'Thẻ Vinaphone: My Vinaphone hoặc bấm *100*MãThẻ#; chú ý giới hạn số lần nạp',
+            'Thẻ Mobifone: My Mobifone hoặc bấm *100*MãThẻ#; tránh nhập sai nhiều lần để không bị khóa',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi không nhận được mã thẻ sau khi thanh toán thì làm sao?',
+              answer: 'Kiểm tra email spam và lịch sử đơn trên CardOn rồi liên hệ hỗ trợ.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Cách mua thẻ điện thoại online',
+        primaryKeyword: 'cách mua thẻ điện thoại online',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Cách mua thẻ điện thoại online',
+          primaryKeyword: 'cách mua thẻ điện thoại online',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'BUY_PHONE_REDEEM_MYTH')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_PHONE_RECEIVE_CODE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_CARRIER_CAUSE')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
