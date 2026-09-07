@@ -603,12 +603,71 @@ export function runEditorialSoftChecks(
   const buyGuideTopicBlob = normalizeText(
     `${plan.topic} ${plan.primaryKeyword} ${context.userProvided.angle ?? ''}`,
   );
+  const isRedeemGuideTopic =
+    /su dung ma|cach su dung|huong dan (su dung|nap)|cach nap ma|nap ma the|nap the game|su dung the game/.test(
+      buyGuideTopicBlob,
+    ) && !/cach mua|huong dan mua|mua the|mua ma/.test(buyGuideTopicBlob);
   const isBuyCardGuide =
     (plan.contentType === 'GUIDE' || plan.contentType === 'EXPLAINER') &&
-    /mua .{0,24}(ma )?the|mua the dien thoai|ma the dien thoai|mua the game|nhan ma tu dong|scoin|zing|garena|mua nhieu/.test(
+    /mua .{0,24}(ma )?the|mua the dien thoai|ma the dien thoai|mua the game|nhan ma tu dong|mua (scoin|zing|garena|vcoin)|mua nhieu/.test(
       buyGuideTopicBlob,
     ) &&
-    !/hoan tien|chinh sach hoan|refund/.test(buyGuideTopicBlob);
+    !/hoan tien|chinh sach hoan|refund/.test(buyGuideTopicBlob) &&
+    !isRedeemGuideTopic;
+
+  if (isRedeemGuideTopic) {
+    const redeemBrandH2 = doc.sections.filter(
+      (s) =>
+        s.type === 'h2' &&
+        /zing|garena|vcoin|scoin|funcard/.test(normalizeText(s.text ?? '')) &&
+        /su dung|nap|huong dan/.test(normalizeText(s.text ?? '')),
+    );
+    if (redeemBrandH2.length >= 3) {
+      const olBlobs: string[] = [];
+      for (const h of redeemBrandH2) {
+        const idx = doc.sections.indexOf(h);
+        const next = doc.sections[idx + 1];
+        if (next && (next.type === 'ol' || next.type === 'ul')) {
+          olBlobs.push(normalizeText((next.items ?? []).join(' ')));
+        }
+      }
+      let nearDupPairs = 0;
+      for (let i = 0; i < olBlobs.length; i++) {
+        for (let j = i + 1; j < olBlobs.length; j++) {
+          if (textSimilarity(olBlobs[i], olBlobs[j]) >= 0.55) nearDupPairs += 1;
+        }
+      }
+      checks.push(
+        nearDupPairs >= 2
+          ? warn(
+              'PARALLEL_REDEEM_H2',
+              '≥3 H2 nạp Zing/Garena/Vcoin với bước gần giống — gộp 1 H2 + H3 theo brand',
+            )
+          : passed('PARALLEL_REDEEM_H2', 'Các H2 nạp brand đủ khác biệt hoặc ít hơn 3'),
+      );
+    } else {
+      checks.push(passed('PARALLEL_REDEEM_H2', 'Không thấy ≥3 H2 nạp brand song song'));
+    }
+
+    const hasCheckOrderH2 = doc.sections.some(
+      (s) =>
+        s.type === 'h2' &&
+        /kiem tra.*(ma|don)|lich su don/.test(normalizeText(s.text ?? '')) &&
+        /cardon/.test(normalizeText(s.text ?? '')),
+    );
+    const faqNoCode = doc.sections
+      .filter((s) => s.type === 'faq')
+      .flatMap((s) => s.faqItems ?? [])
+      .some((f) => /khong nhan (duoc )?ma/.test(normalizeText(f.question)));
+    checks.push(
+      hasCheckOrderH2 && faqNoCode
+        ? warn(
+            'REDEEM_FAQ_RESTATES_CHECK',
+            'Bài sử dụng/nạp mã có H2 kiểm tra đơn CardOn nhưng FAQ vẫn hỏi không nhận mã — bỏ FAQ hoặc bỏ H2 trùng',
+          )
+        : passed('REDEEM_FAQ_RESTATES_CHECK', 'Redeem guide không lặp check-order ở FAQ'),
+    );
+  }
 
   if (isBuyCardGuide) {
     const refundH2Count = doc.sections.filter(

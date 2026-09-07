@@ -29,7 +29,7 @@ docker compose -p cardon-production -f docker-compose.production.yml --env-file 
 docker exec -w /app cardon-prod-api node scripts/deploy/seed-content-ai-prompts.mjs
 ```
 
-Phiên bản hiện tại sau seed: `content.outline@1.25.0`, `content.write@1.25.0`.
+Phiên bản hiện tại sau seed: `content.outline@1.26.0`, `content.write@1.26.0`.
 
 ## Cluster nên sample tiếp (chưa stress-test nhiều)
 

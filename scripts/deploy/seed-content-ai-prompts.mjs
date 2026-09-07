@@ -129,7 +129,12 @@ COMPARISON / PRODUCT / PROMOTION / NEWS / FAQ: clear H2/H3; ≥1 scannable list;
 
 === FAMILY A — BUY (mua thẻ / mã tự động / Scoin|Zing|Garena / ĐT online 24/7 / mua nhiều) ===
 Order: open ≤2 câu (NO empty Tổng quan/là gì) → optional short chuẩn bị (ul) → CardOn buy ol (MUST; include số lượng if multi-buy) → ONE policy/lưu ý (thường không đổi trả) → tip nhận mã ONCE (fold into buy OR one short H2 — NEVER both buy-ol tip + full check-order H2 + FAQ không nhận mã) → FAQ edge ≠ check-order
-Brand (Scoin/Zing/Garena): buy ol required; redeem/nạp = separate ol WITHOUT đơn/email/spam; game list ≤4 + disclaimer; no empty Tổng quan
+Brand (Scoin/Zing/Garena): buy ol required when topic is MUA; redeem/nạp = separate ol WITHOUT đơn/email/spam; game list ≤4 + disclaimer; no empty Tổng quan
+For "cách sử dụng / nạp mã thẻ game Zing|Garena|Vcoin|Scoin" (redeem-first, NOT mua):
+  1) open → chuẩn bị ngắn → H2/H3 nạp theo brand (ol; có thể gộp 1 H2 + 3 H3 nếu bước gần giống) — NO CardOn buy ol bắt buộc
+  2) CardOn check-order tip AT MOST once (short) — NEVER full H2 kiểm tra đơn + FAQ «không nhận mã» lặp lại
+  3) Lưu ý: nhập đúng mã; thường không đổi trả; sai mệnh giá vẫn dùng đúng giá trị đã mua
+  4) Do NOT invent identical USSD/*100* for game brands; prefer official portal / in-game top-up
 Multi-buy: no invented digit lengths; NEVER "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s
 24/7 / mua thẻ ĐT online / mua bằng ví điện tử: no "nhận mã ngay" SLA; payment from facts (MoMo/ZaloPay/VietQR/CK OK); guest nhận mã qua email — do NOT invent "nhập SĐT để nhận mã thẻ" OR "tra cứu đơn bằng SĐT"; if steps include chuyển khoản, do NOT FAQ "bắt buộc phải có ví điện tử"
 Phone-card redeem after buy (optional): prefer My Viettel/My MobiFone/My Vinaphone; if USSD mentioned MUST say mã có thể khác theo nhà mạng + kiểm tra app — NEVER copy cùng *100* for cả 3 nhà mạng; NEVER invent "Vinaphone giới hạn số lần nạp" / "Mobifone khóa nếu nhập sai nhiều lần"
@@ -205,10 +210,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.25.0',
+    version: '1.26.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.25.0',
+      version: '1.26.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -242,10 +247,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.25.0',
+    version: '1.26.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.25.0',
+      version: '1.26.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -271,7 +276,8 @@ Self-check before returning JSON:
 1) Pick family A/B/C/D from STRUCTURE RULES and follow that skeleton; paragraph→ul/ol near-duplicates → keep list only
 2) No invented đổi/hoàn/"đổi hoặc hoàn"/cấp phép/chứng nhận/hạn dùng/"ngay lập tức"/resale (OK: "thường không đổi trả" + hỗ trợ xem xét)
 3) CardOn tip (đơn/email/spam/hỗ trợ) at most once; FAQ ≤3 and ≠ existing H2/fix ol; sentence-case anchors
-4) Family A: buy ol present; brand redeem ≠ buy tips; multi-buy has số lượng; no digit myths / unlimited qty / stacked benefits; phone-card: no fake *100*-for-all / nhập-sai-bị-khóa; tip nhận mã once; code delivery = email not SĐT; no tra cứu đơn bằng SĐT; no FAQ bắt buộc ví nếu đã liệt kê CK
+4) Family A: buy ol when topic is mua; redeem-first (sử dụng/nạp mã) = redeem ols, CardOn tip ≤1, no FAQ không nhận mã lặp; no digit myths / unlimited qty; phone-card myths as before; no tra cứu đơn bằng SĐT; no FAQ bắt buộc ví nếu đã có CK
+4b) Redeem guides: do not force MISSING_BUY_FLOW; avoid 3 near-identical Zing/Garena/Vcoin H2s — prefer 1 H2 + H3 per brand if steps match
 5) Family B: CardOn in fix ol; no wait-window SLA; no promo/bao-lâu links; no "gửi lại mã"
 6) Family C: guest answer includes email nuance; no multi-platform no-account invent; ONE lưu ý
 7) Family D: no CardOn/thẻ game in fix ol; no SIM-lock-for-no-topup / menh-gia SMS / tin-per-day invent
