@@ -608,7 +608,9 @@ export function runEditorialSoftChecks(
       buyGuideTopicBlob,
     ) && !/cach mua|huong dan mua|mua the|mua ma/.test(buyGuideTopicBlob);
   const isBuyCardGuide =
-    (plan.contentType === 'GUIDE' || plan.contentType === 'EXPLAINER') &&
+    (plan.contentType === 'GUIDE' ||
+      plan.contentType === 'EXPLAINER' ||
+      plan.contentType === 'TUTORIAL') &&
     /mua .{0,24}(ma )?the|mua the dien thoai|ma the dien thoai|mua the game|nhan ma tu dong|mua (scoin|zing|garena|vcoin)|mua nhieu/.test(
       buyGuideTopicBlob,
     ) &&
@@ -666,6 +668,73 @@ export function runEditorialSoftChecks(
             'Bài sử dụng/nạp mã có H2 kiểm tra đơn CardOn nhưng FAQ vẫn hỏi không nhận mã — bỏ FAQ hoặc bỏ H2 trùng',
           )
         : passed('REDEEM_FAQ_RESTATES_CHECK', 'Redeem guide không lặp check-order ở FAQ'),
+    );
+  }
+
+  // Soft: TUTORIAL must have a real step ol
+  if (plan.contentType === 'TUTORIAL') {
+    const hasTutorialOl = doc.sections.some(
+      (s) => s.type === 'ol' && (s.items?.length ?? 0) >= 4,
+    );
+    checks.push(
+      hasTutorialOl
+        ? passed('MISSING_TUTORIAL_OL', 'TUTORIAL có ol ≥4 bước')
+        : warn(
+            'MISSING_TUTORIAL_OL',
+            'contentType TUTORIAL thiếu ol ≥4 bước — đừng viết như GUIDE chỉ toàn ul/H2',
+          ),
+    );
+  }
+
+  // Soft: Family C carrier topup — parallel method H2s + FAQ restates CardOn tip
+  const isCarrierTopupTopic =
+    /nap tien/.test(buyGuideTopicBlob) &&
+    /(thue bao|tra truoc|dien thoai|nha mang|viettel|mobifone|vinaphone)/.test(
+      buyGuideTopicBlob,
+    ) &&
+    !/garena|zing|vcoin|scoin|the game|su dung ma/.test(buyGuideTopicBlob);
+
+  if (isCarrierTopupTopic) {
+    const methodH2 = doc.sections.filter((s) => {
+      if (s.type !== 'h2') return false;
+      const h = normalizeText(s.text ?? '');
+      return /nap tien (bang|qua)|the cao|ung dung|my viettel|my mobi|my vina|vi dien tu|ngan hang|cardon/.test(
+        h,
+      );
+    });
+    checks.push(
+      methodH2.length >= 3
+        ? warn(
+            'PARALLEL_TOPUP_METHOD_H2',
+            '≥3 H2 phương thức nạp (thẻ cào/app/ví/CardOn) — gộp 1 ul «cách nạp» + 1 ol CardOn (đặc biệt với TUTORIAL)',
+          )
+        : passed('PARALLEL_TOPUP_METHOD_H2', 'Không thấy ≥3 H2 phương thức nạp song song'),
+    );
+
+    const hasCardonTipAnywhere = doc.sections.some((s) => {
+      const chunk = normalizeText(
+        [
+          s.text ?? '',
+          ...(s.items ?? []),
+          ...(s.faqItems ?? []).flatMap((f) => [f.question, f.answer]),
+        ].join(' '),
+      );
+      return (
+        chunk.includes('cardon') &&
+        /(lich su don|trang don|email|spam|ho tro)/.test(chunk)
+      );
+    });
+    const faqNoCodeTopup = doc.sections
+      .filter((s) => s.type === 'faq')
+      .flatMap((s) => s.faqItems ?? [])
+      .some((f) => /khong nhan (duoc )?ma/.test(normalizeText(f.question)));
+    checks.push(
+      hasCardonTipAnywhere && faqNoCodeTopup
+        ? warn(
+            'TOPUP_FAQ_RESTATES_CHECK',
+            'Bài nạp tiền đã có tip CardOn (đơn/email/spam) nhưng FAQ vẫn hỏi không nhận mã — đổi FAQ sang edge (nạp nhầm số, mã lỗi)',
+          )
+        : passed('TOPUP_FAQ_RESTATES_CHECK', 'Topup không lặp check-order ở FAQ'),
     );
   }
 

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Content AI — vận hành sau v1.23
 
-Prompt hiện tại: `content.outline` / `content.write` **@1.23.0** (4 họ A Buy / B Tx TS / C Topup / D Telecom).
+Prompt hiện tại: `content.outline` / `content.write` **@1.27.0** (4 họ A–D; skeleton **TUTORIAL** ol-heavy đang stress-test).
 
 ## Khi owner paste 1 bài AI để «đánh giá + xiết»
 
