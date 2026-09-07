@@ -19,8 +19,8 @@ export const CONTACT_CHANNEL_META: Record<ContactChannelKey, { label: string; ic
 
 export const DEFAULT_CONTACT_CHANNELS: ContactChannel[] = [
   { key: 'email', enabled: true, value: 'support@cardon.vn', href: 'mailto:support@cardon.vn' },
-  { key: 'hotline', enabled: true, value: '0962288857', href: 'tel:0962288857' },
-  { key: 'zalo', enabled: true, value: 'Keyon Care', href: 'https://zalo.me/0962288857' },
+  { key: 'hotline', enabled: true, value: '0984877066', href: 'tel:0984877066' },
+  { key: 'zalo', enabled: true, value: 'Keyon Care', href: 'https://zalo.me/0984877066' },
   { key: 'fanpage', enabled: true, value: 'facebook.com/cardon.vn', href: 'https://facebook.com' },
   { key: 'address', enabled: true, value: 'Hà Nội, Việt Nam' },
 ];

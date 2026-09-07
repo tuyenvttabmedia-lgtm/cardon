@@ -276,7 +276,7 @@ export default function AppearancePage() {
                 <Label>Hotline</Label>
                 <Input
                   className="mt-1"
-                  placeholder="0962…"
+                  placeholder="0984…"
                   value={form.companyInfo?.hotline ?? ''}
                   onChange={(e) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, hotline: e.target.value } })

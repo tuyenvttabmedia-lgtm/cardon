@@ -25,7 +25,7 @@ export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   address: 'Hà Nội, Việt Nam',
   email: 'support@cardon.vn',
   workingHours: '',
-  hotline: '0962288857',
+  hotline: '0984877066',
   boCongThuongEnabled: false,
   boCongThuongImageUrl: '',
   boCongThuongLinkUrl: '',
