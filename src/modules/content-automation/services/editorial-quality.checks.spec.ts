@@ -1514,6 +1514,106 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'INVENTED_SIM_TOPUP_LOCK')?.severity).toBe('warning');
   });
 
+  it('flags SMS-send-fail guide: forced CardOn, invented menh-gia/limit causes, filler opener', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Không gửi được tin nhắn SMS',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'không gửi được tin nhắn SMS',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Không gửi được tin nhắn SMS là vấn đề thường gặp. Việc xác định nguyên nhân sẽ giúp bạn xử lý nhanh chóng và hiệu quả.',
+        },
+        { id: 'h0', type: 'h2', text: 'Triệu chứng không gửi được tin nhắn SMS' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Tin nhắn báo lỗi', 'Kẹt hộp thư đi', 'Còn tiền vẫn không gửi được'],
+        },
+        { id: 'h1', type: 'h2', text: 'Nguyên nhân không gửi được tin nhắn SMS' },
+        {
+          id: 'h1a',
+          type: 'h3',
+          text: 'Nguyên nhân do sai số, mã, mệnh giá thẻ điện thoại',
+        },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Mệnh giá thẻ điện thoại không đủ để gửi tin nhắn',
+            'Thẻ điện thoại không hợp lệ hoặc đã hết hạn',
+          ],
+        },
+        { id: 'h1b', type: 'h3', text: 'Nguyên nhân từ nhà mạng' },
+        {
+          id: 'u1b',
+          type: 'ul',
+          items: ['Giới hạn số lượng tin nhắn/ngày theo chính sách nhà mạng'],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách xử lý không gửi được tin nhắn SMS từng bước' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Kiểm tra số người nhận',
+            'Kiểm tra số dư',
+            'Khởi động lại máy',
+            'Tắt chế độ máy bay',
+            'Nếu mua thẻ online, kiểm tra đơn hàng trên CardOn.vn',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Khi nào cần hỗ trợ từ nhà mạng hoặc CardOn' },
+        {
+          id: 'u2',
+          type: 'ul',
+          items: ['Vẫn không gửi được', 'Giao dịch mua thẻ trên CardOn bị treo'],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tại sao đã nạp thẻ nhưng vẫn không gửi được tin nhắn?',
+              answer: 'Kiểm tra lịch sử đơn trên CardOn.vn và liên hệ hỗ trợ.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Không gửi được tin nhắn SMS',
+        primaryKeyword: 'không gửi được tin nhắn SMS',
+        contentType: ContentPlanContentType.TROUBLESHOOTING,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Không gửi được tin nhắn SMS',
+          primaryKeyword: 'không gửi được tin nhắn SMS',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TROUBLESHOOTING',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'FILLER_PHRASES')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'OFF_TOPIC_CARDON_VOICE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_SMS_CARD_CAUSE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'SMS_VOICE_WRONG_CAUSE_H3')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(

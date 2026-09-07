@@ -17,6 +17,7 @@ const FILLER_PHRASES = [
   'linh hoạt trong việc',
   'gây ra nhiều phiền toái',
   'thiệt hại không đáng có',
+  'xử lý nhanh chóng và hiệu quả',
 ];
 
 const CTA_H2_RE =
@@ -204,7 +205,7 @@ export function runEditorialSoftChecks(
   // Topics about top-up / history should mention CardOn order/history check
   const topicBlob = normalizeText(`${plan.topic} ${plan.primaryKeyword}`);
   const isVoiceSimSymptomTopic =
-    /chi cuoc goi khan cap|emergency calls? only|khan cap|khong goi duoc|mat song|sim (loi|hong|long)|goi khan cap/.test(
+    /chi cuoc goi khan cap|emergency calls? only|khan cap|khong goi duoc|mat song|sim (loi|hong|long)|goi khan cap|khong gui (duoc )?(tin nhan|sms)|loi sms|sms (loi|khong)|tin nhan (sms )?(loi|ket|khong gui)/.test(
       topicBlob,
     ) && !/nap tien|mua the|top ?up|lich su nap/.test(topicBlob);
   const topupTopic =
@@ -244,9 +245,9 @@ export function runEditorialSoftChecks(
       cardonInFixOl || cardonHits >= 2
         ? warn(
             'OFF_TOPIC_CARDON_VOICE',
-            'Topic chỉ gọi khẩn cấp/mất sóng nhưng nhét CardOn vào ol xử lý hoặc lặp nhiều lần — chỉ FAQ edge nạp ĐT nếu cần',
+            'Topic sóng/SIM/SMS nhưng nhét CardOn vào ol xử lý hoặc lặp nhiều lần — chỉ FAQ edge nạp ĐT nếu cần',
           )
-        : passed('OFF_TOPIC_CARDON_VOICE', 'Không nhét CardOn vào troubleshooting sóng/SIM'),
+        : passed('OFF_TOPIC_CARDON_VOICE', 'Không nhét CardOn vào troubleshooting sóng/SIM/SMS'),
     );
 
     const gameCardNoise = /the game|the garena|the scoin|the zing|the vcoin/.test(bodyNorm);
@@ -254,9 +255,9 @@ export function runEditorialSoftChecks(
       gameCardNoise
         ? warn(
             'OFF_TOPIC_GAME_CARD_VOICE',
-            'Topic gọi khẩn cấp/mất sóng nhưng nhắc thẻ game — bỏ hoàn toàn',
+            'Topic sóng/SIM/SMS nhưng nhắc thẻ game — bỏ hoàn toàn',
           )
-        : passed('OFF_TOPIC_GAME_CARD_VOICE', 'Không nhắc thẻ game trong bài sóng/SIM'),
+        : passed('OFF_TOPIC_GAME_CARD_VOICE', 'Không nhắc thẻ game trong bài sóng/SIM/SMS'),
     );
 
     const inventTopupLock =
@@ -267,9 +268,40 @@ export function runEditorialSoftChecks(
       inventTopupLock
         ? warn(
             'INVENTED_SIM_TOPUP_LOCK',
-            'Claim khóa SIM vì không nạp tiền/chưa chính chủ kiểu cứng — tách: hết tiền mất thoại vs khóa SIM xem app/tổng đài',
+            'Claim khóa SIM vì không nạp tiền kiểu cứng — tách: hết tiền mất thoại/SMS vs khóa SIM xem app/tổng đài',
           )
         : passed('INVENTED_SIM_TOPUP_LOCK', 'Không bịa khóa SIM vì không nạp tiền'),
+    );
+
+    const inventSmsCardCause =
+      /menh gia.{0,40}(gui|gui duoc).{0,20}(tin nhan|sms)|(tin nhan|sms).{0,40}menh gia|the.{0,24}het han.{0,40}(tin nhan|sms)|(tin nhan|sms).{0,40}the.{0,20}het han/.test(
+        bodyNorm,
+      );
+    const inventSmsDailyLimit =
+      /gioi han (so luong |so )?tin nhan.{0,16}(ngay|\/ngay)|tin nhan\/ngay|gioi han gui tin/.test(
+        bodyNorm,
+      );
+    checks.push(
+      inventSmsCardCause || inventSmsDailyLimit
+        ? warn(
+            'INVENTED_SMS_CARD_CAUSE',
+            'Bịa nguyên nhân SMS kiểu mệnh giá/hết hạn thẻ hoặc giới hạn tin/ngày cứng — dùng hết tiền/khóa cước + xem app/tổng đài',
+          )
+        : passed('INVENTED_SMS_CARD_CAUSE', 'Không bịa nguyên nhân SMS kiểu mệnh giá/giới hạn tin'),
+    );
+
+    const wrongCauseFrame = doc.sections.some(
+      (s) =>
+        s.type === 'h3' &&
+        /menh gia|sai so.*ma.*menh gia|ma the dien thoai/.test(normalizeText(s.text ?? '')),
+    );
+    checks.push(
+      wrongCauseFrame
+        ? warn(
+            'SMS_VOICE_WRONG_CAUSE_H3',
+            'H3 nguyên nhân khung mua-thẻ (mệnh giá/mã thẻ) trên bài sóng/SMS — đổi sang số nhận / số dư / mạng / thiết bị',
+          )
+        : passed('SMS_VOICE_WRONG_CAUSE_H3', 'H3 nguyên nhân không lệch khung mua thẻ'),
     );
   }
 
