@@ -117,141 +117,47 @@ Respect admin Angle when provided — treat it as mandatory editorial brief.
 `.trim();
 
 const STRUCTURE_RULES = `
-STRUCTURE RULES by contentType (MUST follow):
+STRUCTURE RULES (MUST follow). Pick ONE topic family that matches the plan, then apply contentType skeleton.
 
-If contentType is TROUBLESHOOTING:
-- Sections in order:
-  1) H2 Triệu chứng / dấu hiệu (ul) — concrete user-visible symptoms only
-  2) H2 Nguyên nhân with 3–4 H3 groups by cause type (sai số/mã/mệnh giá; thanh toán; nhà mạng/bảo trì; nhà cung cấp/website) — NOT a flat H2 that invents different fake rules per Viettel/Mobifone/Vinaphone
-  3) H2 Cách xử lý từng bước — MUST use type "ol" with 5–8 concrete steps (include CardOn check-order when topic is nạp online / mã thẻ)
-  4) H2 Khi nào cần hỗ trợ / gọi nhà mạng hoặc CardOn (ul checklist)
-  5) FAQ type "faq" with 2–3 items (edge cases only; do not restate the CardOn check H2 OR the main fix ol)
-  6) Optional H2 Tham khảo thêm with on-topic internalLink only
-- Forbidden: early product-comparison H2s; inventing fake carrier/payment flows; inventing per-carrier daily limits / exclusive error modes; using ul instead of ol for the main fix steps; advising resale of unused codes; promising đổi/hoàn tiền
-- Do NOT invent vague wait SLAs ("sau thời gian chờ hợp lý", "sau nhiều giờ", "vài phút đến vài giờ") — say "nếu chưa thấy mã trên đơn/email, liên hệ hỗ trợ kèm mã đơn"
-- Do NOT invent formal khiếu nại / hoàn tiền procedures — "liên hệ hỗ trợ nơi mua + ngân hàng/ví nếu nghi gian lận"
-- FAQ answers: ≤3 short sentences each — NOT a second copy of the fix ol as bullets
-- For "giao dịch mua thẻ bất thường / gian lận / giao dịch lạ / trừ tiền không rõ":
-  1) opening 1–2 sentences (what "bất thường" covers) — no "phiền toái / thiệt hại không đáng có" filler
-  2) Triệu chứng: tách rõ (a) giao dịch không phải bạn làm, (b) sai mã/mệnh giá, (c) trừ tiền nhưng không có mã
-  3) Nguyên nhân H3 theo nhóm (như trên)
-  4) Cách xử lý ol: kiểm tra đơn CardOn → đối chiếu mã → liên hệ hỗ trợ nơi bán kèm mã đơn → nếu nghi gian lận thì liên hệ ngân hàng/ví để khóa — tránh dùng mã từ nguồn không rõ
-  5) Hỗ trợ ul + FAQ edge (mua nhầm / mã lỗi nạp) — do NOT FAQ "không nhận mã" nếu ol đã cover
-  6) Internal links: không nhận mã / mua nhầm / lỗi nạp — NOT "bao lâu nhận mã" (SLA delivery)
-- For "lỗi khi mua thẻ điện tử online / lỗi mua thẻ online / sai sót mua thẻ":
-  1) Prefer contentType TROUBLESHOOTING with the same skeleton (triệu chứng → nguyên nhân H3 → xử lý ol → hỗ trợ → FAQ)
-  2) Triệu chứng stay on: không nhận mã / sai mệnh giá-nhà mạng / mã lỗi khi nạp / trừ tiền không mã
-  3) Do NOT FAQ-repeat "không nhận mã" if fix ol already has check đơn + email/spam + hỗ trợ
-  4) Do NOT invent "sau nhiều giờ" wait windows
-  5) Internal links: lỗi nạp / mua nhầm / không nhận mã / giao dịch bất thường — NOT brand-promo "Garena giá rẻ" / "Vcoin chính hãng" / "mua có an toàn không" Title Case spam unless topic is that brand
-- For "giao dịch mua thẻ bị treo / đơn treo / trạng thái đang xử lý / thanh toán rồi không nhận mã (treo)":
-  1) Prefer TROUBLESHOOTING; opening 1–2 câu định nghĩa treo = đã TT nhưng mã chưa về / trạng thái không rõ — NO "gây khó chịu / mất tiền oan" filler opener
-  2) Triệu chứng: trừ tiền không mã; đang xử lý/không phản hồi; không email; không hiện trên lịch sử đơn; báo lỗi nhưng vẫn trừ tiền
-  3) Nguyên nhân H3 lead with thanh toán/đồng bộ/nhà cung cấp delay — NOT lead with "mã hết hạn / nhập sai khi nạp game" (đó là lỗi nạp, không phải treo giao dịch)
-  4) Cách xử lý ol: check đơn CardOn → email/spam → reload trang đơn → đối chiếu TT ví/NH → hỗ trợ kèm mã đơn → nếu nghi gian lận thì NH/ví — do NOT promise "hỗ trợ sẽ gửi lại mã"
-  5) FAQ edge: hoàn tiền? (thường không; ưu tiên xác minh đơn) / tránh treo lần sau — do NOT FAQ "không nhận mã phải làm sao" nếu ol đã cover check đơn+email+hỗ trợ
-  6) Internal links: không nhận mã / mua nhầm / lỗi nạp / giao dịch bất thường — NOT "bao lâu nhận mã" / "mua thẻ có an toàn không" / "thẻ ĐT nạp game được không"
+=== contentType skeletons ===
+TROUBLESHOOTING:
+1) Triệu chứng (ul) 2) Nguyên nhân (3–4 H3 by cause type — NOT fake per-carrier policies) 3) Cách xử lý (ol 5–8) 4) Khi nào cần hỗ trợ (ul) 5) FAQ ≤3 edge 6) optional on-topic links
+Forbidden: early product CTA; ul instead of ol for main fix; resale codes; đổi/hoàn promises; "sau nhiều giờ"/"thời gian chờ hợp lý"; FAQ that restates fix ol
+TUTORIAL: prerequisites (ul) → steps (ol) → expected result; FAQ ≤3 optional
+GUIDE / EXPLAINER: short open → deep H2/H3+lists → ONE lưu ý → FAQ ≤3 → optional links; tip H2 = list OR unique para+different list (never para≈list)
+COMPARISON / PRODUCT / PROMOTION / NEWS / FAQ: clear H2/H3; ≥1 scannable list; stay on keyword; FAQ ≤3 if used
 
-If contentType is TUTORIAL:
-- Prerequisites (ul) → numbered steps (ol) → expected result
-- FAQ optional, ≤3
+=== FAMILY A — BUY (mua thẻ / mã tự động / Scoin|Zing|Garena / ĐT online 24/7 / mua nhiều) ===
+Order: open ≤2 câu (NO empty Tổng quan/là gì) → CardOn buy ol (MUST; include số lượng if multi-buy) → ONE policy/lưu ý (thường không đổi trả) → tip nhận mã ONCE (fold into buy OR one short H2) → optional ONE benefit H2 (never stack 2+ lợi ích + never closing "Bắt đầu ngay" rehash) → FAQ edge ≠ check-order
+Brand (Scoin/Zing/Garena): buy ol required; redeem/nạp = separate ol WITHOUT đơn/email/spam; game list ≤4 + disclaimer; no empty Tổng quan
+Multi-buy: no invented digit lengths; NEVER "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s
+24/7 phone-card: no "nhận mã ngay" SLA; payment methods only from facts (MoMo/VietQR/CK OK)
+Wrong-denom / mua nhầm game: symptoms→causes→fix ol ≥5 (dùng đúng giá trị đã mua hoặc mua thêm; NEVER soft "hỗ trợ đổi thẻ"/refund/resale) → short buy-right tip
+If angle is hoàn tiền: ONE policy + ONE xử lý only — GUIDE mua thẻ must NOT be >40% refund-focused
+No separate payment H2 if buy steps already list MoMo/ZaloPay/bank
 
-If contentType is GUIDE / EXPLAINER:
-- Skeleton: định nghĩa ngắn (≤2 đoạn) → nội dung chính sâu (H2/H3 + lists) → lưu ý → FAQ ≤3 → optional links
-- For tip / "lưu ý khi mua" angles: after opening, use H2 + ul (or H2 + short unique paragraph + DIFFERENT ul) — never paragraph≈list pairs
-- For "mua thẻ / mua mã thẻ / nhận mã tự động / Scoin / Zing / Garena": preferred order =
-  1) short opening (what it is + who it's for) — NO empty "là gì / cách thức hoạt động" / "Tổng quan về thẻ … và vai trò" H2 that only restates the intro
-  2) H2 cách mua trên CardOn (ol 5–7 bước: chọn thẻ → mệnh giá → thanh toán → nhận mã trên đơn/email)
-  3) ONE short H2 or callout "Lưu ý / chính sách mã số" (2–4 bullets: thường không đổi trả; liên hệ hỗ trợ nếu lỗi giao dịch) — NOT a whole refund article
-  4) optional H2 kiểm tra đơn/mã trên CardOn (once: lịch sử đơn + spam + hỗ trợ)
-  5) H2 lưu ý an toàn khi mua
-  6) FAQ edge cases (mua nhầm mệnh giá/nhà mạng; mã lỗi) — do NOT FAQ-repeat CardOn check-order
-- For "thẻ Scoin / game dùng thẻ Scoin / nạp Scoin" (and similar Zing/Garena brand guides): preferred order =
-  1) short opening (Scoin = thẻ VTC; dùng để nạp game VTC/đối tác) — NO empty "Tổng quan / vai trò" H2
-  2) H2 cách mua thẻ Scoin trên CardOn (MUST type "ol") — thiếu bước mua là fail editorial
-  3) optional ONE short H2 game phổ biến (≤4 ví dụ + disclaimer danh sách thay đổi / kiểm tra cổng nạp chính thức) — NEVER hard-code long invented catalogs
-  4) H2 cách nạp Scoin vào game (MUST type "ol": cổng nạp game/VTC → chọn thẻ Scoin → nhập mã/seri → xác nhận) — do NOT mix "mã hiện trên đơn CardOn / email / spam" into this redeem H2 (that belongs only in buy or check-order)
-  5) H2 lưu ý (không đổi trả; đúng mệnh giá; không chia sẻ mã)
-  6) optional check-order CardOn once — FAQ: game nào? mua nhầm? không nhận mã? (không lặp check-order)
-- For "mua thẻ điện thoại online / mua thẻ online 24/7": preferred order =
-  1) short opening (online = chủ động nạp; CardOn 1 câu) — NO stacked marketing H2s
-  2) H2 cách mua trên CardOn (MUST type "ol": nhà mạng → mệnh giá → số lượng nếu cần → thanh toán ví/NH → mã trên đơn/email) — do NOT use ul for main buy steps
-  3) optional ONE short H2 "Vì sao mua online / lợi ích" (≤4 bullets cụ thể) — NEVER also add a second "Lợi ích CardOn" H2 + NEVER a closing "Bắt đầu ngay hôm nay" H2 that restates the buy steps
-  4) fold check-order into buy steps OR one short H2 once — FAQ must NOT re-ask "không nhận mã"
-  5) H2 lưu ý an toàn
-  6) FAQ ≤3 edge cases (mua nhầm mệnh giá; mua nhiều; không nhận mã ONLY if not already an H2)
-  - Do NOT invent delivery SLA ("nhận mã ngay", "giao mã tự động nhanh") — say "thường hiện trên trang đơn / email sau thanh toán thành công"
-  - Do NOT invent payment methods not in factSummary (prefer MoMo / VietQR / chuyển khoản as known options; avoid claiming thẻ tín dụng unless fact says so)
-- For "mua nhiều mã thẻ / mua số lượng / multi quantity thẻ điện thoại": preferred order =
-  1) short opening (yes you can buy multiple; use for reserve / nhiều số) — NO empty "là gì" H2
-  2) H2 cách mua nhiều trên CardOn (MUST type "ol": chọn nhà mạng → mệnh giá → số lượng → thanh toán → nhận các mã trên chi tiết đơn/email) — do NOT use ul for the main buy flow
-  3) optional ONE short H2 so sánh nhà mạng (3–5 bullets max, NO invented digit lengths) — skip thin per-carrier "Đặc điểm mã thẻ X" fluff H2s
-  4) fold check-order into buy steps OR one short H2 once (không lặp email/spam/hỗ trợ ở FAQ)
-  5) H2 lưu ý an toàn (không chia sẻ mã; lưu biên lai; tránh mua dư nếu chưa dùng)
-  6) FAQ: nhiều nhà mạng trong một lần? giới hạn số lượng? → bảo xem trang sản phẩm CardOn / thông báo hệ thống — NEVER "không giới hạn"
-- For "mua thẻ game sai mệnh giá / mua nhầm mệnh giá / sai loại thẻ game": preferred order =
-  1) short opening (what went wrong) — NO empty "là gì và nguyên nhân" H2 that restates intro
-  2) H2 triệu chứng / dấu hiệu (ul): sai mệnh giá trên đơn, không đủ credit trong game, sai publisher…
-  3) H2 nguyên nhân thường gặp (ul ngắn)
-  4) H2 cách xử lý — MUST type "ol" ≥5: kiểm tra đơn CardOn → liên hệ hỗ trợ kèm mã đơn → nếu cùng game có thể dùng đúng giá trị đã mua hoặc mua thêm đúng mệnh giá — NEVER hứa đổi/hoàn; NEVER "có thể hỗ trợ đổi thẻ" as a soft promise; NEVER bán lại mã
-  5) H2 cách mua đúng mệnh giá trên CardOn (ul/ol ngắn phòng tránh)
-  6) FAQ ≤3: hoàn tiền? đổi được không? — trả lời "thường không"; kiểm tra mã đã dùng? — xem trang nạp game
-- If topic/angle is explicitly about hoàn tiền / chính sách hoàn tiền: use TROUBLESHOOTING or GUIDE with ONE policy H2 + ONE xử lý ol — do NOT also add separate H2 "nguyên nhân hoàn tiền" + "chính sách hoàn tiền" + "cách xử lý hoàn tiền" (merge)
-- General "mua mã thẻ online" GUIDE must NOT be >40% refund-focused unless angle says so
-- For "nạp tiền Viettel/Mobifone/Vinaphone / thẻ điện thoại": preferred order =
-  1) short opening (what + carrier) — NO empty "Tổng quan" H2
-  2) H2 các cách nạp (ul/ol): thẻ cào + USSD disclaimer, app nhà mạng, CardOn (1 line), ví/ngân hàng — keep CardOn as one bullet only
-  3) H2 hướng dẫn CardOn chi tiết (ol) including where mã hiện + spam/hỗ trợ ONCE
-  4) optional short H2 kiểm tra số dư trên app nhà mạng (+ USSD with disclaimer)
-  5) H2 lưu ý an toàn
-  6) FAQ edge cases (nạp nhầm số, số dư chưa cập nhật) — do NOT FAQ-repeat CardOn check-order
-- For "nạp tiền điện thoại online có cần đăng ký tài khoản / không cần tài khoản / guest checkout":
-  1) Prefer GUIDE; opening 1–2 câu đặt câu hỏi — then H2 trả lời trực tiếp (CardOn: không bắt buộc đăng ký; guest vẫn nhập email để nhận mã/tra cứu — do NOT bịa "nhiều nền tảng đều không cần TK")
-  2) optional short H2 các cách nạp (ul) — CardOn chỉ 1 bullet
-  3) H2 hướng dẫn CardOn guest (MUST ol): chọn nhà mạng → số ĐT/mệnh giá → thanh toán → nhận mã trên đơn/email — gộp tip email/spam/hỗ trợ VÀO ol, KHÔNG thêm H2 "kiểm tra đơn" riêng nếu đã cover
-  4) ONE H2 lưu ý an toàn only (merge "lưu ý khi nạp không cần TK" + "lưu ý an toàn")
-  5) Do NOT add thin H2 so sánh Viettel/Mobifone/Vinaphone ("My X + thẻ cào + CardOn" filler)
-  6) FAQ ≤3: an toàn? nạp hộ số khác? — do NOT FAQ "không nhận mã" nếu ol/check đã cover; no "rất an toàn"
-- For "SIM lâu không sử dụng / SIM bị khóa / thu hồi số": preferred order =
-  1) short definition (no invented day counts)
-  2) H2 khóa tạm vs khóa vĩnh viễn (concept only)
-  3) H2 cách kiểm tra trạng thái (apps nhà mạng + tổng đài; USSD with disclaimer) — do NOT invent "90 ngày Viettel"
-  4) H2 cách xử lý mở khóa / ra cửa hàng
-  5) H2 lưu ý duy trì SIM
-  6) FAQ edge cases (mất số? mở lại được không?) — FAQ must not restate the check H2
-  - If mentioning carriers: say policy differs and tell reader to verify in-app — never invent lock-after-N-days numbers unless in factSummary
-- For "chỉ cuộc gọi khẩn cấp / Emergency calls only / điện thoại chỉ gọi được số khẩn cấp":
-  1) Prefer TROUBLESHOOTING; triệu chứng: banner emergency / không gọi thường / SMS lỗi / mất sóng
-  2) Nguyên nhân H3: SIM-PIN-PUK-chính chủ; hết tiền/trả sau khóa cước; nhà mạng-sóng-bảo trì; thiết bị-máy bay-cài đặt — NOT "thẻ game" / NOT "khóa SIM vì không nạp tiền" cứng
-  3) Cách xử lý ol: lắp lại SIM → restart → tắt máy bay → kiểm tra số dư trên My app/USSD → PIN/PUK → đổi chỗ sóng → cập nhật/cài đặt mạng — NO bước CardOn check-order trong ol chính
-  4) Hỗ trợ: nhà mạng / cửa hàng ủy quyền (PUK, chính chủ, khóa máy) — omit CardOn trừ FAQ edge nạp thẻ ĐT mà số dư chưa lên
-  5) FAQ: PIN/PUK; kiểm tra số dư My app; optional nạp rồi vẫn lỗi — no thẻ game; internal links: không gọi được / mất sóng / hết tiền
-- For "không gửi được tin nhắn SMS / SMS lỗi / tin nhắn kẹt hộp thư đi":
-  1) Prefer TROUBLESHOOTING; triệu chứng: gửi lỗi / kẹt outbox / một số số không gửi được / còn tiền vẫn lỗi
-  2) Nguyên nhân H3: sai số người nhận; hết tiền/trả sau khóa; nhà mạng-SMS center-bảo trì; thiết bị-cài đặt SMS-máy bay-SIM — NOT H3 "sai mệnh giá thẻ" / NOT "thẻ hết hạn" / NOT invent "giới hạn tin/ngày" cứng
-  3) Cách xử lý ol: kiểm tra số nhận → số dư My app/USSD → restart → cài đặt SMS/tắt máy bay → thử SIM máy khác → tổng đài — NO CardOn check-order trong ol; NO FAQ "gửi SMS hộ" kiểu chia sẻ mã thẻ
-  4) Hỗ trợ = nhà mạng; CardOn chỉ optional FAQ edge nếu vừa mua thẻ ĐT mà số dư chưa lên
-  5) Internal links: không gọi được / hết tiền / mất sóng — not mua thẻ promo
-- Do NOT split a redundant "Phương thức thanh toán" H2 when steps already include payment options
-- Prefer concrete CardOn.vn buy/check-order tips when topic is mua thẻ / nạp thẻ / nạp tiền (without inventing refund/expiry/SLA)
-- For "kiểm tra theo nhà mạng" topics: H2 per carrier OR one H2 with H3 per carrier — no empty overview H2
-- If topic involves nạp tiền / lịch sử nạp / mã QR nạp: include CardOn how-to and/or order-status section; do not invent retention durations
-- Body depth > FAQ length
-- Do NOT make FAQ the longest part of the article
-- Outline keyPoints for tip H2s should be unique bullets; write step must NOT also emit a paragraph that restates those bullets
+=== FAMILY B — TX TROUBLESHOOTING (lỗi mua thẻ / treo đơn / gian lận / giao dịch bất thường) ===
+Prefer TROUBLESHOOTING skeleton. CardOn check-order IN the fix ol.
+Symptoms stay on topic (treo = TT rồi mã chưa về / status unclear; bất thường = lạ/sai mã/trừ tiền không mã; lỗi mua = không mã/sai mệnh giá/mã lỗi nạp).
+Causes: payment/sync/provider first for treo — NOT lead with "mã hết hạn/nhập sai nạp game".
+Do NOT promise "gửi lại mã"; FAQ ≠ "không nhận mã" if ol already has đơn+email+hỗ trợ.
+Links: không nhận mã / mua nhầm / lỗi nạp / giao dịch bất thường — NOT "bao lâu nhận mã" / brand giá rẻ / an toàn / thẻ ĐT nạp game Title Case promo.
 
-If contentType is COMPARISON / PRODUCT / PROMOTION / NEWS / FAQ:
-- Clear H2/H3; at least one scannable list; stay on keyword; FAQ ≤3 if used
+=== FAMILY C — TOPUP / ACCOUNT (nạp tiền nhà mạng / guest không cần đăng ký TK) ===
+Nạp carrier: open → ways (USSD disclaimer + My app + CardOn 1 bullet + ví) → CardOn how-to ol (tip once) → optional số dư app → ONE lưu ý → FAQ ≠ check-order
+Guest/no-account: answer first (CardOn không bắt buộc đăng ký; guest VẪN cần email nhận mã/tra cứu) — do NOT invent "nhiều nền tảng đều không cần TK" / "rất an toàn" / "chứng nhận"; ONE lưu ý only; no thin 3-carrier compare filler; fold check-order into guest ol.
 
-Outline-specific:
-- Each H2 summary must be unique (no paraphrased duplicates across sections)
-- Do NOT add H2 about mua/so sánh thẻ / CardOn checkout unless contentType is PRODUCT/COMPARISON/PROMOTION OR topic/angle explicitly requests it OR topic is nạp tiền/lịch sử nạp (then CardOn history section is allowed/required as above)
-- Title/H1 SEO-ready with primary keyword; avoid bare "Giới thiệu", "Nội dung chính", "Kết luận"
+=== FAMILY D — TELECOM SYMPTOM (gọi khẩn cấp / SMS lỗi / mất sóng / SIM khóa-lâu không dùng / không gọi được) ===
+Prefer TROUBLESHOOTING. Causes: SIM-PIN-PUK / hết tiền-khóa cước / mạng-bảo trì / thiết bị-máy bay-cài đặt.
+Fix ol: SIM/restart/máy bay/số dư My app/USSD/PIN-PUK/sóng — NO CardOn check-order in main ol; NO thẻ game; NO H3 "mệnh giá thẻ"; NO invent "khóa SIM vì không nạp" / "giới hạn tin/ngày" / "thẻ hết hạn khiến mất SMS".
+Support = nhà mạng/cửa hàng; CardOn ONLY optional FAQ edge if vừa nạp thẻ ĐT mà số dư chưa lên.
+SIM inactivity: NO invented N-day lock windows — verify via app/tổng đài.
+Links: không gọi được / hết tiền / mất sóng — not mua thẻ promo.
 
-General for ALL types:
-- ArticleDocument sections = FLAT blocks only (never type "section")
-- Allowed blocks: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout
-- Never invent prices, SKUs, or http URLs; internal links use targetPageId from context only
+=== Shared ===
+CardOn buy/check-order tips when topic is mua/nạp thẻ (not Family D). Carrier check topics: H2 or H3 per carrier; no empty overview.
+Body > FAQ; FAQ answers ≤3 sentences; unique H2 summaries; Title/H1 with primary keyword.
+Flat ArticleDocument blocks only (paragraph,h2,h3,ul,ol,blockquote,table,image,internalLink,faq,callout). No invented prices/SKUs/http URLs; links use targetPageId from context.
 `.trim();
 
 const PROMPTS = [
@@ -297,10 +203,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.22.0',
+    version: '1.23.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.22.0',
+      version: '1.23.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -334,10 +240,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.22.0',
+    version: '1.23.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.22.0',
+      version: '1.23.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -360,21 +266,14 @@ ${VOICE_EDITORIAL_RULES}
 ${STRUCTURE_RULES}
 
 Self-check before returning JSON:
-1) Scan every consecutive paragraph→ul/ol pair — if similarity is high, keep ONLY the list
-2) No positive invented hoàn tiền/đổi trả/"đổi hoặc hoàn"/cấp phép/hạn dùng/"ngay lập tức" (saying "thường không đổi trả" + liên hệ hỗ trợ xem xét is OK; never advise bán lại thẻ)
-3) No empty "Tổng quan"/"ưu điểm" fluff; no redundant payment H2; CardOn email/spam/hỗ trợ tip only once
-4) If topic is nạp tiền nhà mạng: My app + CardOn how-to + USSD disclaimer; skip empty overview
-4b) If topic is nạp ĐT online có cần đăng ký TK: trả lời guest CardOn + email; ONE lưu ý; no thin so sánh 3 nhà mạng; CardOn tip once; no "rất an toàn"/"nhiều nền tảng"/"chứng nhận"
-5) If topic is SIM khóa/lâu không dùng: NO invented N-day lock windows; verify via app/tổng đài
-5b) If topic is chỉ cuộc gọi khẩn cấp / Emergency calls only: no CardOn/thẻ game in fix ol; no "khóa SIM vì không nạp tiền"; support = nhà mạng; CardOn chỉ FAQ edge nạp ĐT
-5c) If topic is không gửi được SMS: same as 5b; no H3 mệnh giá/hết hạn thẻ; no invent giới hạn tin/ngày; no FAQ "gửi SMS hộ" + chia sẻ mã thẻ
-6) If contentType TROUBLESHOOTING: triệu chứng ul → nguyên nhân H3 theo nhóm → cách xử lý ol ≥5 → hỗ trợ ul → FAQ; no invented per-carrier fake policies; no meta openers; no "thời gian chờ hợp lý"/"sau nhiều giờ"; FAQ must not restate fix ol; no "bao lâu nhận mã" or brand-promo/an toàn/nạp-game cross-topic links on lỗi/gian lận/bị treo topics; treo ≠ lead nguyên nhân "mã hết hạn"
-7) If topic is mua nhầm thẻ / sai mệnh giá thẻ game: triệu chứng→nguyên nhân→xử lý ol; no soft "hỗ trợ đổi thẻ"; no "tránh dùng mã" khi cùng game; no promised refund/resale; no Title Case anchors
-8) FAQ ≤3 and must not restate an existing H2; internal links on-topic (no Title Case spam)
-9) If topic is mua mã thẻ / mua thẻ online (not explicitly hoàn tiền angle): lead with CardOn buy ol; ONE short policy/lưu ý block; do NOT stack 3+ H2 about hoàn tiền/nguyên nhân hoàn tiền/xử lý hoàn tiền; skip empty "là gì" H2
-10) If topic is mua nhiều mã thẻ / số lượng: CardOn buy ol must include số lượng; no invented digit lengths; no "không giới hạn số lượng"; no thin Đặc điểm Viettel/Mobifone H2s; CardOn tip once
-11) If topic is mua thẻ điện thoại online / 24/7: lead with CardOn buy ol; at most ONE benefit H2; no closing "Bắt đầu ngay" rehash; no SLA "nhận mã ngay"; CardOn tip once; FAQ ≠ check-order H2
-12) If topic is thẻ Scoin / Zing / Garena brand: CardOn buy ol required; redeem nạp = separate ol without đơn/email/spam tips; game list ≤4 + disclaimer; no empty Tổng quan; CardOn tip once
+1) Pick family A/B/C/D from STRUCTURE RULES and follow that skeleton; paragraph→ul/ol near-duplicates → keep list only
+2) No invented đổi/hoàn/"đổi hoặc hoàn"/cấp phép/chứng nhận/hạn dùng/"ngay lập tức"/resale (OK: "thường không đổi trả" + hỗ trợ xem xét)
+3) CardOn tip (đơn/email/spam/hỗ trợ) at most once; FAQ ≤3 and ≠ existing H2/fix ol; sentence-case anchors
+4) Family A: buy ol present; brand redeem ≠ buy tips; multi-buy has số lượng; no digit myths / unlimited qty / stacked benefits
+5) Family B: CardOn in fix ol; no wait-window SLA; no promo/bao-lâu links; no "gửi lại mã"
+6) Family C: guest answer includes email nuance; no multi-platform no-account invent; ONE lưu ý
+7) Family D: no CardOn/thẻ game in fix ol; no SIM-lock-for-no-topup / menh-gia SMS / tin-per-day invent
+8) Stay on keyword; flat blocks only
 
 Return EXACTLY this JSON shape (sections must be flat blocks, not nested outline sections):
 {
