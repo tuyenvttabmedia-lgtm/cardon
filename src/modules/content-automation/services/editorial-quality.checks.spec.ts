@@ -858,7 +858,7 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'GENERIC_ADVANTAGES')?.severity).toBe('warning');
   });
 
-  it('flags Scoin guide: empty overview, missing buy ol, redeem mixed buy tip, game list, repeated tips', () => {
+  it('flags Scoin guide: empty overview, redeem mixed buy tip, game list, repeated tips (not buy-flow)', () => {
     const tip =
       'Mã thẻ thường hiện trên trang đơn CardOn hoặc email. Kiểm tra spam. Liên hệ hỗ trợ CardOn.';
     const doc: ArticleDocumentV1 = {
@@ -941,7 +941,8 @@ describe('editorial-quality.checks', () => {
       }),
     );
     expect(checks.find((c) => c.code === 'EMPTY_OVERVIEW_H2')?.severity).toBe('warning');
-    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).toBe('warning');
+    // Informational "game nào" — not a buy guide; do not require mua flow
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).not.toBe('warning');
     expect(checks.find((c) => c.code === 'REDEEM_MIXED_BUY_TIP')?.severity).toBe('warning');
     expect(checks.find((c) => c.code === 'GAME_LIST_NO_DISCLAIMER')?.severity).toBe('warning');
     expect(checks.find((c) => c.code === 'REPEATED_CARDON_TIPS')?.severity).toBe('warning');
@@ -1781,6 +1782,104 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'INVENTED_PHONE_RECEIVE_CODE')?.severity).toBe('warning');
     expect(checks.find((c) => c.code === 'INVENTED_ORDER_LOOKUP_PHONE')?.severity).toBe('warning');
     expect(checks.find((c) => c.code === 'WALLET_ONLY_OVERCLAIM')?.severity).toBe('warning');
+  });
+
+  it('flags redeem-first game-code guide: parallel redeem H2s + FAQ restates CardOn check', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Cách sử dụng mã thẻ game',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'cách sử dụng mã thẻ game',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua mã thẻ game chỉ là bước đầu; cần nạp đúng cổng Zing, Garena hoặc Vcoin.',
+        },
+        { id: 'h1', type: 'h2', text: 'Hướng dẫn cách sử dụng mã thẻ game Zing' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Truy cập cổng nạp Zing',
+            'Đăng nhập tài khoản',
+            'Chọn loại thẻ và nhập mã',
+            'Xác nhận và kiểm tra số dư',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Hướng dẫn cách sử dụng mã thẻ game Garena' },
+        {
+          id: 'o2',
+          type: 'ol',
+          items: [
+            'Truy cập cổng nạp Garena',
+            'Đăng nhập tài khoản',
+            'Chọn loại thẻ và nhập mã',
+            'Xác nhận và kiểm tra số dư',
+          ],
+        },
+        { id: 'h3', type: 'h2', text: 'Hướng dẫn cách sử dụng mã thẻ game Vcoin' },
+        {
+          id: 'o3',
+          type: 'ol',
+          items: [
+            'Truy cập cổng nạp Vcoin',
+            'Đăng nhập tài khoản',
+            'Chọn loại thẻ và nhập mã',
+            'Xác nhận và kiểm tra số dư',
+          ],
+        },
+        { id: 'h4', type: 'h2', text: 'Cách kiểm tra mã thẻ game và lịch sử nạp trên CardOn.vn' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Xem lịch sử đơn trên CardOn',
+            'Kiểm tra email kể cả spam',
+            'Liên hệ hỗ trợ nếu không thấy mã',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi không nhận được mã thẻ sau khi mua, phải làm sao?',
+              answer: 'Kiểm tra email spam và lịch sử đơn CardOn, rồi liên hệ hỗ trợ.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Cách sử dụng mã thẻ game Zing Garena Vcoin',
+        primaryKeyword: 'cách sử dụng mã thẻ game',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Cách sử dụng mã thẻ game Zing Garena Vcoin',
+          primaryKeyword: 'cách sử dụng mã thẻ game',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'MISSING_BUY_FLOW')?.severity).not.toBe('warning');
+    expect(checks.find((c) => c.code === 'PARALLEL_REDEEM_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'REDEEM_FAQ_RESTATES_CHECK')?.severity).toBe('warning');
   });
 
   it('computes text similarity for near-duplicates', () => {
