@@ -1,0 +1,28 @@
+---
+description: Content AI editorial ops — batch QA, not per-article prompt churn
+alwaysApply: true
+---
+
+# Content AI — vận hành sau v1.23
+
+Prompt hiện tại: `content.outline` / `content.write` **@1.23.0** (4 họ A Buy / B Tx TS / C Topup / D Telecom).
+
+## Khi owner paste 1 bài AI để «đánh giá + xiết»
+
+1. **Đánh giá ngắn** (lỗi class nào: Family A/B/C/D + soft code nếu có).
+2. **Không** mở PR xiết prompt nếu lỗi đã cover bởi soft checks / family rules hiện có → bảo **reject outline + regenerate**.
+3. **Chỉ** xiết prompt/soft check khi:
+   - cùng 1 lỗi class lặp **≥2–3 bài** trong batch, hoặc
+   - cluster topic **mới** (chưa A–D), hoặc
+   - soft check hiện tại **không bắt** được lỗi nghiêm trọng.
+
+## Batch QA (ưu tiên)
+
+- Generate / review **5–10 bài cùng họ** rồi mới quyết định xiết.
+- Bài cũ không tự cập nhật sau seed — luôn reject outline + regenerate.
+- Sau khi merge prompt: deploy api/worker + `node scripts/deploy/seed-content-ai-prompts.mjs`.
+
+## Không làm
+
+- Vòng «1 bài → 1 version prompt» trên cluster đã cover (Buy / Tx / Topup / Telecom symptom).
+- Commit file dirty không liên quan content-ai vào PR prompt.
