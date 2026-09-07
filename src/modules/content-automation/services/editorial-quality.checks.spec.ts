@@ -1707,6 +1707,82 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'INVENTED_CARRIER_CAUSE')?.severity).toBe('warning');
   });
 
+  it('flags wallet phone-card buy: order lookup by phone + wallet-only FAQ overclaim', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Mua thẻ điện thoại bằng ví điện tử',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'mua thẻ điện thoại bằng ví điện tử',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Mua thẻ điện thoại qua ví điện tử giúp nạp nhanh Viettel, Mobifone, Vinaphone.',
+        },
+        { id: 'h1', type: 'h2', text: 'Hướng dẫn cách mua thẻ điện thoại bằng ví điện tử trên CardOn.vn' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: [
+            'Chọn nhà mạng và mệnh giá trên CardOn',
+            'Nhập số điện thoại nhận mã thẻ hoặc để trống',
+            'Thanh toán MoMo, ZaloPay hoặc chuyển khoản ngân hàng',
+            'Mã thẻ hiện trên trang đơn và email',
+          ],
+        },
+        { id: 'h2', type: 'h2', text: 'Cách kiểm tra mã thẻ điện thoại sau khi mua trên CardOn.vn' },
+        {
+          id: 'u1',
+          type: 'ul',
+          items: [
+            'Truy cập lịch sử đơn hàng trên CardOn bằng email hoặc số điện thoại đã dùng mua thẻ',
+            'Xem chi tiết đơn để lấy mã thẻ',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi có thể mua thẻ điện thoại mà không cần tài khoản ví điện tử không?',
+              answer:
+                'Bạn cần có tài khoản ví điện tử và số dư để thanh toán, nhưng không bắt buộc đăng ký tài khoản trên CardOn.vn.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Mua thẻ điện thoại bằng ví điện tử',
+        primaryKeyword: 'mua thẻ điện thoại bằng ví điện tử',
+        contentType: ContentPlanContentType.GUIDE,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Mua thẻ điện thoại bằng ví điện tử',
+          primaryKeyword: 'mua thẻ điện thoại bằng ví điện tử',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'GUIDE',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'INVENTED_PHONE_RECEIVE_CODE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'INVENTED_ORDER_LOOKUP_PHONE')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'WALLET_ONLY_OVERCLAIM')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
