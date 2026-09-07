@@ -704,14 +704,52 @@ export function runEditorialSoftChecks(
     );
 
     const inventPhoneReceiveCode =
-      /nhap so dien thoai.{0,24}nhan ma|so dien thoai nhan ma the|sdt nhan ma/.test(buyBody);
+      /nhap so dien thoai.{0,24}nhan ma|so dien thoai nhan ma the|sdt nhan ma|chuan bi so dien thoai nhan ma/.test(
+        buyBody,
+      );
     checks.push(
       inventPhoneReceiveCode
         ? warn(
             'INVENTED_PHONE_RECEIVE_CODE',
-            'Bịa bước «nhập SĐT để nhận mã thẻ» — trên CardOn mã thường hiện trên đơn/email (guest cần email)',
+            'Bịa bước «nhập/chuẩn bị SĐT để nhận mã thẻ» — trên CardOn mã thường hiện trên đơn/email (guest cần email)',
           )
         : passed('INVENTED_PHONE_RECEIVE_CODE', 'Không bịa SĐT làm kênh nhận mã thẻ'),
+    );
+
+    const inventOrderLookupPhone =
+      /(lich su|chi tiet|trang) don.{0,48}(bang |voi |qua )?(email hoac )?so dien thoai|tra cuu don.{0,32}so dien thoai|don hang.{0,40}bang so dien thoai/.test(
+        buyBody,
+      );
+    checks.push(
+      inventOrderLookupPhone
+        ? warn(
+            'INVENTED_ORDER_LOOKUP_PHONE',
+            'Bịa tra cứu/lịch sử đơn bằng SĐT — ưu tiên email (guest) hoặc tài khoản đăng nhập',
+          )
+        : passed('INVENTED_ORDER_LOOKUP_PHONE', 'Không bịa tra cứu đơn bằng SĐT'),
+    );
+
+    const listsBankPay = /chuyen khoan|ngan hang|vietqr/.test(buyBody);
+    const faqRequiresWallet = doc.sections
+      .filter((s) => s.type === 'faq')
+      .flatMap((s) => s.faqItems ?? [])
+      .some((f) => {
+        const blob = normalizeText(`${f.question} ${f.answer}`);
+        return (
+          /vi dien tu/.test(blob) &&
+          /(can co|bat buoc|phai co).{0,24}(tai khoan )?vi|khong (the|duoc) mua.{0,24}khong (can |co )?vi/.test(
+            blob,
+          ) &&
+          !/khong bat buoc.{0,24}vi/.test(blob)
+        );
+      });
+    checks.push(
+      listsBankPay && faqRequiresWallet
+        ? warn(
+            'WALLET_ONLY_OVERCLAIM',
+            'FAQ bảo bắt buộc ví điện tử trong khi bước mua đã có chuyển khoản/NH — sửa FAQ cho khớp phương thức đã liệt kê',
+          )
+        : passed('WALLET_ONLY_OVERCLAIM', 'Không overclaim bắt buộc ví khi đã có CK'),
     );
   }
 
