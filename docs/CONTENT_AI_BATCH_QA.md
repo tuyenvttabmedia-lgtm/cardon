@@ -29,9 +29,13 @@ docker compose -p cardon-production -f docker-compose.production.yml --env-file 
 docker exec -w /app cardon-prod-api node scripts/deploy/seed-content-ai-prompts.mjs
 ```
 
-Phiên bản hiện tại sau seed: `content.outline@1.26.0`, `content.write@1.26.0`.
+Phiên bản hiện tại sau seed: `content.outline@1.27.0`, `content.write@1.27.0`.
 
-## Cluster nên sample tiếp (chưa stress-test nhiều)
+## Cluster đang stress-test
+
+- **TUTORIAL** (step-by-step): skeleton ol-heavy + soft `MISSING_TUTORIAL_OL` / `PARALLEL_TOPUP_METHOD_H2` / `TOPUP_FAQ_RESTATES_CHECK`; buy soft cũng áp TUTORIAL
+
+## Cluster nên sample tiếp
 
 - COMPARISON / PRODUCT thuần
 - Nạp sâu My Viettel/MobiFone (USSD)

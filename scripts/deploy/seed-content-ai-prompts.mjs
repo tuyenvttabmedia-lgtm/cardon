@@ -123,7 +123,14 @@ STRUCTURE RULES (MUST follow). Pick ONE topic family that matches the plan, then
 TROUBLESHOOTING:
 1) Triệu chứng (ul) 2) Nguyên nhân (3–4 H3 by cause type — NOT fake per-carrier policies) 3) Cách xử lý (ol 5–8) 4) Khi nào cần hỗ trợ (ul) 5) FAQ ≤3 edge 6) optional on-topic links
 Forbidden: early product CTA; ul instead of ol for main fix; resale codes; đổi/hoàn promises; "sau nhiều giờ"/"thời gian chờ hợp lý"; FAQ that restates fix ol
-TUTORIAL: prerequisites (ul) → steps (ol) → expected result; FAQ ≤3 optional
+TUTORIAL (step-by-step — MUST be ol-heavy; NOT a thin GUIDE essay):
+1) open ≤2 câu 2) prerequisites / chuẩn bị (ul) 3) MAIN steps as ol (MUST ≥1 ol ≥4 bước) — if Family applies, follow that family's order but keep step focus
+4) expected result / cách kiểm tra thành công (ul or short ol) 5) ONE lưu ý 6) FAQ ≤3 edge ≠ check-order tip
+Forbidden for TUTORIAL:
+- Overview «các cách phổ biến» then ≥3 near-identical method/brand H2s (thẻ cào / My app / ví / CardOn OR Zing/Garena/Vcoin) — use ONE ways ul OR ONE H2 + H3, then ONE CardOn/main ol
+- FAQ «không nhận mã» if CardOn tip (đơn/email/spam/hỗ trợ) already in steps
+- Empty Tổng quan/là gì; tip CardOn >1 place
+When Family A/C + TUTORIAL: Family rules win for facts; TUTORIAL skeleton wins for step shape (ol required).
 GUIDE / EXPLAINER: short open → deep H2/H3+lists → ONE lưu ý → FAQ ≤3 → optional links; tip H2 = list OR unique para+different list (never para≈list)
 COMPARISON / PRODUCT / PROMOTION / NEWS / FAQ: clear H2/H3; ≥1 scannable list; stay on keyword; FAQ ≤3 if used
 
@@ -210,10 +217,10 @@ Return EXACTLY this JSON shape (arrays may be empty; pageId must come from conte
   },
   {
     key: 'content.outline',
-    version: '1.26.0',
+    version: '1.27.0',
     content: JSON.stringify({
       task: 'OUTLINE',
-      version: '1.26.0',
+      version: '1.27.0',
       systemPrompt: `You are a senior content strategist for CardOn.vn (20 years Vietnamese SEO editorial experience). Respond ONLY with valid JSON outline. Use Vietnamese headings/summaries. Never invent prices, SKUs, or URLs. Only use pageId values from context.
 
 ${VOICE_EDITORIAL_RULES}
@@ -247,10 +254,10 @@ Return JSON:
   },
   {
     key: 'content.write',
-    version: '1.26.0',
+    version: '1.27.0',
     content: JSON.stringify({
       task: 'WRITE',
-      version: '1.26.0',
+      version: '1.27.0',
       systemPrompt: `You are a senior Vietnamese SEO content writer for CardOn.vn with 20 years of editorial experience. Respond ONLY with a single JSON ArticleDocument (no markdown). schemaVersion must be "1.0". Never invent product prices or SKUs. Never include href or http URLs. Internal links must use targetPageId from context only. IMPORTANT: sections is a FLAT array of content blocks. Never use type "section". Allowed block types only: paragraph, h2, h3, ul, ol, blockquote, table, image, internalLink, faq, callout.
 
 CRITICAL OUTPUT RULE: For tip/checklist H2s, emit h2 then ul (or h2 then one unique paragraph OR ul) — never a paragraph that is then copied into the next ul/ol. If you catch yourself restating, delete the paragraph and keep only the list.
@@ -278,8 +285,9 @@ Self-check before returning JSON:
 3) CardOn tip (đơn/email/spam/hỗ trợ) at most once; FAQ ≤3 and ≠ existing H2/fix ol; sentence-case anchors
 4) Family A: buy ol when topic is mua; redeem-first (sử dụng/nạp mã) = redeem ols, CardOn tip ≤1, no FAQ không nhận mã lặp; no digit myths / unlimited qty; phone-card myths as before; no tra cứu đơn bằng SĐT; no FAQ bắt buộc ví nếu đã có CK
 4b) Redeem guides: do not force MISSING_BUY_FLOW; avoid 3 near-identical Zing/Garena/Vcoin H2s — prefer 1 H2 + H3 per brand if steps match
+4c) TUTORIAL: MUST ≥1 ol ≥4; no «các cách» + ≥3 parallel method/brand H2s; Family A/C facts + TUTORIAL step shape; FAQ ≠ CardOn tip
 5) Family B: CardOn in fix ol; no wait-window SLA; no promo/bao-lâu links; no "gửi lại mã"
-6) Family C: guest answer includes email nuance; no multi-platform no-account invent; ONE lưu ý
+6) Family C: ways as ONE ul not 4 method H2s; guest answer includes email nuance; no multi-platform no-account invent; ONE lưu ý; FAQ ≠ check-order
 7) Family D: no CardOn/thẻ game in fix ol; no SIM-lock-for-no-topup / menh-gia SMS / tin-per-day invent
 8) Stay on keyword; flat blocks only
 

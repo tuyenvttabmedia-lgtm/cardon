@@ -1882,6 +1882,137 @@ describe('editorial-quality.checks', () => {
     expect(checks.find((c) => c.code === 'REDEEM_FAQ_RESTATES_CHECK')?.severity).toBe('warning');
   });
 
+  it('flags TUTORIAL carrier topup: parallel method H2s + FAQ restates CardOn tip', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Cách nạp tiền thuê bao trả trước',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'nạp tiền thuê bao trả trước',
+      },
+      sections: [
+        {
+          id: 'p0',
+          type: 'paragraph',
+          text: 'Nạp tiền cho thuê bao trả trước giúp duy trì liên lạc.',
+        },
+        { id: 'h0', type: 'h2', text: 'Các cách nạp tiền cho thuê bao trả trước phổ biến' },
+        {
+          id: 'u0',
+          type: 'ul',
+          items: ['Thẻ cào', 'My app', 'Ví điện tử', 'CardOn'],
+        },
+        { id: 'h1', type: 'h2', text: 'Nạp tiền bằng thẻ cào giấy' },
+        {
+          id: 'o1',
+          type: 'ol',
+          items: ['Mua thẻ', 'Bấm *100*', 'Chờ thông báo', 'Kiểm tra số dư'],
+        },
+        { id: 'h2', type: 'h2', text: 'Nạp tiền qua ứng dụng chính thức của nhà mạng' },
+        {
+          id: 'o2',
+          type: 'ol',
+          items: ['Mở My Viettel', 'Chọn nạp tiền', 'Thanh toán', 'Nhận thông báo'],
+        },
+        { id: 'h3', type: 'h2', text: 'Nạp tiền qua ví điện tử và ngân hàng' },
+        {
+          id: 'o3',
+          type: 'ol',
+          items: ['Mở MoMo', 'Chọn nạp ĐT', 'Xác nhận', 'Chờ SMS'],
+        },
+        { id: 'h4', type: 'h2', text: 'Nạp tiền qua CardOn.vn' },
+        {
+          id: 'o4',
+          type: 'ol',
+          items: [
+            'Chọn nhà mạng và mệnh giá trên CardOn',
+            'Thanh toán MoMo hoặc chuyển khoản',
+            'Xem mã trên trang đơn và email',
+            'Nếu không nhận mã kiểm tra spam hoặc liên hệ hỗ trợ CardOn',
+          ],
+        },
+        {
+          id: 'f1',
+          type: 'faq',
+          faqItems: [
+            {
+              question: 'Tôi không nhận được mã thẻ sau khi thanh toán trên CardOn, phải làm sao?',
+              answer: 'Kiểm tra email spam hoặc liên hệ hỗ trợ.',
+            },
+          ],
+        },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Cách nạp tiền cho thuê bao trả trước',
+        primaryKeyword: 'nạp tiền thuê bao trả trước',
+        contentType: ContentPlanContentType.TUTORIAL,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Cách nạp tiền cho thuê bao trả trước',
+          primaryKeyword: 'nạp tiền thuê bao trả trước',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TUTORIAL',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'MISSING_TUTORIAL_OL')?.severity).not.toBe('warning');
+    expect(checks.find((c) => c.code === 'PARALLEL_TOPUP_METHOD_H2')?.severity).toBe('warning');
+    expect(checks.find((c) => c.code === 'TOPUP_FAQ_RESTATES_CHECK')?.severity).toBe('warning');
+  });
+
+  it('flags TUTORIAL without step ol', () => {
+    const doc: ArticleDocumentV1 = {
+      schemaVersion: '1.0',
+      title: 'Hướng dẫn nhanh',
+      seo: {
+        metaTitle: 'x'.repeat(30),
+        metaDescription: 'y'.repeat(130),
+        focusKeyword: 'hướng dẫn nhanh',
+      },
+      sections: [
+        { id: 'p0', type: 'paragraph', text: 'Chỉ có đoạn văn, không có bước.' },
+        { id: 'h1', type: 'h2', text: 'Một số lưu ý' },
+        { id: 'u1', type: 'ul', items: ['A', 'B', 'C'] },
+      ],
+      factRefs: [],
+      internalLinks: [],
+      qualityFlags: [],
+    };
+    const checks = runEditorialSoftChecks(
+      basePlan({
+        topic: 'Hướng dẫn nhanh không bước',
+        primaryKeyword: 'hướng dẫn nhanh',
+        contentType: ContentPlanContentType.TUTORIAL,
+      }),
+      doc,
+      emptyContext({
+        userProvided: {
+          topic: 'Hướng dẫn nhanh không bước',
+          primaryKeyword: 'hướng dẫn nhanh',
+          searchIntent: 'INFORMATIONAL',
+          contentType: 'TUTORIAL',
+          audience: null,
+          businessObjective: null,
+          supportingKeywords: [],
+          angle: null,
+        },
+      }),
+    );
+    expect(checks.find((c) => c.code === 'MISSING_TUTORIAL_OL')?.severity).toBe('warning');
+  });
+
   it('computes text similarity for near-duplicates', () => {
     expect(
       textSimilarity(
