@@ -70,6 +70,54 @@ describe('Phase 5C.8 — Admin order detail mapper', () => {
     expect(detail.cardDelivery.cards[0].pinMasked).toBe('************');
     expect(detail.cardDelivery.cards[0].serial).toBe('SERIAL123');
     expect(detail.auditTimeline).toHaveLength(1);
+    expect(detail.auditTimeline[0].actorEmail).toBe('admin@test.com');
+  });
+
+  it('labels system@cardon.local provider-audit actor as Hệ thống', () => {
+    const detail = mapAdminOrderDetail({
+      order: {
+        id: 'order-1',
+        orderCode: 'ORD-001',
+        channel: 'WEB',
+        isGuestOrder: false,
+        guestEmail: null,
+        guestPhone: null,
+        invoiceRequired: false,
+        invoiceMetadata: {},
+        customerNote: null,
+        totalAmount: new Decimal('100000'),
+        faceValue: new Decimal('100000'),
+        sellAmount: new Decimal('100000'),
+        customerPaid: new Decimal('100000'),
+        discountAmount: new Decimal(0),
+        paymentStatus: 'PAID',
+        fulfillmentStatus: 'COMPLETED',
+        paymentExpiresAt: null,
+        createdAt: new Date('2026-01-01'),
+        userId: 'user-1',
+        user: { id: 'user-1', email: 'c@test.com', phone: '0912345678', username: 'cust', fullName: 'Cust' },
+        orderItems: [],
+        payments: [],
+        providerTransactions: [],
+        providerLogs: [],
+        topupTransactions: [],
+      } as never,
+      auditLogs: [{
+        id: 'a2',
+        action: 'PROVIDER_SUCCESS',
+        targetType: AuditTargetType.ORDER,
+        targetId: 'order-1',
+        metadata: {},
+        createdAt: new Date(),
+        adminId: 'sys',
+        ipAddress: null,
+        admin: { email: 'system@cardon.local', role: UserRole.ADMIN },
+      }],
+      canViewPin: false,
+      decryptSerial: () => 'SERIAL123',
+      decryptPin: () => '1234',
+    });
+    expect(detail.auditTimeline[0].actorEmail).toBe('Hệ thống');
   });
 });
 

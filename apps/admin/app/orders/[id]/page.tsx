@@ -665,7 +665,7 @@ export default function OrderDetailPage() {
                   {detail.auditTimeline.map((a) => (
                     <div key={String(a.id)} className="border-b py-2 text-sm">
                       <strong>{String(a.action)}</strong> — {formatDateTime(String(a.createdAt))} —{' '}
-                      {String(a.actorEmail ?? 'system')}
+                      {String(a.actorEmail ?? 'Hệ thống')}
                     </div>
                   ))}
                 </div>

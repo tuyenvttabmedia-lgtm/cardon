@@ -23,6 +23,15 @@ import {
   mapAdminOrderDelivery,
 } from './admin-order-delivery.mapper';
 import { lineSellPrice, resolveOrderPricingSnapshot } from './admin-order-pricing.util';
+import { SYSTEM_PROVIDER_AUDIT_EMAIL } from '../../provider/entities/provider.constants';
+
+/** Worker/provider jobs use a technical user; never show the leftover .local mailbox. */
+export function formatAuditActorLabel(email: string | null | undefined): string {
+  if (!email || email === SYSTEM_PROVIDER_AUDIT_EMAIL) {
+    return 'Hệ thống';
+  }
+  return email;
+}
 
 function extractGatewayTrace(gateway: string, response: unknown) {
   const record =
@@ -383,7 +392,7 @@ export function mapAdminOrderDetail(params: {
       id: log.id,
       action: log.action,
       targetType: log.targetType,
-      actorEmail: log.admin?.email ?? null,
+      actorEmail: formatAuditActorLabel(log.admin?.email),
       actorRole: log.admin?.role ?? null,
       metadata: log.metadata,
       createdAt: log.createdAt.toISOString(),
