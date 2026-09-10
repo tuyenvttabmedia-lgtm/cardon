@@ -173,9 +173,9 @@ export function FinanceRetailOutputPanel() {
       />
 
       <p className="text-sm text-slate-600">
-        Người mua: <strong>Khách lẻ</strong>. Đơn giá HĐ = giá bán website sau CK ÷ (1+VAT)
-        (không gồm phí cổng). Khách trả đúng giá bán (CardOn chịu phí cổng). Phí 0,77% ở bảng kê =
-        snapshot ước tính trên giá bán / settlement — không cộng vào tổng khách trả. Không gồm đại lý.
+        Người mua: <strong>Khách lẻ</strong>. Cột HĐ hàng = giá bán website sau CK (đã gồm VAT,
+        không gồm phí cổng). Khách trả đúng giá bán; Mega chuyển về CardOn sau khi trừ phí —
+        xem cột <strong>Khách thanh toán</strong> và <strong>CardOn nhận (sau phí)</strong>. Không gồm đại lý.
       </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -183,10 +183,11 @@ export function FinanceRetailOutputPanel() {
 
       {data && (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard label="Cộng tiền hàng (trước thuế)" value={<Money value={data.totals.amountExclVat} />} />
             <StatCard label={`Tiền thuế GTGT ${data.vatRatePct}%`} value={<Money value={data.totals.vatAmount} />} />
-            <StatCard label="Tổng cộng thanh toán" value={<Money value={data.totals.amountInclVat} />} />
+            <StatCard label="Khách đã thanh toán" value={<Money value={data.totals.customerPaidAmount} />} />
+            <StatCard label="CardOn nhận (sau phí)" value={<Money value={data.totals.netReceivedAmount} />} />
           </div>
 
           <Card className="overflow-x-auto p-0">
@@ -204,7 +205,10 @@ export function FinanceRetailOutputPanel() {
                   <th className="px-3 py-2 text-right">Thành tiền trước thuế</th>
                   <th className="px-3 py-2 text-right">Thuế suất</th>
                   <th className="px-3 py-2 text-right">Tiền thuế</th>
-                  <th className="px-3 py-2 text-right">Tổng thanh toán</th>
+                  <th className="px-3 py-2 text-right">Thành tiền hàng (đã VAT)</th>
+                  <th className="px-3 py-2 text-right">Khách thanh toán</th>
+                  <th className="px-3 py-2 text-right">Phí cổng</th>
+                  <th className="px-3 py-2 text-right">CardOn nhận (sau phí)</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,12 +222,17 @@ export function FinanceRetailOutputPanel() {
                     <td className="px-3 py-2 text-right">{formatVnd(row.amountExclVat)}</td>
                     <td className="px-3 py-2 text-right">{row.vatRatePct}%</td>
                     <td className="px-3 py-2 text-right">{formatVnd(row.vatAmount)}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatVnd(row.amountInclVat)}</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(row.amountInclVat)}</td>
+                    <td className="px-3 py-2 text-right font-medium">{formatVnd(row.customerPaidAmount)}</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(row.paymentFeeAmount)}</td>
+                    <td className="px-3 py-2 text-right font-medium text-emerald-700">
+                      {formatVnd(row.netReceivedAmount)}
+                    </td>
                   </tr>
                 ))}
                 {data.rows.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                    <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
                       Không có dòng hàng VAT {data.vatRatePct}% trong kỳ
                     </td>
                   </tr>
@@ -245,7 +254,9 @@ export function FinanceRetailOutputPanel() {
                   <th className="px-3 py-2 text-right">Giá bán đã VAT</th>
                   <th className="px-3 py-2 text-right">Đơn giá trước VAT</th>
                   <th className="px-3 py-2 text-right">VAT</th>
-                  <th className="px-3 py-2 text-right">Phí 0,77%</th>
+                  <th className="px-3 py-2 text-right">Khách thanh toán</th>
+                  <th className="px-3 py-2 text-right">Phí cổng</th>
+                  <th className="px-3 py-2 text-right">CardOn nhận (sau phí)</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,7 +268,11 @@ export function FinanceRetailOutputPanel() {
                     <td className="px-3 py-2 text-right">{formatVnd(d.sellInclVatUnit)}</td>
                     <td className="px-3 py-2 text-right">{formatVnd(d.unitPriceExclVat)}</td>
                     <td className="px-3 py-2 text-right">{formatVnd(d.vatAmount)}</td>
+                    <td className="px-3 py-2 text-right font-medium">{formatVnd(d.customerPaidAmount)}</td>
                     <td className="px-3 py-2 text-right">{formatVnd(d.paymentFeeAmount)}</td>
+                    <td className="px-3 py-2 text-right font-medium text-emerald-700">
+                      {formatVnd(d.netReceivedAmount)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -362,10 +377,10 @@ export function FinanceVatSummaryPanel() {
                 <th className="px-3 py-2">Nhóm</th>
                 <th className="px-3 py-2 text-right">VAT</th>
                 <th className="px-3 py-2 text-right">SL thẻ</th>
-                <th className="px-3 py-2 text-right">Doanh thu HĐ ra</th>
+                <th className="px-3 py-2 text-right">Doanh thu (khách trả)</th>
                 <th className="px-3 py-2 text-right">Thành tiền NCC</th>
-                <th className="px-3 py-2 text-right">Phí cổng</th>
-                <th className="px-3 py-2 text-right">Biên tạm</th>
+                <th className="px-3 py-2 text-right">Phí cổng (CardOn chịu)</th>
+                <th className="px-3 py-2 text-right">Biên tạm (sau phí)</th>
               </tr>
             </thead>
             <tbody>

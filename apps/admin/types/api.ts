@@ -1205,6 +1205,11 @@ export interface VatRetailOutputPack {
     vatAmount: number;
     amountInclVat: number;
     sellInclVatUnit: number;
+    /** Gateway charged / customer paid (allocated). */
+    customerPaidAmount: number;
+    paymentFeeAmount: number;
+    /** Mega remittance ≈ customerPaid − fee (CardOn nhận). */
+    netReceivedAmount: number;
   }>;
   details: Array<{
     orderId: string;
@@ -1218,12 +1223,17 @@ export interface VatRetailOutputPack {
     unitPriceExclVat: number;
     vatAmount: number;
     amountInclVat: number;
+    customerPaidAmount: number;
     paymentFeeAmount: number;
+    netReceivedAmount: number;
   }>;
   totals: {
     amountExclVat: number;
     vatAmount: number;
     amountInclVat: number;
+    customerPaidAmount: number;
+    paymentFeeAmount: number;
+    netReceivedAmount: number;
     quantity: number;
   };
   paymentFeeIncl: number;

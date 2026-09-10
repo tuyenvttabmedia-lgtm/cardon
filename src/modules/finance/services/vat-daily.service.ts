@@ -151,16 +151,37 @@ export class VatDailyService {
         productLine: VatProductLine;
         sellInclVatUnit: number;
         quantity: number;
+        customerPaidAmount: number;
+        paymentFeeAmount: number;
       }
     >();
 
-    for (const item of filtered) {
+    const details = filtered.map((item) => {
       const line = mapHomeServiceToVatLine(item.variant.product.homeService);
       const sellUnit = dec(item.unitPrice);
+      const calc = calcRetailOutputLine({
+        sellInclVatUnit: sellUnit,
+        quantity: item.quantity,
+        vatRate,
+      });
+      const lineSell = sellUnit * item.quantity;
+      const orderSell = dec(item.order.sellAmount) || 1;
+      const ratio = lineSell / orderSell;
+      // Prefer order.customerPaid (gateway charged) so pre-absorb gross-up orders stay accurate.
+      const orderCustomerPaid = dec(item.order.customerPaid);
+      const customerPaidAmount =
+        orderCustomerPaid > 0
+          ? roundVnd(orderCustomerPaid * ratio)
+          : roundVnd(lineSell);
+      const paymentFeeAmount = roundVnd(dec(item.order.paymentFeeAmount) * ratio);
+      const netReceivedAmount = roundVnd(customerPaidAmount - paymentFeeAmount);
+
       const key = `${item.variant.sku}|${sellUnit}|${line}`;
       const existing = groups.get(key);
       if (existing) {
         existing.quantity += item.quantity;
+        existing.customerPaidAmount += customerPaidAmount;
+        existing.paymentFeeAmount += paymentFeeAmount;
       } else {
         groups.set(key, {
           sku: item.variant.sku,
@@ -168,9 +189,28 @@ export class VatDailyService {
           productLine: line,
           sellInclVatUnit: sellUnit,
           quantity: item.quantity,
+          customerPaidAmount,
+          paymentFeeAmount,
         });
       }
-    }
+
+      return {
+        orderId: item.order.id,
+        orderCode: item.order.orderCode,
+        createdAt: item.order.createdAt.toISOString(),
+        sku: item.variant.sku,
+        productLine: line,
+        productLineLabel: VAT_PRODUCT_LINE_LABELS[line],
+        quantity: item.quantity,
+        sellInclVatUnit: sellUnit,
+        unitPriceExclVat: calc.unitPriceExclVat,
+        vatAmount: calc.vatAmount,
+        amountInclVat: calc.amountInclVat,
+        customerPaidAmount,
+        paymentFeeAmount,
+        netReceivedAmount,
+      };
+    });
 
     const rows = Array.from(groups.values()).map((g, index) => {
       const calc = calcRetailOutputLine({
@@ -178,6 +218,8 @@ export class VatDailyService {
         quantity: g.quantity,
         vatRate,
       });
+      const customerPaidAmount = roundVnd(g.customerPaidAmount);
+      const paymentFeeAmount = roundVnd(g.paymentFeeAmount);
       return {
         stt: index + 1,
         sku: g.sku,
@@ -192,33 +234,9 @@ export class VatDailyService {
         vatAmount: calc.vatAmount,
         amountInclVat: calc.amountInclVat,
         sellInclVatUnit: g.sellInclVatUnit,
-      };
-    });
-
-    const details = filtered.map((item) => {
-      const line = mapHomeServiceToVatLine(item.variant.product.homeService);
-      const sellUnit = dec(item.unitPrice);
-      const calc = calcRetailOutputLine({
-        sellInclVatUnit: sellUnit,
-        quantity: item.quantity,
-        vatRate,
-      });
-      const fee = dec(item.order.paymentFeeAmount);
-      const orderSell = dec(item.order.sellAmount) || 1;
-      const allocatedFee = roundVnd(fee * ((sellUnit * item.quantity) / orderSell));
-      return {
-        orderId: item.order.id,
-        orderCode: item.order.orderCode,
-        createdAt: item.order.createdAt.toISOString(),
-        sku: item.variant.sku,
-        productLine: line,
-        productLineLabel: VAT_PRODUCT_LINE_LABELS[line],
-        quantity: item.quantity,
-        sellInclVatUnit: sellUnit,
-        unitPriceExclVat: calc.unitPriceExclVat,
-        vatAmount: calc.vatAmount,
-        amountInclVat: calc.amountInclVat,
-        paymentFeeAmount: allocatedFee,
+        customerPaidAmount,
+        paymentFeeAmount,
+        netReceivedAmount: roundVnd(customerPaidAmount - paymentFeeAmount),
       };
     });
 
@@ -227,13 +245,24 @@ export class VatDailyService {
         acc.amountExclVat += row.amountExclVat;
         acc.vatAmount += row.vatAmount;
         acc.amountInclVat += row.amountInclVat;
+        acc.customerPaidAmount += row.customerPaidAmount;
+        acc.paymentFeeAmount += row.paymentFeeAmount;
+        acc.netReceivedAmount += row.netReceivedAmount;
         acc.quantity += row.quantity;
         return acc;
       },
-      { amountExclVat: 0, vatAmount: 0, amountInclVat: 0, quantity: 0 },
+      {
+        amountExclVat: 0,
+        vatAmount: 0,
+        amountInclVat: 0,
+        customerPaidAmount: 0,
+        paymentFeeAmount: 0,
+        netReceivedAmount: 0,
+        quantity: 0,
+      },
     );
 
-    const paymentFeeIncl = details.reduce((s, d) => s + d.paymentFeeAmount, 0);
+    const paymentFeeIncl = roundVnd(totals.paymentFeeAmount);
 
     return {
       kind: 'RETAIL_OUTPUT' as const,
@@ -243,9 +272,17 @@ export class VatDailyService {
       dateTo: query.dateTo,
       rows,
       details,
-      totals,
-      paymentFeeIncl: roundVnd(paymentFeeIncl),
-      paymentFeeInvoice: calcGatewayFeeInvoice(roundVnd(paymentFeeIncl), 0.1),
+      totals: {
+        amountExclVat: roundVnd(totals.amountExclVat),
+        vatAmount: roundVnd(totals.vatAmount),
+        amountInclVat: roundVnd(totals.amountInclVat),
+        customerPaidAmount: roundVnd(totals.customerPaidAmount),
+        paymentFeeAmount: paymentFeeIncl,
+        netReceivedAmount: roundVnd(totals.netReceivedAmount),
+        quantity: totals.quantity,
+      },
+      paymentFeeIncl,
+      paymentFeeInvoice: calcGatewayFeeInvoice(paymentFeeIncl, 0.1),
     };
   }
 
