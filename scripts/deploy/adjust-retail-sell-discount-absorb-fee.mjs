@@ -16,16 +16,16 @@ const prisma = new PrismaClient();
 const DRY_RUN = process.argv.includes('--dry-run');
 const TOLERANCE_PP = 0.12;
 
-function discountPercent(face: number, sell: number): number {
+function discountPercent(face, sell) {
   if (face <= 0) return 0;
   return ((face - sell) / face) * 100;
 }
 
-function near(actual: number, target: number): boolean {
+function near(actual, target) {
   return Math.abs(actual - target) <= TOLERANCE_PP;
 }
 
-function targetSell(face: number, fromCk: 1 | 2): number {
+function targetSell(face, fromCk) {
   const rate = fromCk === 1 ? 0.005 : 0.015;
   return Math.round(face * (1 - rate));
 }
