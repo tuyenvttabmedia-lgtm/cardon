@@ -225,9 +225,21 @@ describe('SePayProvider', () => {
   });
 
   describe('verifyWebhook', () => {
-    it('rejects API-key-only auth when webhookSecret is configured', async () => {
+    it('accepts API-key-only auth for legacy bank when HMAC headers absent', async () => {
       const payload = buildWebhookPayload();
       const result = await provider.verifyWebhook(payload, authHeader());
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects invalid HMAC even when API key is valid', async () => {
+      const payload = buildWebhookPayload();
+      const result = await provider.verifyWebhook(payload, {
+        ...authHeader(),
+        'X-SePay-Timestamp': String(Math.floor(Date.now() / 1000)),
+        'X-SePay-Signature': 'sha256=deadbeef',
+        'x-sepay-raw-body': JSON.stringify(payload),
+      });
 
       expect(result.valid).toBe(false);
     });

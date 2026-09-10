@@ -98,7 +98,13 @@ export function verifySepayWebhookAuth(
     }
   }
 
-  if (config.webhookSecret) {
+  const hasHmacHeaders = Boolean(
+    (headers['x-sepay-signature'] ?? headers['X-SePay-Signature']) &&
+      (headers['x-sepay-timestamp'] ?? headers['X-SePay-Timestamp']),
+  );
+
+  // When HMAC headers are present, webhookSecret must validate (do not fall back to API key).
+  if (config.webhookSecret && hasHmacHeaders) {
     return Boolean(
       rawBody && verifySepayHmacSignature(headers, rawBody, config.webhookSecret),
     );
@@ -106,6 +112,11 @@ export function verifySepayWebhookAuth(
 
   if (config.apiKey && verifySepayApiKey(headers, config.apiKey)) {
     return true;
+  }
+
+  // Legacy path: HMAC-only configs without API key still work when raw body is provided.
+  if (config.webhookSecret && rawBody) {
+    return verifySepayHmacSignature(headers, rawBody, config.webhookSecret);
   }
 
   return false;
