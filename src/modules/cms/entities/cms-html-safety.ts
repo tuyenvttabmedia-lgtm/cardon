@@ -60,13 +60,27 @@ function isUnsafeUrl(url: string): boolean {
   );
 }
 
+const YOUTUBE_EMBED_HOSTS = new Set([
+  'www.youtube.com',
+  'youtube.com',
+  'www.youtube-nocookie.com',
+  'youtube-nocookie.com',
+]);
+
 function isAllowedEmbedUrl(url: string): boolean {
-  const lower = url.trim().toLowerCase();
-  return (
-    lower.includes('youtube.com/embed') ||
-    lower.includes('youtube-nocookie.com/embed') ||
-    lower.includes('youtu.be/')
-  );
+  try {
+    const parsed = new URL(url.trim());
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return false;
+    }
+    const host = parsed.hostname.toLowerCase();
+    if (!YOUTUBE_EMBED_HOSTS.has(host)) {
+      return false;
+    }
+    return parsed.pathname.startsWith('/embed/');
+  } catch {
+    return false;
+  }
 }
 
 function extractAllowedClassAttr(attrs: string): string {
@@ -105,7 +119,7 @@ function sanitizeIframeTag(attrs: string): string {
   if (!srcMatch) return '';
   const src = srcMatch[2] ?? srcMatch[3] ?? srcMatch[4] ?? '';
   if (isUnsafeUrl(src) || !isAllowedEmbedUrl(src)) return '';
-  return `<iframe src="${escapeHtmlAttr(src)}" allowfullscreen loading="lazy"></iframe>`;
+  return `<iframe src="${escapeHtmlAttr(src)}" sandbox="allow-scripts allow-same-origin allow-presentation" allowfullscreen loading="lazy"></iframe>`;
 }
 
 function extractSafeIdAttr(attrs: string): string {

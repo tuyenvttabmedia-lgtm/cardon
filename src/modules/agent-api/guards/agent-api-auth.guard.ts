@@ -29,6 +29,7 @@ export class AgentApiAuthGuard implements CanActivate {
     const apiKey = this.readHeader(request, AGENT_API_HEADERS.API_KEY);
     const signature = this.readHeader(request, AGENT_API_HEADERS.SIGNATURE);
     const requestId = this.readHeader(request, AGENT_API_HEADERS.REQUEST_ID);
+    const timestamp = this.readHeader(request, AGENT_API_HEADERS.TIMESTAMP);
     const clientIp = this.resolveClientIp(request);
 
     if (!requestId) {
@@ -46,6 +47,7 @@ export class AgentApiAuthGuard implements CanActivate {
       apiKey,
       signature,
       requestId,
+      timestamp,
       method: request.method,
       path,
       rawBody,

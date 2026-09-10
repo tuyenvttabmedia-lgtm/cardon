@@ -15,10 +15,20 @@ describe('Phase 5C.4 — CMS HTML sanitize', () => {
     expect(sanitizeCmsHtml(input)).toBe('<p>Hi</p>');
   });
 
-  it('allows YouTube iframe embeds', () => {
+  it('allows YouTube iframe embeds with sandbox', () => {
     const input =
       '<iframe src="https://www.youtube.com/embed/abc123"></iframe>';
-    expect(sanitizeCmsHtml(input)).toContain('youtube.com/embed/abc123');
+    const result = sanitizeCmsHtml(input);
+    expect(result).toContain('youtube.com/embed/abc123');
+    expect(result).toContain(
+      'sandbox="allow-scripts allow-same-origin allow-presentation"',
+    );
+  });
+
+  it('rejects lookalike YouTube embed URLs', () => {
+    const input =
+      '<iframe src="https://evil.com/?youtube.com/embed"></iframe>';
+    expect(sanitizeCmsHtml(input)).toBe('');
   });
 
   it('allows img tags with safe src', () => {

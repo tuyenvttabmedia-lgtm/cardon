@@ -44,6 +44,7 @@ export class AgentApiTestService {
       [AGENT_API_HEADERS.API_KEY]: input.apiKey,
       [AGENT_API_HEADERS.REQUEST_ID]: input.requestId,
       [AGENT_API_HEADERS.SIGNATURE]: signature,
+      [AGENT_API_HEADERS.TIMESTAMP]: String(Math.floor(Date.now() / 1000)),
       ...(input.method === 'POST' ? { 'Content-Type': 'application/json' } : {}),
       ...input.extraHeaders,
     };

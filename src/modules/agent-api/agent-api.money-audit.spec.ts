@@ -387,6 +387,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
     const secretKey = 'sk_audit_secret';
     const requestId = 'req-security';
     const path = `${AGENT_API_PREFIX}/balance`;
+    const timestamp = () => String(Math.floor(Date.now() / 1000));
 
     function authService(agent: Record<string, unknown>) {
       return new AgentApiAuthService(
@@ -426,6 +427,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
           apiKey,
           signature: 'invalid',
           requestId,
+          timestamp: timestamp(),
           method: 'GET',
           path,
           rawBody: '',
@@ -444,6 +446,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
             buildSignaturePayload('GET', path, requestId, ''),
           ),
           requestId,
+          timestamp: timestamp(),
           method: 'GET',
           path,
           rawBody: '',
@@ -465,6 +468,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
             buildSignaturePayload('GET', path, requestId, ''),
           ),
           requestId,
+          timestamp: timestamp(),
           method: 'GET',
           path,
           rawBody: '',
