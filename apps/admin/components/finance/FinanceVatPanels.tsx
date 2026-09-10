@@ -174,8 +174,8 @@ export function FinanceRetailOutputPanel() {
 
       <p className="text-sm text-slate-600">
         Người mua: <strong>Khách lẻ</strong>. Đơn giá HĐ = giá bán website sau CK ÷ (1+VAT)
-        (không gồm phí cổng). Phí 0,77% ở bảng kê = phí đã snapshot trên đơn — tính trên{' '}
-        <strong>tổng khách trả</strong> (gross-up), khớp cách MegaPay trừ phí settlement. Không gồm đại lý.
+        (không gồm phí cổng). Khách trả đúng giá bán (CardOn chịu phí cổng). Phí 0,77% ở bảng kê =
+        snapshot ước tính trên giá bán / settlement — không cộng vào tổng khách trả. Không gồm đại lý.
       </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -287,8 +287,8 @@ export function FinanceGatewayFeePanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-600">
-        Layout HĐ phí cổng (MegaPay): đơn giá = phí trước VAT. Phí 0,77% tính trên{' '}
-        <strong>tổng khách trả</strong> (gross-up), khớp settlement thu hộ — không tính trên riêng giá bán sau CK.
+        Layout HĐ phí cổng (MegaPay): đơn giá = phí trước VAT. CardOn chịu phí — khách trả giá bán;
+        phí 0,77% snapshot trên giá bán (charged amount) khớp settlement thu hộ.
       </p>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {data && (

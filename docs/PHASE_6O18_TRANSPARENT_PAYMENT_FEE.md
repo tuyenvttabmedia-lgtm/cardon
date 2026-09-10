@@ -1,6 +1,6 @@
 # Phase 6O.18 — Transparent Payment Fee + Pricing Accounting
 
-**Date:** 2026-06-18  
+**Date:** 2026-06-18 (updated 2026-09-10 — merchant-absorbed fee)  
 **Build marker:** `6O18`  
 **Scope:** Payment fee engine, order pricing snapshot, customer transparent pricing, admin config & reports.  
 **Out of scope:** payment webhook/callback logic, provider fulfillment, order lifecycle state machine, wallet, ledger.
@@ -11,47 +11,62 @@
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Payment fee engine | **PASS** | Fixed + percent + combined; VND integer rounding |
+| Payment fee engine | **PASS** | Merchant absorbs gateway fee; customer pays sell only |
 | Order snapshot | **PASS** | faceValue, sellAmount, fees, customerPaid, providerCost, profit |
-| Customer UI | **PASS** | Mệnh giá / Giá bán / Giảm giá / Phí thanh toán / Tổng thanh toán |
-| Admin payment methods | **PASS** | Settings → Payments → Payment methods table |
+| Customer UI | **PASS** | Mệnh giá / Giá bán / Giảm giá / **Phí giao dịch: Miễn phí** / Tổng = giá bán |
+| Admin payment methods | **PASS** | Settings → Payments → Payment methods table (fee % still for accounting) |
 | Admin order accounting | **PASS** | Customer + internal breakdown on order detail |
 | Finance gateway fees | **PASS** | Finance → Phí cổng thanh toán |
 | Future-ready methods | **PASS** | SEPAY_VA_QR, SEPAY_NAPAS_QR, MEGAPAY_* via admin only |
 
 ---
 
-## Payment Fee Formula
+## Payment Fee Formula (merchant-absorbed)
 
-Gateways such as MegaPay take **% fee on the charged amount** (customer total),
-not on website sell price alone. CardOn therefore **grosses up** the total:
+Gateways such as MegaPay take **% fee on the charged amount**. CardOn charges the
+customer the **website sell price only** and absorbs the settlement fee (partially
+offset by reducing retail CK 0.5pp on discounted SKUs).
 
 ```
 rate = percentageFee / 100
-totalPayment = round((sellPrice + fixedFee) / (1 − rate))   // rate = 0 → sell + fixed
-paymentFee   = totalPayment − sellPrice
+totalPayment = round(sellPrice)                 // what MegaPay / SePay receives
+paymentFee   = round(sellPrice × rate) + round(fixedFee)   // CardOn cost estimate
 profit       = customerPaid − paymentFee − providerCost
 ```
 
-Example MegaPay 0.77% on sell 99.000đ:
+Example MegaPay 0.77% on sell 99.500đ (after CK 0.5%):
 
-| | Old (wrong) | Correct (gross-up) |
-|--|-------------|-------------------|
-| Fee base | sell 99.000 | total charged |
-| paymentFee | round(99.000×0.77%)=762 | 768 |
-| customerPaid | 99.762 | 99.768 |
-| Mega fee on total | 99.762×0.77%≈768.17 | 99.768×0.77%≈768 |
-| Net after Mega | ≈98.994 (lệch) | ≈99.000 |
+| | Value |
+|--|-------|
+| customerPaid / Mega amount | 99.500 |
+| paymentFee (estimate) | round(99.500×0.77%)=766 |
+| Net after Mega (approx) | ≈98.734 |
+
+Do **not** gross-up the charged amount — that still leaves settlement fee after pay and confuses checkout vs Mega confirmation.
 
 ### Examples (verified in unit tests)
 
-| Method | Sell | Fee config | paymentFee | customerPaid |
-|--------|------|------------|------------|--------------|
-| SePay VA QR | 99.000 | 0% + 300đ | 300 | 99.300 |
-| SePay Napas | 99.000 | 0.3% + 0 | 298 | 99.298 |
-| MegaPay VietQR | 99.000 | 0.77% + 0 | 768 | 99.768 |
-| MegaPay Visa | 99.000 | 2.2% + 2200đ | 4.476 | 103.476 |
-| DATA Napas | 14.100 | 0.3% + 0 | 42 | 14.142 |
+| Method | Sell | Fee config | paymentFee (absorbed) | customerPaid |
+|--------|------|------------|----------------------|--------------|
+| SePay VA QR | 99.000 | 0% + 300đ | 300 | 99.000 |
+| SePay Napas | 99.000 | 0.3% + 0 | 297 | 99.000 |
+| MegaPay VietQR | 99.000 | 0.77% + 0 | 762 | 99.000 |
+| MegaPay Visa | 99.000 | 2.2% + 2200đ | 4.378 | 99.000 |
+| DATA Napas | 14.100 | 0.3% + 0 | 42 | 14.100 |
+
+---
+
+## Retail CK offset (−0.5pp)
+
+To partially fund absorbed Mega fees (~0.77%):
+
+| Old CK | New CK | Formula |
+|--------|--------|---------|
+| ~1% | 0.5% | `sell = round(face × 0.995)` |
+| ~2% | 1.5% | `sell = round(face × 0.985)` |
+| 0% (sell = face) | unchanged | — |
+
+Deploy script: `scripts/deploy/adjust-retail-sell-discount-absorb-fee.mjs`
 
 ---
 
@@ -73,25 +88,16 @@ Old orders keep migration defaults (0) — never recalculated when admin changes
 
 **Settings → Cổng thanh toán → Phương thức thanh toán**
 
-Default methods (editable):
-
-| Code | Gateway | % | Fixed |
-|------|---------|---|-------|
-| SEPAY_VA_QR | SEPAY | 0 | 300 |
-| SEPAY_NAPAS_QR | SEPAY | 0.3 | 0 |
-| MEGAPAY_ATM | MEGAPAY | 0 | 0 |
-| MEGAPAY_VISA | MEGAPAY | 2.2 | 2200 |
-| MEGAPAY_WALLET | MEGAPAY | 0 | 0 |
-
-Method visible to customers only when: method `enabled` + parent gateway configured & enabled.
+Fee % / fixed on methods remain for **internal** snapshots and finance. They are
+**not** added to the customer checkout total.
 
 ---
 
 ## Customer UI
 
-- **Summary:** `CustomerPriceBreakdown` — hides discount/fee rows when 0
-- **Product selectors:** face value / package value as primary; `Giá bán` secondary
-- **Checkout:** sends `paymentMethodCode` on order create; payment still uses gateway (`SEPAY` / `MEGAPAY`)
+- **Summary:** `CustomerPriceBreakdown` — always shows **Phí giao dịch: Miễn phí**; total = sell
+- **Payment picker:** always **Miễn phí giao dịch**
+- **Checkout:** sends `paymentMethodCode` on order create; payment amount = sell
 
 ---
 
@@ -100,7 +106,7 @@ Method visible to customers only when: method `enabled` + parent gateway configu
 | Endpoint | Change |
 |----------|--------|
 | `GET /payment-methods` | Returns fee config + gateway per method |
-| `POST /orders` | Optional `paymentMethodCode`; snapshots pricing |
+| `POST /orders` | Optional `paymentMethodCode`; snapshots pricing; `customerPaid` = sell |
 | `GET /admin/settings/payment/methods` | Admin CRUD |
 | `GET /admin/finance/gateway-fees` | Aggregated fee report |
 
@@ -116,29 +122,21 @@ Method visible to customers only when: method `enabled` + parent gateway configu
 | Web pricing | `apps/web/lib/customer-price.ts` |
 | Admin methods UI | `apps/admin/app/settings/payment/page.tsx` |
 | Finance report | `apps/admin/app/finance/page.tsx` |
+| CK adjust script | `scripts/deploy/adjust-retail-sell-discount-absorb-fee.mjs` |
 | Migration | `prisma/migrations/20250623120000_phase_6o18_payment_fee_snapshot/` |
-
----
-
-## Deploy (local-full)
-
-```bash
-docker compose -f docker-compose.local-full.yml --env-file .env.local-full up -d --build api web admin
-docker compose -f docker-compose.local-full.yml --env-file .env.local-full up -d --force-recreate nginx
-```
 
 ---
 
 ## Manual QA
 
-1. Admin → enable SePay + SEPAY_VA_QR (300đ fixed)
-2. Homepage Garena 100k / sell 99k → summary shows 99.300 total
-3. Create order → admin order detail shows profit breakdown
-4. Finance → Phí cổng thanh toán → row for SEPAY / SEPAY_VA_QR
-5. Change fee to 500đ → new orders reflect 99.500; old orders unchanged
+1. Homepage product with CK → sell reflects −0.5pp (e.g. 100k @ 0.5% → 99.500)
+2. Checkout summary: Phí giao dịch **Miễn phí**, Tổng = giá bán
+3. MegaPay page confirms **same** amount as Tổng (no +768)
+4. Admin order detail: `paymentFeeAmount` ≈ sell × method %, `customerPaid` = sell
+5. SKU with sell = face (0% CK) unchanged by adjust script
 
 ---
 
 ## Verdict
 
-**Phase 6O.18: PASS** — Transparent payment fee model with immutable order snapshots and admin reconciliation tooling.
+**Phase 6O.18: PASS** — Merchant-absorbed gateway fee; customer pays sell; CK −0.5pp offset on discounted retail SKUs.

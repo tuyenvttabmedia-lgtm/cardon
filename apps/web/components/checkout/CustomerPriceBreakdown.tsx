@@ -17,7 +17,6 @@ export function CustomerPriceBreakdown({
   }
 
   const showDiscount = pricing.discountAmount > 0;
-  const showPaymentFee = pricing.paymentFee > 0;
 
   return (
     <dl className="space-y-2 text-sm">
@@ -41,12 +40,10 @@ export function CustomerPriceBreakdown({
           <dd className="font-medium text-cardon-green">−{formatVnd(pricing.discountAmount)}</dd>
         </div>
       )}
-      {showPaymentFee && (
-        <div className="flex justify-between gap-4">
-          <dt className="text-cardon-gray">Phí thanh toán</dt>
-          <dd className="font-medium">+{formatVnd(pricing.paymentFee)}</dd>
-        </div>
-      )}
+      <div className="flex justify-between gap-4">
+        <dt className="text-cardon-gray">Phí giao dịch</dt>
+        <dd className="font-medium text-emerald-700">Miễn phí</dd>
+      </div>
       <div className="flex justify-between gap-4 border-t border-gray-100 pt-3 text-base">
         <dt className="font-bold">Tổng thanh toán</dt>
         <dd className="font-bold text-cardon-danger">{formatVnd(pricing.totalPayment)}</dd>

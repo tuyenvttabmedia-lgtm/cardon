@@ -173,7 +173,8 @@ function computeSellPrice(faceValue, providerCost, siblings) {
   } else if (face <= 20000) {
     sell = face;
   } else {
-    sell = Math.round(face * 0.98);
+    // Default retail CK 1.5% when no sibling ratio (was 2%; −0.5pp absorb Mega fee)
+    sell = Math.round(face * 0.985);
   }
   if (sell <= cost) {
     sell = Math.ceil(cost * 1.03);

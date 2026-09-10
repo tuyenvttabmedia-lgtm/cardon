@@ -1,5 +1,4 @@
 import type { PaymentGatewayCode } from '@/types/api';
-import { formatVnd } from '@/lib/utils';
 
 export type PublicPaymentMethod = {
   methodCode: string;
@@ -28,16 +27,11 @@ export function methodIcon(methodCode: string): string {
   return METHOD_ICONS[methodCode.toUpperCase()] ?? '💳';
 }
 
-export function formatPaymentFeeHint(percentageFee: number, fixedFee: number): string | null {
-  if (percentageFee > 0 && fixedFee > 0) {
-    return `Phí ${percentageFee}% + ${formatVnd(fixedFee)}`;
-  }
-  if (percentageFee > 0) {
-    return `Phí ${percentageFee}%`;
-  }
-  if (fixedFee > 0) {
-    return `Phí ${formatVnd(fixedFee)}`;
-  }
+/**
+ * Retail checkout: CardOn absorbs gateway fees — always show free to customers.
+ * Admin fee %/fixed still drive internal order snapshots; not shown here.
+ */
+export function formatPaymentFeeHint(_percentageFee: number, _fixedFee: number): string | null {
   return null;
 }
 
