@@ -112,6 +112,36 @@ export interface ServerHealthPack {
     externalMb: number;
     eventLoopLagMs: number;
   };
+  host: {
+    source: 'host' | 'container';
+    hostname: string;
+    platform: string;
+    arch: string;
+    uptimeSec: number;
+    loadAvg: [number, number, number];
+    cpuCount: number;
+    cpuModel: string | null;
+    memory: {
+      totalMb: number;
+      freeMb: number;
+      usedMb: number;
+      usedPercent: number;
+    };
+    swap: {
+      totalMb: number;
+      freeMb: number;
+      usedMb: number;
+    } | null;
+    disks: Array<{
+      mount: string;
+      path: string;
+      totalGb: number;
+      freeGb: number;
+      usedGb: number;
+      usedPercent: number;
+    }>;
+    containerMemoryLimitMb: number | null;
+  };
   queues: {
     waitingJobs: number;
     activeJobs: number;

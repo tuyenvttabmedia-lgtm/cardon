@@ -139,7 +139,9 @@ export function ServerHealthPanel() {
               <StatCard
                 label={vi.serverHealth.redis}
                 value={statusLabel(data.redis.status)}
-                hint={data.redis.latencyMs != null ? `${data.redis.latencyMs} ms` : undefined}
+                hint={
+                  data.redis.latencyMs != null ? `${data.redis.latencyMs} ms` : undefined
+                }
                 tone={data.redis.status === 'ok' ? 'success' : 'danger'}
               />
               <StatCard
@@ -159,6 +161,107 @@ export function ServerHealthPanel() {
                 }
               />
             </div>
+
+            <Card className="space-y-3 p-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="font-semibold text-slate-900">{vi.serverHealth.hostTitle}</h3>
+                <span className="text-xs text-slate-500">
+                  {data.host.source === 'host'
+                    ? vi.serverHealth.hostSourceHost
+                    : vi.serverHealth.hostSourceContainer}
+                </span>
+              </div>
+              <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.hostname}</dt>
+                  <dd className="font-mono text-xs">{data.host.hostname}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.uptime}</dt>
+                  <dd className="font-medium">{formatUptime(data.host.uptimeSec)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.cpu}</dt>
+                  <dd>
+                    {data.host.cpuCount} core
+                    {data.host.cpuModel ? (
+                      <span
+                        className="mt-0.5 block truncate text-xs text-slate-500"
+                        title={data.host.cpuModel}
+                      >
+                        {data.host.cpuModel}
+                      </span>
+                    ) : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.loadAvg}</dt>
+                  <dd
+                    className={cn(
+                      data.host.cpuCount > 0 &&
+                        data.host.loadAvg[0] / data.host.cpuCount >= 2
+                        ? 'font-medium text-amber-700'
+                        : undefined,
+                    )}
+                  >
+                    {data.host.loadAvg.join(' / ')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.memory}</dt>
+                  <dd
+                    className={cn(
+                      data.host.memory.usedPercent >= 90
+                        ? 'font-medium text-red-700'
+                        : data.host.memory.usedPercent >= 80
+                          ? 'font-medium text-amber-700'
+                          : undefined,
+                    )}
+                  >
+                    {data.host.memory.usedMb} / {data.host.memory.totalMb} MB (
+                    {data.host.memory.usedPercent}%)
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500">{vi.serverHealth.swap}</dt>
+                  <dd>
+                    {data.host.swap
+                      ? `${data.host.swap.usedMb} / ${data.host.swap.totalMb} MB`
+                      : '—'}
+                  </dd>
+                </div>
+                {data.host.containerMemoryLimitMb != null && (
+                  <div>
+                    <dt className="text-slate-500">{vi.serverHealth.containerLimit}</dt>
+                    <dd>{data.host.containerMemoryLimitMb} MB</dd>
+                  </div>
+                )}
+              </dl>
+              {data.host.disks.length > 0 && (
+                <div className="space-y-2 border-t border-slate-100 pt-3">
+                  <p className="text-sm font-medium text-slate-700">{vi.serverHealth.disk}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {data.host.disks.map((disk) => (
+                      <div key={`${disk.mount}:${disk.path}`} className="text-sm">
+                        <p className="font-mono text-xs text-slate-500">{disk.mount}</p>
+                        <p
+                          className={cn(
+                            disk.usedPercent >= 90
+                              ? 'font-medium text-red-700'
+                              : disk.usedPercent >= 80
+                                ? 'font-medium text-amber-700'
+                                : undefined,
+                          )}
+                        >
+                          {disk.usedGb} / {disk.totalGb} GB ({disk.usedPercent}%) — còn{' '}
+                          {disk.freeGb} GB
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card className="space-y-3 p-4">

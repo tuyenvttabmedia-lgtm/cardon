@@ -13,7 +13,8 @@ name: cardon-production
 x-backend-env: &backend-env
   APP_ENV: production
   DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
-  REDIS_URL: redis://redis:6379
+  # Prefer redis://:PASSWORD@redis:6379 when REDIS_PASSWORD is set (see .env.production.example)
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
   JWT_SECRET: ${JWT_SECRET}
   JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
   JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
@@ -96,13 +97,28 @@ services:
     restart: unless-stopped
     mem_limit: 96m
     mem_reservation: 48m
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    # requirepass when REDIS_PASSWORD is set; otherwise open (local/dev only)
+    command:
+      - /bin/sh
+      - -c
+      - |
+        if [ -n "$$REDIS_PASSWORD" ]; then
+          exec redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"
+        else
+          exec redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy noeviction
+        fi
     volumes:
       - cardon_prod_redis:/data
     networks:
       - cardon-internal
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+        [
+          "CMD-SHELL",
+          'if [ -n "$$REDIS_PASSWORD" ]; then redis-cli -a "$$REDIS_PASSWORD" ping; else redis-cli ping; fi | grep -q PONG',
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -123,6 +139,8 @@ services:
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
       RUN_SEED: "false"
       NODE_OPTIONS: --max-old-space-size=300
+      # Host /proc for real VPS RAM/load (container mem_limit otherwise masks host)
+      HOST_PROC: /host/proc
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,6 +149,7 @@ services:
     volumes:
       - cardon_uploads:/app/uploads
       - ./backups:/app/backups:ro
+      - /proc:/host/proc:ro
     networks:
       - cardon-internal
     expose:
