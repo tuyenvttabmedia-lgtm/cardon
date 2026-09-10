@@ -4,8 +4,13 @@ export type CustomerPriceView = {
   faceValue: number;
   sellPrice: number;
   discountAmount: number;
+  /** Always 0 for customer — gateway fee is absorbed by CardOn. */
   paymentFee: number;
+  /** Estimated gateway settlement fee (admin/accounting; not charged). */
+  estimatedGatewayFee: number;
   totalPayment: number;
+  /** Customer-facing: transaction fee waived. */
+  paymentFeeWaived: true;
 };
 
 export function buildCustomerPriceView(params: {
@@ -15,7 +20,7 @@ export function buildCustomerPriceView(params: {
   fixedFee?: number;
 }): CustomerPriceView {
   const discountAmount = Math.max(0, params.faceValue - params.sellPrice);
-  const { paymentFee, totalPayment } = calculateCustomerPaid(
+  const { paymentFee: estimatedGatewayFee, totalPayment } = calculateCustomerPaid(
     params.sellPrice,
     params.percentageFee ?? 0,
     params.fixedFee ?? 0,
@@ -25,8 +30,10 @@ export function buildCustomerPriceView(params: {
     faceValue: params.faceValue,
     sellPrice: params.sellPrice,
     discountAmount,
-    paymentFee,
+    paymentFee: 0,
+    estimatedGatewayFee,
     totalPayment,
+    paymentFeeWaived: true,
   };
 }
 

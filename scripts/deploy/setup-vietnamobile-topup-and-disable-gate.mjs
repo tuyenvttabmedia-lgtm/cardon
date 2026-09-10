@@ -3,7 +3,7 @@
  *
  * Pricing:
  *   providerCost = face * (1 - 0.048)  // NCC 4.8%
- *   sellPrice    = face * (1 - 0.02)   // bán CK 2%
+ *   sellPrice    = face * (1 - 0.015)  // bán CK 1.5% (was 2%; −0.5pp absorb Mega fee)
  *
  * Usage:
  *   docker exec -w /app cardon-prod-api node /app/scripts/deploy/setup-vietnamobile-topup-and-disable-gate.mjs
@@ -27,7 +27,7 @@ const VIETNAMOBILE_AMOUNTS = [
 ];
 
 const NCC_DISCOUNT = 0.048;
-const SELL_DISCOUNT = 0.02;
+const SELL_DISCOUNT = 0.015;
 
 function formatK(amount) {
   if (amount % 1000 === 0) return `${amount / 1000}K`;
@@ -105,7 +105,7 @@ async function main() {
           type: ProductVariantType.TOPUP,
           faceValue: new Decimal(face),
           sellPrice: new Decimal(sellPrice),
-          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 2 },
+          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 1.5 },
         },
       });
       created.push({ action: 'restore', sku });
@@ -119,7 +119,7 @@ async function main() {
           faceValue: new Decimal(face),
           sellPrice: new Decimal(sellPrice),
           status: ProductVariantStatus.ACTIVE,
-          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 2 },
+          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 1.5 },
         },
       });
       created.push({ action: 'create', sku, sellPrice, providerCost });
@@ -133,7 +133,7 @@ async function main() {
           type: ProductVariantType.TOPUP,
           faceValue: new Decimal(face),
           sellPrice: new Decimal(sellPrice),
-          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 2 },
+          metadata: { telco: 'vietnamobile', nccDiscountPercent: 4.8, sellDiscountPercent: 1.5 },
         },
       });
       created.push({ action: 'update', sku, sellPrice, providerCost });
