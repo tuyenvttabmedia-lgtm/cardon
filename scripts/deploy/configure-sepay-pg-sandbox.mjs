@@ -4,7 +4,7 @@
  * Usage on VPS API container:
  *   SEPAY_PG_MERCHANT_ID=SP-TEST-... \
  *   SEPAY_PG_SECRET_KEY=spsk_test_... \
- *   SEPAY_PG_IPN_SECRET=hEfSSJmwb2y9!gm \
+ *   SEPAY_PG_IPN_SECRET=... \
  *   node /app/scripts/deploy/configure-sepay-pg-sandbox.mjs
  */
 import { PrismaClient } from '@prisma/client';
@@ -13,6 +13,14 @@ import { createCipheriv, createHash, randomBytes } from 'crypto';
 const prisma = new PrismaClient();
 const SETTINGS_KEY = 'settings.payment.sepay';
 const WEBHOOK_URL = 'https://cardon.vn/api/v1/payments/webhook/sepay';
+
+function requireEnv(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} missing — set it before running this script`);
+  }
+  return value;
+}
 
 function deriveEncryptionKey() {
   const secret = process.env.ENCRYPTION_KEY;
@@ -30,10 +38,9 @@ function encryptField(plaintext) {
 }
 
 async function main() {
-  const merchantId = process.env.SEPAY_PG_MERCHANT_ID ?? 'SP-TEST-CT4BB234';
-  const secretKey =
-    process.env.SEPAY_PG_SECRET_KEY ?? 'spsk_test_daZbysr8wnyUQwhbFcju9jHN6DDpqVg3';
-  const ipnSecret = process.env.SEPAY_PG_IPN_SECRET ?? 'hEfSSJmwb2y9!gm';
+  const merchantId = requireEnv('SEPAY_PG_MERCHANT_ID');
+  const secretKey = requireEnv('SEPAY_PG_SECRET_KEY');
+  const ipnSecret = requireEnv('SEPAY_PG_IPN_SECRET');
 
   const row = await prisma.systemSetting.findUnique({ where: { key: SETTINGS_KEY } });
   const current =

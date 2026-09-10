@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { agentApi, ApiClientError } from '@/services/api-client';
 import { getCustomerSiteUrl } from '@/lib/utils';
 import { getOnboardingRedirectPath, isFullyOnboarded } from '@/lib/onboarding-gate';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 export default function LoginPageClient() {
   const router = useRouter();
@@ -19,11 +20,11 @@ export default function LoginPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const nextPath = searchParams.get('next') || '/dashboard';
+  const nextPath = safeInternalPath(searchParams.get('next'), '/dashboard');
 
   useEffect(() => {
     if (!loading && isAuthenticated) {
-      router.replace(nextPath.startsWith('/') ? nextPath : '/dashboard');
+      router.replace(nextPath);
     }
   }, [loading, isAuthenticated, router, nextPath]);
 
@@ -33,7 +34,7 @@ export default function LoginPageClient() {
     setError(null);
     try {
       await login(email.trim(), password);
-      let target = nextPath.startsWith('/') ? nextPath : '/dashboard';
+      let target = nextPath;
       try {
         const onboarding = await agentApi.getOnboardingStatus();
         if (!isFullyOnboarded(onboarding)) {

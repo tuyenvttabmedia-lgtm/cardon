@@ -44,6 +44,7 @@ describe('AgentApiAuthService', () => {
   const requestId = 'req-auth-001';
   const path = `${AGENT_API_PREFIX}/balance`;
   const rawBody = '';
+  const timestamp = () => String(Math.floor(Date.now() / 1000));
 
   const activeAgent = {
     id: 'agent-1',
@@ -107,6 +108,7 @@ describe('AgentApiAuthService', () => {
       apiKey,
       signature: sign('GET'),
       requestId,
+      timestamp: timestamp(),
       method: 'GET',
       path,
       rawBody,
@@ -127,6 +129,7 @@ describe('AgentApiAuthService', () => {
         apiKey,
         signature: 'bad-signature',
         requestId,
+        timestamp: timestamp(),
         method: 'GET',
         path,
         rawBody,
@@ -148,6 +151,7 @@ describe('AgentApiAuthService', () => {
         apiKey,
         signature: sign('GET'),
         requestId,
+        timestamp: timestamp(),
         method: 'GET',
         path,
         rawBody,
@@ -169,6 +173,7 @@ describe('AgentApiAuthService', () => {
         apiKey,
         signature: sign('GET'),
         requestId,
+        timestamp: timestamp(),
         method: 'GET',
         path,
         rawBody,

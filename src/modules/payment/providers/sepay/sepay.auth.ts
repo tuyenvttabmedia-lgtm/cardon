@@ -3,6 +3,19 @@ import { createHmac, timingSafeEqual } from 'crypto';
 /** Reject HMAC requests older/newer than 5 minutes (SePay anti-replay guidance). */
 const SEPAY_HMAC_MAX_SKEW_SECONDS = 5 * 60;
 
+function timingSafeStringEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) {
+    return false;
+  }
+  try {
+    return timingSafeEqual(bufA, bufB);
+  } catch {
+    return false;
+  }
+}
+
 export function verifySepayApiKey(
   headers: Record<string, string>,
   expectedApiKey: string,
@@ -80,15 +93,28 @@ export function verifySepayWebhookAuth(
       headers['X-Secret-Key'] ??
       headers['X-SECRET-KEY'] ??
       '';
-    if (pgSecret && pgSecret === config.ipnSecretKey) {
+    if (pgSecret && timingSafeStringEqual(pgSecret, config.ipnSecretKey)) {
       return true;
     }
+  }
+
+  const hasHmacHeaders = Boolean(
+    (headers['x-sepay-signature'] ?? headers['X-SePay-Signature']) &&
+      (headers['x-sepay-timestamp'] ?? headers['X-SePay-Timestamp']),
+  );
+
+  // When HMAC headers are present, webhookSecret must validate (do not fall back to API key).
+  if (config.webhookSecret && hasHmacHeaders) {
+    return Boolean(
+      rawBody && verifySepayHmacSignature(headers, rawBody, config.webhookSecret),
+    );
   }
 
   if (config.apiKey && verifySepayApiKey(headers, config.apiKey)) {
     return true;
   }
 
+  // Legacy path: HMAC-only configs without API key still work when raw body is provided.
   if (config.webhookSecret && rawBody) {
     return verifySepayHmacSignature(headers, rawBody, config.webhookSecret);
   }

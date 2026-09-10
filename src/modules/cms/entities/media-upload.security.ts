@@ -18,14 +18,12 @@ export const ALLOWED_IMAGE_EXTENSIONS = new Set([
   '.jpeg',
   '.png',
   '.webp',
-  '.svg',
 ]);
 
 export const ALLOWED_IMAGE_MIMES = new Set([
   'image/jpeg',
   'image/png',
   'image/webp',
-  'image/svg+xml',
 ]);
 
 export const BLOCKED_EXTENSIONS = new Set([
@@ -38,6 +36,7 @@ export const BLOCKED_EXTENSIONS = new Set([
   '.bat',
   '.cmd',
   '.ps1',
+  '.svg',
 ]);
 
 export function normalizeMediaFolder(value?: string): MediaFolder {
@@ -58,7 +57,7 @@ export function assertSafeUploadFilename(originalName: string): string {
     throw new BadRequestException(`File type not allowed: ${ext || 'unknown'}`);
   }
   if (!ALLOWED_IMAGE_EXTENSIONS.has(ext)) {
-    throw new BadRequestException('Only jpg, jpeg, png, webp, svg are allowed');
+    throw new BadRequestException('Only jpg, jpeg, png, webp are allowed');
   }
   return base;
 }
@@ -67,9 +66,6 @@ export function assertAllowedMimeType(mimeType: string, originalName: string): v
   const ext = extname(originalName).toLowerCase();
   if (!ALLOWED_IMAGE_MIMES.has(mimeType)) {
     throw new BadRequestException(`MIME type not allowed: ${mimeType}`);
-  }
-  if (mimeType === 'image/svg+xml' && ext !== '.svg') {
-    throw new BadRequestException('SVG extension mismatch');
   }
   if (mimeType === 'image/jpeg' && ext !== '.jpg' && ext !== '.jpeg') {
     throw new BadRequestException('JPEG extension mismatch');

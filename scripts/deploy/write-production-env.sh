@@ -3,6 +3,11 @@
 set -euo pipefail
 cd /opt/cardon
 
+if [ -z "${SEED_SUPER_ADMIN_PASSWORD:-}" ]; then
+  echo "[write-production-env] SEED_SUPER_ADMIN_PASSWORD must be set in the environment" >&2
+  exit 1
+fi
+
 JWT_SECRET=$(openssl rand -hex 32)
 ENCRYPTION_KEY=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 24)
@@ -68,8 +73,8 @@ PARTNER_NEXT_PUBLIC_CUSTOMER_SITE_URL=https://cardon.vn
 ADMIN_NEXT_PUBLIC_API_URL=https://admin.cardon.vn/api/v1
 ADMIN_NEXT_PUBLIC_SITE_URL=https://admin.cardon.vn
 
-SEED_SUPER_ADMIN_EMAIL=superadmin@cardon.vn
-SEED_SUPER_ADMIN_PASSWORD=hXSWQ#Lhdwef!&
+SEED_SUPER_ADMIN_EMAIL=${SEED_SUPER_ADMIN_EMAIL:-superadmin@cardon.vn}
+SEED_SUPER_ADMIN_PASSWORD=${SEED_SUPER_ADMIN_PASSWORD}
 EOF
 
 chmod 600 .env.production

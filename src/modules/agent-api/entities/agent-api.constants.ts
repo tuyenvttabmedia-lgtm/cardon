@@ -2,7 +2,11 @@ export const AGENT_API_HEADERS = {
   API_KEY: 'x-api-key',
   SIGNATURE: 'x-signature',
   REQUEST_ID: 'x-request-id',
+  TIMESTAMP: 'x-timestamp',
 } as const;
+
+/** Reject agent API requests with timestamp skew beyond 5 minutes. */
+export const AGENT_API_TIMESTAMP_MAX_SKEW_SECONDS = 300;
 
 export const AGENT_API_PREFIX = 'api/partner/v1';
 

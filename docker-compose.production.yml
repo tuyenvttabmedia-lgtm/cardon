@@ -121,6 +121,7 @@ services:
       APP_ROLE: api
       PORT: 3000
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      RUN_SEED: "false"
       NODE_OPTIONS: --max-old-space-size=300
     depends_on:
       postgres:
@@ -154,6 +155,7 @@ services:
       <<: *backend-env
       APP_ROLE: worker
       RUN_MIGRATIONS: "false"
+      RUN_SEED: "false"
       NODE_OPTIONS: --max-old-space-size=192
     command: ["node", "dist/worker.js"]
     depends_on:

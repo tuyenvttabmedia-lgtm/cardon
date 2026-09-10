@@ -13,13 +13,16 @@ import {
   partnerLoginUrl,
   wrongRetailPortalMessage,
 } from '@/lib/retail-auth';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resetSuccess = searchParams.get('reset') === 'success';
-  const redirectTo =
-    searchParams.get('redirect') || searchParams.get('next') || '/';
+  const redirectTo = safeInternalPath(
+    searchParams.get('redirect') || searchParams.get('next'),
+    '/',
+  );
   const { login, logout } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');

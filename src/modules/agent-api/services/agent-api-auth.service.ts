@@ -12,6 +12,7 @@ import {
   buildSignaturePayload,
   verifyPartnerSignature,
 } from '../entities/agent-api-signature';
+import { AGENT_API_TIMESTAMP_MAX_SKEW_SECONDS } from '../entities/agent-api.constants';
 import { AgentApiContext } from '../entities/agent-api.mapper';
 
 type CredentialMatch = {
@@ -33,10 +34,12 @@ export class AgentApiAuthService {
     apiKey: string;
     signature: string;
     requestId: string;
+    timestamp: string;
     method: string;
     path: string;
     rawBody: string;
     clientIp: string | null;
+    nowSeconds?: number;
   }): Promise<AgentApiContext> {
     const logBase = {
       ip: params.clientIp,
@@ -51,6 +54,8 @@ export class AgentApiAuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    this.assertValidTimestamp(params.timestamp, params.nowSeconds);
 
     const lookup = hashApiKeyForLookup(params.apiKey);
     const match = await this.resolveCredentials(lookup);
@@ -180,6 +185,44 @@ export class AgentApiAuthService {
       secretKey,
       environment,
     };
+  }
+
+  private assertValidTimestamp(
+    timestamp: string,
+    nowSeconds = Math.floor(Date.now() / 1000),
+  ): void {
+    if (!timestamp) {
+      throw new AppHttpException(
+        ErrorCode.UNAUTHORIZED,
+        'X-TIMESTAMP header is required',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (!/^\d+$/.test(timestamp)) {
+      throw new AppHttpException(
+        ErrorCode.UNAUTHORIZED,
+        'Invalid timestamp',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    const ts = Number(timestamp);
+    if (!Number.isSafeInteger(ts)) {
+      throw new AppHttpException(
+        ErrorCode.UNAUTHORIZED,
+        'Invalid timestamp',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+
+    if (Math.abs(nowSeconds - ts) > AGENT_API_TIMESTAMP_MAX_SKEW_SECONDS) {
+      throw new AppHttpException(
+        ErrorCode.UNAUTHORIZED,
+        'Timestamp outside allowed skew',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
   }
 
   private async resolveCredentials(lookup: string): Promise<CredentialMatch | null> {

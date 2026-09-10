@@ -29,6 +29,23 @@ function authHeader(apiKey = TEST_CONFIG.apiKey): Record<string, string> {
   return { Authorization: `Apikey ${apiKey}` };
 }
 
+function hmacHeaders(
+  payload: unknown,
+  secret = TEST_CONFIG.webhookSecret,
+  skewSeconds = 0,
+): Record<string, string> {
+  const rawBody = JSON.stringify(payload);
+  const timestamp = String(Math.floor(Date.now() / 1000) + skewSeconds);
+  const signature = createHmac('sha256', secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest('hex');
+  return {
+    'X-SePay-Signature': `sha256=${signature}`,
+    'X-SePay-Timestamp': timestamp,
+    'x-sepay-raw-body': rawBody,
+  };
+}
+
 function buildWebhookPayload(overrides: Record<string, unknown> = {}) {
   const paymentReference = 'PAY-REF-SEPAY-001';
   const transferContent = buildTransferContent(paymentReference);
@@ -208,9 +225,28 @@ describe('SePayProvider', () => {
   });
 
   describe('verifyWebhook', () => {
-    it('accepts valid webhook with API key and matches payment_reference', async () => {
+    it('accepts API-key-only auth for legacy bank when HMAC headers absent', async () => {
       const payload = buildWebhookPayload();
       const result = await provider.verifyWebhook(payload, authHeader());
+
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects invalid HMAC even when API key is valid', async () => {
+      const payload = buildWebhookPayload();
+      const result = await provider.verifyWebhook(payload, {
+        ...authHeader(),
+        'X-SePay-Timestamp': String(Math.floor(Date.now() / 1000)),
+        'X-SePay-Signature': 'sha256=deadbeef',
+        'x-sepay-raw-body': JSON.stringify(payload),
+      });
+
+      expect(result.valid).toBe(false);
+    });
+
+    it('accepts valid webhook with HMAC signature', async () => {
+      const payload = buildWebhookPayload();
+      const result = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('PAY-REF-SEPAY-001');
@@ -218,6 +254,19 @@ describe('SePayProvider', () => {
       expect(result.amount).toBe('100000.00');
       expect(result.providerTransactionId).toBe('92704');
       expect(result.unknownReference).toBeFalsy();
+    });
+
+    it('accepts API key when webhookSecret is not configured', async () => {
+      const configService = {
+        getConfig: () => ({ ...TEST_CONFIG, webhookSecret: undefined }),
+        isConfigured: () => true,
+      } as unknown as SepayConfigService;
+      const apiKeyOnlyProvider = new SePayProvider(configService);
+      const payload = buildWebhookPayload();
+      const result = await apiKeyOnlyProvider.verifyWebhook(payload, authHeader());
+
+      expect(result.valid).toBe(true);
+      expect(result.paymentReference).toBe('PAY-REF-SEPAY-001');
     });
 
     it('rejects invalid authorization token', async () => {
@@ -234,7 +283,7 @@ describe('SePayProvider', () => {
         content: 'NGUYEN VAN A chuyen tien khong co ma',
         code: null,
       });
-      const result = await provider.verifyWebhook(payload, authHeader());
+      const result = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('');
@@ -244,17 +293,7 @@ describe('SePayProvider', () => {
 
     it('accepts HMAC webhook secret when raw body provided', async () => {
       const payload = buildWebhookPayload({ id: 55555 });
-      const rawBody = JSON.stringify(payload);
-      const timestamp = String(Math.floor(Date.now() / 1000));
-      const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex');
-
-      const result = await provider.verifyWebhook(payload, {
-        'X-SePay-Signature': `sha256=${signature}`,
-        'X-SePay-Timestamp': timestamp,
-        'x-sepay-raw-body': rawBody,
-      });
+      const result = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('PAY-REF-SEPAY-001');
@@ -262,17 +301,10 @@ describe('SePayProvider', () => {
 
     it('rejects HMAC when timestamp skew exceeds 5 minutes', async () => {
       const payload = buildWebhookPayload({ id: 55556 });
-      const rawBody = JSON.stringify(payload);
-      const timestamp = String(Math.floor(Date.now() / 1000) - 600);
-      const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex');
-
-      const result = await provider.verifyWebhook(payload, {
-        'X-SePay-Signature': `sha256=${signature}`,
-        'X-SePay-Timestamp': timestamp,
-        'x-sepay-raw-body': rawBody,
-      });
+      const result = await provider.verifyWebhook(
+        payload,
+        hmacHeaders(payload, TEST_CONFIG.webhookSecret, -600),
+      );
 
       expect(result.valid).toBe(false);
     });
@@ -283,17 +315,7 @@ describe('SePayProvider', () => {
         code: 'DH12345678',
         content: 'DH12345678 chuyen khoan',
       });
-      const rawBody = JSON.stringify(payload);
-      const timestamp = String(Math.floor(Date.now() / 1000));
-      const signature = createHmac('sha256', TEST_CONFIG.webhookSecret)
-        .update(`${timestamp}.${rawBody}`)
-        .digest('hex');
-
-      const result = await provider.verifyWebhook(payload, {
-        'X-SePay-Signature': `sha256=${signature}`,
-        'X-SePay-Timestamp': timestamp,
-        'x-sepay-raw-body': rawBody,
-      });
+      const result = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
       expect(result.valid).toBe(true);
       expect(result.paymentReference).toBe('DH12345678');
@@ -326,7 +348,7 @@ describe('SePayProvider — PaymentService integration scenarios', () => {
 
   it('wrong amount is exposed for PaymentService validation', async () => {
     const payload = buildWebhookPayload({ transferAmount: 90000 });
-    const result = await provider.verifyWebhook(payload, authHeader());
+    const result = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
     expect(result.valid).toBe(true);
     expect(result.amount).toBe('90000.00');
@@ -335,8 +357,8 @@ describe('SePayProvider — PaymentService integration scenarios', () => {
 
   it('duplicate transaction id is stable across retries', async () => {
     const payload = buildWebhookPayload({ id: 92704 });
-    const first = await provider.verifyWebhook(payload, authHeader());
-    const second = await provider.verifyWebhook(payload, authHeader());
+    const first = await provider.verifyWebhook(payload, hmacHeaders(payload));
+    const second = await provider.verifyWebhook(payload, hmacHeaders(payload));
 
     expect(first.providerTransactionId).toBe('92704');
     expect(second.providerTransactionId).toBe('92704');

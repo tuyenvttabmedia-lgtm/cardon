@@ -306,6 +306,7 @@ describe('Phase 4A.1 — CHECK 4: Agent suspension (Agent API)', () => {
         apiKey: 'key',
         signature: 'sig',
         requestId: 'req-1',
+        timestamp: String(Math.floor(Date.now() / 1000)),
         method: 'POST',
         path: '/api/partner/v1/buy',
         rawBody: '{}',

@@ -27,9 +27,13 @@ describe('Phase 6H.2 — media upload security', () => {
     expect(() => assertSafeUploadFilename('virus.exe')).toThrow(BadRequestException);
   });
 
-  it('accepts jpg/png/webp/svg', () => {
+  it('accepts jpg/png/webp and rejects svg', () => {
     expect(assertSafeUploadFilename('photo.jpg')).toBe('photo.jpg');
-    expect(assertSafeUploadFilename('icon.svg')).toBe('icon.svg');
+    expect(assertSafeUploadFilename('icon.webp')).toBe('icon.webp');
+    expect(() => assertSafeUploadFilename('icon.svg')).toThrow(BadRequestException);
+    expect(() => assertAllowedMimeType('image/svg+xml', 'icon.svg')).toThrow(
+      BadRequestException,
+    );
   });
 
   it('validates mime vs extension', () => {
