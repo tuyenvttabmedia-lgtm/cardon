@@ -23,19 +23,34 @@
 
 ## Payment Fee Formula
 
+Gateways such as MegaPay take **% fee on the charged amount** (customer total),
+not on website sell price alone. CardOn therefore **grosses up** the total:
+
 ```
-paymentFee = round(sellPrice × percentageFee / 100 + fixedFee)
-totalPayment = sellPrice + paymentFee
-profit = customerPaid - paymentFee - providerCost
+rate = percentageFee / 100
+totalPayment = round((sellPrice + fixedFee) / (1 − rate))   // rate = 0 → sell + fixed
+paymentFee   = totalPayment − sellPrice
+profit       = customerPaid − paymentFee − providerCost
 ```
+
+Example MegaPay 0.77% on sell 99.000đ:
+
+| | Old (wrong) | Correct (gross-up) |
+|--|-------------|-------------------|
+| Fee base | sell 99.000 | total charged |
+| paymentFee | round(99.000×0.77%)=762 | 768 |
+| customerPaid | 99.762 | 99.768 |
+| Mega fee on total | 99.762×0.77%≈768.17 | 99.768×0.77%≈768 |
+| Net after Mega | ≈98.994 (lệch) | ≈99.000 |
 
 ### Examples (verified in unit tests)
 
 | Method | Sell | Fee config | paymentFee | customerPaid |
 |--------|------|------------|------------|--------------|
 | SePay VA QR | 99.000 | 0% + 300đ | 300 | 99.300 |
-| SePay Napas | 99.000 | 0.3% + 0 | 297 | 99.297 |
-| MegaPay Visa | 99.000 | 2.2% + 2200đ | 4.378 | 103.378 |
+| SePay Napas | 99.000 | 0.3% + 0 | 298 | 99.298 |
+| MegaPay VietQR | 99.000 | 0.77% + 0 | 768 | 99.768 |
+| MegaPay Visa | 99.000 | 2.2% + 2200đ | 4.476 | 103.476 |
 | DATA Napas | 14.100 | 0.3% + 0 | 42 | 14.142 |
 
 ---
