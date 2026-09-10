@@ -12,15 +12,20 @@ import type {
   ServerComponentCheck,
   ServerComponentStatus,
   ServerHealthPack,
+  ServerHostSnapshot,
   ServerOverallStatus,
   ServerProcessSnapshot,
   ServerQueueSnapshot,
   ServerWorkerCheck,
 } from '../entities/server-health.types';
+import { snapshotHostMetrics } from '../utils/host-metrics.util';
 
 const LATENCY_DEGRADED_MS = 500;
 const HEAP_RATIO_DEGRADED = 0.9;
 const EVENT_LOOP_DEGRADED_MS = 100;
+const HOST_MEM_DEGRADED_PCT = 90;
+const HOST_DISK_DEGRADED_PCT = 90;
+const HOST_LOAD_PER_CPU_DEGRADED = 2;
 
 @Injectable()
 export class ServerHealthService {
@@ -38,6 +43,7 @@ export class ServerHealthService {
       this.snapshotProcess(),
       this.safeQueueSnapshot(),
     ]);
+    const host = snapshotHostMetrics();
 
     const heartbeatRequired =
       this.configService.get<boolean>('app.workerHeartbeatRequired') ?? false;
@@ -53,6 +59,7 @@ export class ServerHealthService {
       workers,
       processSnap,
       queues,
+      host,
     });
 
     return {
@@ -69,6 +76,7 @@ export class ServerHealthService {
       redis,
       workers,
       process: processSnap,
+      host,
       queues,
       links: {
         systemHealth: '/health/ready',
@@ -85,6 +93,7 @@ export class ServerHealthService {
     workers: ServerWorkerCheck;
     processSnap: ServerProcessSnapshot;
     queues: ServerQueueSnapshot | null;
+    host: ServerHostSnapshot;
   }): ServerOverallStatus {
     if (!input.ready || input.database.status === 'error' || input.redis.status === 'error') {
       return 'DOWN';
@@ -105,8 +114,13 @@ export class ServerHealthService {
     const processHot =
       heapRatio >= HEAP_RATIO_DEGRADED ||
       input.processSnap.eventLoopLagMs >= EVENT_LOOP_DEGRADED_MS;
+    const hostHot =
+      input.host.memory.usedPercent >= HOST_MEM_DEGRADED_PCT ||
+      input.host.disks.some((d) => d.usedPercent >= HOST_DISK_DEGRADED_PCT) ||
+      (input.host.cpuCount > 0 &&
+        input.host.loadAvg[0] / input.host.cpuCount >= HOST_LOAD_PER_CPU_DEGRADED);
 
-    if (latencyHot || workersSoft || queueHot || processHot) {
+    if (latencyHot || workersSoft || queueHot || processHot || hostHot) {
       return 'DEGRADED';
     }
     return 'OK';

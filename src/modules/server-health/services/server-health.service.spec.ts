@@ -20,5 +20,8 @@ describe('ServerHealthService overall status', () => {
     expect(pack.ready).toBe(false);
     expect(pack.database.status).toBe('error');
     expect(pack.process.heapUsedMb).toBeGreaterThanOrEqual(0);
+    expect(pack.host.memory.totalMb).toBeGreaterThan(0);
+    expect(pack.host.cpuCount).toBeGreaterThan(0);
+    expect(pack.host.loadAvg).toHaveLength(3);
   });
 });
