@@ -14,7 +14,14 @@ export type AdminDeliveryFilter =
   | 'NEED_SUPPORT'
   | 'WAITING_ADMIN_RETRY';
 
-export type AdminPaymentFilter = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+export type AdminPaymentFilter =
+  | 'PENDING'
+  | 'WAITING_PAYMENT'
+  | 'UNPAID'
+  | 'PAID'
+  | 'FAILED'
+  | 'EXPIRED'
+  | 'REFUNDED';
 
 export function endOfDay(date: Date): Date {
   const d = new Date(date);
@@ -22,9 +29,18 @@ export function endOfDay(date: Date): Date {
   return d;
 }
 
-export function mapPaymentFilter(status?: AdminPaymentFilter): OrderPaymentStatus | undefined {
+export function mapPaymentFilter(
+  status?: AdminPaymentFilter,
+): OrderPaymentStatus | OrderPaymentStatus[] | undefined {
   if (!status) return undefined;
-  if (status === 'PENDING') return OrderPaymentStatus.WAITING_PAYMENT;
+  // PENDING kept as UI alias for WAITING_PAYMENT (legacy).
+  if (status === 'PENDING' || status === 'WAITING_PAYMENT') {
+    return OrderPaymentStatus.WAITING_PAYMENT;
+  }
+  // Unpaid carts: still waiting OR already expired.
+  if (status === 'UNPAID') {
+    return [OrderPaymentStatus.WAITING_PAYMENT, OrderPaymentStatus.EXPIRED];
+  }
   return status as OrderPaymentStatus;
 }
 
@@ -64,7 +80,9 @@ export function buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhe
 
   const paymentStatus = query.paymentStatus ?? mapPaymentFilter(query.paymentFilter);
   if (paymentStatus) {
-    where.paymentStatus = paymentStatus;
+    where.paymentStatus = Array.isArray(paymentStatus)
+      ? { in: paymentStatus }
+      : paymentStatus;
   }
 
   const deliveryFilter = mapDeliveryFilter(query.deliveryStatus);

@@ -14,15 +14,23 @@ import { formatDateTime, formatVnd } from '@/lib/utils';
 import { adminApi, ApiClientError } from '@/services/api-client';
 import type { AdminOrderListItem, AdminOrderSummary, ProviderStatus } from '@/types/api';
 
-const PAYMENT_FILTERS = ['', 'PENDING', 'PAID', 'FAILED', 'REFUNDED'] as const;
-const DELIVERY_FILTERS = [
-  '',
-  'WAITING_ADMIN_RETRY',
-  'PROCESSING',
-  'DELIVERED',
-  'FAILED',
-  'NEED_SUPPORT',
-] as const;
+const PAYMENT_FILTERS: { value: string; label: string }[] = [
+  { value: '', label: vi.app.all },
+  { value: 'UNPAID', label: 'Chưa thanh toán (chờ + hết hạn)' },
+  { value: 'WAITING_PAYMENT', label: vi.status.WAITING_PAYMENT },
+  { value: 'EXPIRED', label: vi.status.EXPIRED },
+  { value: 'PAID', label: vi.status.PAID },
+  { value: 'FAILED', label: vi.status.FAILED },
+  { value: 'REFUNDED', label: vi.status.REFUNDED },
+];
+const DELIVERY_FILTERS: { value: string; label: string }[] = [
+  { value: '', label: vi.app.all },
+  { value: 'WAITING_ADMIN_RETRY', label: vi.status.WAITING_ADMIN_RETRY },
+  { value: 'PROCESSING', label: vi.status.PROCESSING },
+  { value: 'DELIVERED', label: vi.status.COMPLETED },
+  { value: 'FAILED', label: vi.status.FAILED },
+  { value: 'NEED_SUPPORT', label: 'Cần hỗ trợ' },
+];
 const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA'] as const;
 const DATE_PRESETS: { value: DatePreset | ''; label: string }[] = [
   { value: '', label: vi.app.all },
@@ -217,8 +225,8 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
                 onChange={(e) => setFilters({ ...filters, paymentFilter: e.target.value })}
               >
                 {PAYMENT_FILTERS.map((t) => (
-                  <option key={t || 'all'} value={t}>
-                    {t || vi.app.all}
+                  <option key={t.value || 'all'} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </Select>
@@ -231,8 +239,8 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
                 onChange={(e) => setFilters({ ...filters, deliveryStatus: e.target.value })}
               >
                 {DELIVERY_FILTERS.map((t) => (
-                  <option key={t || 'all'} value={t}>
-                    {t || vi.app.all}
+                  <option key={t.value || 'all'} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </Select>
@@ -310,20 +318,21 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
                 <TH>{isAgent ? 'Đại lý' : 'Khách hàng'}</TH>
                 {isAgent && <TH>MT</TH>}
                 <TH>Loại</TH>
-                <TH align="right">{isAgent ? 'Số trừ hạn mức' : 'Thanh toán'}</TH>
+                <TH align="right">{isAgent ? 'Số trừ hạn mức' : 'Khách trả'}</TH>
                 <TH align="right">Giá vốn</TH>
                 <TH align="right">Lãi</TH>
                 <TH>PT thanh toán</TH>
-                <TH>Trạng thái</TH>
+                <TH>Trạng thái TT</TH>
+                <TH>Giao hàng</TH>
                 <TH>Ngày tạo</TH>
                 <TH />
               </TR>
             </THead>
             <TBody>
               {loading ? (
-                <TableSkeleton colSpan={isAgent ? 12 : 10} />
+                <TableSkeleton colSpan={isAgent ? 13 : 11} />
               ) : orders.length === 0 ? (
-                <TableEmpty colSpan={isAgent ? 12 : 10} message="Không có đơn hàng" />
+                <TableEmpty colSpan={isAgent ? 13 : 11} message="Không có đơn hàng" />
               ) : (
                 orders.map((o) => (
                   <TR key={o.id}>
@@ -346,6 +355,9 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
                       {formatVnd(o.profit)}
                     </TD>
                     <TD>{o.paymentMethod ?? '—'}</TD>
+                    <TD>
+                      <Badge tone={statusTone(o.paymentStatus)} status={o.paymentStatus} />
+                    </TD>
                     <TD>
                       <Badge tone={statusTone(o.fulfillmentStatus)} status={o.fulfillmentStatus} />
                     </TD>
