@@ -30,9 +30,17 @@ export class AdminOrderQueryDto {
   @IsEnum(OrderPaymentStatus)
   paymentStatus?: OrderPaymentStatus;
 
-  /** UI filter alias: PENDING maps to WAITING_PAYMENT */
+  /** UI filter: PENDING/WAITING_PAYMENT → waiting; UNPAID → waiting+expired */
   @IsOptional()
-  @IsIn(['PENDING', 'PAID', 'FAILED', 'REFUNDED'])
+  @IsIn([
+    'PENDING',
+    'WAITING_PAYMENT',
+    'UNPAID',
+    'PAID',
+    'FAILED',
+    'EXPIRED',
+    'REFUNDED',
+  ])
   paymentFilter?: AdminPaymentFilter;
 
   @IsOptional()

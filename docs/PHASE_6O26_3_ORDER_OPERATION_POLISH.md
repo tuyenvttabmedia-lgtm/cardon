@@ -17,7 +17,7 @@ Polishes admin order operations: smart filters, filtered summary cards, enriched
 | Search | `q` | Order code, customer email/phone, payment ref, gateway/bank tx id, provider tx id |
 | Date presets | `dateFrom`, `dateTo` | UI presets: today, yesterday, 7 days, this/last month |
 | Custom range | `fromDate`, `toDate` (aliases) | Same as `dateFrom` / `dateTo` |
-| Payment | `paymentFilter` | `PENDING` → `WAITING_PAYMENT`, `PAID`, `FAILED`, `REFUNDED` |
+| Payment | `paymentFilter` | `UNPAID` → `WAITING_PAYMENT`+`EXPIRED`; `WAITING_PAYMENT` / `PENDING`; `EXPIRED`; `PAID`; `FAILED`; `REFUNDED` |
 | Delivery | `deliveryStatus` | `PROCESSING`, `DELIVERED` → `COMPLETED`, `FAILED`, `NEED_SUPPORT` |
 | Product type | `productType` | `CARD`, `TOPUP`, `DATA` |
 | Provider | `providerId` | UUID |
