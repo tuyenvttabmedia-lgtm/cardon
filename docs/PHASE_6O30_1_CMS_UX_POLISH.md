@@ -91,7 +91,8 @@ docker compose -f docker-compose.local-full.yml up -d
 
 ## Constraints Respected
 
-- Trash, schedule, views, revisions, filters: **localStorage only**
+- Trash, schedule, revisions, filters: **localStorage only**
+- Article **Views**: persisted `cms_pages.view_count` via public `POST /cms/blog/posts/:slug/view` (client ping; not on GET detail)
 - Delete → trash (not immediate API delete)
 - Archive uses existing `status: ARCHIVED` API
-- No database migrations or API contract changes
+- Views column reads API `viewCount` (no longer localStorage placeholder)

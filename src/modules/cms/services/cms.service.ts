@@ -393,6 +393,17 @@ export class CmsService {
     };
   }
 
+  /**
+   * Record one public view for a published blog post.
+   * Kept off the GET detail path so SSR/ISR/crawlers do not inflate counts.
+   */
+  async recordBlogPostView(slug: string) {
+    const page = await this.repository.findPublishedBlogPostIdBySlug(slug);
+    if (!page) throw new NotFoundException('Blog post not found');
+    const updated = await this.repository.incrementPageViewCount(page.id);
+    return { viewCount: updated.viewCount };
+  }
+
   getThemeSettings() {
     return this.repository.getThemeSettings().then((theme) => this.normalizeTheme(theme));
   }

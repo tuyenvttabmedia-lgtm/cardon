@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { ArticleSidebar, RelatedPostsGrid } from '@/components/blog/ArticleSidebar';
 import { ArticleShareButtons } from '@/components/blog/ArticleShareButtons';
 import { ArticleTableOfContents } from '@/components/blog/ArticleTableOfContents';
+import { RecordBlogPostView } from '@/components/blog/RecordBlogPostView';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { SafeCmsHtml } from '@/components/SafeCmsHtml';
@@ -61,6 +62,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
 
   return (
     <PageContainer>
+      <RecordBlogPostView slug={post.slug} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
 
       <Breadcrumb items={breadcrumbItems} className="mb-6" />

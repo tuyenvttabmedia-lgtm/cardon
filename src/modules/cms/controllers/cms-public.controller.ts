@@ -1,4 +1,5 @@
-import { Controller, Get, Header, NotFoundException, Param, Query } from '@nestjs/common';
+import { Controller, Get, Header, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ListBlogQueryDto } from '../dto/cms.dto';
 import { CmsService } from '../services/cms.service';
 
@@ -29,6 +30,13 @@ export class CmsPublicController {
     const result = await this.cmsService.getBlogPost(slug);
     if (!result) throw new NotFoundException('Blog post not found');
     return result;
+  }
+
+  /** Client-side view ping — not on GET to avoid SSR/ISR/bot inflation. */
+  @Post('blog/posts/:slug/view')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  recordBlogPostView(@Param('slug') slug: string) {
+    return this.cmsService.recordBlogPostView(slug);
   }
 
   @Get('blog/categories')
