@@ -127,6 +127,32 @@ export class CmsRepository {
     });
   }
 
+  /** Atomic view increment without touching updated_at (keeps admin sort stable). */
+  async incrementPageViewCount(id: string) {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; view_count: number }>>`
+      UPDATE "cms_pages"
+      SET "view_count" = "view_count" + 1
+      WHERE "id" = ${id}::uuid
+      RETURNING "id", "view_count"
+    `;
+    const row = rows[0];
+    if (!row) {
+      throw new Error(`CmsPage ${id} not found for view increment`);
+    }
+    return { id: row.id, viewCount: row.view_count };
+  }
+
+  findPublishedBlogPostIdBySlug(slug: string) {
+    return this.prisma.cmsPage.findFirst({
+      where: {
+        slug,
+        type: CmsPageType.BLOG_POST,
+        status: CmsPageStatus.PUBLISHED,
+      },
+      select: { id: true, viewCount: true },
+    });
+  }
+
   upsertPageSeo(pageId: string, data: Prisma.CmsSeoCreateWithoutPageInput) {
     return this.prisma.cmsSeo.upsert({
       where: { pageId },

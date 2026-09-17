@@ -143,6 +143,10 @@ Managed by ADMIN role under Admin Panel → CMS:
 | Preview | Preview draft before publish |
 | Slug management | Auto-generate from title, manual override |
 
+## Blog view counts
+
+Published blog posts store `cms_pages.view_count`. Public site records a view via `POST /cms/blog/posts/:slug/view` from the article client (once per tab session). Admin article list reads `viewCount` from the CMS pages API. View increment is **not** tied to GET detail so SSR/ISR/crawlers do not inflate counts.
+
 ## CmsService
 
 ```typescript

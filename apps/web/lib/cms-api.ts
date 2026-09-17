@@ -90,6 +90,20 @@ export function getBlogPost(slug: string) {
   return cmsFetch<{ post: PublicBlogPost; related: PublicBlogPost[] }>(`/cms/blog/posts/${slug}`);
 }
 
+/** Client-only: increment published blog view count (best-effort). */
+export async function recordBlogPostView(slug: string): Promise<void> {
+  try {
+    await fetch(`${getApiBaseUrl()}/cms/blog/posts/${encodeURIComponent(slug)}/view`, {
+      method: 'POST',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+      keepalive: true,
+    });
+  } catch {
+    // never block article UX on analytics
+  }
+}
+
 export interface PublicBlogCategory {
   id: string;
   slug: string;

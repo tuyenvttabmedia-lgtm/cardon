@@ -16,7 +16,6 @@ import {
 } from '@/lib/cms-editor-utils';
 import {
   getScheduledPublish,
-  getViewCount,
   isInTrash,
   listDeletedForeverIds,
   loadArticleFilters,
@@ -221,7 +220,7 @@ export const ArticleListTable = memo(function ArticleListTable({
 
   const viewsMap = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const p of items) m[p.id] = getViewCount(p.id);
+    for (const p of items) m[p.id] = p.viewCount ?? 0;
     return m;
   }, [items]);
 
