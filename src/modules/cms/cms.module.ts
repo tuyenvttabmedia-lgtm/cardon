@@ -12,7 +12,6 @@ import { CmsMediaStorageService } from './services/cms-media-storage.service';
 import { CmsMediaService } from './services/cms-media.service';
 import { CmsScheduledPublishCronService } from './services/cms-scheduled-publish-cron.service';
 import { CmsService } from './services/cms.service';
-import { EmailTemplateService } from '../email-template/services/email-template.service';
 
 @Module({
   imports: [
