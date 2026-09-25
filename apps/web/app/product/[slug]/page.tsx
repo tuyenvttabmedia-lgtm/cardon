@@ -70,7 +70,7 @@ export default async function ProductPage({
         </>
       ) : null}
       <Suspense fallback={<p className="text-gray-500">Đang tải...</p>}>
-        <ProductPageClient slug={slug} />
+        <ProductPageClient slug={slug} initialProduct={product} />
       </Suspense>
     </>
   );

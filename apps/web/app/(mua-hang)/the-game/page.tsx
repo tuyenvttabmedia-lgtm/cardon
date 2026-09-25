@@ -3,18 +3,13 @@ import { Suspense } from 'react';
 import { HomePageClient } from '@/components/home/HomePageClient';
 import { HubSeoBlock } from '@/components/seo/HubSeoBlock';
 import { listBlogPosts } from '@/lib/cms-api';
-import { CARD_GAME_PATH } from '@/lib/checkout-services';
+import { THE_GAME_SEO } from '@/lib/hub-seo-copy';
 import { buildMetadata } from '@/lib/seo';
 
-const HUB_TITLE = 'Mua thẻ game giá rẻ — Garena, Zing, Steam';
-const HUB_INTRO =
-  'Mua thẻ Garena, Zing, Võ Lâm, Steam và nhiều nhà phát hành khác trên CardOn. Nhận mã PIN tự động 24/7, thanh toán QR an toàn, hỗ trợ đổi trả theo chính sách.';
-
 export const metadata: Metadata = buildMetadata({
-  title: HUB_TITLE,
-  description:
-    'Mua thẻ game Garena, Zing, Võ Lâm, Steam… giao mã tự động 24/7. Thanh toán QR an toàn tại CardOn.vn.',
-  path: CARD_GAME_PATH,
+  title: THE_GAME_SEO.title,
+  description: THE_GAME_SEO.description,
+  path: THE_GAME_SEO.path,
 });
 
 export default async function TheGamePage() {
@@ -22,10 +17,12 @@ export default async function TheGamePage() {
   return (
     <>
       <HubSeoBlock
-        path={CARD_GAME_PATH}
-        title={HUB_TITLE}
-        intro={HUB_INTRO}
-        breadcrumbLabel="Thẻ game"
+        path={THE_GAME_SEO.path}
+        title={THE_GAME_SEO.title}
+        intro={THE_GAME_SEO.intro}
+        paragraphs={THE_GAME_SEO.paragraphs}
+        bullets={THE_GAME_SEO.bullets}
+        breadcrumbLabel={THE_GAME_SEO.breadcrumbLabel}
       />
       <Suspense fallback={<p className="text-cardon-gray">Đang tải...</p>}>
         <HomePageClient newsPosts={newsPosts} initialCategory="game" />
