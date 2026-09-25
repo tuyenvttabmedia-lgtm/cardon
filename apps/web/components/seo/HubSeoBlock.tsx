@@ -5,12 +5,13 @@ export type HubSeoContent = {
   path: string;
   title: string;
   intro: string;
-  breadcrumbLabel: string;
+  /** Omit or pass null to skip BreadcrumbList (e.g. homepage). */
+  breadcrumbLabel?: string | null;
 };
 
-/** Visible H1 + intro + WebPage/Breadcrumb JSON-LD so hub pages are not thin clones of home. */
+/** Visible H1 + intro + WebPage/Breadcrumb JSON-LD so hub/home pages are not thin. */
 export function HubSeoBlock({ path, title, intro, breadcrumbLabel }: HubSeoContent) {
-  const url = `${getSiteUrl()}${path}`;
+  const url = `${getSiteUrl()}${path === '/' ? '' : path}`;
   const webPage = {
     '@context': 'https://schema.org',
     '@type': 'WebPage',
@@ -24,14 +25,17 @@ export function HubSeoBlock({ path, title, intro, breadcrumbLabel }: HubSeoConte
     },
   };
 
-  return (
-    <section className="page-shell border-b border-zinc-100 bg-zinc-50/80 py-6 md:py-8">
-      <BreadcrumbJsonLd
-        items={[
+  const crumbs =
+    path === '/' || !breadcrumbLabel
+      ? null
+      : [
           { name: 'Trang chủ', url: '/' },
           { name: breadcrumbLabel, url: path },
-        ]}
-      />
+        ];
+
+  return (
+    <section className="border-b border-zinc-100 bg-zinc-50/80 py-5 md:py-6">
+      {crumbs ? <BreadcrumbJsonLd items={crumbs} /> : null}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(webPage) }}

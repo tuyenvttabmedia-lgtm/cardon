@@ -50,8 +50,15 @@ function HeroSkeleton() {
   return <div className={cn(SERVICE_HERO_SHELL_CLASS, 'animate-pulse bg-gray-100')} />;
 }
 
-function HeroFallback({ variant }: { variant: HeroBannerVariant }) {
+function HeroFallback({
+  variant,
+  headingAs = 'h1',
+}: {
+  variant: HeroBannerVariant;
+  headingAs?: 'h1' | 'h2';
+}) {
   const content = FALLBACK_CONTENT[variant];
+  const HeadingTag = headingAs;
 
   return (
     <div
@@ -61,7 +68,7 @@ function HeroFallback({ variant }: { variant: HeroBannerVariant }) {
       )}
     >
       <div className="relative z-10 max-w-xl">
-        <h1 className="text-2xl font-bold leading-tight md:text-4xl">{content.title}</h1>
+        <HeadingTag className="text-2xl font-bold leading-tight md:text-4xl">{content.title}</HeadingTag>
         <p className="mt-2 text-sm text-white/90 md:mt-3 md:text-lg">{content.subtitle}</p>
         <div className="mt-4 flex flex-wrap gap-2 md:mt-6">
           {content.badges.map((badge) => (
@@ -215,7 +222,14 @@ function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
   );
 }
 
-export function HeroBanner({ variant = 'card' }: { variant?: HeroBannerVariant }) {
+export function HeroBanner({
+  variant = 'card',
+  headingAs = 'h1',
+}: {
+  variant?: HeroBannerVariant;
+  /** Use h2 when the page already owns a HubSeoBlock / page-level H1. */
+  headingAs?: 'h1' | 'h2';
+}) {
   const [banners, setBanners] = useState<CmsBanner[]>(cachedHomeHeroBanners ?? []);
   const [loaded, setLoaded] = useState(cachedHomeHeroBanners !== undefined);
 
@@ -242,5 +256,5 @@ export function HeroBanner({ variant = 'card' }: { variant?: HeroBannerVariant }
     return <HeroCarousel banners={banners} />;
   }
 
-  return <HeroFallback variant={variant} />;
+  return <HeroFallback variant={variant} headingAs={headingAs} />;
 }

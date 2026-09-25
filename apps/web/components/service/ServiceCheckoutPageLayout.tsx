@@ -14,7 +14,7 @@ export function ServiceCheckoutPageLayout({
   return (
     <div className={cn(className)}>
       <div className="site-container space-y-6 py-6 md:py-8">
-        <HeroBanner variant={heroVariant} />
+        <HeroBanner variant={heroVariant} headingAs="h2" />
         {children}
       </div>
     </div>
