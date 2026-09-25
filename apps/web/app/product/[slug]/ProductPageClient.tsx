@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CatalogDenomCard } from '@/components/catalog/CatalogSelectCard';
 import { CatalogSelectorGrid } from '@/components/catalog/CatalogSelectorGrid';
@@ -8,17 +8,32 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { findProductBySlug, getActiveVariants, useProducts } from '@/hooks/useProducts';
 import { formatVnd } from '@/lib/utils';
+import type { Product } from '@/types/api';
 
-export default function ProductPageClient({ slug }: { slug: string }) {
+export default function ProductPageClient({
+  slug,
+  initialProduct = null,
+}: {
+  slug: string;
+  /** Server-fetched product so H1/description exist in SSR HTML for crawlers. */
+  initialProduct?: Product | null;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { products, loading, error } = useProducts();
-  const product = findProductBySlug(products, slug);
+  const fromCatalog = findProductBySlug(products, slug);
+  const product = fromCatalog ?? initialProduct ?? null;
   const variants = product ? getActiveVariants(product) : [];
 
-  const initialVariantId = searchParams.get('variant') ?? variants[0]?.id;
-  const [variantId, setVariantId] = useState(initialVariantId ?? '');
+  const initialVariantId = searchParams.get('variant') ?? variants[0]?.id ?? '';
+  const [variantId, setVariantId] = useState(initialVariantId);
   const [quantity, setQuantity] = useState(1);
+
+  useEffect(() => {
+    if (!variantId && variants[0]?.id) {
+      setVariantId(variants[0].id);
+    }
+  }, [variantId, variants]);
 
   const selectedVariant = useMemo(
     () => variants.find((v) => v.id === variantId) ?? variants[0],
@@ -29,8 +44,8 @@ export default function ProductPageClient({ slug }: { slug: string }) {
     ? parseFloat(selectedVariant.sellPrice) * quantity
     : 0;
 
-  if (loading) return <p>Đang tải sản phẩm...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
+  if (loading && !product) return <p>Đang tải sản phẩm...</p>;
+  if (error && !product) return <p className="text-red-600">{error}</p>;
   if (!product) return <p>Không tìm thấy sản phẩm.</p>;
 
   return (

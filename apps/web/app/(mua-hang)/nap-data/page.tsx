@@ -1,27 +1,25 @@
 import type { Metadata } from 'next';
 import { HubSeoBlock } from '@/components/seo/HubSeoBlock';
 import { DataPageClient } from '@/components/topup/DataPageClient';
+import { NAP_DATA_SEO } from '@/lib/hub-seo-copy';
 import { buildMetadata } from '@/lib/seo';
 
-const HUB_TITLE = 'Nạp data 3G/4G/5G';
-const HUB_INTRO =
-  'Mua gói data 3G/4G/5G Viettel, Mobifone, Vinaphone trên CardOn. Kích hoạt tự động sau thanh toán, nhiều gói ngày/tháng, hỗ trợ 24/7.';
-
 export const metadata: Metadata = buildMetadata({
-  title: HUB_TITLE,
-  description:
-    'Mua gói data Viettel, Mobifone, Vinaphone tự động 24/7. Thanh toán an toàn trên CardOn.',
-  path: '/nap-data',
+  title: NAP_DATA_SEO.title,
+  description: NAP_DATA_SEO.description,
+  path: NAP_DATA_SEO.path,
 });
 
 export default function NapDataPage() {
   return (
     <>
       <HubSeoBlock
-        path="/nap-data"
-        title={HUB_TITLE}
-        intro={HUB_INTRO}
-        breadcrumbLabel="Nạp data"
+        path={NAP_DATA_SEO.path}
+        title={NAP_DATA_SEO.title}
+        intro={NAP_DATA_SEO.intro}
+        paragraphs={NAP_DATA_SEO.paragraphs}
+        bullets={NAP_DATA_SEO.bullets}
+        breadcrumbLabel={NAP_DATA_SEO.breadcrumbLabel}
       />
       <DataPageClient />
     </>

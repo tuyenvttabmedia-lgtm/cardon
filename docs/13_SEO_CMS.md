@@ -2,302 +2,177 @@
 
 ## Overview
 
-The SEO/CMS module manages public-facing content for CardOn.vn — product pages, landing pages, blog posts, and SEO metadata. This is Phase 12 (last development phase).
+The SEO/CMS module manages public-facing content for CardOn.vn — product pages, service hubs, blog posts, FAQ, and SEO metadata (Phase 12).
 
 ```
-Public Website (Next.js)
+Public Website (Next.js apps/web)
     ↓
-CMS API (NestJS)
-    ↓
-CmsService
-    ↓
-CmsRepository
+CMS / Product / FAQ APIs (NestJS)
     ↓
 Database
 ```
 
-CMS content is separate from the product/order engine. Product catalog data comes from `ProductEngine`; CMS adds marketing content and SEO layers on top.
+CMS content is separate from the product/order engine. Catalog prices come from Product Engine; CMS adds marketing copy, banners, blog, and SEO layers.
+
+## Runtime URL map (source of truth)
+
+| Surface | URL | Notes |
+|---------|-----|--------|
+| Homepage | `/` | HubSeoBlock + checkout shell |
+| Thẻ game hub | `/the-game` | Filter GAME_CARD |
+| Thẻ ĐT hub | `/the-dien-thoai` | Filter PHONE_CARD |
+| Nạp cước | `/nap-cuoc` | TOPUP checkout |
+| Nạp data | `/nap-data` | DATA checkout |
+| Product detail | `/product/{slug}` | e.g. `/product/viettel-card` |
+| Blog list | `/tin-tuc` | |
+| Blog category | `/tin-tuc/{category}` | |
+| Blog article | `/tin-tuc/{category}/{slug}` | |
+| FAQ hub | `/tro-giup` | |
+| FAQ detail | `/tro-giup/{category}/{slug}` | |
+| Agent register | `/dang-ky-dai-ly` | |
+| Static CMS pages | `/{slug}` | e.g. `/gioi-thieu`, policies |
+
+### Legacy redirects (permanent)
+
+| From | To |
+|------|-----|
+| `/cards`, `/cards?service=GAME_CARD` | `/the-game` |
+| `/cards?service=PHONE_CARD` | `/the-dien-thoai` |
+| `/cards?service=TOPUP` | `/nap-cuoc` |
+| `/cards?service=DATA` | `/nap-data` |
+| `/partner/register` | `/dang-ky-dai-ly` |
+| `/huong-dan` | `/tin-tuc/huong-dan` |
+| `/khuyen-mai` | `/tin-tuc/khuyen-mai` |
+| `/account` | `/tai-khoan` |
+
+Private routes (`/login`, `/checkout`, `/tai-khoan`, `/orders`, …) are **noindex** and listed in `robots.txt` Disallow.
 
 ## Content Types
 
-| Type | Purpose | URL Pattern |
-|------|---------|-------------|
-| `PAGE` | Static pages (About, FAQ, Terms) | `/pages/{slug}` |
-| `PRODUCT_LANDING` | SEO landing for product categories | `/the/{slug}` |
-| `BLOG_POST` | News, guides, promotions | `/blog/{slug}` |
-| `BANNER` | Homepage/promotional banners | Component embed |
-| `FAQ` | Frequently asked questions | `/faq` or embedded |
+| Type | Purpose | Public URL |
+|------|---------|------------|
+| `PAGE` | Static pages | `/{slug}` |
+| `BLOG_POST` | News / guides | `/tin-tuc/{category}/{slug}` |
+| `BANNER` | Home hero, etc. | Embedded |
+| FAQ (module) | Help center | `/tro-giup` (+ embeds) |
 
-## Data Model (Design Reference)
+> Design-era paths `/the/{slug}`, `/san-pham/{sku}`, `/blog/{slug}`, `/pages/{slug}` are **obsolete** — do not use in new content or sitemaps.
 
-### cms_pages
+## Data Model (reference)
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| type | ENUM | PAGE, PRODUCT_LANDING, BLOG_POST |
-| slug | VARCHAR UNIQUE | URL-friendly identifier |
-| title | VARCHAR | Page title |
-| content | TEXT | HTML / Markdown content |
-| excerpt | VARCHAR | Short description |
-| featured_image | VARCHAR | Image URL |
-| status | ENUM | DRAFT, PUBLISHED, ARCHIVED |
-| author_id | UUID FK → users | |
-| published_at | TIMESTAMPTZ | |
-| created_at | TIMESTAMPTZ | |
-| updated_at | TIMESTAMPTZ | |
+### cms_pages / cms_seo / cms_banners
 
-### cms_seo
+Unchanged conceptually: pages carry title/content; `cms_seo` holds meta/OG/canonical/robots/`structured_data` (JSON-LD override for articles when set). Banners are scheduled by position (`HOME_HERO`, …).
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| page_id | UUID FK → cms_pages | |
-| meta_title | VARCHAR | `<title>` tag (max 60 chars) |
-| meta_description | VARCHAR | `<meta description>` (max 160 chars) |
-| meta_keywords | VARCHAR | Optional keywords |
-| og_title | VARCHAR | Open Graph title |
-| og_description | VARCHAR | Open Graph description |
-| og_image | VARCHAR | Open Graph image URL |
-| canonical_url | VARCHAR | Canonical link |
-| robots | VARCHAR | index/noindex, follow/nofollow |
-| structured_data | JSONB | JSON-LD schema markup |
+Admin SEO panel edits meta/OG/canonical/robots. Custom `structured_data` write UI is optional / not required for core Product/Org/FAQ schemas (generated in Next.js).
 
-### cms_banners
+## SEO implementation (web)
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| title | VARCHAR | Internal name |
-| image_url | VARCHAR | Banner image |
-| link_url | VARCHAR | Click destination |
-| position | ENUM | HOME_HERO, HOME_SIDEBAR, CATEGORY_TOP |
-| sort_order | INT | Display order |
-| status | ENUM | ACTIVE, INACTIVE |
-| start_at | TIMESTAMPTZ | Schedule start |
-| end_at | TIMESTAMPTZ | Schedule end |
+| Piece | Location |
+|-------|----------|
+| Metadata builder | `apps/web/lib/seo.ts` (`buildMetadata`, `absolutePublicUrl`, `metadataBase`) |
+| robots.txt | `apps/web/lib/robots-txt.ts` + `app/robots.txt/route.ts` |
+| Sitemap | `apps/web/app/sitemap.ts` |
+| Product JSON-LD | `ProductJsonLd` (Offer / AggregateOffer + brand heuristic) |
+| Site JSON-LD | `SiteJsonLd` (Organization + WebSite) |
+| Hub / home copy | `HubSeoBlock` + `lib/hub-seo-copy.ts` |
+| FAQ schema | `FaqSchema` |
+| Breadcrumbs | `BreadcrumbJsonLd` |
+| On-demand revalidate | `POST /api/revalidate` + API `CmsWebRevalidateService` |
 
-## SEO Strategy
+Product detail passes **server-fetched** product into the client so `<h1>` exists in SSR HTML (not only after `useProducts` hydrate).
 
-### Product Category Pages
+## Structured Data (JSON-LD)
 
-Auto-generated landing pages for product categories:
-
-```
-/the/game-card          → Game cards listing + SEO content
-/the/mobile-card        → Mobile cards listing
-/the/topup              → Topup services
-/the/{game-name}        → Game-specific landing (e.g., /the/pubg-mobile)
-```
-
-Each page combines:
-
-- Product listing from `ProductEngine` (live prices, availability)
-- CMS content (descriptions, guides, FAQs)
-- SEO metadata from `cms_seo`
-
-### Structured Data (JSON-LD)
-
-Product pages include schema markup:
+Product pages (server):
 
 ```json
 {
   "@context": "https://schema.org",
   "@type": "Product",
-  "name": "Thẻ PUBG Mobile 660 UC",
-  "description": "...",
+  "name": "Viettel Card",
+  "brand": { "@type": "Brand", "name": "Viettel" },
   "offers": {
-    "@type": "Offer",
-    "price": "199000",
+    "@type": "AggregateOffer",
     "priceCurrency": "VND",
-    "availability": "https://schema.org/InStock"
+    "lowPrice": "...",
+    "highPrice": "..."
   }
 }
 ```
 
-Generated server-side in Next.js for SEO crawlers.
+Also: Organization / WebSite on layout; WebPage on hubs; FAQPage on `/tro-giup`; Article/BlogPosting on posts; BreadcrumbList where wired.
 
-### URL Structure
+Do **not** invent `AggregateRating` without a real review system.
 
-| Page | URL | SEO Priority |
-|------|-----|-------------|
-| Homepage | `/` | Highest |
-| Category | `/the/{slug}` | High |
-| Product detail | `/san-pham/{sku}` | High |
-| Blog | `/blog/{slug}` | Medium |
-| Static page | `/pages/{slug}` | Low-Medium |
-
-Clean URLs, no query parameters for primary content.
-
-## CMS Admin (in Admin Panel)
-
-Managed by ADMIN role under Admin Panel → CMS:
-
-| Feature | Description |
-|---------|-------------|
-| Page editor | WYSIWYG or Markdown editor |
-| SEO fields | meta_title, meta_description, og tags per page |
-| Banner manager | Upload, schedule, position banners |
-| Blog manager | Create/edit/publish blog posts |
-| FAQ manager | Category-based FAQ entries |
-| Preview | Preview draft before publish |
-| Slug management | Auto-generate from title, manual override |
-
-## Blog view counts
-
-Published blog posts store `cms_pages.view_count`. Public site records a view via `POST /cms/blog/posts/:slug/view` from the article client (once per tab session). Admin article list reads `viewCount` from the CMS pages API. View increment is **not** tied to GET detail so SSR/ISR/crawlers do not inflate counts.
-
-## On-demand revalidate (publish)
-
-When a CMS page is published / updated while published, API notifies the web app:
+## On-demand revalidate
 
 ```
 POST {WEB_INTERNAL_URL}/api/revalidate
 Header: x-revalidate-secret: {WEB_REVALIDATE_SECRET}
-Body: { paths: [...], tags: ["cms"] }
+Body: { paths: [...], tags: ["cms"|"products"] }
 ```
 
-Also notifies on FAQ mutations, SEO settings, banners/theme, and product catalog changes (`tags: ["products"]`).
+Triggers: CMS publish, SEO settings, banners/theme, FAQ CRUD (incl. detail paths), product + **variant** price/status changes.
 
-Requires `WEB_INTERNAL_URL` + `WEB_REVALIDATE_SECRET` on both api and web. Missing secret → no-op (safe).
+Requires `WEB_INTERNAL_URL` + `WEB_REVALIDATE_SECRET`. Missing secret → no-op.
 
-`robots.txt` always merges required private Disallows and appends `Sitemap:` even when CMS custom robotsTxt is set.
+`robots.txt` always merges required private Disallows and appends `Sitemap:` (CMS custom robotsTxt cannot remove them).
 
-## CmsService
+Compose web build arg: `WEB_NEXT_PUBLIC_SITE_URL:-https://cardon.vn`.
 
-```typescript
-class CmsService {
-  getPageBySlug(slug: string): Promise<CmsPageWithSeo>;
-  getPublishedPages(type: PageType): Promise<CmsPage[]>;
-  getActiveBanners(position: BannerPosition): Promise<Banner[]>;
-  createPage(dto: CreatePageDto, authorId: string): Promise<CmsPage>;
-  updatePage(pageId: string, dto: UpdatePageDto): Promise<CmsPage>;
-  publishPage(pageId: string): Promise<CmsPage>;
-  archivePage(pageId: string): Promise<CmsPage>;
-}
-```
+## Sitemap (`/sitemap.xml`)
 
-## Next.js Integration
-
-### Static Generation (SSG) + ISR
+Includes roughly:
 
 ```
-Product landing pages  → ISR (revalidate: 3600)
-Blog posts              → SSG at build + ISR
-Static pages            → SSG at build
-Product detail          → SSR (live price)
+/ , /tin-tuc , /the-game , /the-dien-thoai , /nap-cuoc , /nap-data
+/gioi-thieu , /tro-giup , /dang-ky-dai-ly , static policy pages
+/tin-tuc/{category} , /tin-tuc/{category}/{slug}
+/product/{slug}
+/tro-giup/{category}/{slug}
 ```
 
-Product prices must be fresh — use SSR or ISR with short revalidation for product detail pages.
+Disabled when CMS `sitemapEnabled === false`.
 
-### Sitemap
-
-Auto-generated sitemap at `/sitemap.xml`:
-
-```
-/                          priority: 1.0
-/the/*                     priority: 0.8
-/san-pham/*                priority: 0.8
-/blog/*                    priority: 0.6
-/pages/*                   priority: 0.5
-```
-
-Regenerated on CMS publish event or daily cron.
-
-### robots.txt
+## robots.txt (runtime)
 
 ```
 User-agent: *
 Allow: /
-Disallow: /admin/
+Disallow: /checkout
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /order/
+Disallow: /orders/
+Disallow: /tra-cuu-don-hang
+Disallow: /account
+Disallow: /tai-khoan
 Disallow: /api/
-Disallow: /api/v1/agent/
 
 Sitemap: https://cardon.vn/sitemap.xml
 ```
 
-## Performance & SEO
+## Blog view counts
 
-| Requirement | Implementation |
-|-------------|---------------|
-| Core Web Vitals | Next.js Image optimization, lazy loading |
-| Mobile-first | TailwindCSS responsive design |
-| Page speed | Static assets via CDN, gzip/brotli |
-| Meta tags | Server-rendered in `<head>` via Next.js metadata API |
-| Canonical URLs | Prevent duplicate content |
-| Alt text | Required on all CMS images |
+Published posts: `cms_pages.view_count`. Public `POST /cms/blog/posts/:slug/view` from article client (once per tab). Not tied to GET detail (SSR/crawlers do not inflate).
 
-## Content Workflow
+## CMS Admin
 
-```
-Author creates content (status: DRAFT)
-    ↓
-Preview in admin panel
-    ↓
-Admin reviews
-    ↓
-Publish (status: PUBLISHED, published_at set)
-    ↓
-Next.js ISR revalidation triggered
-    ↓
-Sitemap updated
-```
+Admin → Marketing / CMS: pages, blog, banners, global SEO, FAQ. Preview drafts; only `PUBLISHED` on public site.
 
-Draft content never visible on public site.
-
-## Banners
-
-Time-scheduled promotional banners:
-
-```
-cms_banners
-  position: HOME_HERO
-  status: ACTIVE
-  start_at: 2024-06-01
-  end_at: 2024-06-30
-```
-
-Frontend fetches active banners via API, caches with short TTL.
-
-## API Endpoints (Public)
+## Public API (representative)
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /api/v1/cms/pages/:slug` | Get published page with SEO |
-| `GET /api/v1/cms/banners?position=HOME_HERO` | Active banners |
-| `GET /api/v1/cms/blog?page=1&limit=10` | Blog listing |
-| `GET /sitemap.xml` | Auto-generated sitemap |
-
-Public endpoints — no authentication required. Only PUBLISHED content returned.
-
-## API Endpoints (Admin)
-
-| Endpoint | Purpose |
-|----------|---------|
-| `POST /admin/api/v1/cms/pages` | Create page |
-| `PUT /admin/api/v1/cms/pages/:id` | Update page |
-| `POST /admin/api/v1/cms/pages/:id/publish` | Publish |
-| `CRUD /admin/api/v1/cms/banners` | Banner management |
-
-Requires ADMIN role.
-
-## Development Phase Note
-
-SEO/CMS is **Phase 12** — implement last, after:
-
-1. Database Schema
-2. Auth + RBAC
-3. Product Engine
-4. Payment Gateway
-5. Provider Integration
-6. Order Fulfillment
-7. Admin Panel
-8. Agent Platform
-9. Finance Ledger
-10. Reconciliation
-11. Invoice
-
-CMS depends on Product Engine (for product landing pages) and Admin Panel (for CMS editor UI).
+| `GET /api/v1/cms/pages/:slug` | Static page + SEO |
+| `GET /api/v1/cms/blog/...` | Blog list / post / categories |
+| `GET /api/v1/cms/faqs...` | FAQ public |
+| `GET /api/v1/products/by-slug/:slug` | Product for SSR meta + H1 |
+| `GET /sitemap.xml` | Next.js sitemap |
+| `GET /robots.txt` | Next.js robots |
 
 ## Related Docs
 
