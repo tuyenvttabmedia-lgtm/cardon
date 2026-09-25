@@ -18,7 +18,7 @@ CMS content is separate from the product/order engine. Catalog prices come from 
 
 | Surface | URL | Notes |
 |---------|-----|--------|
-| Homepage | `/` | HubSeoBlock + checkout shell |
+| Homepage | `/` | Hero H1 + checkout shell |
 | Thẻ game hub | `/the-game` | Filter GAME_CARD |
 | Thẻ ĐT hub | `/the-dien-thoai` | Filter PHONE_CARD |
 | Nạp cước | `/nap-cuoc` | TOPUP checkout |
