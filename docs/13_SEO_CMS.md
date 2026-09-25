@@ -147,6 +147,18 @@ Managed by ADMIN role under Admin Panel → CMS:
 
 Published blog posts store `cms_pages.view_count`. Public site records a view via `POST /cms/blog/posts/:slug/view` from the article client (once per tab session). Admin article list reads `viewCount` from the CMS pages API. View increment is **not** tied to GET detail so SSR/ISR/crawlers do not inflate counts.
 
+## On-demand revalidate (publish)
+
+When a CMS page is published / updated while published, API notifies the web app:
+
+```
+POST {WEB_INTERNAL_URL}/api/revalidate
+Header: x-revalidate-secret: {WEB_REVALIDATE_SECRET}
+Body: { paths: [...], tags: ["cms"] }
+```
+
+Requires `WEB_INTERNAL_URL` + `WEB_REVALIDATE_SECRET` on both api and web. Missing secret → no-op (safe).
+
 ## CmsService
 
 ```typescript

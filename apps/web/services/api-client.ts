@@ -333,6 +333,11 @@ export const productApi = {
   getProduct(id: string) {
     return apiRequest<Product>(`/products/${id}`, { auth: false });
   },
+  getProductBySlug(slug: string) {
+    return apiRequest<Product>(`/products/by-slug/${encodeURIComponent(slug)}`, {
+      auth: false,
+    });
+  },
 };
 
 export const orderApi = {

@@ -12,6 +12,7 @@ export async function generateMetadata({
   return buildMetadata({
     title: `Đơn hàng ${code} — CardOn.vn`,
     path: `/order/${code}`,
+    robots: { index: false, follow: false },
   });
 }
 

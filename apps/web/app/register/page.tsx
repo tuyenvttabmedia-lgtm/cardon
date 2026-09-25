@@ -5,6 +5,7 @@ import RegisterPageClient from './RegisterPageClient';
 export const metadata: Metadata = buildMetadata({
   title: 'Đăng ký — CardOn.vn',
   path: '/register',
+  robots: { index: false, follow: false },
 });
 
 export default function RegisterPage() {

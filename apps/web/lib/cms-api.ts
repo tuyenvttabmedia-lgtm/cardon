@@ -56,7 +56,7 @@ interface ApiSuccess<T> {
 async function cmsFetch<T>(path: string, revalidateSeconds = 60): Promise<T | null> {
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
-      next: { revalidate: revalidateSeconds },
+      next: { revalidate: revalidateSeconds, tags: ['cms'] },
     });
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') ?? '';

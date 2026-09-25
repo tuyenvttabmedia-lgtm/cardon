@@ -11,6 +11,7 @@ import { CmsMediaStorageService } from './services/cms-media-storage.service';
 import { CmsMediaService } from './services/cms-media.service';
 import { CmsScheduledPublishCronService } from './services/cms-scheduled-publish-cron.service';
 import { CmsService } from './services/cms.service';
+import { CmsWebRevalidateService } from './services/cms-web-revalidate.service';
 import { EmailTemplateService } from '../email-template/services/email-template.service';
 
 @Module({
@@ -22,6 +23,7 @@ import { EmailTemplateService } from '../email-template/services/email-template.
     CmsMediaStorageService,
     CmsMediaService,
     CmsScheduledPublishCronService,
+    CmsWebRevalidateService,
   ],
   exports: [CmsService],
 })

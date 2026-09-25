@@ -3,6 +3,17 @@ import { getSiteUrl } from '@/lib/utils';
 
 const DEFAULT_ROBOTS = `User-agent: *
 Allow: /
+Disallow: /checkout
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /order/
+Disallow: /orders/
+Disallow: /tra-cuu-don-hang
+Disallow: /account
+Disallow: /tai-khoan
+Disallow: /api/
 
 Sitemap: {sitemap}
 `;

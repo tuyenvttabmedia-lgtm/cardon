@@ -6,6 +6,7 @@ import CheckoutPageClient from './CheckoutPageClient';
 export const metadata: Metadata = buildMetadata({
   title: 'Thanh toán — CardOn.vn',
   path: '/checkout',
+  robots: { index: false, follow: false },
 });
 
 export default function CheckoutPage() {

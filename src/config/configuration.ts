@@ -29,6 +29,7 @@ export default () => ({
     apiPrefix: process.env.API_PREFIX ?? 'api/v1',
     buildVersion: process.env.BUILD_VERSION ?? '6035.2 AGENT REGISTRATION & KYC CENTER',
     webInternalUrl: process.env.WEB_INTERNAL_URL,
+    webRevalidateSecret: process.env.WEB_REVALIDATE_SECRET,
     adminInternalUrl: process.env.ADMIN_INTERNAL_URL,
     corsOrigins: process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? [],
     workerHeartbeatRequired: process.env.WORKER_HEARTBEAT_REQUIRED === 'true',

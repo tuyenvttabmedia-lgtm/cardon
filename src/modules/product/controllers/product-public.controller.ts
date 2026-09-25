@@ -23,6 +23,12 @@ export class ProductPublicController {
   }
 
   @Public()
+  @Get('by-slug/:slug')
+  getProductBySlug(@Param('slug') slug: string) {
+    return this.productService.getActiveProductBySlug(slug);
+  }
+
+  @Public()
   @Get(':id')
   getProduct(@Param('id', ParseUUIDPipe) id: string) {
     return this.productService.getActiveProduct(id);

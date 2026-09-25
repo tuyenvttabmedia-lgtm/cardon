@@ -1,8 +1,30 @@
 import type { MetadataRoute } from 'next';
-import { getGlobalSeoSettings, listBlogCategories, listBlogPosts, listFaqSitemap, listStaticNavPages } from '@/lib/cms-api';
+import {
+  getGlobalSeoSettings,
+  listBlogCategories,
+  listBlogPosts,
+  listFaqSitemap,
+  listStaticNavPages,
+  type PublicBlogPost,
+} from '@/lib/cms-api';
+import { listActiveProducts } from '@/lib/product-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
 import { STATIC_CMS_PAGES } from '@/lib/static-pages';
 import { getSiteUrl } from '@/lib/utils';
+
+const BLOG_SITEMAP_PAGE_SIZE = 100;
+
+async function listAllBlogPostsForSitemap(): Promise<PublicBlogPost[]> {
+  const all: PublicBlogPost[] = [];
+  let skip = 0;
+  for (;;) {
+    const batch = (await listBlogPosts({ take: BLOG_SITEMAP_PAGE_SIZE, skip })) ?? [];
+    all.push(...batch);
+    if (batch.length < BLOG_SITEMAP_PAGE_SIZE) break;
+    skip += BLOG_SITEMAP_PAGE_SIZE;
+  }
+  return all;
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const seo = await getGlobalSeoSettings();
@@ -48,12 +70,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.85,
   }));
 
-  const posts = (await listBlogPosts({ take: 100 })) ?? [];
+  const posts = await listAllBlogPostsForSitemap();
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${base}${blogPostPath(post.categorySlug, post.slug)}`,
     lastModified: post.publishedAt ? new Date(post.publishedAt) : now,
     changeFrequency: 'weekly',
     priority: 0.7,
+  }));
+
+  const products = (await listActiveProducts()) ?? [];
+  const productPages: MetadataRoute.Sitemap = products.map((product) => ({
+    url: `${base}/product/${product.slug}`,
+    lastModified: product.createdAt ? new Date(product.createdAt) : now,
+    changeFrequency: 'weekly',
+    priority: 0.8,
   }));
 
   const faqs = (await listFaqSitemap()) ?? [];
@@ -64,5 +94,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticPages, ...categoryPages, ...blogPages, ...faqPages];
+  return [...staticPages, ...categoryPages, ...blogPages, ...productPages, ...faqPages];
 }

@@ -113,6 +113,18 @@ export class ProductService {
     return mapProduct(product);
   }
 
+  async getActiveProductBySlug(slug: string) {
+    const product = await this.productRepository.findActiveBySlug(slug);
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+    const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
+    if (!dataEnabled && product.homeService === HomeServiceType.DATA) {
+      throw new NotFoundException('Product not found');
+    }
+    return mapProduct(product);
+  }
+
   async deleteProduct(id: string) {
     const product = await this.productRepository.findById(id);
     if (!product) {
