@@ -1,3 +1,4 @@
+import { absolutePublicUrl } from '@/lib/seo';
 import type { PublicCmsSeoSettings } from '@/lib/cms-api';
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from '@/lib/utils';
 
@@ -12,11 +13,7 @@ export function SiteJsonLd({
   const name = seo?.siteTitle?.trim() || SITE_NAME;
   const description = seo?.metaDescription?.trim() || SITE_DESCRIPTION;
   const logo =
-    logoUrl && /^https?:\/\//i.test(logoUrl)
-      ? logoUrl
-      : logoUrl
-        ? `${siteUrl}${logoUrl.startsWith('/') ? '' : '/'}${logoUrl}`
-        : `${siteUrl}/images/cardon-logo-full.png`;
+    absolutePublicUrl(logoUrl) ?? `${siteUrl}/images/cardon-logo-full.png`;
 
   const organization = {
     '@context': 'https://schema.org',

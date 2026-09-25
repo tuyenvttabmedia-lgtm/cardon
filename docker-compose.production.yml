@@ -205,7 +205,7 @@ services:
         APP_PORT: 3001
         BUILD_VERSION: ${BUILD_VERSION:-6035.2 AGENT REGISTRATION & KYC CENTER}
         NEXT_PUBLIC_API_URL: ${WEB_NEXT_PUBLIC_API_URL}
-        NEXT_PUBLIC_SITE_URL: ${WEB_NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_SITE_URL: ${WEB_NEXT_PUBLIC_SITE_URL:-https://cardon.vn}
     image: cardon-web:production
     container_name: cardon-prod-web
     restart: unless-stopped

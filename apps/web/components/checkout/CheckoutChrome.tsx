@@ -22,6 +22,16 @@ function resolveActiveService(pathname: string): HomeCategory {
   return cardCategoryFromPathname(pathname) ?? 'game';
 }
 
+function pageOwnsPrimaryHeading(pathname: string): boolean {
+  if (pathname === '/') return true;
+  return (
+    pathname.startsWith('/the-game') ||
+    pathname.startsWith('/the-dien-thoai') ||
+    pathname.startsWith('/nap-cuoc') ||
+    pathname.startsWith('/nap-data')
+  );
+}
+
 function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { products, loading } = useProducts();
@@ -33,6 +43,7 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
 
   const heroVariant = resolveHeroVariant(pathname);
   const activeService = useMemo(() => resolveActiveService(pathname), [pathname]);
+  const headingAs = pageOwnsPrimaryHeading(pathname) ? 'h2' : 'h1';
 
   const categoryIcons = useMemo(
     () => resolveHomeCategoryIcons(products, catalogCategories),
@@ -41,7 +52,7 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="site-container space-y-6 py-6 md:py-8">
-      <HeroBanner variant={heroVariant} />
+      <HeroBanner variant={heroVariant} headingAs={headingAs} />
       <ServiceNavigation
         activeService={activeService}
         categoryIcons={categoryIcons}
