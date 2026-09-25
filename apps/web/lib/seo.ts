@@ -15,6 +15,37 @@ export function titleAlreadyBranded(title: string): boolean {
   return /Card[Oo]n\.?\s*vn/i.test(title);
 }
 
+/**
+ * Absolutize media/OG URLs for public HTML. Rewrites localhost / docker-internal
+ * hosts so crawlers never see http://localhost:3001/uploads/...
+ */
+export function absolutePublicUrl(pathOrUrl: string | null | undefined): string | undefined {
+  if (!pathOrUrl?.trim()) return undefined;
+  const raw = pathOrUrl.trim();
+  const site = getSiteUrl();
+
+  if (/^https?:\/\//i.test(raw)) {
+    try {
+      const u = new URL(raw);
+      const host = u.hostname.toLowerCase();
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '0.0.0.0' ||
+        host === 'web' ||
+        host.endsWith('.local')
+      ) {
+        return `${site}${u.pathname}${u.search}`;
+      }
+      return `${u.origin}${u.pathname}${u.search}`;
+    } catch {
+      return raw;
+    }
+  }
+
+  return `${site}${raw.startsWith('/') ? '' : '/'}${raw}`;
+}
+
 export interface PageSeo {
   title: string;
   description?: string;
@@ -61,6 +92,7 @@ export function buildMetadata(seo: PageSeo): Metadata {
   const ogTitle = seo.ogTitle?.trim() || seo.title;
   const ogDescription = seo.ogDescription?.trim() || description;
   const absoluteTitle = titleAlreadyBranded(seo.title);
+  const ogImage = absolutePublicUrl(seo.ogImage);
 
   return {
     title: absoluteTitle ? { absolute: seo.title } : seo.title,
@@ -75,13 +107,13 @@ export function buildMetadata(seo: PageSeo): Metadata {
       title: ogTitle,
       description: ogDescription,
       publishedTime: seo.publishedTime,
-      ...(seo.ogImage ? { images: [{ url: seo.ogImage }] } : {}),
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title: ogTitle,
       description: ogDescription,
-      ...(seo.ogImage ? { images: [seo.ogImage] } : {}),
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
   };
 }
@@ -134,6 +166,7 @@ export function buildGlobalMetadata(seo: PublicCmsSeoSettings | null | undefined
   });
 
   return {
+    metadataBase: new URL(`${getSiteUrl()}/`),
     ...base,
     title: {
       default: brand,

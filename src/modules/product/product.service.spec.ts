@@ -150,11 +150,13 @@ describe('VariantService', () => {
       productHasUsage: jest.fn().mockResolvedValue(false),
       variantHasUsage: jest.fn().mockResolvedValue(false),
     };
+    const webRevalidate = { notifyProducts: jest.fn().mockResolvedValue(undefined) };
     service = new VariantService(
       variantRepository as never,
       productRepository as never,
       categoryRepository as never,
       usage as never,
+      webRevalidate as never,
     );
   });
 

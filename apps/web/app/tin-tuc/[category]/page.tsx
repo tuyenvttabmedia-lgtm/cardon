@@ -4,10 +4,23 @@ import { Suspense } from 'react';
 import { BlogListClient } from '@/components/blog/BlogListClient';
 import { getBlogCategory, getBlogPost, listBlogPosts } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
-import { buildMetadata } from '@/lib/seo';
+import { buildMetadata, titleAlreadyBranded } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+
+function resolveCategoryPath(slug: string, canonicalUrl?: string | null): string {
+  const fallback = blogCategoryPath(slug);
+  if (!canonicalUrl?.trim()) return fallback;
+  const site = getSiteUrl();
+  const raw = canonicalUrl.trim();
+  if (raw.startsWith(site)) {
+    const stripped = raw.slice(site.length).trim() || fallback;
+    return stripped.startsWith('/') ? stripped : `/${stripped}`;
+  }
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw;
+  return fallback;
+}
 
 export async function generateMetadata({
   params,
@@ -16,19 +29,33 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { category } = await params;
   const data = await getBlogCategory(category);
-  if (!data) return { title: 'Không tìm thấy danh mục' };
+  if (!data) {
+    return buildMetadata({
+      title: 'Không tìm thấy danh mục',
+      path: blogCategoryPath(category),
+      robots: 'noindex,follow',
+    });
+  }
 
-  const path = blogCategoryPath(category);
-  const title = data.metaTitle ?? `${data.name} — Tin tức CardOn`;
-  const description = data.metaDescription ?? data.description ?? data.intro ?? title;
-  const canonical = data.canonicalUrl?.replace(getSiteUrl(), '') ?? path;
+  const path = resolveCategoryPath(category, data.canonicalUrl);
+  const title = (data.metaTitle?.trim() || `${data.name} — Tin tức CardOn`).trim();
+  const description =
+    data.metaDescription?.trim() ||
+    data.description?.trim() ||
+    data.intro?.trim() ||
+    `Tin tức ${data.name} trên CardOn.vn`;
 
-  return buildMetadata({
+  const meta = buildMetadata({
     title,
     description,
-    path: canonical,
+    path,
     ogImage: data.ogImageUrl ?? undefined,
   });
+
+  if (titleAlreadyBranded(title) || data.metaTitle?.trim()) {
+    return { ...meta, title: { absolute: title } };
+  }
+  return meta;
 }
 
 export default async function TinTucCategoryPage({
