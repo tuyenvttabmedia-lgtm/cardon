@@ -76,6 +76,7 @@ describe('Phase 5C.1 — Admin product list', () => {
       {
         resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
       } as never,
+      { notifyProducts: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const result = await service.listAdminProducts();
