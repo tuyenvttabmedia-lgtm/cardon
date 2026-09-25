@@ -58,18 +58,17 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
   );
 }
 
-function CheckoutChromeFallback({ children }: { children: React.ReactNode }) {
+function CheckoutChromeFallback() {
   return (
     <div className="site-container space-y-6 py-6 md:py-8">
       <div className="relative min-h-[180px] animate-pulse rounded-2xl bg-gray-100 md:min-h-[340px] md:rounded-3xl" />
-      {children}
     </div>
   );
 }
 
 export function CheckoutChrome({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense fallback={<CheckoutChromeFallback>{children}</CheckoutChromeFallback>}>
+    <Suspense fallback={<CheckoutChromeFallback />}>
       <CheckoutChromeInner>{children}</CheckoutChromeInner>
     </Suspense>
   );

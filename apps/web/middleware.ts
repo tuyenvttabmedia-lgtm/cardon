@@ -12,6 +12,14 @@ function apiBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
+function nextWithPortal(request: NextRequest, pathname: string): NextResponse {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set(PORTAL_HEADER, 'public');
+  return response;
+}
+
 function withPortalHeader(response: NextResponse): NextResponse {
   response.headers.set(PORTAL_HEADER, 'public');
   return response;
@@ -33,7 +41,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
-    return NextResponse.next();
+    return nextWithPortal(request, pathname);
   }
 
   // Legacy homepage tab deep-links → clean SEO paths (strip query).
@@ -68,7 +76,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/api') ||
     pathname.includes('.')
   ) {
-    return withPortalHeader(NextResponse.next());
+    return nextWithPortal(request, pathname);
   }
 
   try {
@@ -77,7 +85,7 @@ export async function middleware(request: NextRequest) {
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) {
-      return withPortalHeader(NextResponse.next());
+      return nextWithPortal(request, pathname);
     }
 
     const payload = (await res.json()) as {
@@ -93,10 +101,10 @@ export async function middleware(request: NextRequest) {
       return withPortalHeader(NextResponse.redirect(url));
     }
   } catch {
-    return withPortalHeader(NextResponse.next());
+    return nextWithPortal(request, pathname);
   }
 
-  return withPortalHeader(NextResponse.next());
+  return nextWithPortal(request, pathname);
 }
 
 export const config = {
