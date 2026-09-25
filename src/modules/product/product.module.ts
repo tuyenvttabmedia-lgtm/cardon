@@ -1,8 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { AuthModule } from '../auth/auth.module';
-import { CmsModule } from '../cms/cms.module';
 import { SettingsModule } from '../settings/settings.module';
+import { WebRevalidateModule } from '../web-revalidate/web-revalidate.module';
 import { ProductAdminController } from './controllers/product-admin.controller';
 import { ProductPublicController } from './controllers/product-public.controller';
 import { CategoryRepository } from './repositories/category.repository';
@@ -22,7 +22,7 @@ import { CategoryIntegrityService } from './services/category-integrity.service'
 import { ProductIntegrityService } from './services/product-integrity.service';
 
 @Module({
-  imports: [forwardRef(() => AuthModule), SettingsModule, AuditLogModule, CmsModule],
+  imports: [forwardRef(() => AuthModule), SettingsModule, AuditLogModule, WebRevalidateModule],
   controllers: [ProductPublicController, ProductAdminController],
   providers: [
     CategoryRepository,

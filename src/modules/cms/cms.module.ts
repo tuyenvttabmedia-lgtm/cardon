@@ -4,6 +4,7 @@ import { AuthModule } from '../auth/auth.module';
 import { EmailTemplateModule } from '../email-template/email-template.module';
 import { MaintenanceCenterModule } from '../maintenance-center/maintenance-center.module';
 import { SettingsModule } from '../settings/settings.module';
+import { WebRevalidateModule } from '../web-revalidate/web-revalidate.module';
 import { CmsAdminController } from './controllers/cms-admin.controller';
 import { CmsPublicController } from './controllers/cms-public.controller';
 import { CmsRepository } from './repositories/cms.repository';
@@ -11,11 +12,16 @@ import { CmsMediaStorageService } from './services/cms-media-storage.service';
 import { CmsMediaService } from './services/cms-media.service';
 import { CmsScheduledPublishCronService } from './services/cms-scheduled-publish-cron.service';
 import { CmsService } from './services/cms.service';
-import { CmsWebRevalidateService } from './services/cms-web-revalidate.service';
-import { EmailTemplateService } from '../email-template/services/email-template.service';
 
 @Module({
-  imports: [AuthModule, ConfigModule, SettingsModule, EmailTemplateModule, MaintenanceCenterModule],
+  imports: [
+    AuthModule,
+    ConfigModule,
+    SettingsModule,
+    EmailTemplateModule,
+    MaintenanceCenterModule,
+    WebRevalidateModule,
+  ],
   controllers: [CmsAdminController, CmsPublicController],
   providers: [
     CmsRepository,
@@ -23,8 +29,7 @@ import { EmailTemplateService } from '../email-template/services/email-template.
     CmsMediaStorageService,
     CmsMediaService,
     CmsScheduledPublishCronService,
-    CmsWebRevalidateService,
   ],
-  exports: [CmsService, CmsWebRevalidateService],
+  exports: [CmsService],
 })
 export class CmsModule {}
