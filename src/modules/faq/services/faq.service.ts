@@ -61,6 +61,7 @@ export class FaqService {
       sortOrder: dto.sortOrder ?? 0,
       status: dto.status ?? FaqCategoryStatus.ACTIVE,
     });
+    await this.webRevalidate.notifyFaq();
     return mapFaqCategoryAdmin({ ...row, _count: { faqs: 0 } });
   }
 
@@ -84,6 +85,7 @@ export class FaqService {
       status: dto.status,
     });
     const count = await this.repository.countFaqsInCategory(id);
+    await this.webRevalidate.notifyFaq();
     return mapFaqCategoryAdmin({ ...row, _count: { faqs: count } });
   }
 
@@ -95,6 +97,7 @@ export class FaqService {
       throw new ConflictException('Không thể xóa danh mục còn FAQ');
     }
     await this.repository.deleteCategory(id);
+    await this.webRevalidate.notifyFaq();
     return { deleted: true };
   }
 
@@ -146,7 +149,10 @@ export class FaqService {
       positions,
     });
 
-    await this.webRevalidate.notifyFaq();
+    await this.webRevalidate.notifyFaq({
+      categorySlug: row.category?.slug,
+      slug: row.slug,
+    });
     return mapFaqAdmin(row);
   }
 
@@ -177,7 +183,12 @@ export class FaqService {
       positions: dto.positions !== undefined ? this.normalizePositions(dto.positions) : undefined,
     });
 
-    await this.webRevalidate.notifyFaq();
+    await this.webRevalidate.notifyFaq({
+      categorySlug: row.category?.slug,
+      slug: row.slug,
+      previousCategorySlug: existing.category?.slug,
+      previousSlug: existing.slug,
+    });
     return mapFaqAdmin(row);
   }
 
@@ -185,7 +196,10 @@ export class FaqService {
     const existing = await this.repository.findFaqById(id);
     if (!existing) throw new NotFoundException('FAQ không tồn tại');
     await this.repository.deleteFaq(id);
-    await this.webRevalidate.notifyFaq();
+    await this.webRevalidate.notifyFaq({
+      categorySlug: existing.category?.slug,
+      slug: existing.slug,
+    });
     return { deleted: true };
   }
 

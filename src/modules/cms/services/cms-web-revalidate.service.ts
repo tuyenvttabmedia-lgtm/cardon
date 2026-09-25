@@ -48,9 +48,22 @@ export class CmsWebRevalidateService {
     });
   }
 
-  async notifyFaq(): Promise<void> {
+  async notifyFaq(detail?: {
+    categorySlug?: string | null;
+    slug?: string | null;
+    previousCategorySlug?: string | null;
+    previousSlug?: string | null;
+  }): Promise<void> {
+    const paths = new Set<string>(['/tro-giup', '/sitemap.xml']);
+    const addDetail = (categorySlug?: string | null, slug?: string | null) => {
+      if (categorySlug?.trim() && slug?.trim()) {
+        paths.add(`/tro-giup/${categorySlug.trim()}/${slug.trim()}`);
+      }
+    };
+    addDetail(detail?.categorySlug, detail?.slug);
+    addDetail(detail?.previousCategorySlug, detail?.previousSlug);
     await this.revalidate({
-      paths: ['/tro-giup', '/sitemap.xml'],
+      paths: [...paths],
       tags: ['cms'],
     });
   }

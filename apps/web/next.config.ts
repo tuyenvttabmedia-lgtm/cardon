@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      { source: '/partner/register', destination: '/dang-ky-dai-ly', permanent: false },
+      { source: '/partner/register', destination: '/dang-ky-dai-ly', permanent: true },
       // Legacy catalog alias → category hubs (SEO Phase B)
       {
         source: '/cards',

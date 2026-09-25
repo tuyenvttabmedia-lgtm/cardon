@@ -1,5 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { CmsWebRevalidateService } from '../../cms/services/cms-web-revalidate.service';
 import { CreateVariantDto, UpdateVariantDto } from '../dto/variant.dto';
 import {
   assertCategoryHasHomeService,
@@ -18,6 +19,7 @@ export class VariantService {
     private readonly productRepository: ProductRepository,
     private readonly categoryRepository: CategoryRepository,
     private readonly usage: ProductUsageService,
+    private readonly webRevalidate: CmsWebRevalidateService,
   ) {}
 
   private async assertVariantMatchesProductCategory(productId: string, variantType: CreateVariantDto['type']) {
@@ -30,6 +32,13 @@ export class VariantService {
     const homeService = assertCategoryHasHomeService(category?.homeService ?? product.homeService);
     assertVariantAllowedForHomeService(homeService, variantType);
     return product;
+  }
+
+  private async notifyProductById(productId: string) {
+    const product = await this.productRepository.findById(productId);
+    if (product?.slug) {
+      await this.webRevalidate.notifyProducts([product.slug]);
+    }
   }
 
   async createVariant(productId: string, dto: CreateVariantDto) {
@@ -50,6 +59,7 @@ export class VariantService {
       product: { connect: { id: productId } },
     });
 
+    await this.notifyProductById(productId);
     return mapVariant(variant);
   }
 
@@ -73,6 +83,7 @@ export class VariantService {
         : {}),
     });
 
+    await this.notifyProductById(variant.productId);
     return mapVariant(updated);
   }
 
@@ -83,6 +94,7 @@ export class VariantService {
     }
 
     const updated = await this.variantRepository.softDelete(variantId);
+    await this.notifyProductById(variant.productId);
     return mapVariant(updated);
   }
 
@@ -93,6 +105,7 @@ export class VariantService {
     }
 
     const updated = await this.variantRepository.restore(variantId);
+    await this.notifyProductById(variant.productId);
     return mapVariant(updated);
   }
 
@@ -110,7 +123,9 @@ export class VariantService {
     if (await this.usage.variantHasUsage(variantId)) {
       throw new ConflictException('Variant was used in orders — disable only');
     }
+    const productId = variant.productId;
     await this.variantRepository.hardDelete(variantId);
+    await this.notifyProductById(productId);
     return { deleted: true, id: variantId };
   }
 }

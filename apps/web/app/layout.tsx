@@ -6,6 +6,7 @@ import { SiteJsonLd } from '@/components/seo/SiteJsonLd';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { getGlobalSeoSettings, getThemeSettings } from '@/lib/cms-api';
 import { buildGlobalMetadata } from '@/lib/seo';
+import { getSiteUrl } from '@/lib/utils';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin', 'vietnamese'], variable: '--font-geist-sans' });
@@ -13,8 +14,10 @@ const inter = Inter({ subsets: ['latin', 'vietnamese'], variable: '--font-geist-
 export async function generateMetadata(): Promise<Metadata> {
   const [theme, seo] = await Promise.all([getThemeSettings(), getGlobalSeoSettings()]);
   const icon = theme?.favicon || '/images/cardon-icon.png';
+  const global = buildGlobalMetadata(seo);
   return {
-    ...buildGlobalMetadata(seo),
+    metadataBase: global.metadataBase ?? new URL(`${getSiteUrl()}/`),
+    ...global,
     icons: {
       icon,
       apple: icon,
