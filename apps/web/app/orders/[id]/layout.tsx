@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import { buildMetadata } from '@/lib/seo';
-import LoginPageClient from './LoginPageClient';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Đăng nhập — CardOn.vn',
-  path: '/login',
+  title: 'Chi tiết đơn hàng — CardOn.vn',
+  path: '/orders',
   robots: { index: false, follow: false },
 });
 
-export default function LoginPage() {
-  return <LoginPageClient />;
+export default function OrderByIdLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }

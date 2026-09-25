@@ -39,6 +39,7 @@ import {
 import { CmsRepository } from '../repositories/cms.repository';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { MaintenanceAvailabilityService } from '../../maintenance-center/services/maintenance-availability.service';
+import { CmsWebRevalidateService } from './cms-web-revalidate.service';
 
 @Injectable()
 export class CmsService {
@@ -46,6 +47,7 @@ export class CmsService {
     private readonly repository: CmsRepository,
     private readonly settingsStore: SettingsStoreService,
     private readonly maintenanceAvailability: MaintenanceAvailabilityService,
+    private readonly webRevalidate: CmsWebRevalidateService,
   ) {}
 
   listPages(query: ListCmsPagesQueryDto) {
@@ -136,7 +138,11 @@ export class CmsService {
       });
     }
 
-    return this.getPage(page.id);
+    const created = await this.getPage(page.id);
+    if (created.status === CmsPageStatus.PUBLISHED) {
+      await this.webRevalidate.notifyPublish(created);
+    }
+    return created;
   }
 
   async updatePage(id: string, dto: UpdateCmsPageDto) {
@@ -221,7 +227,14 @@ export class CmsService {
       });
     }
 
-    return this.getPage(page.id);
+    const updated = await this.getPage(page.id);
+    if (
+      updated.status === CmsPageStatus.PUBLISHED ||
+      existing.status === CmsPageStatus.PUBLISHED
+    ) {
+      await this.webRevalidate.notifyPublish(updated);
+    }
+    return updated;
   }
 
   async publishPage(id: string) {
@@ -233,7 +246,9 @@ export class CmsService {
       publishedAt: existing.publishedAt ?? new Date(),
       scheduledPublishAt: null,
     });
-    return this.getPage(id);
+    const published = await this.getPage(id);
+    await this.webRevalidate.notifyPublish(published);
+    return published;
   }
 
   /** Cron: publish drafts whose scheduledPublishAt has passed. */
@@ -245,6 +260,7 @@ export class CmsService {
         publishedAt: page.publishedAt ?? new Date(),
         scheduledPublishAt: null,
       });
+      await this.webRevalidate.notifyPublish(page);
     }
     return due.length;
   }

@@ -33,6 +33,7 @@ describe('CmsService.publishPage', () => {
       repository as never,
       { upsertSeo: jest.fn() } as never,
       { invalidate: jest.fn() } as never,
+      { notifyPublish: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     await service.publishPage('p1');
@@ -74,6 +75,7 @@ describe('CmsService.publishPage', () => {
       repository as never,
       { upsertSeo: jest.fn() } as never,
       { invalidate: jest.fn() } as never,
+      { notifyPublish: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const before = Date.now();
@@ -103,6 +105,7 @@ describe('CmsService.publishPage', () => {
       repository as never,
       { upsertSeo: jest.fn() } as never,
       { invalidate: jest.fn() } as never,
+      { notifyPublish: jest.fn().mockResolvedValue(undefined) } as never,
     );
 
     const count = await service.publishDueScheduledPages();

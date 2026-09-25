@@ -56,6 +56,13 @@ export class ProductRepository {
     });
   }
 
+  findActiveBySlug(slug: string) {
+    return this.prisma.product.findFirst({
+      where: { slug, ...ACTIVE_PRODUCT_WHERE },
+      include: PUBLIC_PRODUCT_INCLUDE,
+    });
+  }
+
   findManyActive() {
     return this.prisma.product.findMany({
       where: ACTIVE_PRODUCT_WHERE,

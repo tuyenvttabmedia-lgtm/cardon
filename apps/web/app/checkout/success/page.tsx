@@ -6,6 +6,7 @@ import CheckoutSuccessPageClient from './CheckoutSuccessClient';
 export const metadata: Metadata = buildMetadata({
   title: 'Thanh toán thành công — CardOn.vn',
   path: '/checkout/success',
+  robots: { index: false, follow: false },
 });
 
 export default function CheckoutSuccessPage() {

@@ -80,7 +80,14 @@ export class CmsRepository {
         status: CmsPageStatus.DRAFT,
         scheduledPublishAt: { lte: now, not: null },
       },
-      select: { id: true, publishedAt: true, title: true, slug: true },
+      select: {
+        id: true,
+        type: true,
+        publishedAt: true,
+        title: true,
+        slug: true,
+        categoryRel: { select: { slug: true } },
+      },
       take: 50,
     });
   }

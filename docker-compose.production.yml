@@ -64,6 +64,7 @@ x-backend-env: &backend-env
   ADMIN_ALERT_EMAIL: ${ADMIN_ALERT_EMAIL}
   BUILD_VERSION: ${BUILD_VERSION:-6035.2 AGENT REGISTRATION & KYC CENTER}
   WEB_INTERNAL_URL: ${WEB_INTERNAL_URL:-http://web:3001}
+  WEB_REVALIDATE_SECRET: ${WEB_REVALIDATE_SECRET:-}
   ADMIN_INTERNAL_URL: ${ADMIN_INTERNAL_URL:-http://admin:3003}
   BACKUP_ENABLED: ${BACKUP_ENABLED:-false}
   BACKUP_DIR: ${BACKUP_DIR:-backups}
@@ -214,6 +215,8 @@ services:
       PORT: 3001
       HOSTNAME: 0.0.0.0
       NODE_OPTIONS: --max-old-space-size=192
+      WEB_REVALIDATE_SECRET: ${WEB_REVALIDATE_SECRET:-}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://api:3000/api/v1}
     depends_on:
       api:
         condition: service_healthy

@@ -20,6 +20,7 @@ x-backend-env: &backend-env
   BUILD_VERSION: "6035.2 AGENT REGISTRATION & KYC CENTER"
   NEXT_PUBLIC_BUILD_VERSION: "6035.2 AGENT REGISTRATION & KYC CENTER"
   WEB_INTERNAL_URL: http://web:3001
+  WEB_REVALIDATE_SECRET: ${WEB_REVALIDATE_SECRET:-local-full-revalidate-secret}
   ADMIN_INTERNAL_URL: http://admin:3003
   ESALE_USE_MOCK: "true"
   DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
@@ -192,6 +193,7 @@ services:
       BUILD_VERSION: "6035.2 AGENT REGISTRATION & KYC CENTER"
       NEXT_PUBLIC_BUILD_VERSION: "6035.2 AGENT REGISTRATION & KYC CENTER"
       API_INTERNAL_URL: http://api:3000/api/v1
+      WEB_REVALIDATE_SECRET: ${WEB_REVALIDATE_SECRET:-local-full-revalidate-secret}
     depends_on:
       api:
         condition: service_healthy
