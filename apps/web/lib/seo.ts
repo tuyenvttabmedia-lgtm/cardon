@@ -10,6 +10,11 @@ function seoTitleTemplateSuffix(siteTitle: string): string {
   return trimmed || SITE_NAME;
 }
 
+/** True when the page title already includes the brand — avoid `%s | Cardon.vn` doubling. */
+export function titleAlreadyBranded(title: string): boolean {
+  return /Card[Oo]n\.?\s*vn/i.test(title);
+}
+
 export interface PageSeo {
   title: string;
   description?: string;
@@ -28,7 +33,15 @@ function resolveCmsPath(
   canonicalUrl?: string | null,
 ): string {
   if (canonicalUrl?.trim()) {
-    return canonicalUrl.replace(getSiteUrl(), '').trim() || `/${pageSlug}`;
+    const stripped = canonicalUrl.replace(getSiteUrl(), '').trim();
+    // Only trust same-site relative/absolute canonicals.
+    if (stripped.startsWith('/') && !stripped.startsWith('//')) {
+      return stripped || `/${pageSlug}`;
+    }
+    if (canonicalUrl.startsWith(getSiteUrl())) {
+      return stripped || `/${pageSlug}`;
+    }
+    return `/${pageSlug}`;
   }
   if (!pathPrefix) return `/${pageSlug}`;
   const cleaned = pathPrefix.replace(/\/$/, '');
@@ -47,9 +60,10 @@ export function buildMetadata(seo: PageSeo): Metadata {
   const description = seo.description ?? SITE_DESCRIPTION;
   const ogTitle = seo.ogTitle?.trim() || seo.title;
   const ogDescription = seo.ogDescription?.trim() || description;
+  const absoluteTitle = titleAlreadyBranded(seo.title);
 
   return {
-    title: seo.title,
+    title: absoluteTitle ? { absolute: seo.title } : seo.title,
     description,
     alternates: { canonical: url },
     robots: seo.robots,
@@ -61,13 +75,13 @@ export function buildMetadata(seo: PageSeo): Metadata {
       title: ogTitle,
       description: ogDescription,
       publishedTime: seo.publishedTime,
-      images: seo.ogImage ? [{ url: seo.ogImage }] : undefined,
+      ...(seo.ogImage ? { images: [{ url: seo.ogImage }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title: ogTitle,
       description: ogDescription,
-      images: seo.ogImage ? [seo.ogImage] : undefined,
+      ...(seo.ogImage ? { images: [seo.ogImage] } : {}),
     },
   };
 }
@@ -98,7 +112,7 @@ export function buildCmsMetadata(
     robots: seo?.robots,
   });
 
-  if (seo?.metaTitle?.trim()) {
+  if (seo?.metaTitle?.trim() || titleAlreadyBranded(title)) {
     return { ...meta, title: { absolute: title } };
   }
 

@@ -7,6 +7,7 @@ import { ArticleTableOfContents } from '@/components/blog/ArticleTableOfContents
 import { RecordBlogPostView } from '@/components/blog/RecordBlogPostView';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { SafeCmsHtml } from '@/components/SafeCmsHtml';
 import { pickRelatedPosts, prepareArticleHtml } from '@/lib/blog-utils';
 import { getBlogPost, listBlogPosts } from '@/lib/cms-api';
@@ -64,6 +65,12 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
     <PageContainer>
       <RecordBlogPostView slug={post.slug} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <BreadcrumbJsonLd
+        items={breadcrumbItems.map((item) => ({
+          name: item.label,
+          url: 'href' in item ? item.href : undefined,
+        }))}
+      />
 
       <Breadcrumb items={breadcrumbItems} className="mb-6" />
 

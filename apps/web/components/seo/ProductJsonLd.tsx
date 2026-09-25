@@ -1,19 +1,24 @@
 import type { Product } from '@/types/api';
 import { getSiteUrl } from '@/lib/utils';
 
-function lowestActiveSellPrice(product: Product): number | null {
-  const prices = (product.variants ?? [])
+function absoluteMediaUrl(path: string | null | undefined): string | undefined {
+  if (!path?.trim()) return undefined;
+  if (/^https?:\/\//i.test(path)) return path;
+  const base = getSiteUrl();
+  return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+}
+
+function activeSellPrices(product: Product): number[] {
+  return (product.variants ?? [])
     .filter((v) => v.status === 'ACTIVE')
     .map((v) => parseFloat(v.sellPrice))
     .filter((n) => Number.isFinite(n) && n >= 0);
-  if (prices.length === 0) return null;
-  return Math.min(...prices);
 }
 
 export function ProductJsonLd({ product }: { product: Product }) {
   const url = `${getSiteUrl()}/product/${product.slug}`;
-  const lowPrice = lowestActiveSellPrice(product);
-  const image = product.bannerUrl || product.logoUrl || undefined;
+  const prices = activeSellPrices(product);
+  const image = absoluteMediaUrl(product.bannerUrl || product.logoUrl);
 
   const schema: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -36,12 +41,28 @@ export function ProductJsonLd({ product }: { product: Product }) {
     schema.category = product.category.name;
   }
 
-  if (lowPrice != null) {
+  if (prices.length === 1) {
     schema.offers = {
       '@type': 'Offer',
       url,
       priceCurrency: 'VND',
-      price: String(Math.round(lowPrice)),
+      price: String(Math.round(prices[0])),
+      availability: 'https://schema.org/InStock',
+      seller: {
+        '@type': 'Organization',
+        name: 'CardOn.vn',
+      },
+    };
+  } else if (prices.length > 1) {
+    const low = Math.min(...prices);
+    const high = Math.max(...prices);
+    schema.offers = {
+      '@type': 'AggregateOffer',
+      url,
+      priceCurrency: 'VND',
+      lowPrice: String(Math.round(low)),
+      highPrice: String(Math.round(high)),
+      offerCount: prices.length,
       availability: 'https://schema.org/InStock',
       seller: {
         '@type': 'Organization',

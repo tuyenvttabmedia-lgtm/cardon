@@ -48,6 +48,7 @@ describe('ProductService', () => {
       {
         resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
       } as never,
+      { notifyProducts: jest.fn().mockResolvedValue(undefined) } as never,
     );
   });
 

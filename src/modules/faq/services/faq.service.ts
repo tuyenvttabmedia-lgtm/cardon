@@ -23,10 +23,14 @@ import {
 import { sanitizeFaqHtml, wrapPlainAnswer } from '../entities/faq-html-safety';
 import { mapFaqAdmin, mapFaqCategoryAdmin, mapFaqPublic } from '../entities/faq.mapper';
 import { FaqRepository } from '../repositories/faq.repository';
+import { CmsWebRevalidateService } from '../../cms/services/cms-web-revalidate.service';
 
 @Injectable()
 export class FaqService {
-  constructor(private readonly repository: FaqRepository) {}
+  constructor(
+    private readonly repository: FaqRepository,
+    private readonly webRevalidate: CmsWebRevalidateService,
+  ) {}
 
   // ─── Categories ───────────────────────────────────────────────────────────
 
@@ -142,6 +146,7 @@ export class FaqService {
       positions,
     });
 
+    await this.webRevalidate.notifyFaq();
     return mapFaqAdmin(row);
   }
 
@@ -172,6 +177,7 @@ export class FaqService {
       positions: dto.positions !== undefined ? this.normalizePositions(dto.positions) : undefined,
     });
 
+    await this.webRevalidate.notifyFaq();
     return mapFaqAdmin(row);
   }
 
@@ -179,6 +185,7 @@ export class FaqService {
     const existing = await this.repository.findFaqById(id);
     if (!existing) throw new NotFoundException('FAQ không tồn tại');
     await this.repository.deleteFaq(id);
+    await this.webRevalidate.notifyFaq();
     return { deleted: true };
   }
 
@@ -196,6 +203,7 @@ export class FaqService {
       await this.repository.bulkSetPositions(dto.ids, positions);
     }
 
+    await this.webRevalidate.notifyFaq();
     return { updated: dto.ids.length };
   }
 

@@ -3,7 +3,7 @@ import { buildMetadata } from '@/lib/seo';
 import AgentRegisterPageClient from './AgentRegisterPageClient';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Đăng ký đại lý — CardOn.vn',
+  title: 'Đăng ký đại lý',
   description: 'Đăng ký tài khoản đối tác B2B CardOn — API thẻ game, thẻ điện thoại, nạp cước.',
   path: '/dang-ky-dai-ly',
 });

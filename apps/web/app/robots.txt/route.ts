@@ -1,30 +1,12 @@
 import { getGlobalSeoSettings } from '@/lib/cms-api';
+import { buildRobotsTxt } from '@/lib/robots-txt';
 import { getSiteUrl } from '@/lib/utils';
-
-const DEFAULT_ROBOTS = `User-agent: *
-Allow: /
-Disallow: /checkout
-Disallow: /login
-Disallow: /register
-Disallow: /forgot-password
-Disallow: /reset-password
-Disallow: /order/
-Disallow: /orders/
-Disallow: /tra-cuu-don-hang
-Disallow: /account
-Disallow: /tai-khoan
-Disallow: /api/
-
-Sitemap: {sitemap}
-`;
 
 export async function GET() {
   const seo = await getGlobalSeoSettings();
-  const base = seo?.sitemapBaseUrl?.trim() || getSiteUrl();
-  const sitemapUrl = `${base.replace(/\/$/, '')}/sitemap.xml`;
-  const body =
-    seo?.robotsTxt?.trim() ||
-    DEFAULT_ROBOTS.replace('{sitemap}', sitemapUrl);
+  const base = (seo?.sitemapBaseUrl?.trim() || getSiteUrl()).replace(/\/$/, '');
+  const sitemapUrl = `${base}/sitemap.xml`;
+  const body = buildRobotsTxt(seo?.robotsTxt, sitemapUrl);
 
   return new Response(body, {
     headers: {

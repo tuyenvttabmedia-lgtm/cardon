@@ -159,6 +159,7 @@ describe('Phase 2C.1 Product Engine Audit', () => {
         {
           resolveSystemConfig: jest.fn().mockReturnValue({ customerDataEnabled: true }),
         } as never,
+        { notifyProducts: jest.fn().mockResolvedValue(undefined) } as never,
       );
 
       const disabled = await mappingService.disableMapping('map-1');

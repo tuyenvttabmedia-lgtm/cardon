@@ -9,7 +9,7 @@ import { buildMetadata } from '@/lib/seo';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Tin tức — CardOn.vn',
+  title: 'Tin tức',
   description: 'Tin tức, khuyến mãi và hướng dẫn mua thẻ game, nạp cước tại CardOn.vn',
   path: BLOG_BASE_PATH,
 });

@@ -48,6 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/nap-data`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${base}/gioi-thieu`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${base}/tro-giup`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
+    { url: `${base}/dang-ky-dai-ly`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     ...navPages.map((p) => ({
       url: `${base}/${p.slug}`,
       lastModified: now,
@@ -81,7 +82,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const products = (await listActiveProducts()) ?? [];
   const productPages: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${base}/product/${product.slug}`,
-    lastModified: product.createdAt ? new Date(product.createdAt) : now,
+    lastModified: product.updatedAt
+      ? new Date(product.updatedAt)
+      : product.createdAt
+        ? new Date(product.createdAt)
+        : now,
     changeFrequency: 'weekly',
     priority: 0.8,
   }));
