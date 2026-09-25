@@ -3,8 +3,8 @@ import type { HubSeoCopy } from '@/lib/hub-seo-copy';
 import { getSiteUrl } from '@/lib/utils';
 
 /**
- * SEO-only: WebPage + Breadcrumb JSON-LD. No visible UI —
- * page H1 lives in the hero banner so checkout flow stays clean.
+ * SEO-only markers for hub/home pages (no layout impact on checkout).
+ * H1 is sr-only so CMS hero art stays clean; WebPage JSON-LD carries rich copy.
  */
 export function HubSeoJsonLd({ seo }: { seo: HubSeoCopy }) {
   const url = `${getSiteUrl()}${seo.path === '/' ? '' : seo.path}`;
@@ -33,6 +33,7 @@ export function HubSeoJsonLd({ seo }: { seo: HubSeoCopy }) {
 
   return (
     <>
+      <h1 className="sr-only">{seo.title}</h1>
       {crumbs ? <BreadcrumbJsonLd items={crumbs} /> : null}
       <script
         type="application/ld+json"
