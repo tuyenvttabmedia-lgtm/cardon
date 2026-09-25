@@ -74,7 +74,8 @@ function HeroFallback({
       )}
     >
       <div className="relative z-10 max-w-xl">
-        <h1 className="text-2xl font-bold leading-tight md:text-4xl">{title}</h1>
+        {/* Visual title only — page H1 is SSR sr-only in HubSeoJsonLd */}
+        <p className="text-2xl font-bold leading-tight md:text-4xl">{title}</p>
         <p className="mt-2 text-sm text-white/90 md:mt-3 md:text-lg">{subtitle}</p>
         <div className="mt-4 flex flex-wrap gap-2 md:mt-6">
           {content.badges.map((badge) => (
@@ -117,13 +118,7 @@ function SlideImage({ banner, priority }: { banner: CmsBanner; priority?: boolea
   );
 }
 
-function HeroCarousel({
-  banners,
-  pageHeading,
-}: {
-  banners: CmsBanner[];
-  pageHeading?: HeroPageHeading | null;
-}) {
+function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = banners.length;
@@ -144,7 +139,6 @@ function HeroCarousel({
   }, [count, paused]);
 
   const current = banners[index];
-  const seoTitle = pageHeading?.title?.trim();
 
   return (
     <div
@@ -161,9 +155,6 @@ function HeroCarousel({
         }
       }}
     >
-      {/* Page H1 for crawlers — CMS banner already carries visual marketing copy */}
-      {seoTitle ? <h1 className="sr-only">{seoTitle}</h1> : null}
-
       <div className="absolute inset-0">
         {banners.map((banner, i) => {
           const active = i === index;
@@ -269,7 +260,7 @@ export function HeroBanner({
   }
 
   if (banners.length > 0) {
-    return <HeroCarousel banners={banners} pageHeading={pageHeading} />;
+    return <HeroCarousel banners={banners} />;
   }
 
   return <HeroFallback variant={variant} pageHeading={pageHeading} />;
