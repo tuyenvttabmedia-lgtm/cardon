@@ -75,7 +75,7 @@ Admin SEO panel edits meta/OG/canonical/robots. Custom `structured_data` write U
 | Sitemap | `apps/web/app/sitemap.ts` |
 | Product JSON-LD | `ProductJsonLd` (Offer / AggregateOffer + brand heuristic) |
 | Site JSON-LD | `SiteJsonLd` (Organization + WebSite) |
-| Hub / home copy | `HubSeoBlock` + `lib/hub-seo-copy.ts` |
+| Hub / home copy | `HubSeoJsonLd` (schema) + H1 in `HeroBanner` via `hub-seo-copy.ts` |
 | FAQ schema | `FaqSchema` |
 | Breadcrumbs | `BreadcrumbJsonLd` |
 | On-demand revalidate | `POST /api/revalidate` + API `CmsWebRevalidateService` |

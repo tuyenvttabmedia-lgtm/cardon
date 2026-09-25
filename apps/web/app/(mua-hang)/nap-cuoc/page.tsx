@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { HubSeoBlock } from '@/components/seo/HubSeoBlock';
+import { HubSeoJsonLd } from '@/components/seo/HubSeoJsonLd';
 import { TopupPageClient } from '@/components/topup/TopupPageClient';
 import { NAP_CUOC_SEO } from '@/lib/hub-seo-copy';
 import { buildMetadata } from '@/lib/seo';
@@ -13,14 +13,7 @@ export const metadata: Metadata = buildMetadata({
 export default function NapCuocPage() {
   return (
     <>
-      <HubSeoBlock
-        path={NAP_CUOC_SEO.path}
-        title={NAP_CUOC_SEO.title}
-        intro={NAP_CUOC_SEO.intro}
-        paragraphs={NAP_CUOC_SEO.paragraphs}
-        bullets={NAP_CUOC_SEO.bullets}
-        breadcrumbLabel={NAP_CUOC_SEO.breadcrumbLabel}
-      />
+      <HubSeoJsonLd seo={NAP_CUOC_SEO} />
       <TopupPageClient />
     </>
   );
