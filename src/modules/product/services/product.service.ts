@@ -7,6 +7,7 @@ import { mapAdminProduct, mapProduct } from '../entities/product.mapper';
 import { CategoryRepository } from '../repositories/category.repository';
 import { ProductRepository } from '../repositories/product.repository';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
+import { CmsWebRevalidateService } from '../../cms/services/cms-web-revalidate.service';
 import { ProductUsageService } from './product-usage.service';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class ProductService {
     private readonly categoryRepository: CategoryRepository,
     private readonly usage: ProductUsageService,
     private readonly settingsStore: SettingsStoreService,
+    private readonly webRevalidate: CmsWebRevalidateService,
   ) {}
 
   private async resolveCategoryHomeService(categoryId: string) {
@@ -44,7 +46,9 @@ export class ProductService {
       category: { connect: { id: dto.categoryId } },
     });
 
-    return mapProduct({ ...product, variants: [] });
+    const mapped = mapProduct({ ...product, variants: [] });
+    await this.webRevalidate.notifyProducts([mapped.slug]);
+    return mapped;
   }
 
   async updateProduct(id: string, dto: UpdateProductDto) {
@@ -67,7 +71,9 @@ export class ProductService {
       category: dto.categoryId ? { connect: { id: dto.categoryId } } : undefined,
     });
 
-    return mapProduct({ ...updated, variants: [] });
+    const mapped = mapProduct({ ...updated, variants: [] });
+    await this.webRevalidate.notifyProducts([mapped.slug]);
+    return mapped;
   }
 
   async disableProduct(id: string) {
@@ -77,7 +83,9 @@ export class ProductService {
     }
 
     const updated = await this.productRepository.softDelete(id);
-    return mapProduct({ ...updated, variants: [] });
+    const mapped = mapProduct({ ...updated, variants: [] });
+    await this.webRevalidate.notifyProducts([mapped.slug]);
+    return mapped;
   }
 
   async restoreProduct(id: string) {
@@ -87,7 +95,9 @@ export class ProductService {
     }
 
     const updated = await this.productRepository.restore(id);
-    return mapProduct({ ...updated, variants: [] });
+    const mapped = mapProduct({ ...updated, variants: [] });
+    await this.webRevalidate.notifyProducts([mapped.slug]);
+    return mapped;
   }
 
   async listActiveProducts() {
@@ -134,6 +144,7 @@ export class ProductService {
       throw new ConflictException('Product was used in orders — disable only');
     }
     await this.productRepository.hardDelete(id);
+    await this.webRevalidate.notifyProducts([product.slug]);
     return { deleted: true, id };
   }
 }

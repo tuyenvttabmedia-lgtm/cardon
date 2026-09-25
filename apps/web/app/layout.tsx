@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { PublicSiteChrome } from '@/components/layout/PublicSiteChrome';
 import { CmsSeoScripts } from '@/components/seo/CmsSeoScripts';
+import { SiteJsonLd } from '@/components/seo/SiteJsonLd';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { getGlobalSeoSettings, getThemeSettings } from '@/lib/cms-api';
 import { buildGlobalMetadata } from '@/lib/seo';
@@ -22,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const seo = await getGlobalSeoSettings();
+  const [seo, theme] = await Promise.all([getGlobalSeoSettings(), getThemeSettings()]);
 
   return (
     <html lang="vi">
@@ -31,6 +32,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           googleAnalyticsId={seo?.googleAnalyticsId}
           googleTagManagerId={seo?.googleTagManagerId}
         />
+        <SiteJsonLd seo={seo} logoUrl={theme?.logoDesktop || theme?.logoMobile} />
         <AuthProvider>
           <PublicSiteChrome>{children}</PublicSiteChrome>
         </AuthProvider>

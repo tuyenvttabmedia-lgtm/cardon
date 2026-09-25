@@ -172,6 +172,7 @@ export function mapProduct(product: {
   sortOrder?: number;
   status: string;
   createdAt?: Date | string;
+  updatedAt?: Date | string;
   category?: { id: string; slug: string; name: string; homeService: HomeServiceType };
   variants?: Array<{
     id: string;
@@ -195,6 +196,7 @@ export function mapProduct(product: {
     sortOrder: product.sortOrder ?? 0,
     status: product.status,
     createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+    updatedAt: product.updatedAt instanceof Date ? product.updatedAt.toISOString() : product.updatedAt,
     homeService: product.homeService,
     category: product.category ? mapProductCategory(product.category) : undefined,
     variants: product.variants?.map(mapVariant),

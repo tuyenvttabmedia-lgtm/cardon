@@ -6,7 +6,7 @@ import { CARD_GAME_PATH } from '@/lib/checkout-services';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Mua thẻ game giá rẻ — Garena, Zing, Steam | CardOn.vn',
+  title: 'Mua thẻ game giá rẻ — Garena, Zing, Steam',
   description:
     'Mua thẻ game Garena, Zing, Võ Lâm, Steam… giao mã tự động 24/7. Thanh toán QR an toàn tại CardOn.vn.',
   path: CARD_GAME_PATH,

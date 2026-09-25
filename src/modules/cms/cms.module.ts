@@ -25,6 +25,6 @@ import { EmailTemplateService } from '../email-template/services/email-template.
     CmsScheduledPublishCronService,
     CmsWebRevalidateService,
   ],
-  exports: [CmsService],
+  exports: [CmsService, CmsWebRevalidateService],
 })
 export class CmsModule {}

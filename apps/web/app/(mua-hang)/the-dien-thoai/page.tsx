@@ -6,7 +6,7 @@ import { CARD_PHONE_PATH } from '@/lib/checkout-services';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Mua thẻ điện thoại Viettel, Mobifone, Vinaphone | CardOn.vn',
+  title: 'Mua thẻ điện thoại Viettel, Mobifone, Vinaphone',
   description:
     'Mua thẻ cào điện thoại Viettel, Mobifone, Vinaphone, Vietnamobile giá tốt. Nhận mã PIN tức thì tại CardOn.vn.',
   path: CARD_PHONE_PATH,

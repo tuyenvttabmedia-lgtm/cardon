@@ -71,6 +71,7 @@ export interface Product {
   sortOrder?: number;
   status: string;
   createdAt?: string;
+  updatedAt?: string;
   category?: {
     id: string;
     slug: string;

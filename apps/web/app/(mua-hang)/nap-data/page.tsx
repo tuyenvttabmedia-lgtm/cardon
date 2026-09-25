@@ -3,7 +3,7 @@ import { DataPageClient } from '@/components/topup/DataPageClient';
 import { buildMetadata } from '@/lib/seo';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Nạp data 3G/4G/5G — CardOn.vn',
+  title: 'Nạp data 3G/4G/5G',
   description:
     'Mua gói data Viettel, Mobifone, Vinaphone tự động 24/7. Thanh toán an toàn trên CardOn.',
   path: '/nap-data',

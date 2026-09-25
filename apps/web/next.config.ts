@@ -15,6 +15,32 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: '/partner/register', destination: '/dang-ky-dai-ly', permanent: false },
+      // Legacy catalog alias → category hubs (SEO Phase B)
+      {
+        source: '/cards',
+        has: [{ type: 'query', key: 'service', value: 'PHONE_CARD' }],
+        destination: '/the-dien-thoai',
+        permanent: true,
+      },
+      {
+        source: '/cards',
+        has: [{ type: 'query', key: 'service', value: 'TOPUP' }],
+        destination: '/nap-cuoc',
+        permanent: true,
+      },
+      {
+        source: '/cards',
+        has: [{ type: 'query', key: 'service', value: 'DATA' }],
+        destination: '/nap-data',
+        permanent: true,
+      },
+      {
+        source: '/cards',
+        has: [{ type: 'query', key: 'service', value: 'GAME_CARD' }],
+        destination: '/the-game',
+        permanent: true,
+      },
+      { source: '/cards', destination: '/the-game', permanent: true },
       { source: '/account', destination: ACCOUNT_PATHS.profile, permanent: true },
       { source: '/account/orders', destination: ACCOUNT_PATHS.orders, permanent: true },
       { source: '/account/cards', destination: ACCOUNT_PATHS.cards, permanent: true },

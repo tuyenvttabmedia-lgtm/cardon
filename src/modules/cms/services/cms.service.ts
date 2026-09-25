@@ -293,13 +293,16 @@ export class CmsService {
       status: dto.status as never,
       startAt: dto.startAt ? new Date(dto.startAt) : undefined,
       endAt: dto.endAt ? new Date(dto.endAt) : undefined,
+    }).then(async (banner) => {
+      await this.webRevalidate.notifyBanners();
+      return banner;
     });
   }
 
   async updateBanner(id: string, dto: UpdateCmsBannerDto) {
     const banner = await this.repository.findBannerById(id);
     if (!banner) throw new NotFoundException('Banner not found');
-    return this.repository.updateBanner(id, {
+    const updated = await this.repository.updateBanner(id, {
       title: dto.title,
       imageUrl: dto.imageUrl,
       linkUrl: dto.linkUrl,
@@ -309,12 +312,16 @@ export class CmsService {
       startAt: dto.startAt ? new Date(dto.startAt) : undefined,
       endAt: dto.endAt ? new Date(dto.endAt) : undefined,
     });
+    await this.webRevalidate.notifyBanners();
+    return updated;
   }
 
   async disableBanner(id: string) {
     const banner = await this.repository.findBannerById(id);
     if (!banner) throw new NotFoundException('Banner not found');
-    return this.repository.disableBanner(id);
+    const updated = await this.repository.disableBanner(id);
+    await this.webRevalidate.notifyBanners();
+    return updated;
   }
 
   async deleteBanner(id: string) {
@@ -381,7 +388,9 @@ export class CmsService {
       await this.repository.upsertSeoSetting(key, value, 'CMS SEO settings');
     }
 
-    return this.getSeoSettings();
+    const settings = await this.getSeoSettings();
+    await this.webRevalidate.notifySeoSettings();
+    return settings;
   }
 
   listBlogPosts(query: ListBlogQueryDto) {
@@ -509,7 +518,9 @@ export class CmsService {
     for (const [key, value] of entries) {
       await this.repository.upsertThemeSetting(key, value, 'CMS theme settings');
     }
-    return this.getThemeSettings();
+    const theme = await this.getThemeSettings();
+    await this.webRevalidate.notifyBanners();
+    return theme;
   }
 
   async getSiteConfig() {

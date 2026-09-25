@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
+import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { ProductJsonLd } from '@/components/seo/ProductJsonLd';
 import { getProductBySlug } from '@/lib/product-api';
 import { buildMetadata } from '@/lib/seo';
@@ -14,7 +15,7 @@ export async function generateMetadata({
   const product = await getProductBySlug(slug);
   if (!product) {
     return buildMetadata({
-      title: 'Sản phẩm — CardOn.vn',
+      title: 'Sản phẩm',
       path: `/product/${slug}`,
     });
   }
@@ -25,7 +26,7 @@ export async function generateMetadata({
   const ogImage = product.bannerUrl || product.logoUrl || undefined;
 
   return buildMetadata({
-    title: `${product.name} — CardOn.vn`,
+    title: product.name,
     description,
     path: `/product/${product.slug}`,
     ogImage,
@@ -42,7 +43,32 @@ export default async function ProductPage({
 
   return (
     <>
-      {product ? <ProductJsonLd product={product} /> : null}
+      {product ? (
+        <>
+          <ProductJsonLd product={product} />
+          <BreadcrumbJsonLd
+            items={[
+              { name: 'Trang chủ', url: '/' },
+              ...(product.category?.name
+                ? [
+                    {
+                      name: product.category.name,
+                      url:
+                        product.homeService === 'PHONE_CARD'
+                          ? '/the-dien-thoai'
+                          : product.homeService === 'TOPUP'
+                            ? '/nap-cuoc'
+                            : product.homeService === 'DATA'
+                              ? '/nap-data'
+                              : '/the-game',
+                    },
+                  ]
+                : []),
+              { name: product.name },
+            ]}
+          />
+        </>
+      ) : null}
       <Suspense fallback={<p className="text-gray-500">Đang tải...</p>}>
         <ProductPageClient slug={slug} />
       </Suspense>

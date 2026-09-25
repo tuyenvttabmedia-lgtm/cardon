@@ -41,6 +41,38 @@ export class CmsWebRevalidateService {
     });
   }
 
+  async notifySeoSettings(): Promise<void> {
+    await this.revalidate({
+      paths: ['/', '/robots.txt', '/sitemap.xml'],
+      tags: ['cms'],
+    });
+  }
+
+  async notifyFaq(): Promise<void> {
+    await this.revalidate({
+      paths: ['/tro-giup', '/sitemap.xml'],
+      tags: ['cms'],
+    });
+  }
+
+  async notifyBanners(): Promise<void> {
+    await this.revalidate({
+      paths: ['/'],
+      tags: ['cms'],
+    });
+  }
+
+  async notifyProducts(slugs: string[] = []): Promise<void> {
+    const paths = new Set<string>(['/sitemap.xml', '/the-game', '/the-dien-thoai', '/nap-cuoc', '/nap-data']);
+    for (const slug of slugs) {
+      if (slug?.trim()) paths.add(`/product/${slug.trim()}`);
+    }
+    await this.revalidate({
+      paths: [...paths],
+      tags: ['products', 'cms'],
+    });
+  }
+
   async revalidate(input: { paths?: string[]; tags?: string[] }): Promise<void> {
     const base = (
       this.config.get<string>('app.webInternalUrl') ??

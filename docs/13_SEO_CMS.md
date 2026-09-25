@@ -157,7 +157,11 @@ Header: x-revalidate-secret: {WEB_REVALIDATE_SECRET}
 Body: { paths: [...], tags: ["cms"] }
 ```
 
+Also notifies on FAQ mutations, SEO settings, banners/theme, and product catalog changes (`tags: ["products"]`).
+
 Requires `WEB_INTERNAL_URL` + `WEB_REVALIDATE_SECRET` on both api and web. Missing secret → no-op (safe).
+
+`robots.txt` always merges required private Disallows and appends `Sitemap:` even when CMS custom robotsTxt is set.
 
 ## CmsService
 
