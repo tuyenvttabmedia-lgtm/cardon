@@ -8,6 +8,11 @@ import { cn } from '@/lib/utils';
 
 export type HeroBannerVariant = 'card' | 'topup' | 'data';
 
+export type HeroPageHeading = {
+  title: string;
+  subtitle?: string;
+};
+
 /** Fixed hero height so checkout alignment stays stable when switching services. */
 export const SERVICE_HERO_SHELL_CLASS =
   'relative min-h-[180px] overflow-hidden rounded-2xl md:min-h-[340px] md:rounded-3xl';
@@ -52,13 +57,14 @@ function HeroSkeleton() {
 
 function HeroFallback({
   variant,
-  headingAs = 'h1',
+  pageHeading,
 }: {
   variant: HeroBannerVariant;
-  headingAs?: 'h1' | 'h2';
+  pageHeading?: HeroPageHeading | null;
 }) {
   const content = FALLBACK_CONTENT[variant];
-  const HeadingTag = headingAs;
+  const title = pageHeading?.title?.trim() || content.title;
+  const subtitle = pageHeading?.subtitle?.trim() || content.subtitle;
 
   return (
     <div
@@ -68,8 +74,8 @@ function HeroFallback({
       )}
     >
       <div className="relative z-10 max-w-xl">
-        <HeadingTag className="text-2xl font-bold leading-tight md:text-4xl">{content.title}</HeadingTag>
-        <p className="mt-2 text-sm text-white/90 md:mt-3 md:text-lg">{content.subtitle}</p>
+        <h1 className="text-2xl font-bold leading-tight md:text-4xl">{title}</h1>
+        <p className="mt-2 text-sm text-white/90 md:mt-3 md:text-lg">{subtitle}</p>
         <div className="mt-4 flex flex-wrap gap-2 md:mt-6">
           {content.badges.map((badge) => (
             <span
@@ -111,7 +117,13 @@ function SlideImage({ banner, priority }: { banner: CmsBanner; priority?: boolea
   );
 }
 
-function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
+function HeroCarousel({
+  banners,
+  pageHeading,
+}: {
+  banners: CmsBanner[];
+  pageHeading?: HeroPageHeading | null;
+}) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = banners.length;
@@ -132,6 +144,7 @@ function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
   }, [count, paused]);
 
   const current = banners[index];
+  const seoTitle = pageHeading?.title?.trim();
 
   return (
     <div
@@ -148,6 +161,9 @@ function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
         }
       }}
     >
+      {/* Page H1 for crawlers — CMS banner already carries visual marketing copy */}
+      {seoTitle ? <h1 className="sr-only">{seoTitle}</h1> : null}
+
       <div className="absolute inset-0">
         {banners.map((banner, i) => {
           const active = i === index;
@@ -224,11 +240,11 @@ function HeroCarousel({ banners }: { banners: CmsBanner[] }) {
 
 export function HeroBanner({
   variant = 'card',
-  headingAs = 'h1',
+  pageHeading = null,
 }: {
   variant?: HeroBannerVariant;
-  /** Use h2 when the page already owns a HubSeoBlock / page-level H1. */
-  headingAs?: 'h1' | 'h2';
+  /** Hub/home H1 + subtitle — shown in fallback hero; sr-only when CMS carousel is active. */
+  pageHeading?: HeroPageHeading | null;
 }) {
   const [banners, setBanners] = useState<CmsBanner[]>(cachedHomeHeroBanners ?? []);
   const [loaded, setLoaded] = useState(cachedHomeHeroBanners !== undefined);
@@ -253,8 +269,8 @@ export function HeroBanner({
   }
 
   if (banners.length > 0) {
-    return <HeroCarousel banners={banners} />;
+    return <HeroCarousel banners={banners} pageHeading={pageHeading} />;
   }
 
-  return <HeroFallback variant={variant} headingAs={headingAs} />;
+  return <HeroFallback variant={variant} pageHeading={pageHeading} />;
 }

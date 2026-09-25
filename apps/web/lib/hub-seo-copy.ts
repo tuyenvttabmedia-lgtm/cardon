@@ -104,3 +104,13 @@ export const NAP_DATA_SEO: HubSeoCopy = {
   description:
     'Mua gói data Viettel, Mobifone, Vinaphone tự động 24/7. Thanh toán an toàn trên CardOn.',
 };
+
+/** Resolve hub/home SEO copy from pathname (checkout chrome / hero). */
+export function resolveHubSeoByPath(pathname: string): HubSeoCopy | null {
+  if (pathname === '/') return HOME_SEO;
+  if (pathname.startsWith(CARD_GAME_PATH)) return THE_GAME_SEO;
+  if (pathname.startsWith(CARD_PHONE_PATH)) return THE_PHONE_SEO;
+  if (pathname.startsWith('/nap-cuoc')) return NAP_CUOC_SEO;
+  if (pathname.startsWith('/nap-data')) return NAP_DATA_SEO;
+  return null;
+}

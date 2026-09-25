@@ -18,7 +18,7 @@ CMS content is separate from the product/order engine. Catalog prices come from 
 
 | Surface | URL | Notes |
 |---------|-----|--------|
-| Homepage | `/` | HubSeoBlock + checkout shell |
+| Homepage | `/` | Hero H1 + checkout shell |
 | Thẻ game hub | `/the-game` | Filter GAME_CARD |
 | Thẻ ĐT hub | `/the-dien-thoai` | Filter PHONE_CARD |
 | Nạp cước | `/nap-cuoc` | TOPUP checkout |
@@ -75,7 +75,7 @@ Admin SEO panel edits meta/OG/canonical/robots. Custom `structured_data` write U
 | Sitemap | `apps/web/app/sitemap.ts` |
 | Product JSON-LD | `ProductJsonLd` (Offer / AggregateOffer + brand heuristic) |
 | Site JSON-LD | `SiteJsonLd` (Organization + WebSite) |
-| Hub / home copy | `HubSeoBlock` + `lib/hub-seo-copy.ts` |
+| Hub / home copy | `HubSeoJsonLd` (schema) + H1 in `HeroBanner` via `hub-seo-copy.ts` |
 | FAQ schema | `FaqSchema` |
 | Breadcrumbs | `BreadcrumbJsonLd` |
 | On-demand revalidate | `POST /api/revalidate` + API `CmsWebRevalidateService` |

@@ -7,6 +7,7 @@ import { HeroBanner, type HeroBannerVariant } from '@/components/home/HeroBanner
 import { useProducts } from '@/hooks/useProducts';
 import { cardCategoryFromPathname } from '@/lib/checkout-services';
 import { resolveHomeCategoryIcons, type HomeCategory } from '@/lib/home-catalog';
+import { resolveHubSeoByPath } from '@/lib/hub-seo-copy';
 import { productApi } from '@/services/api-client';
 import type { Category } from '@/types/api';
 
@@ -22,16 +23,6 @@ function resolveActiveService(pathname: string): HomeCategory {
   return cardCategoryFromPathname(pathname) ?? 'game';
 }
 
-function pageOwnsPrimaryHeading(pathname: string): boolean {
-  if (pathname === '/') return true;
-  return (
-    pathname.startsWith('/the-game') ||
-    pathname.startsWith('/the-dien-thoai') ||
-    pathname.startsWith('/nap-cuoc') ||
-    pathname.startsWith('/nap-data')
-  );
-}
-
 function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { products, loading } = useProducts();
@@ -43,7 +34,10 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
 
   const heroVariant = resolveHeroVariant(pathname);
   const activeService = useMemo(() => resolveActiveService(pathname), [pathname]);
-  const headingAs = pageOwnsPrimaryHeading(pathname) ? 'h2' : 'h1';
+  const hubSeo = useMemo(() => resolveHubSeoByPath(pathname), [pathname]);
+  const pageHeading = hubSeo
+    ? { title: hubSeo.title, subtitle: hubSeo.intro }
+    : null;
 
   const categoryIcons = useMemo(
     () => resolveHomeCategoryIcons(products, catalogCategories),
@@ -52,7 +46,7 @@ function CheckoutChromeInner({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="site-container space-y-6 py-6 md:py-8">
-      <HeroBanner variant={heroVariant} headingAs={headingAs} />
+      <HeroBanner variant={heroVariant} pageHeading={pageHeading} />
       <ServiceNavigation
         activeService={activeService}
         categoryIcons={categoryIcons}
