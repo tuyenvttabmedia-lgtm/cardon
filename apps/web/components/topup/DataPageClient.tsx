@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckoutShell } from '@/components/checkout/CheckoutShell';
 import { FaqSection } from '@/components/faq/FaqSection';
-import { getSiteConfig, type PublicSiteConfig } from '@/lib/cms-api';
+import { getSiteConfig, type PublicFaqItem, type PublicSiteConfig } from '@/lib/cms-api';
 
-export function DataPageClient() {
+export function DataPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[] }) {
   const [siteConfig, setSiteConfig] = useState<PublicSiteConfig | null>(null);
 
   useEffect(() => {
@@ -49,6 +49,7 @@ export function DataPageClient() {
         showViewAll
         viewAllHref="/tro-giup?position=data"
         className="mt-8"
+        initialItems={initialFaqs}
       />
     </>
   );

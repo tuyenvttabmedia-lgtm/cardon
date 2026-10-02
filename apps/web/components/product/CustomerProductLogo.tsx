@@ -40,7 +40,14 @@ export function CustomerProductLogo({
   if (resolved) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={resolved} alt="" aria-hidden className={LOGO_IMG_CLASS} />
+      <img
+        src={resolved}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        decoding="async"
+        className={LOGO_IMG_CLASS}
+      />
     );
   }
 

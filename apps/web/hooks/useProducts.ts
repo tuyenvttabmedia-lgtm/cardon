@@ -1,12 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useStorefrontData } from '@/components/storefront/StorefrontDataProvider';
 import { productApi } from '@/services/api-client';
 import type { Product } from '@/types/api';
 
 export function useProducts() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const seeded = useStorefrontData()?.products;
+  const hasSeed = Array.isArray(seeded) && seeded.length > 0;
+  const [products, setProducts] = useState<Product[]>(hasSeed ? seeded : []);
+  const [loading, setLoading] = useState(!hasSeed);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -23,8 +26,9 @@ export function useProducts() {
   }, []);
 
   useEffect(() => {
+    if (hasSeed) return;
     void refresh();
-  }, [refresh]);
+  }, [hasSeed, refresh]);
 
   return { products, loading, error, refresh };
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { DataPageClient } from '@/components/topup/DataPageClient';
+import { listFaqs } from '@/lib/cms-api';
 import { NAP_DATA_SEO } from '@/lib/hub-seo-copy';
 import { buildMetadata } from '@/lib/seo';
 
@@ -9,6 +10,7 @@ export const metadata: Metadata = buildMetadata({
   path: NAP_DATA_SEO.path,
 });
 
-export default function NapDataPage() {
-  return <DataPageClient />;
+export default async function NapDataPage() {
+  const faqs = await listFaqs({ position: 'data', limit: 10 });
+  return <DataPageClient initialFaqs={faqs ? faqs.items : undefined} />;
 }

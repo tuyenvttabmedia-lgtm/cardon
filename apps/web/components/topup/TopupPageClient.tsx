@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckoutShell } from '@/components/checkout/CheckoutShell';
 import { FaqSection } from '@/components/faq/FaqSection';
-import { getSiteConfig, type PublicSiteConfig } from '@/lib/cms-api';
+import { getSiteConfig, type PublicFaqItem, type PublicSiteConfig } from '@/lib/cms-api';
 
-export function TopupPageClient() {
+export function TopupPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[] }) {
   const [siteConfig, setSiteConfig] = useState<PublicSiteConfig | null>(null);
 
   useEffect(() => {
@@ -41,6 +41,7 @@ export function TopupPageClient() {
         showViewAll
         viewAllHref="/tro-giup?position=topup"
         className="mt-8"
+        initialItems={initialFaqs}
       />
     </>
   );
