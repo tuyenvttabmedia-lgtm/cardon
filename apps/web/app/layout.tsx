@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { PublicSiteChrome } from '@/components/layout/PublicSiteChrome';
 import { CmsSeoScripts } from '@/components/seo/CmsSeoScripts';
 import { SiteJsonLd } from '@/components/seo/SiteJsonLd';
@@ -8,8 +7,6 @@ import { getGlobalSeoSettings, getThemeSettings } from '@/lib/cms-api';
 import { buildGlobalMetadata } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/utils';
 import './globals.css';
-
-const inter = Inter({ subsets: ['latin', 'vietnamese'], variable: '--font-geist-sans' });
 
 export async function generateMetadata(): Promise<Metadata> {
   const [theme, seo] = await Promise.all([getThemeSettings(), getGlobalSeoSettings()]);
@@ -30,7 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="vi">
-      <body className={`${inter.variable} font-sans`}>
+      <body className="font-sans">
         <CmsSeoScripts
           googleAnalyticsId={seo?.googleAnalyticsId}
           googleTagManagerId={seo?.googleTagManagerId}
