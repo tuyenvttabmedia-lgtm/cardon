@@ -16,7 +16,7 @@ export function CmsSeoScripts({ googleAnalyticsId, googleTagManagerId }: Props) 
   return (
     <>
       {gtmId ? (
-        <Script id="cms-gtm" strategy="afterInteractive">
+        <Script id="cms-gtm" strategy="lazyOnload">
           {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
 new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
 j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -28,9 +28,9 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         <>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-            strategy="afterInteractive"
+            strategy="lazyOnload"
           />
-          <Script id="cms-ga" strategy="afterInteractive">
+          <Script id="cms-ga" strategy="lazyOnload">
             {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`}
           </Script>
         </>
