@@ -17,10 +17,12 @@ function shouldHideSpeedDial(pathname: string): boolean {
   return false;
 }
 
-/** Purchase surfaces may show a sticky pay bar above the mobile bottom nav. */
+/** Pages with the sticky mobile pay bar above the bottom nav. */
 function isPurchaseSurface(pathname: string): boolean {
   return (
     pathname === '/' ||
+    pathname.startsWith('/the-game') ||
+    pathname.startsWith('/the-dien-thoai') ||
     pathname.startsWith('/nap-cuoc') ||
     pathname.startsWith('/nap-data')
   );
@@ -123,7 +125,7 @@ export function ContactSpeedDial() {
       className={cn(
         'fixed right-4 z-[60] flex flex-col items-end gap-3 md:right-8',
         purchaseSurface
-          ? 'bottom-[calc(9.75rem+env(safe-area-inset-bottom))] md:bottom-8'
+          ? 'bottom-[calc(12rem+env(safe-area-inset-bottom))] lg:bottom-8'
           : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8',
       )}
     >
