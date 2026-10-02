@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { useStorefrontData } from '@/components/storefront/StorefrontDataProvider';
 import { listBanners, type CmsBanner } from '@/lib/cms-api';
 import { cn } from '@/lib/utils';
 
@@ -237,10 +238,20 @@ export function HeroBanner({
   /** Hub/home H1 + subtitle — shown in fallback hero; sr-only when CMS carousel is active. */
   pageHeading?: HeroPageHeading | null;
 }) {
-  const [banners, setBanners] = useState<CmsBanner[]>(cachedHomeHeroBanners ?? []);
-  const [loaded, setLoaded] = useState(cachedHomeHeroBanners !== undefined);
+  const seededBanners = useStorefrontData()?.heroBanners;
+  const [banners, setBanners] = useState<CmsBanner[]>(
+    seededBanners ?? cachedHomeHeroBanners ?? [],
+  );
+  const [loaded, setLoaded] = useState(
+    seededBanners != null || cachedHomeHeroBanners !== undefined,
+  );
 
   useEffect(() => {
+    if (seededBanners != null) {
+      setBanners(seededBanners);
+      setLoaded(true);
+      return;
+    }
     if (cachedHomeHeroBanners !== undefined) {
       setBanners(cachedHomeHeroBanners);
       setLoaded(true);
@@ -253,7 +264,7 @@ export function HeroBanner({
       setBanners(withImage);
       setLoaded(true);
     });
-  }, []);
+  }, [seededBanners]);
 
   if (!loaded) {
     return <HeroSkeleton />;

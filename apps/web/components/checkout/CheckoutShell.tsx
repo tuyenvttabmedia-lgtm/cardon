@@ -1,13 +1,12 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   PaymentMethodsEmpty,
   MobilePaymentMethodButton,
 } from '@/components/checkout/PaymentPanel';
-import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
-import { MegapayPgCheckoutOpen } from '@/components/checkout/MegapayPgCheckoutOpen';
 import {
   CardOrderSummaryPanel,
   TelcoOrderSummaryPanel,
@@ -72,6 +71,13 @@ import {
   OrderAmountLimitAlert,
 } from '@/components/checkout/OrderAmountLimitAlert';
 import type { Payment, Product, ProductVariant } from '@/types/api';
+
+const SepayPgCheckoutRedirect = dynamic(() =>
+  import('@/components/checkout/SepayPgCheckoutRedirect').then((m) => m.SepayPgCheckoutRedirect),
+);
+const MegapayPgCheckoutOpen = dynamic(() =>
+  import('@/components/checkout/MegapayPgCheckoutOpen').then((m) => m.MegapayPgCheckoutOpen),
+);
 
 function StepTitle({ n, title }: { n: number; title: string }) {
   return (

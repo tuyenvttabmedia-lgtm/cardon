@@ -25,6 +25,39 @@ function withPortalHeader(response: NextResponse): NextResponse {
   return response;
 }
 
+const PLATFORM_STATUS_TTL_MS = 20_000;
+
+type PlatformMode = 'OFF' | 'MAINTENANCE' | 'EMERGENCY';
+
+let platformStatusCache: { at: number; mode: PlatformMode } | null = null;
+
+async function readPlatformMode(): Promise<PlatformMode | null> {
+  const now = Date.now();
+  if (platformStatusCache && now - platformStatusCache.at < PLATFORM_STATUS_TTL_MS) {
+    return platformStatusCache.mode;
+  }
+
+  try {
+    const res = await fetch(`${apiBaseUrl()}/cms/platform-status`, {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) {
+      return platformStatusCache?.mode ?? null;
+    }
+
+    const payload = (await res.json()) as {
+      data?: { mode?: string; maintenance?: boolean; emergency?: boolean };
+    };
+    const status = payload.data ?? (payload as { mode?: string; maintenance?: boolean; emergency?: boolean });
+    const mode = (status.mode ?? 'OFF') as PlatformMode;
+    platformStatusCache = { at: now, mode };
+    return mode;
+  } catch {
+    return platformStatusCache?.mode ?? null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host')?.split(':')[0]?.toLowerCase() ?? '';
   if (host === 'customer.localhost') {
@@ -79,29 +112,12 @@ export async function middleware(request: NextRequest) {
     return nextWithPortal(request, pathname);
   }
 
-  try {
-    const res = await fetch(`${apiBaseUrl()}/cms/platform-status`, {
-      cache: 'no-store',
-      headers: { Accept: 'application/json' },
-    });
-    if (!res.ok) {
-      return nextWithPortal(request, pathname);
-    }
-
-    const payload = (await res.json()) as {
-      data?: { mode?: string; maintenance?: boolean; emergency?: boolean };
-    };
-    const status = payload.data ?? (payload as { mode?: string; maintenance?: boolean; emergency?: boolean });
-    const mode = status.mode ?? 'OFF';
-
-    if (mode === 'MAINTENANCE' || mode === 'EMERGENCY') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/bao-tri';
-      url.searchParams.set('from', pathname);
-      return withPortalHeader(NextResponse.redirect(url));
-    }
-  } catch {
-    return nextWithPortal(request, pathname);
+  const mode = await readPlatformMode();
+  if (mode === 'MAINTENANCE' || mode === 'EMERGENCY') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/bao-tri';
+    url.searchParams.set('from', pathname);
+    return withPortalHeader(NextResponse.redirect(url));
   }
 
   return nextWithPortal(request, pathname);

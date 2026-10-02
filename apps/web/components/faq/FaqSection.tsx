@@ -23,6 +23,7 @@ export function FaqSection({
   showViewAll = false,
   viewAllHref = '/tro-giup',
   className,
+  initialItems,
 }: {
   featured?: boolean;
   position?: string;
@@ -31,16 +32,19 @@ export function FaqSection({
   showViewAll?: boolean;
   viewAllHref?: string;
   className?: string;
+  /** Server payload. Omit to fetch in the browser. */
+  initialItems?: PublicFaqItem[];
 }) {
-  const [items, setItems] = useState<FaqItem[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [items, setItems] = useState<FaqItem[]>(() => (initialItems ?? []).map(mapItem));
+  const [loaded, setLoaded] = useState(initialItems != null);
 
   useEffect(() => {
+    if (initialItems != null) return;
     void fetchFaqsClient({ featured, position, limit })
       .then((result) => setItems((result?.items ?? []).map(mapItem)))
       .catch(() => setItems([]))
       .finally(() => setLoaded(true));
-  }, [featured, position, limit]);
+  }, [featured, position, limit, initialItems]);
 
   if (!loaded || items.length === 0) return null;
 
