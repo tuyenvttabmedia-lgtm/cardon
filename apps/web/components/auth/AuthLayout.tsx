@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
+import { isOptimizableImageSrc, optimizerImageSrc } from '@/lib/assets';
 
 const FEATURES = [
   { icon: '⚡', title: 'Nhận mã thẻ tức thì', desc: 'Giao tự động sau thanh toán' },
@@ -12,7 +13,7 @@ const FEATURES = [
 
 function AuthBrandPanel() {
   const { logoDesktop, logoMobile } = useThemeSettings();
-  const logoSrc = logoMobile || logoDesktop || '/images/cardon-icon.png';
+  const logoSrc = optimizerImageSrc(logoMobile || logoDesktop || '/images/cardon-icon.png') ?? '/images/cardon-icon.png';
 
   return (
     <div className="relative hidden flex-col overflow-hidden bg-gradient-to-br from-cardon-navy via-[#1a4fad] to-cardon-blue p-8 text-white lg:flex lg:min-h-[560px]">
@@ -25,8 +26,11 @@ function AuthBrandPanel() {
           alt="CardOn"
           width={160}
           height={48}
+          quality={60}
+          sizes="180px"
           className="h-11 w-auto max-w-[180px] object-contain object-left"
-          unoptimized
+          style={{ width: 'auto', height: 'auto' }}
+          unoptimized={!isOptimizableImageSrc(logoSrc)}
         />
         <h2 className="mt-8 text-2xl font-bold leading-snug">
           Mua thẻ & nạp cước online nhanh chóng
@@ -87,6 +91,7 @@ export function AuthLayout({
   footer?: React.ReactNode;
 }) {
   const { logoDesktop } = useThemeSettings();
+  const logoSrc = optimizerImageSrc(logoDesktop) ?? logoDesktop;
 
   return (
     <div className="page-shell py-6 md:py-12">
@@ -99,12 +104,15 @@ export function AuthLayout({
               <div className="mb-6 lg:hidden">
                 <Link href="/">
                   <Image
-                    src={logoDesktop}
+                    src={logoSrc}
                     alt="CardOn"
                     width={140}
                     height={40}
+                    quality={60}
+                    sizes="140px"
                     className="h-9 w-auto max-w-[140px] object-contain"
-                    unoptimized
+                    style={{ width: 'auto', height: 'auto' }}
+                    unoptimized={!isOptimizableImageSrc(logoSrc)}
                   />
                 </Link>
               </div>

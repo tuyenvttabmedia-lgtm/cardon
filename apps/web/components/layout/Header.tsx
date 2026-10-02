@@ -10,6 +10,7 @@ import { filterHeaderMenuBySiteConfig, useSiteConfig } from '@/hooks/useSiteConf
 import { UserAccountDropdown } from './UserAccountDropdown';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { MobileMenu } from './MobileMenu';
+import { isOptimizableImageSrc, optimizerImageSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 function isActivePath(pathname: string, href: string) {
@@ -25,6 +26,7 @@ export function Header() {
   const visibleMenu = filterHeaderMenuBySiteConfig(headerMenu, siteConfig);
   const [menuOpen, setMenuOpen] = useState(false);
   const logoKey = `${logoDesktop}|${theme?.favicon ?? ''}`;
+  const logoSrc = optimizerImageSrc(logoDesktop) ?? logoDesktop;
 
   return (
     <>
@@ -33,16 +35,19 @@ export function Header() {
           <Link href="/" className="flex min-w-0 shrink-0 items-center">
             <Image
               key={`logo-${logoKey}`}
-              src={logoDesktop}
+              src={logoSrc}
               alt="CardOn.vn"
               width={180}
               height={48}
+              quality={60}
+              sizes="140px"
               className={cn(
                 'w-auto object-contain',
                 'h-9 max-w-[140px] md:h-10 md:max-w-none',
               )}
+              style={{ width: 'auto', height: 'auto' }}
               priority
-              unoptimized
+              unoptimized={!isOptimizableImageSrc(logoSrc)}
             />
           </Link>
 

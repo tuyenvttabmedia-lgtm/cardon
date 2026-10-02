@@ -63,6 +63,7 @@ ENV APP_DIR=${APP_DIR}
 ENV PORT=${APP_PORT}
 ENV HOSTNAME=0.0.0.0
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_SHARP_PATH=/app/node_modules/sharp
 
 WORKDIR /app
 
@@ -74,6 +75,9 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_DIR}/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_DIR}/.next/static ./apps/${APP_DIR}/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/${APP_DIR}/public ./apps/${APP_DIR}/public
+# Standalone trace omits optional sharp; next/image needs it to resize uploads.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/sharp ./node_modules/sharp
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@img ./node_modules/@img
 
 USER nextjs
 EXPOSE ${APP_PORT}
