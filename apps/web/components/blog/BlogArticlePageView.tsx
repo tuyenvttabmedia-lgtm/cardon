@@ -10,7 +10,8 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { SafeCmsHtml } from '@/components/SafeCmsHtml';
 import { pickRelatedPosts, prepareArticleHtml } from '@/lib/blog-utils';
-import { resolveAssetUrl } from '@/lib/assets';
+import Image from 'next/image';
+import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
 import { getBlogPost, listBlogPosts } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
 import { buildCmsMetadata } from '@/lib/seo';
@@ -20,6 +21,30 @@ export async function buildBlogArticleMetadata(slug: string): Promise<Metadata> 
   const data = await getBlogPost(slug);
   if (!data) return { title: 'Không tìm thấy bài viết' };
   return buildCmsMetadata(data.post, data.post.seo, blogPostPath(data.post.categorySlug, data.post.slug));
+}
+
+function ArticleHeroImage({ src, alt }: { src: string; alt: string }) {
+  const resolved = resolveAssetUrl(src) ?? src;
+  const optimized = optimizerImageSrc(src) ?? resolved;
+
+  return (
+    <div className="relative mt-6 aspect-video w-full overflow-hidden rounded-xl bg-cardon-light">
+      {isOptimizableImageSrc(optimized) ? (
+        <Image
+          src={optimized}
+          alt={alt}
+          fill
+          priority
+          sizes="(max-width: 1024px) 100vw, 720px"
+          quality={60}
+          className="object-cover"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={resolved} alt={alt} className="h-full w-full object-cover" />
+      )}
+    </div>
+  );
 }
 
 export async function BlogArticlePageView({ slug }: { slug: string }) {
@@ -106,12 +131,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
             <ArticleTableOfContents items={headings} />
 
             {post.featuredImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={resolveAssetUrl(post.featuredImage) ?? post.featuredImage}
-                alt={post.title}
-                className="mt-6 aspect-video w-full rounded-xl object-cover"
-              />
+              <ArticleHeroImage src={post.featuredImage} alt={post.title} />
             )}
 
             <SafeCmsHtml html={articleHtml} className="cms-prose mt-6" />

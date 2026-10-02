@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { BlogListImage } from '@/components/blog/BlogListImage';
 import type { PublicBlogPost } from '@/lib/cms-api';
-import { resolveAssetUrl } from '@/lib/assets';
 import { blogPostPath } from '@/lib/routes';
 import { stripHtmlForSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
@@ -61,7 +60,11 @@ export function BlogCard({
           )}
         >
           {post.featuredImage ? (
-            <BlogListImage src={post.featuredImage} alt={post.title} />
+            <BlogListImage
+              src={post.featuredImage}
+              alt={post.title}
+              sizes={isHome ? '112px' : '72px'}
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-lg opacity-30">📰</div>
           )}
@@ -91,7 +94,11 @@ export function BlogCard({
       >
         <div className="relative aspect-[2/1] overflow-hidden rounded-t-xl bg-cardon-light">
           {post.featuredImage ? (
-            <BlogListImage src={post.featuredImage} alt={post.title} />
+            <BlogListImage
+              src={post.featuredImage}
+              alt={post.title}
+              sizes="(max-width: 1024px) 45vw, 280px"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-3xl opacity-30">📰</div>
           )}
@@ -130,13 +137,14 @@ export function BlogCard({
         )}
       >
         {post.featuredImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={resolveAssetUrl(post.featuredImage) ?? post.featuredImage}
+          <BlogListImage
+            src={post.featuredImage}
             alt={post.title}
-            loading="lazy"
-            decoding="async"
-            className="h-full w-full object-cover"
+            sizes={
+              resolvedVariant === 'featured'
+                ? '(max-width: 768px) 100vw, 560px'
+                : '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 360px'
+            }
           />
         ) : (
           <div className="flex h-full items-center justify-center text-4xl opacity-30">📰</div>
