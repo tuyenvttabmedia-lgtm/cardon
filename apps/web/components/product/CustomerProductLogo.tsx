@@ -1,6 +1,7 @@
 'use client';
 
-import { resolveAssetUrl } from '@/lib/assets';
+import Image from 'next/image';
+import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
 import { providerColor, providerInitial } from '@/lib/home-catalog';
 import { cn } from '@/lib/utils';
 
@@ -36,6 +37,23 @@ export function CustomerProductLogo({
   fallbackLabel?: string;
 }) {
   const resolved = resolveAssetUrl(logoUrl);
+  const optimized = optimizerImageSrc(logoUrl);
+
+  if (resolved && optimized && isOptimizableImageSrc(optimized)) {
+    return (
+      <Image
+        src={optimized}
+        alt=""
+        aria-hidden
+        width={128}
+        height={64}
+        quality={60}
+        sizes="96px"
+        className={LOGO_IMG_CLASS}
+        style={{ width: 'auto', height: 'auto' }}
+      />
+    );
+  }
 
   if (resolved) {
     return (

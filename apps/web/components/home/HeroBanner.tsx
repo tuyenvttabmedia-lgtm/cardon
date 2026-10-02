@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { useStorefrontData } from '@/components/storefront/StorefrontDataProvider';
+import { isOptimizableImageSrc, optimizerImageSrc } from '@/lib/assets';
 import { listBanners, type CmsBanner } from '@/lib/cms-api';
 import { cn } from '@/lib/utils';
 
@@ -107,14 +108,17 @@ function HeroFallback({
 }
 
 function SlideImage({ banner, priority }: { banner: CmsBanner; priority?: boolean }) {
+  const src = optimizerImageSrc(banner.imageUrl) ?? banner.imageUrl;
   return (
     <Image
-      src={banner.imageUrl}
+      src={src}
       alt={banner.title}
       fill
+      sizes="(max-width: 768px) 100vw, 1200px"
+      quality={60}
       className="object-contain object-center md:object-cover"
       priority={priority}
-      unoptimized
+      unoptimized={!isOptimizableImageSrc(src)}
     />
   );
 }

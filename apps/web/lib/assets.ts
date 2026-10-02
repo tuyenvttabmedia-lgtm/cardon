@@ -1,3 +1,5 @@
+import { getSiteUrl } from '@/lib/utils';
+
 /** Browser-facing media URL. Never emit Docker-internal hosts like api:3000. */
 
 const INTERNAL_IMAGE_HOSTS = new Set([
@@ -31,4 +33,32 @@ export function resolveAssetUrl(url: string | null | undefined): string | null {
   }
 
   return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Src for next/image. Upload files live on the API volume, so the optimizer
+ * must fetch them by public URL. Files in /images stay relative and are read
+ * from the web public folder.
+ */
+export function optimizerImageSrc(url: string | null | undefined): string | null {
+  const resolved = resolveAssetUrl(url);
+  if (!resolved) return null;
+  if (resolved.startsWith('/uploads/')) {
+    return `${getSiteUrl()}${resolved}`;
+  }
+  return resolved;
+}
+
+export function isOptimizableImageSrc(src: string): boolean {
+  if (src.startsWith('/images/') || src.startsWith('/uploads/')) return true;
+  try {
+    const parsed = new URL(src);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      (host === 'cardon.vn' || host === 'www.cardon.vn') &&
+      parsed.pathname.startsWith('/uploads/')
+    );
+  } catch {
+    return false;
+  }
 }
