@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@cardon/build-info'],
   outputFileTracingRoot: path.join(__dirname, '../..'),
   images: {
+    deviceSizes: [640, 828, 1080, 1200, 1920],
+    imageSizes: [32, 48, 64, 96, 128, 256],
     remotePatterns: [
       { protocol: 'https', hostname: 'qr.sepay.vn' },
       { protocol: 'https', hostname: '**.sepay.vn' },

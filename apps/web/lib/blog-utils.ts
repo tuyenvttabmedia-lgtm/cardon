@@ -16,8 +16,20 @@ export function getBlogListImageCandidates(featuredImage: string): string[] {
   const origin = trimmed.startsWith('http')
     ? trimmed.slice(0, trimmed.indexOf(pathMatch[1]))
     : '';
+  const publicOrigin = (() => {
+    if (!origin) return '';
+    try {
+      const host = new URL(origin).hostname.toLowerCase();
+      if (host === 'api' || host === 'localhost' || host === '127.0.0.1' || host === 'web' || host.endsWith('.local')) {
+        return '';
+      }
+    } catch {
+      return '';
+    }
+    return origin;
+  })();
 
-  const withOrigin = (path: string) => (origin ? `${origin}${path}` : path);
+  const withOrigin = (path: string) => (publicOrigin ? `${publicOrigin}${path}` : path);
 
   const full = withOrigin(`${prefix}${filename}`);
   const candidates = [withOrigin(card), withOrigin(thumb), full];

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { BlogListImage } from '@/components/blog/BlogListImage';
 import type { PublicBlogPost } from '@/lib/cms-api';
+import { resolveAssetUrl } from '@/lib/assets';
 import { blogPostPath } from '@/lib/routes';
 import { stripHtmlForSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
@@ -131,7 +132,7 @@ export function BlogCard({
         {post.featuredImage ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={post.featuredImage}
+            src={resolveAssetUrl(post.featuredImage) ?? post.featuredImage}
             alt={post.title}
             loading="lazy"
             decoding="async"
