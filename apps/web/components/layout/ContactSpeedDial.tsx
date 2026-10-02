@@ -66,10 +66,10 @@ function SpeedDialActionButton({
       <Image
         src={ACTION_ICON_SRC[action.id]}
         alt=""
-        fill
-        sizes="56px"
-        className="object-cover"
-        priority={false}
+        width={56}
+        height={56}
+        quality={60}
+        className="h-14 w-14 object-cover"
       />
     </a>
   );
@@ -166,10 +166,11 @@ export function ContactSpeedDial() {
           <Image
             src={MAIN_DIAL_SRC}
             alt=""
-            fill
-            sizes="64px"
-            className="object-cover"
+            width={64}
+            height={64}
+            quality={60}
             priority
+            className="h-16 w-16 object-cover"
           />
         )}
       </button>

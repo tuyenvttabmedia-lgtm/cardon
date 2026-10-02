@@ -33,6 +33,7 @@ export function absolutePublicUrl(pathOrUrl: string | null | undefined): string 
         host === '127.0.0.1' ||
         host === '0.0.0.0' ||
         host === 'web' ||
+        host === 'api' ||
         host.endsWith('.local')
       ) {
         return `${site}${u.pathname}${u.search}`;

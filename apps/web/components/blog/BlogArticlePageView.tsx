@@ -10,6 +10,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { SafeCmsHtml } from '@/components/SafeCmsHtml';
 import { pickRelatedPosts, prepareArticleHtml } from '@/lib/blog-utils';
+import { resolveAssetUrl } from '@/lib/assets';
 import { getBlogPost, listBlogPosts } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
 import { buildCmsMetadata } from '@/lib/seo';
@@ -107,7 +108,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
             {post.featuredImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={post.featuredImage}
+                src={resolveAssetUrl(post.featuredImage) ?? post.featuredImage}
                 alt={post.title}
                 className="mt-6 aspect-video w-full rounded-xl object-cover"
               />
