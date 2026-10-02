@@ -169,7 +169,6 @@ export function ContactSpeedDial() {
             width={64}
             height={64}
             quality={60}
-            priority
             className="h-16 w-16 object-cover"
           />
         )}
