@@ -82,7 +82,7 @@ export const NAV_ITEMS: NavItem[] = [
 
     permission: 'payments.view',
 
-    visibleForRoles: ['SUPPORT'],
+    visibleForRoles: ['SUPPORT', 'ACCOUNTANT'],
 
   },
 
@@ -106,7 +106,7 @@ export const NAV_ITEMS: NavItem[] = [
 
 const ROLE_NAV_ALLOWLIST: Record<string, string[]> = {
 
-  ACCOUNTANT: ['/finance', '/operations'],
+  ACCOUNTANT: ['/finance', '/operations', '/orders', '/payments', '/agents'],
 
   MARKETING: ['/marketing'],
 
