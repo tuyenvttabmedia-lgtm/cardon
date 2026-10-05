@@ -3,11 +3,13 @@
 import { usePathname } from 'next/navigation';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { SectionNav } from '@/components/ui/Navigation';
+import { useAuth } from '@/hooks/useAuth';
 import { AGENT_SECTIONS } from '@/lib/agent-routes';
 import { vi } from '@/lib/i18n/vi';
 
 export function AgentManagementShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { can } = useAuth();
   const isDetail = /^\/agents\/[0-9a-f-]{36}$/i.test(pathname);
 
   return (
@@ -21,7 +23,9 @@ export function AgentManagementShell({ children }: { children: React.ReactNode }
             </div>
             <SectionNav
               ariaLabel="Điều hướng quản lý đại lý"
-              items={AGENT_SECTIONS.map((item) => {
+              items={AGENT_SECTIONS.filter(
+                (item) => !('permission' in item) || can(item.permission),
+              ).map((item) => {
                 const active =
                   'exact' in item && item.exact
                     ? pathname === item.href
