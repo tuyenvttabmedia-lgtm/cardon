@@ -4,7 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn, ROLE_LABELS } from '@/lib/utils';
-import { NAV_ITEMS, canAccessNavItem, isAdminStaffRole } from '@/lib/permissions';
+import {
+  NAV_ITEMS,
+  canAccessNavItem,
+  defaultRouteForRole,
+  isAdminStaffRole,
+} from '@/lib/permissions';
 import { BuildInfoService } from '@/lib/build-version';
 import { Drawer, DialogCloseButton } from '@/components/ui/Dialog';
 import { vi } from '@/lib/i18n/vi';
@@ -46,9 +51,15 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+function useAdminHome(): string {
+  const { user, permissions } = useAuth();
+  return defaultRouteForRole(user?.role ?? '', permissions);
+}
+
 function SidebarBrand({ onNavigate }: { onNavigate?: () => void }) {
+  const homeHref = useAdminHome();
   return (
-    <Link href="/dashboard" className="group block" onClick={onNavigate}>
+    <Link href={homeHref} className="group block" onClick={onNavigate}>
       <span className="text-lg font-bold tracking-tight text-white">
         CardOn <span className="text-admin-400 transition-colors group-hover:text-admin-300">Admin</span>
       </span>
@@ -173,6 +184,7 @@ function UserMenu() {
 }
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
+  const homeHref = useAdminHome();
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
       <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 shadow-xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
@@ -189,7 +201,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl lg:px-6">
           <MobileNavDrawer />
           <Link
-            href="/dashboard"
+            href={homeHref}
             className="whitespace-nowrap font-bold text-admin-700 lg:hidden"
           >
             CardOn Admin
@@ -213,7 +225,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading, user, logout } = useAuth();
+  const { isAuthenticated, loading, user, permissions, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const staffOk = isAdminStaffRole(user?.role);
@@ -225,13 +237,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
     if (isAuthenticated && pathname === '/login') {
-      router.replace('/dashboard');
+      router.replace(defaultRouteForRole(user?.role ?? '', permissions));
       return;
     }
     if (!isAuthenticated && pathname !== '/login') {
       router.replace('/login');
     }
-  }, [loading, isAuthenticated, staffOk, pathname, router, logout]);
+  }, [loading, isAuthenticated, staffOk, pathname, router, logout, user?.role, permissions]);
 
   if (loading) {
     return (
