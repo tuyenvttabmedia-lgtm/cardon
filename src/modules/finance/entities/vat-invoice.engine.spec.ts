@@ -2,6 +2,7 @@ import {
   calcGatewayFeeInvoice,
   calcRetailOutputLine,
   calcSupplierInputLine,
+  esaleInvoiceGoodsName,
   mapHomeServiceToVatLine,
   roundVnd,
   splitInclusiveVat,
@@ -65,6 +66,44 @@ describe('vat-invoice.engine', () => {
     expect(line.unitPriceExclVat).toBe(roundVnd(sell / 1.08));
     expect(line.amountInclVat).toBe(196_000);
     expect(line.amountExclVat + line.vatAmount).toBe(196_000);
+  });
+
+  it('uses confirmed eSale goods names for Viettel, Zing and Gosu', () => {
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'viettel-card',
+        faceValue: 10_000,
+        fallbackName: 'Viettel 10k',
+      }),
+    ).toBe('Mã thẻ Viettel 10.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'zing-card',
+        faceValue: 20_000,
+        fallbackName: 'Zing 20k',
+      }),
+    ).toBe('Mã thẻ Zing 20.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'zing-card',
+        faceValue: 1_000_000,
+        fallbackName: 'Zing 1tr',
+      }),
+    ).toBe('Mã thẻ Zing 1.000.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'gosu-card',
+        faceValue: 10_000,
+        fallbackName: 'Gosu 10k',
+      }),
+    ).toBe('Thẻ Gosu 10.000');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'garena-card',
+        faceValue: 100_000,
+        fallbackName: 'Garena 100k',
+      }),
+    ).toBe('Garena 100k');
   });
 
   it('gateway fee invoice splits 0.77% fee before VAT', () => {

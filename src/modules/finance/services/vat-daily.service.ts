@@ -7,6 +7,7 @@ import {
   calcGatewayFeeInvoice,
   calcRetailOutputLine,
   calcSupplierInputLine,
+  esaleInvoiceGoodsName,
   mapHomeServiceToVatLine,
   roundVnd,
   vatRateForLine,
@@ -185,7 +186,11 @@ export class VatDailyService {
       } else {
         groups.set(key, {
           sku: item.variant.sku,
-          name: item.variant.name,
+          name: esaleInvoiceGoodsName({
+            productSlug: item.variant.product.slug,
+            faceValue: dec(item.variant.faceValue),
+            fallbackName: item.variant.name,
+          }),
           productLine: line,
           sellInclVatUnit: sellUnit,
           quantity: item.quantity,
