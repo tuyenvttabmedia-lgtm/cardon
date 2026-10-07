@@ -862,9 +862,7 @@ export class FinanceRepository {
    * B2C retail orders completed in range — source for VAT daily packs.
    * Agent channel excluded (separate statement flow).
    */
-  findB2cCompletedOrderItemsForVat(dateFrom: Date, dateTo: Date) {
-    const end = new Date(dateTo);
-    end.setUTCHours(23, 59, 59, 999);
+  findB2cCompletedOrderItemsForVat(fromInclusive: Date, toExclusive: Date) {
     return this.prisma.orderItem.findMany({
       where: {
         order: {
@@ -873,7 +871,7 @@ export class FinanceRepository {
           paymentStatus: OrderPaymentStatus.PAID,
           fulfillmentStatus: FulfillmentStatus.COMPLETED,
           agentId: null,
-          createdAt: { gte: dateFrom, lte: end },
+          createdAt: { gte: fromInclusive, lt: toExclusive },
         },
       },
       include: {
