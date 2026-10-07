@@ -1218,6 +1218,7 @@ export interface VatRetailOutputPack {
     sku: string;
     productLine: string;
     productLineLabel: string;
+    unit: string;
     quantity: number;
     sellInclVatUnit: number;
     unitPriceExclVat: number;

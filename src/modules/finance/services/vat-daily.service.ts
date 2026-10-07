@@ -11,7 +11,7 @@ import {
   roundVnd,
   vatRateForLine,
 } from '../entities/vat-invoice.engine';
-import { assertFinanceDateRange } from '../utils/finance-date-range.util';
+import { vietnamCalendarRange } from '../utils/finance-date-range.util';
 import { FinanceRepository } from '../repositories/finance.repository';
 
 type ItemRow = Awaited<
@@ -201,6 +201,7 @@ export class VatDailyService {
         sku: item.variant.sku,
         productLine: line,
         productLineLabel: VAT_PRODUCT_LINE_LABELS[line],
+        unit: 'Thẻ',
         quantity: item.quantity,
         sellInclVatUnit: sellUnit,
         unitPriceExclVat: calc.unitPriceExclVat,
@@ -368,8 +369,8 @@ export class VatDailyService {
   }
 
   private async loadItems(query: VatDailyQueryDto) {
-    const range = assertFinanceDateRange(query.dateFrom, query.dateTo);
-    return this.repository.findB2cCompletedOrderItemsForVat(range.from, range.to);
+    const range = vietnamCalendarRange(query.dateFrom, query.dateTo);
+    return this.repository.findB2cCompletedOrderItemsForVat(range.from, range.toExclusive);
   }
 
   private filterByLine(items: ItemRow[], productLine?: string) {

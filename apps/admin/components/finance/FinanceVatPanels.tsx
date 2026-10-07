@@ -92,7 +92,7 @@ export function FinanceSupplierPanel() {
                   <th className="px-3 py-2">STT</th>
                   <th className="px-3 py-2">Mã VT</th>
                   <th className="px-3 py-2">Tên hàng hóa, dịch vụ</th>
-                  <th className="px-3 py-2">ĐVT</th>
+                  <th className="px-3 py-2">Đơn vị tính</th>
                   <th className="px-3 py-2 text-right">SL</th>
                   <th className="px-3 py-2 text-right">Đơn giá</th>
                   <th className="px-3 py-2 text-right">Tổng tiền</th>
@@ -199,7 +199,7 @@ export function FinanceRetailOutputPanel() {
                 <tr>
                   <th className="px-3 py-2">STT</th>
                   <th className="px-3 py-2">Tên hàng hóa, dịch vụ</th>
-                  <th className="px-3 py-2">ĐVT</th>
+                  <th className="px-3 py-2">Đơn vị tính</th>
                   <th className="px-3 py-2 text-right">SL</th>
                   <th className="px-3 py-2 text-right">Đơn giá (trước VAT)</th>
                   <th className="px-3 py-2 text-right">Thành tiền trước thuế</th>
@@ -250,6 +250,7 @@ export function FinanceRetailOutputPanel() {
                 <tr>
                   <th className="px-3 py-2">Mã đơn</th>
                   <th className="px-3 py-2">SKU</th>
+                  <th className="px-3 py-2">Đơn vị tính</th>
                   <th className="px-3 py-2 text-right">SL</th>
                   <th className="px-3 py-2 text-right">Giá bán đã VAT</th>
                   <th className="px-3 py-2 text-right">Đơn giá trước VAT</th>
@@ -264,6 +265,7 @@ export function FinanceRetailOutputPanel() {
                   <tr key={`${d.orderId}-${d.sku}`} className="border-t border-slate-100">
                     <td className="px-3 py-2 font-mono text-xs">{d.orderCode}</td>
                     <td className="px-3 py-2">{d.sku}</td>
+                    <td className="px-3 py-2">{d.unit}</td>
                     <td className="px-3 py-2 text-right">{d.quantity}</td>
                     <td className="px-3 py-2 text-right">{formatVnd(d.sellInclVatUnit)}</td>
                     <td className="px-3 py-2 text-right">{formatVnd(d.unitPriceExclVat)}</td>
@@ -322,6 +324,7 @@ export function FinanceGatewayFeePanel() {
                 <tr>
                   <th className="px-3 py-2">STT</th>
                   <th className="px-3 py-2">Tên hàng hóa, dịch vụ</th>
+                  <th className="px-3 py-2">Đơn vị tính</th>
                   <th className="px-3 py-2 text-right">SL</th>
                   <th className="px-3 py-2 text-right">Đơn giá (trước VAT)</th>
                   <th className="px-3 py-2 text-right">Thành tiền</th>
@@ -331,6 +334,7 @@ export function FinanceGatewayFeePanel() {
                 <tr className="border-t border-slate-100">
                   <td className="px-3 py-2">1</td>
                   <td className="px-3 py-2">{data.description}</td>
+                  <td className="px-3 py-2">Lần</td>
                   <td className="px-3 py-2 text-right">{data.quantity}</td>
                   <td className="px-3 py-2 text-right">{formatVnd(data.unitPriceExclVat)}</td>
                   <td className="px-3 py-2 text-right font-medium">{formatVnd(data.amountExclVat)}</td>
@@ -375,6 +379,7 @@ export function FinanceVatSummaryPanel() {
             <thead className="bg-slate-50 text-xs uppercase text-slate-500">
               <tr>
                 <th className="px-3 py-2">Nhóm</th>
+                <th className="px-3 py-2">Đơn vị tính</th>
                 <th className="px-3 py-2 text-right">VAT</th>
                 <th className="px-3 py-2 text-right">SL thẻ</th>
                 <th className="px-3 py-2 text-right">Doanh thu (khách trả)</th>
@@ -387,6 +392,7 @@ export function FinanceVatSummaryPanel() {
               {data.rows.map((row) => (
                 <tr key={row.productLine} className="border-t border-slate-100">
                   <td className="px-3 py-2">{row.productLineLabel}</td>
+                  <td className="px-3 py-2">Thẻ</td>
                   <td className="px-3 py-2 text-right">{row.vatRatePct}%</td>
                   <td className="px-3 py-2 text-right">{row.quantity}</td>
                   <td className="px-3 py-2 text-right">{formatVnd(row.amountInclVat)}</td>
@@ -397,7 +403,7 @@ export function FinanceVatSummaryPanel() {
               ))}
               {data.rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-3 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
                     Chưa có dữ liệu
                   </td>
                 </tr>

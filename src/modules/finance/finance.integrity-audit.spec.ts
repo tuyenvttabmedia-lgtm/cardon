@@ -22,7 +22,7 @@ import {
 } from './entities/reconcile.engine';
 import { assertExportCsvSafe } from './entities/export-safety';
 import { FINANCE_MAX_DATE_RANGE_DAYS } from './entities/finance.constants';
-import { assertFinanceDateRange } from './utils/finance-date-range.util';
+import { assertFinanceDateRange, vietnamCalendarRange } from './utils/finance-date-range.util';
 import { PaymentReconcileService } from './services/payment-reconcile.service';
 import { AgentStatementService } from './services/agent-statement.service';
 import { InvoiceService } from './services/invoice.service';
@@ -399,6 +399,16 @@ describe('Phase 4B.1 — CHECK 9: Large report safety', () => {
     const range = assertFinanceDateRange('2026-01-01', '2026-06-01');
     expect(range.from).toBeInstanceOf(Date);
     expect(range.to).toBeInstanceOf(Date);
+  });
+
+  it('keeps a Vietnam calendar day inside the VAT range and the next morning out', () => {
+    const range = vietnamCalendarRange('2026-09-25', '2026-10-06');
+    const inside = new Date('2026-10-06T23:30:00+07:00');
+    const nextMorning = new Date('2026-10-07T00:46:00+07:00');
+    const periodStart = new Date('2026-09-25T00:10:00+07:00');
+    expect(inside >= range.from && inside < range.toExclusive).toBe(true);
+    expect(periodStart >= range.from && periodStart < range.toExclusive).toBe(true);
+    expect(nextMorning >= range.from && nextMorning < range.toExclusive).toBe(false);
   });
 
   it('defines bounded query limits', () => {
