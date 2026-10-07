@@ -140,7 +140,12 @@ function ProfessionalEditorInner({
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
       HorizontalRule,
-      Link.configure({ openOnClick: false, autolink: true }),
+      Link.configure({
+        openOnClick: false,
+        // Autolink puts the mark back as soon as it is removed when the text looks like a URL.
+        autolink: false,
+        linkOnPaste: false,
+      }),
       CmsImage.configure({ inline: false, allowBase64: false }),
       Table.configure({ resizable: true }),
       TableRow,
@@ -345,6 +350,14 @@ function ProfessionalEditorInner({
               <span className="mx-1 h-5 w-px bg-slate-300" />
               <ToolbarBtn title="Table" onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}>⊞</ToolbarBtn>
               <ToolbarBtn title="Link (Ctrl+K)" active={editor.isActive('link')} onClick={() => setLinkOpen(true)}>🔗</ToolbarBtn>
+              {editor.isActive('link') && (
+                <ToolbarBtn
+                  title="Gỡ link"
+                  onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()}
+                >
+                  Gỡ
+                </ToolbarBtn>
+              )}
               <ToolbarBtn title="Image" onClick={() => void pickAndInsertImage()}>🖼</ToolbarBtn>
               <ToolbarBtn title="Youtube" onClick={() => { const u = window.prompt('URL YouTube'); if (u) editor.chain().focus().setYoutubeVideo({ src: u }).run(); }}>▶</ToolbarBtn>
               <ToolbarBtn title="Divider" onClick={() => editor.chain().focus().setHorizontalRule().run()}>—</ToolbarBtn>
@@ -470,8 +483,23 @@ function ProfessionalEditorInner({
         open={linkOpen}
         onClose={() => setLinkOpen(false)}
         targets={linkTargets}
-        onSelect={(href) => {
-          editor?.chain().focus().extendMarkRange('link').setLink({ href }).run();
+        initialHref={(editor?.getAttributes('link').href as string | undefined) ?? ''}
+        onApply={(href) => {
+          const external = /^https?:\/\//i.test(href);
+          editor
+            ?.chain()
+            .focus()
+            .extendMarkRange('link')
+            .setLink({
+              href,
+              target: external ? '_blank' : null,
+              rel: external ? 'noopener noreferrer' : null,
+            })
+            .run();
+          setLinkOpen(false);
+        }}
+        onRemove={() => {
+          editor?.chain().focus().extendMarkRange('link').unsetLink().run();
           setLinkOpen(false);
         }}
       />
