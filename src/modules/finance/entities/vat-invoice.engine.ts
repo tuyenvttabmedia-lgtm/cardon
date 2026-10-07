@@ -115,6 +115,34 @@ export function calcRetailOutputLine(input: {
   };
 }
 
+function formatFaceAmount(faceValue: number): string {
+  return Math.round(faceValue)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/**
+ * Goods name on the retail VAT invoice, matching confirmed eSale input invoices.
+ * Brands without a real supplier invoice sample keep the catalog variant name.
+ */
+export function esaleInvoiceGoodsName(input: {
+  productSlug: string;
+  faceValue: number;
+  fallbackName: string;
+}): string {
+  const face = formatFaceAmount(input.faceValue);
+  switch (input.productSlug.trim().toLowerCase()) {
+    case 'viettel-card':
+      return `Mã thẻ Viettel ${face}VND`;
+    case 'zing-card':
+      return `Mã thẻ Zing ${face}VND`;
+    case 'gosu-card':
+      return `Thẻ Gosu ${face}`;
+    default:
+      return input.fallbackName;
+  }
+}
+
 /** Gateway fee invoice: customer fee is VAT-inclusive → show excl on HĐ cổng. */
 export function calcGatewayFeeInvoice(feeInclVat: number, vatRate = 0.1) {
   const split = splitInclusiveVat(feeInclVat, vatRate);

@@ -900,6 +900,7 @@ export class FinanceRepository {
             product: {
               select: {
                 id: true,
+                slug: true,
                 name: true,
                 homeService: true,
               },
