@@ -1,30 +1,20 @@
 'use client';
 
 import { createContext, useContext, useMemo, useState } from 'react';
+import { shiftVietnamDate, vietnamCalendarDate } from '@/lib/vietnam-date';
 
 export type FinanceDatePreset = 'today' | '7d' | 'month' | 'custom';
 
-function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 function presetRange(preset: FinanceDatePreset): { from: string; to: string } {
-  const now = new Date();
-  const to = formatDate(now);
+  const today = vietnamCalendarDate();
   if (preset === 'today') {
-    return { from: to, to };
+    return { from: today, to: today };
   }
   if (preset === '7d') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    return { from: formatDate(start), to };
+    return { from: shiftVietnamDate(today, -6), to: today };
   }
-  if (preset === 'month') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { from: formatDate(start), to };
-  }
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { from: formatDate(start), to };
+  const start = `${today.slice(0, 8)}01`;
+  return { from: start, to: today };
 }
 
 interface FinanceDateContextValue {

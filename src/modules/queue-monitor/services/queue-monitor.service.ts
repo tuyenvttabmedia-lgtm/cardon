@@ -17,6 +17,7 @@ import { ActivityEventDispatcher } from '../../activity-event/activity-event-dis
 import { AuditLogService } from '../../audit-log/services/audit-log.service';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { QUEUE_NAMES, QueueName } from '../../../queue/queue.constants';
+import { vietnamDayBounds, vietnamDayEndInclusive, startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import {
   WORKER_HEARTBEAT_KEY,
   WORKER_HEARTBEAT_TTL_SEC,
@@ -225,8 +226,7 @@ export class QueueMonitorService {
     const queue = this.getQueue(name);
     const counts = await queue.getJobCounts(...JOB_STATUS_LIST);
     const now = Date.now();
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = startOfVietnamToday();
 
     const [completedTodayJobs, failedTodayJobs, recentCompleted, recentFailed, waitingJobs] =
       await Promise.all([
@@ -688,8 +688,7 @@ export class QueueMonitorService {
   private async countCompletedToday(queue: Queue): Promise<number> {
     try {
       const jobs = await queue.getJobs(['completed'], 0, 499, false);
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
+      const start = startOfVietnamToday();
       return jobs.filter((j) => j.finishedOn && j.finishedOn >= start.getTime()).length;
     } catch {
       return 0;
@@ -800,12 +799,8 @@ export class QueueMonitorService {
 
   private inDateRange(job: Job, dateFrom?: string, dateTo?: string): boolean {
     const ts = job.timestamp ?? 0;
-    if (dateFrom && ts < new Date(dateFrom).getTime()) return false;
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      if (ts > end.getTime()) return false;
-    }
+    if (dateFrom && ts < vietnamDayBounds(dateFrom).start.getTime()) return false;
+    if (dateTo && ts > vietnamDayEndInclusive(dateTo).getTime()) return false;
     return true;
   }
 
@@ -869,12 +864,8 @@ export class QueueMonitorService {
       bucketMs = 24 * 60 * 60 * 1000;
       labelFormat = 'day';
     } else if (query.range === 'custom') {
-      if (query.date_from) from = new Date(query.date_from).getTime();
-      if (query.date_to) {
-        const end = new Date(query.date_to);
-        end.setHours(23, 59, 59, 999);
-        to = end.getTime();
-      }
+      if (query.date_from) from = vietnamDayBounds(query.date_from).start.getTime();
+      if (query.date_to) to = vietnamDayEndInclusive(query.date_to).getTime();
       const span = to - from;
       if (span > 3 * 24 * 60 * 60 * 1000) {
         bucketMs = 24 * 60 * 60 * 1000;

@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/Toast';
 import { downloadTextExport } from '@/lib/download-export';
 import { LatestRequestTracker } from '@/lib/latest-request';
 import { cn, formatDateTime, formatDisplayValue, formatVnd } from '@/lib/utils';
+import { shiftVietnamDate, vietnamCalendarDate } from '@/lib/vietnam-date';
 import { agentCenterApi, ApiClientError } from '@/services/api-client';
 
 type Preset = 'today' | 'last_7_days' | 'this_month' | 'last_month' | 'custom';
@@ -20,26 +21,17 @@ const PRESETS: { id: Preset; label: string }[] = [
   { id: 'today', label: 'Hôm nay' },
 ];
 
-function formatDateInput(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
 function presetDates(preset: Preset): { from: string; to: string } {
-  const now = new Date();
-  const to = formatDateInput(now);
-  if (preset === 'today') return { from: to, to };
+  const today = vietnamCalendarDate();
+  if (preset === 'today') return { from: today, to: today };
   if (preset === 'last_7_days') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    return { from: formatDateInput(start), to };
+    return { from: shiftVietnamDate(today, -6), to: today };
   }
   if (preset === 'last_month') {
-    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const end = new Date(now.getFullYear(), now.getMonth(), 0);
-    return { from: formatDateInput(start), to: formatDateInput(end) };
+    const end = shiftVietnamDate(`${today.slice(0, 8)}01`, -1);
+    return { from: `${end.slice(0, 8)}01`, to: end };
   }
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  return { from: formatDateInput(start), to };
+  return { from: `${today.slice(0, 8)}01`, to: today };
 }
 
 function summaryNet(s: Record<string, unknown>): string {

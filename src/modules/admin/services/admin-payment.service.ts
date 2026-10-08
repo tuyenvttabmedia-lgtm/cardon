@@ -6,6 +6,7 @@ import { AdminPaymentQueryDto, ResolvePaymentReviewDto } from '../dto/admin.dto'
 import { ADMIN_AUDIT_ACTIONS } from '../entities/admin.constants';
 import { AdminRepository } from '../repositories/admin.repository';
 import { AdminAuditService } from './admin-audit.service';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 
 @Injectable()
 export class AdminPaymentService {
@@ -23,8 +24,8 @@ export class AdminPaymentService {
     const filters = {
       gateway: query.gateway,
       status: query.status,
-      dateFrom: query.dateFrom ? new Date(query.dateFrom) : undefined,
-      dateTo: query.dateTo ? new Date(query.dateTo) : undefined,
+      dateFrom: query.dateFrom ? vietnamDayBounds(query.dateFrom).start : undefined,
+      dateTo: query.dateTo ? vietnamDayEndInclusive(query.dateTo) : undefined,
       amount: query.amount,
       skip: query.skip,
       take: query.take,

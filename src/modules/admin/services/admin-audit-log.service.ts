@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AdminAuditLogQueryDto } from '../dto/admin.dto';
 import { AdminRepository } from '../repositories/admin.repository';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 
 @Injectable()
 export class AdminAuditLogService {
@@ -10,8 +11,8 @@ export class AdminAuditLogService {
     return this.repository.findAuditLogs({
       userId: query.userId,
       action: query.action,
-      dateFrom: query.dateFrom ? new Date(query.dateFrom) : undefined,
-      dateTo: query.dateTo ? new Date(query.dateTo) : undefined,
+      dateFrom: query.dateFrom ? vietnamDayBounds(query.dateFrom).start : undefined,
+      dateTo: query.dateTo ? vietnamDayEndInclusive(query.dateTo) : undefined,
       skip: query.skip,
       take: query.take,
     });

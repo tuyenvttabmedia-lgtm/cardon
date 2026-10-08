@@ -18,6 +18,7 @@ import { VariantRepository } from '../../product/repositories/variant.repository
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { calculateCustomerPaid, calculateProfit } from '../../payment/entities/payment-fee.engine';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 import { AdminOrderQueryDto } from '../dto/admin-order-query.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { UpdateOrderNoteDto } from '../dto/update-order.dto';
@@ -349,8 +350,8 @@ export class OrderService {
       .findManyAdmin({
         paymentStatus: query.paymentStatus,
         fulfillmentStatus: query.fulfillmentStatus,
-        dateFrom: query.dateFrom ? new Date(query.dateFrom) : undefined,
-        dateTo: query.dateTo ? new Date(query.dateTo) : undefined,
+        dateFrom: query.dateFrom ? vietnamDayBounds(query.dateFrom).start : undefined,
+        dateTo: query.dateTo ? vietnamDayEndInclusive(query.dateTo) : undefined,
         skip: query.skip,
         take: query.take,
       })

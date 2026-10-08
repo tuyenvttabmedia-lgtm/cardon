@@ -17,6 +17,7 @@ import {
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AuditLogService } from '../../audit-log/services/audit-log.service';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
+import { vietnamDayBounds, vietnamDayEndInclusive, startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import { PaymentService } from '../../payment/services/payment.service';
 import { WebhookDeliveryService } from '../../webhook-delivery/services/webhook-delivery.service';
 import {
@@ -288,8 +289,7 @@ export class WebhookMonitorService {
   }
 
   private async buildDashboard() {
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    const startOfToday = startOfVietnamToday();
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const [todayRows, last24hRows] = await Promise.all([
@@ -482,12 +482,8 @@ export class WebhookMonitorService {
     if (query.range === '7d') from = now - 7 * 24 * 60 * 60 * 1000;
     if (query.range === '30d') from = now - 30 * 24 * 60 * 60 * 1000;
     if (query.range === 'custom') {
-      if (query.date_from) from = new Date(query.date_from).getTime();
-      if (query.date_to) {
-        const end = new Date(query.date_to);
-        end.setHours(23, 59, 59, 999);
-        to = end.getTime();
-      }
+      if (query.date_from) from = vietnamDayBounds(query.date_from).start.getTime();
+      if (query.date_to) to = vietnamDayEndInclusive(query.date_to).getTime();
     }
     return { from, to };
   }

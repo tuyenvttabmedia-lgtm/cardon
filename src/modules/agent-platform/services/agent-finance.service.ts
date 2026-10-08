@@ -14,6 +14,12 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  startOfVietnamMonth,
+  startOfVietnamToday,
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
@@ -252,8 +258,8 @@ export class AgentFinanceService {
       ...(query.dateFrom || query.dateTo
         ? {
             createdAt: {
-              ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
-              ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
+              ...(query.dateFrom ? { gte: vietnamDayBounds(query.dateFrom).start } : {}),
+              ...(query.dateTo ? { lte: vietnamDayEndInclusive(query.dateTo) } : {}),
             },
           }
         : {}),
@@ -369,16 +375,11 @@ export class AgentFinanceService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   private startOfMonth() {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamMonth();
   }
 
   private async requireAgent(userId: string, permission: AgentPlatformPermission = 'finance.read') {

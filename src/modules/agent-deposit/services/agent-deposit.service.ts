@@ -17,6 +17,10 @@ import {
   SystemActivitySource,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import {
+  startOfVietnamMonth,
+  startOfVietnamToday,
+} from '../../../common/utils/vietnam-time.util';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { LedgerService } from '../../agent/services/ledger.service';
@@ -526,15 +530,10 @@ export class AgentDepositService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   private startOfMonth() {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamMonth();
   }
 }

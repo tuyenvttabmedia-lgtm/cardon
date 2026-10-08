@@ -10,6 +10,7 @@ import {
   ProviderTransactionSearchQueryDto,
 } from '../dto/finance.dto';
 import { assertFinanceDateRange } from '../utils/finance-date-range.util';
+import { vietnamCalendarDate } from '../../../common/utils/vietnam-time.util';
 
 @Injectable()
 export class ProviderOperationsService {
@@ -94,8 +95,8 @@ export class ProviderOperationsService {
 
   async getFinanceDashboard(query: ProviderFinanceDashboardQueryDto) {
     const range = assertFinanceDateRange(
-      query.dateFrom ?? new Date().toISOString().slice(0, 10),
-      query.dateTo ?? new Date().toISOString().slice(0, 10),
+      query.dateFrom ?? vietnamCalendarDate(),
+      query.dateTo ?? vietnamCalendarDate(),
     );
 
     const todayProfit = await this.financeRepository.calculateProfit({

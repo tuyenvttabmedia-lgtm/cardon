@@ -29,6 +29,11 @@ import {
   FINANCE_PAGINATION_DEFAULT,
   FINANCE_PAGINATION_MAX,
 } from '../entities/finance.constants';
+import {
+  vietnamCalendarDate,
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 
 function resolvePagination(skip?: number, take?: number) {
   const resolvedSkip = skip ?? 0;
@@ -40,11 +45,8 @@ function resolvePagination(skip?: number, take?: number) {
 }
 
 function dayBounds(reportDate: string): { start: Date; end: Date } {
-  const start = new Date(reportDate);
-  start.setUTCHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 1);
-  return { start, end };
+  const { start, endExclusive } = vietnamDayBounds(reportDate);
+  return { start, end: endExclusive };
 }
 
 @Injectable()
@@ -590,17 +592,16 @@ export class FinanceRepository {
     periodStart: Date;
     periodEnd: Date;
   }) {
-    const periodEndInclusive = new Date(filters.periodEnd);
-    periodEndInclusive.setUTCHours(23, 59, 59, 999);
-
+    const startDay = vietnamCalendarDate(filters.periodStart);
+    const endDay = vietnamCalendarDate(filters.periodEnd);
     const orders = await this.prisma.order.findMany({
       where: {
         ...ACTIVE_ORDER_WHERE,
         paymentStatus: OrderPaymentStatus.PAID,
         paymentGateway: filters.gatewayCode,
         createdAt: {
-          gte: filters.periodStart,
-          lte: periodEndInclusive,
+          gte: vietnamDayBounds(startDay).start,
+          lte: vietnamDayEndInclusive(endDay),
         },
       },
       select: {

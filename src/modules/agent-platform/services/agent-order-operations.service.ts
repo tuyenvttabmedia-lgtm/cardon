@@ -16,6 +16,13 @@ import {
 } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  startOfVietnamDaysAgo,
+  startOfVietnamToday,
+  vietnamCalendarDate,
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
@@ -596,8 +603,8 @@ export class AgentOrderOperationsService {
 
     if (query.dateFrom || query.dateTo) {
       where.createdAt = {};
-      if (query.dateFrom) where.createdAt.gte = new Date(query.dateFrom);
-      if (query.dateTo) where.createdAt.lte = new Date(query.dateTo);
+      if (query.dateFrom) where.createdAt.gte = vietnamDayBounds(query.dateFrom).start;
+      if (query.dateTo) where.createdAt.lte = vietnamDayEndInclusive(query.dateTo);
     }
 
     if (query.gateway) {
@@ -962,7 +969,7 @@ export class AgentOrderOperationsService {
   private bucketByDay(rows: Array<{ createdAt: Date; fulfillmentStatus: FulfillmentStatus }>) {
     const buckets: Record<string, { total: number; success: number; failed: number }> = {};
     for (const row of rows) {
-      const key = row.createdAt.toISOString().slice(0, 10);
+      const key = vietnamCalendarDate(row.createdAt);
       buckets[key] ??= { total: 0, success: 0, failed: 0 };
       buckets[key].total += 1;
       if (row.fulfillmentStatus === FulfillmentStatus.COMPLETED) buckets[key].success += 1;
@@ -1001,15 +1008,10 @@ export class AgentOrderOperationsService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   private daysAgo(days: number) {
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamDaysAgo(days);
   }
 }

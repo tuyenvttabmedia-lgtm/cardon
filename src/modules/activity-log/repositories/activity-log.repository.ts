@@ -8,6 +8,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 import { ActivityEventPayload } from '../../activity-event/interfaces/activity-event.interface';
 import { ActivityLogQueryDto } from '../dto/activity-log.dto';
 
@@ -96,12 +97,10 @@ export class ActivityLogRepository {
     if (query.date_from || query.date_to) {
       where.createdAt = {};
       if (query.date_from) {
-        where.createdAt.gte = new Date(query.date_from);
+        where.createdAt.gte = vietnamDayBounds(query.date_from).start;
       }
       if (query.date_to) {
-        const end = new Date(query.date_to);
-        end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
+        where.createdAt.lte = vietnamDayEndInclusive(query.date_to);
       }
     }
 

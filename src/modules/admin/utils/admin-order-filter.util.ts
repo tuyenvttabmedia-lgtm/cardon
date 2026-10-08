@@ -5,7 +5,9 @@ import {
   Prisma,
   ProductVariantType,
 } from '@prisma/client';
+import { BadRequestException } from '@nestjs/common';
 import { AdminOrderQueryDto } from '../dto/admin.dto';
+import { vietnamDayBounds } from '../../../common/utils/vietnam-time.util';
 
 export type AdminDeliveryFilter =
   | 'PROCESSING'
@@ -23,10 +25,12 @@ export type AdminPaymentFilter =
   | 'EXPIRED'
   | 'REFUNDED';
 
-export function endOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
+function vietnamFilterDay(value: string) {
+  try {
+    return vietnamDayBounds(value);
+  } catch {
+    throw new BadRequestException('Invalid date range');
+  }
 }
 
 export function mapPaymentFilter(
@@ -99,10 +103,10 @@ export function buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhe
     const from = query.dateFrom ?? query.fromDate;
     const to = query.dateTo ?? query.toDate;
     if (from) {
-      where.createdAt.gte = new Date(from);
+      where.createdAt.gte = vietnamFilterDay(from).start;
     }
     if (to) {
-      where.createdAt.lte = endOfDay(new Date(to));
+      where.createdAt.lt = vietnamFilterDay(to).endExclusive;
     }
   }
 

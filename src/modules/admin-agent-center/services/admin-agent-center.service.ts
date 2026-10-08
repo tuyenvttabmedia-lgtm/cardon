@@ -22,6 +22,10 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  startOfVietnamMonth,
+  startOfVietnamToday,
+} from '../../../common/utils/vietnam-time.util';
 import { mapAdminAgent } from '../../admin/entities/admin-agent.mapper';
 import { resolveAdminPagination } from '../../admin/utils/admin-pagination.util';
 import {
@@ -71,8 +75,7 @@ export class AdminAgentCenterService {
   ) {}
 
   async getDashboard() {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = startOfVietnamToday();
 
     const [
       total,
@@ -142,8 +145,7 @@ export class AdminAgentCenterService {
       this.prisma.agent.count({ where }),
     ]);
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const todayStart = startOfVietnamToday();
 
     const items = await Promise.all(
       rows.map(async (agent) => {
@@ -372,9 +374,8 @@ export class AdminAgentCenterService {
 
   async getOverview(agentId: string) {
     const agent = await this.requireAgent(agentId);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
+    const todayStart = startOfVietnamToday();
+    const monthStart = startOfVietnamMonth();
 
     const [
       todayOrders,

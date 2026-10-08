@@ -13,6 +13,7 @@ import { Card, ErrorMessage, StatCard as SharedStatCard } from '@/components/ui/
 import { Button, Input } from '@/components/ui/Form';
 import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
+import { vietnamCalendarDate } from '@/lib/vietnam-date';
 import { cn, formatDateTime } from '@/lib/utils';
 import { systemNotificationApi, ApiClientError } from '@/services/api-client';
 import type { SystemNotification, SystemNotificationStats } from '@/types/api';
@@ -155,7 +156,7 @@ function NotificationsPage() {
       return;
     }
     if (id === 'today') {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = vietnamCalendarDate();
       setDateFrom(today);
       setDateTo(today);
     }
