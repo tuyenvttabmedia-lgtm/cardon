@@ -5,12 +5,14 @@ import {
   VAT_PRODUCT_LINE_LABELS,
   VatProductLine,
   calcGatewayFeeInvoice,
+  calcRetailInvoiceLine,
   calcRetailOutputLine,
   calcSupplierInputLine,
   esaleInvoiceGoodsName,
   mapHomeServiceToVatLine,
   roundVnd,
   vatRateForLine,
+  vndInWords,
 } from '../entities/vat-invoice.engine';
 import { vietnamCalendarRange } from '../utils/finance-date-range.util';
 import { FinanceRepository } from '../repositories/finance.repository';
@@ -22,6 +24,10 @@ type ItemRow = Awaited<
 function dec(n: Decimal | number | string | null | undefined): number {
   if (n == null) return 0;
   return Number(n);
+}
+
+function invoiceUnit(line: VatProductLine): string {
+  return line === 'GAME_CARD' || line === 'PHONE_CARD' ? 'Thẻ' : 'Lần';
 }
 
 @Injectable()
@@ -206,7 +212,7 @@ export class VatDailyService {
         sku: item.variant.sku,
         productLine: line,
         productLineLabel: VAT_PRODUCT_LINE_LABELS[line],
-        unit: 'Thẻ',
+        unit: invoiceUnit(line),
         quantity: item.quantity,
         sellInclVatUnit: sellUnit,
         unitPriceExclVat: calc.unitPriceExclVat,
@@ -219,7 +225,7 @@ export class VatDailyService {
     });
 
     const rows = Array.from(groups.values()).map((g, index) => {
-      const calc = calcRetailOutputLine({
+      const calc = calcRetailInvoiceLine({
         sellInclVatUnit: g.sellInclVatUnit,
         quantity: g.quantity,
         vatRate,
@@ -232,7 +238,7 @@ export class VatDailyService {
         name: g.name,
         productLine: g.productLine,
         productLineLabel: VAT_PRODUCT_LINE_LABELS[g.productLine],
-        unit: 'Thẻ',
+        unit: invoiceUnit(g.productLine),
         quantity: calc.quantity,
         unitPriceExclVat: calc.unitPriceExclVat,
         amountExclVat: calc.amountExclVat,
@@ -288,6 +294,7 @@ export class VatDailyService {
         quantity: totals.quantity,
       },
       paymentFeeIncl,
+      amountInWords: vndInWords(roundVnd(totals.amountInclVat)),
       paymentFeeInvoice: calcGatewayFeeInvoice(paymentFeeIncl, 0.1),
     };
   }
