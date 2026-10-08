@@ -21,6 +21,12 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  shiftVietnamDate,
+  vietnamCalendarDate,
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 import { AuditLogService } from '../../audit-log/services/audit-log.service';
 import { LedgerService } from '../../agent/services/ledger.service';
 import { FinanceRepository } from '../../finance/repositories/finance.repository';
@@ -958,70 +964,48 @@ ${summary ? `<tr><td>Doanh thu gộp (${summary.orders} đơn)</td><td class="ri
   }
 
   private resolvePeriod(query: AgentStatementPeriodQueryDto): PeriodRange {
-    const now = new Date();
-    let end = query.dateTo ? new Date(query.dateTo) : now;
-    end.setHours(23, 59, 59, 999);
-    let start: Date;
+    const today = vietnamCalendarDate();
+    const monthStart = `${today.slice(0, 8)}01`;
+    const bounds = (fromDay: string, toDay: string): PeriodRange => ({
+      from: vietnamDayBounds(fromDay).start,
+      to: vietnamDayEndInclusive(toDay),
+      label: this.buildPeriodLabel(fromDay, toDay),
+    });
 
     switch (query.preset) {
       case 'custom': {
         if (!query.dateFrom || !query.dateTo) {
           throw new BadRequestException('dateFrom and dateTo are required for custom period');
         }
-        start = new Date(query.dateFrom);
-        start.setHours(0, 0, 0, 0);
-        end = new Date(query.dateTo);
-        end.setHours(23, 59, 59, 999);
-        return {
-          from: start,
-          to: end,
-          label: this.buildPeriodLabel(start, end),
-        };
+        return bounds(query.dateFrom, query.dateTo);
       }
       case 'today':
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-        break;
+        return bounds(today, today);
       case 'last_7_days':
-        start = new Date(now);
-        start.setDate(start.getDate() - 6);
-        start.setHours(0, 0, 0, 0);
-        break;
+        return bounds(shiftVietnamDate(today, -6), query.dateTo ?? today);
       case 'last_month': {
-        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const lastDay = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-        return {
-          from: start,
-          to: lastDay,
-          label: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
-        };
+        const prevEnd = shiftVietnamDate(monthStart, -1);
+        const prevStart = `${prevEnd.slice(0, 8)}01`;
+        return { ...bounds(prevStart, prevEnd), label: prevStart.slice(0, 7) };
       }
       case 'this_month':
       default:
-        start = query.dateFrom
-          ? new Date(query.dateFrom)
-          : new Date(end.getFullYear(), end.getMonth(), 1);
-        start.setHours(0, 0, 0, 0);
-        if (query.dateTo) {
-          end = new Date(query.dateTo);
-          end.setHours(23, 59, 59, 999);
-        }
-        break;
+        return bounds(query.dateFrom ?? monthStart, query.dateTo ?? today);
     }
-
-    return { from: start, to: end, label: this.buildPeriodLabel(start, end) };
   }
 
-  private buildPeriodLabel(from: Date, to: Date): string {
-    const monthStart = new Date(from.getFullYear(), from.getMonth(), 1);
-    const monthEnd = new Date(from.getFullYear(), from.getMonth() + 1, 0);
-    const isFullMonth =
-      from.toDateString() === monthStart.toDateString() &&
-      to.toDateString() === monthEnd.toDateString();
-    if (isFullMonth) {
-      return `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`;
+  private buildPeriodLabel(fromDay: string, toDay: string): string {
+    const from = fromDay.slice(0, 10);
+    const to = toDay.slice(0, 10);
+    const monthStart = `${from.slice(0, 8)}01`;
+    const [year, month] = from.split('-').map(Number);
+    const nextMonth =
+      month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    const monthEnd = shiftVietnamDate(nextMonth, -1);
+    if (from === monthStart && to === monthEnd) {
+      return from.slice(0, 7);
     }
-    return `${from.toISOString().slice(0, 10)}_${to.toISOString().slice(0, 10)}`;
+    return `${from}_${to}`;
   }
 
   private mapOrderLine(order: {

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AgentApiRequestLogRepository } from '../repositories/agent-api-request-log.repository';
+import { startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 
 @Injectable()
 export class AgentApiUsageService {
@@ -12,7 +13,7 @@ export class AgentApiUsageService {
         ? new Date(now - 30 * 86_400_000)
         : period === '7d'
           ? new Date(now - 7 * 86_400_000)
-          : new Date(new Date().setHours(0, 0, 0, 0));
+          : startOfVietnamToday();
 
     const rows = await this.repository.statsSince(agentId, since);
     const total = rows.length;

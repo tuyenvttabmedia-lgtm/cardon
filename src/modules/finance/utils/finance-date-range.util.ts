@@ -1,14 +1,20 @@
 import { BadRequestException } from '@nestjs/common';
 import { FINANCE_MAX_DATE_RANGE_DAYS } from '../entities/finance.constants';
+import {
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 
 export function assertFinanceDateRange(dateFrom: string, dateTo: string): {
   from: Date;
   to: Date;
 } {
-  const from = new Date(dateFrom);
-  const to = new Date(dateTo);
-
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+  let from: Date;
+  let to: Date;
+  try {
+    from = vietnamDayBounds(dateFrom).start;
+    to = vietnamDayEndInclusive(dateTo);
+  } catch {
     throw new BadRequestException('Invalid date range');
   }
 
@@ -26,16 +32,6 @@ export function assertFinanceDateRange(dateFrom: string, dateTo: string): {
   return { from, to };
 }
 
-const VN_DAY_MS = 24 * 60 * 60 * 1000;
-
-function calendarDay(value: string): string {
-  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
-  if (!match) {
-    throw new BadRequestException('Invalid date range');
-  }
-  return match[1];
-}
-
 /**
  * Inclusive Vietnam calendar days. `toExclusive` is 00:00 ICT on the day after `dateTo`.
  * Date-only strings are not UTC midnights: 2026-10-06 must include 6 Oct ICT and exclude 7 Oct 00:46 ICT.
@@ -45,9 +41,9 @@ export function vietnamCalendarRange(dateFrom: string, dateTo: string): {
   toExclusive: Date;
 } {
   assertFinanceDateRange(dateFrom, dateTo);
-  const from = new Date(`${calendarDay(dateFrom)}T00:00:00+07:00`);
-  const toExclusive = new Date(new Date(`${calendarDay(dateTo)}T00:00:00+07:00`).getTime() + VN_DAY_MS);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(toExclusive.getTime()) || toExclusive <= from) {
+  const from = vietnamDayBounds(dateFrom).start;
+  const toExclusive = vietnamDayBounds(dateTo).endExclusive;
+  if (toExclusive <= from) {
     throw new BadRequestException('Invalid date range');
   }
   return { from, toExclusive };

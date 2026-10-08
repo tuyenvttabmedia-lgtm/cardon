@@ -9,6 +9,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 import { NotificationDispatchPayload } from '../entities/system-notification.entity';
 import { SystemNotificationQueryDto } from '../dto/system-notification.dto';
 import { notificationVisibleForRole } from '../entities/notification-center.constants';
@@ -160,12 +161,8 @@ export class SystemNotificationRepository {
 
     if (query.date_from || query.date_to) {
       base.createdAt = {};
-      if (query.date_from) base.createdAt.gte = new Date(query.date_from);
-      if (query.date_to) {
-        const end = new Date(query.date_to);
-        end.setHours(23, 59, 59, 999);
-        base.createdAt.lte = end;
-      }
+      if (query.date_from) base.createdAt.gte = vietnamDayBounds(query.date_from).start;
+      if (query.date_to) base.createdAt.lte = vietnamDayEndInclusive(query.date_to);
     }
 
     if (query.keyword?.trim()) {

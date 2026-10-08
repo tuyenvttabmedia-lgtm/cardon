@@ -15,6 +15,10 @@ import {
   SystemActivitySource,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  startOfVietnamDaysAgo,
+  startOfVietnamToday,
+} from '../../../common/utils/vietnam-time.util';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { FinanceRepository } from '../../finance/repositories/finance.repository';
 import { InvoiceService } from '../../finance/services/invoice.service';
@@ -610,15 +614,10 @@ export class OperationsCenterService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   private daysAgo(days: number) {
-    const d = new Date();
-    d.setDate(d.getDate() - days);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamDaysAgo(days);
   }
 }

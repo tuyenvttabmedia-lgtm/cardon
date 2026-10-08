@@ -27,6 +27,7 @@ import {
   WALLET_APPROVAL_THRESHOLD,
 } from '../../../common/utils/vnd-amount.util';
 import { PrismaService } from '../../../database/prisma.service';
+import { startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import { AgentDepositService } from '../../agent-deposit/services/agent-deposit.service';
 import { AgentAuditService } from '../../agent/services/agent-audit.service';
 import { LedgerService } from '../../agent/services/ledger.service';
@@ -474,8 +475,7 @@ export class AdminAgentWalletService {
   }
 
   private async assertAccountantDailyLimit(adminId: string, amount: Decimal) {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = startOfVietnamToday();
     const sum = await this.prisma.agentManualCredit.aggregate({
       where: {
         requestedById: adminId,

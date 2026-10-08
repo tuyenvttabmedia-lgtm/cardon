@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FulfillmentStatus, OrderChannel, ProductVariantStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentService } from '../../agent/services/agent.service';
 import { LedgerService } from '../../agent/services/ledger.service';
@@ -304,9 +305,7 @@ export class AgentPlatformService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   private mapOrderTabToFulfillment(tab?: string): FulfillmentStatus[] | null {

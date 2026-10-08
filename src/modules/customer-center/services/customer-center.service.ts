@@ -12,6 +12,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import { AccountService } from '../../auth/services/account.service';
 import { resolveCustomerOrderStatus } from '../../order/entities/customer-order-status.util';
 import { OrderDeliveryService } from '../../order/services/order-delivery.service';
@@ -35,9 +36,7 @@ export class CustomerCenterService {
   ) {}
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return startOfVietnamToday();
   }
 
   async getDashboard(userId: string) {

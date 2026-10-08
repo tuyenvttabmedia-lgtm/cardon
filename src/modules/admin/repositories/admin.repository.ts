@@ -16,11 +16,10 @@ import { ACTIVE_PAYMENT_WHERE } from '../../payment/entities/payment.constants';
 import { resolveAdminPagination } from '../utils/admin-pagination.util';
 import { AdminOrderQueryDto } from '../dto/admin.dto';
 import { buildAdminOrderWhere } from '../utils/admin-order-filter.util';
+import { vietnamCalendarDate, vietnamDayBounds } from '../../../common/utils/vietnam-time.util';
 
 function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return vietnamDayBounds(vietnamCalendarDate()).start;
 }
 
 @Injectable()
@@ -276,8 +275,7 @@ export class AdminRepository {
   }
 
   countProviderTransactionsToday(providerId: string, status?: string) {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+    const start = vietnamDayBounds(vietnamCalendarDate()).start;
     return this.prisma.providerTransaction.count({
       where: {
         providerId,

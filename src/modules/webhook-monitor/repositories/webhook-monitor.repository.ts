@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, WebhookSource } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { vietnamDayBounds, vietnamDayEndInclusive } from '../../../common/utils/vietnam-time.util';
 import { WebhookListQueryDto } from '../dto/webhook-monitor.dto';
 
 @Injectable()
@@ -95,12 +96,8 @@ export class WebhookMonitorRepository {
     if (query.source) where.source = query.source;
     if (query.date_from || query.date_to) {
       where.createdAt = {};
-      if (query.date_from) where.createdAt.gte = new Date(query.date_from);
-      if (query.date_to) {
-        const end = new Date(query.date_to);
-        end.setHours(23, 59, 59, 999);
-        where.createdAt.lte = end;
-      }
+      if (query.date_from) where.createdAt.gte = vietnamDayBounds(query.date_from).start;
+      if (query.date_to) where.createdAt.lte = vietnamDayEndInclusive(query.date_to);
     }
     if (query.payment_reference?.trim()) {
       where.paymentReference = { contains: query.payment_reference.trim() };

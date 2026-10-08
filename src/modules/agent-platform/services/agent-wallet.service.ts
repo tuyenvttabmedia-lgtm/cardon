@@ -20,6 +20,12 @@ import {
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
+import {
+  shiftVietnamDate,
+  vietnamCalendarDate,
+  vietnamDayBounds,
+  vietnamDayEndInclusive,
+} from '../../../common/utils/vietnam-time.util';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentMemberContextService } from '../../agent-organization/services/agent-member-context.service';
@@ -305,8 +311,8 @@ export class AgentWalletService {
       ...(query.dateFrom || query.dateTo
         ? {
             createdAt: {
-              ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
-              ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
+              ...(query.dateFrom ? { gte: vietnamDayBounds(query.dateFrom).start } : {}),
+              ...(query.dateTo ? { lte: vietnamDayEndInclusive(query.dateTo) } : {}),
             },
           }
         : {}),
@@ -506,8 +512,8 @@ export class AgentWalletService {
     if (query.dateFrom || query.dateTo) {
       and.push({
         createdAt: {
-          ...(query.dateFrom ? { gte: new Date(query.dateFrom) } : {}),
-          ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
+          ...(query.dateFrom ? { gte: vietnamDayBounds(query.dateFrom).start } : {}),
+          ...(query.dateTo ? { lte: vietnamDayEndInclusive(query.dateTo) } : {}),
         },
       });
     }
@@ -593,16 +599,15 @@ export class AgentWalletService {
 
   private async buildTrend(agentId: string, days: number) {
     const points: Array<{ date: string; balance: string }> = [];
+    const today = vietnamCalendarDate();
     for (let i = days - 1; i >= 0; i -= 1) {
-      const dayEnd = new Date();
-      dayEnd.setHours(23, 59, 59, 999);
-      dayEnd.setDate(dayEnd.getDate() - i);
+      const day = shiftVietnamDate(today, -i);
       const entry = await this.prisma.ledgerEntry.findFirst({
-        where: { agentId, deletedAt: null, createdAt: { lte: dayEnd } },
+        where: { agentId, deletedAt: null, createdAt: { lte: vietnamDayEndInclusive(day) } },
         orderBy: { createdAt: 'desc' },
       });
       points.push({
-        date: dayEnd.toISOString().slice(0, 10),
+        date: day,
         balance: entry?.afterBalance.toFixed(2) ?? '0.00',
       });
     }
@@ -610,8 +615,10 @@ export class AgentWalletService {
   }
 
   private resolveRange(dateFrom?: string, dateTo?: string) {
-    const to = dateTo ? new Date(dateTo) : new Date();
-    const from = dateFrom ? new Date(dateFrom) : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const to = dateTo ? vietnamDayEndInclusive(dateTo) : new Date();
+    const from = dateFrom
+      ? vietnamDayBounds(dateFrom).start
+      : new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
       throw new BadRequestException('Invalid date range');
     }
@@ -619,16 +626,11 @@ export class AgentWalletService {
   }
 
   private startOfToday() {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return vietnamDayBounds(vietnamCalendarDate()).start;
   }
 
   private startOfMonth() {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return vietnamDayBounds(`${vietnamCalendarDate().slice(0, 8)}01`).start;
   }
 
   private async requireAgentByUser(userId: string, permission: AgentPlatformPermission = 'wallet.read') {
