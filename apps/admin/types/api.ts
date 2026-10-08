@@ -1238,6 +1238,7 @@ export interface VatRetailOutputPack {
     quantity: number;
   };
   paymentFeeIncl: number;
+  amountInWords: string;
 }
 
 export interface VatGatewayFeePack {

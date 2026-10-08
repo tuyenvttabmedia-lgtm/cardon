@@ -1,5 +1,6 @@
 import {
   calcGatewayFeeInvoice,
+  calcRetailInvoiceLine,
   calcRetailOutputLine,
   calcSupplierInputLine,
   esaleInvoiceGoodsName,
@@ -7,6 +8,7 @@ import {
   roundVnd,
   splitInclusiveVat,
   vatRateForLine,
+  vndInWords,
 } from './vat-invoice.engine';
 
 describe('vat-invoice.engine', () => {
@@ -100,10 +102,43 @@ describe('vat-invoice.engine', () => {
     expect(
       esaleInvoiceGoodsName({
         productSlug: 'garena-card',
-        faceValue: 100_000,
-        fallbackName: 'Garena 100k',
+        faceValue: 10_000,
+        fallbackName: 'Garena 10k',
       }),
-    ).toBe('Garena 100k');
+    ).toBe('Mã thẻ Garena 10.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'garena-card',
+        faceValue: 500_000,
+        fallbackName: 'Garena 500k',
+      }),
+    ).toBe('Mã thẻ Garena 500.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'soha-card',
+        faceValue: 100_000,
+        fallbackName: 'Soha 100k',
+      }),
+    ).toBe('Soha 100k');
+  });
+
+  it('retail invoice line matches the e-invoice rounding', () => {
+    const line = calcRetailInvoiceLine({
+      sellInclVatUnit: 98_500,
+      quantity: 11,
+      vatRate: 0.08,
+    });
+    expect(line.amountInclVat).toBe(1_083_500);
+    expect(line.amountExclVat).toBe(1_003_241);
+    expect(line.vatAmount).toBe(80_259);
+    expect(line.unitPriceExclVat).toBeCloseTo(91_203.7037, 3);
+  });
+
+  it('reads the invoice total in Vietnamese', () => {
+    expect(vndInWords(34_475_000)).toBe(
+      'Ba mươi bốn triệu bốn trăm bảy mươi lăm nghìn đồng',
+    );
+    expect(vndInWords(0)).toBe('Không đồng');
   });
 
   it('gateway fee invoice splits 0.77% fee before VAT', () => {

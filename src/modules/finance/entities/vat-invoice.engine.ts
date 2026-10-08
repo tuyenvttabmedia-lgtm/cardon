@@ -138,9 +138,81 @@ export function esaleInvoiceGoodsName(input: {
       return `Mã thẻ Zing ${face}VND`;
     case 'gosu-card':
       return `Thẻ Gosu ${face}`;
+    case 'garena-card':
+      return `Mã thẻ Garena ${face}VND`;
     default:
       return input.fallbackName;
   }
+}
+
+const VND_DIGITS = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'] as const;
+
+function readThreeDigits(value: number, fullWidth: boolean): string {
+  const hundreds = Math.floor(value / 100);
+  const tens = Math.floor((value % 100) / 10);
+  const ones = value % 10;
+  const parts: string[] = [];
+  if (hundreds > 0 || fullWidth) {
+    parts.push(`${VND_DIGITS[hundreds]} trăm`);
+    if (tens === 0 && ones > 0) parts.push('linh');
+  }
+  if (tens > 1) {
+    parts.push(`${VND_DIGITS[tens]} mươi`);
+    if (ones === 1) parts.push('mốt');
+    else if (ones === 5) parts.push('lăm');
+    else if (ones > 0) parts.push(VND_DIGITS[ones]);
+  } else if (tens === 1) {
+    parts.push('mười');
+    if (ones === 5) parts.push('lăm');
+    else if (ones > 0) parts.push(VND_DIGITS[ones]);
+  } else if (ones > 0) {
+    parts.push(VND_DIGITS[ones]);
+  }
+  return parts.join(' ');
+}
+
+/** Invoice amount in words, e.g. 34_475_000 → "Ba mươi bốn triệu bốn trăm bảy mươi lăm nghìn đồng". */
+export function vndInWords(amount: number): string {
+  const n = Math.round(Math.abs(amount));
+  if (n === 0) return 'Không đồng';
+  const scales = [
+    { value: Math.floor(n / 1_000_000_000), label: 'tỷ' },
+    { value: Math.floor((n % 1_000_000_000) / 1_000_000), label: 'triệu' },
+    { value: Math.floor((n % 1_000_000) / 1_000), label: 'nghìn' },
+    { value: n % 1000, label: '' },
+  ];
+  let started = false;
+  const parts: string[] = [];
+  for (const scale of scales) {
+    if (scale.value === 0) continue;
+    parts.push(readThreeDigits(scale.value, started));
+    if (scale.label) parts.push(scale.label);
+    started = true;
+  }
+  const sentence = parts.join(' ').replace(/\s+/g, ' ').trim();
+  return `${sentence.charAt(0).toUpperCase()}${sentence.slice(1)} đồng`;
+}
+
+/**
+ * One goods line on the retail e-invoice.
+ * Thành tiền is rounded on the line total; đơn giá keeps the pre-tax unit.
+ */
+export function calcRetailInvoiceLine(input: {
+  sellInclVatUnit: number;
+  quantity: number;
+  vatRate: number;
+}) {
+  const quantity = Math.max(1, input.quantity);
+  const amountInclVat = roundVnd(input.sellInclVatUnit * quantity);
+  const amountExclVat = roundVnd(amountInclVat / (1 + input.vatRate));
+  return {
+    quantity,
+    unitPriceExclVat: input.sellInclVatUnit / (1 + input.vatRate),
+    amountExclVat,
+    vatAmount: amountInclVat - amountExclVat,
+    amountInclVat,
+    vatRate: input.vatRate,
+  };
 }
 
 /** Gateway fee invoice: customer fee is VAT-inclusive → show excl on HĐ cổng. */

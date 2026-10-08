@@ -136,6 +136,29 @@ export function FinanceSupplierPanel() {
   );
 }
 
+function formatInvoiceDay(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function formatInvoicePeriod(dateFrom: string, dateTo: string): string {
+  const from = formatInvoiceDay(dateFrom);
+  const to = formatInvoiceDay(dateTo);
+  return from === to ? from : `${from} → ${to}`;
+}
+
+function formatInvoiceAmount(value: number): string {
+  return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(Math.round(value));
+}
+
+function formatInvoiceUnitPrice(value: number): string {
+  return new Intl.NumberFormat('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 export function FinanceRetailOutputPanel() {
   const { dateFrom, dateTo } = useFinanceDates();
   const [vatTab, setVatTab] = useState<'10' | '8'>('10');
@@ -173,114 +196,85 @@ export function FinanceRetailOutputPanel() {
       />
 
       <p className="text-sm text-slate-600">
-        Người mua: <strong>Khách lẻ</strong>. Cột HĐ hàng = giá bán website sau CK (đã gồm VAT,
-        không gồm phí cổng). Khách trả đúng giá bán; Mega chuyển về CardOn sau khi trừ phí —
-        xem cột <strong>Khách thanh toán</strong> và <strong>CardOn nhận (sau phí)</strong>. Không gồm đại lý.
+        Người mua: <strong>Khách lẻ</strong>. Bảng kê theo kỳ đang lọc, không gồm đại lý và không gồm phí cổng.
+        Chiết khấu: <strong>Không có chiết khấu</strong>.
       </p>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && <p className="text-sm text-slate-500">Đang tải…</p>}
 
       {data && (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard label="Cộng tiền hàng (trước thuế)" value={<Money value={data.totals.amountExclVat} />} />
-            <StatCard label={`Tiền thuế GTGT ${data.vatRatePct}%`} value={<Money value={data.totals.vatAmount} />} />
-            <StatCard label="Khách đã thanh toán" value={<Money value={data.totals.customerPaidAmount} />} />
-            <StatCard label="CardOn nhận (sau phí)" value={<Money value={data.totals.netReceivedAmount} />} />
-          </div>
-
-          <Card className="overflow-x-auto p-0">
-            <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold">
+        <Card className="overflow-x-auto p-0">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+            <div className="text-sm font-semibold">
               HÓA ĐƠN GTGT · VAT {data.vatRatePct}% · Buyer: {data.buyerName}
             </div>
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">STT</th>
-                  <th className="px-3 py-2">Tên hàng hóa, dịch vụ</th>
-                  <th className="px-3 py-2">Đơn vị tính</th>
-                  <th className="px-3 py-2 text-right">SL</th>
-                  <th className="px-3 py-2 text-right">Đơn giá (trước VAT)</th>
-                  <th className="px-3 py-2 text-right">Thành tiền trước thuế</th>
-                  <th className="px-3 py-2 text-right">Thuế suất</th>
-                  <th className="px-3 py-2 text-right">Tiền thuế</th>
-                  <th className="px-3 py-2 text-right">Thành tiền hàng (đã VAT)</th>
-                  <th className="px-3 py-2 text-right">Khách thanh toán</th>
-                  <th className="px-3 py-2 text-right">Phí cổng</th>
-                  <th className="px-3 py-2 text-right">CardOn nhận (sau phí)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.rows.map((row) => (
-                  <tr key={`${row.sku}-${row.stt}`} className="border-t border-slate-100">
-                    <td className="px-3 py-2">{row.stt}</td>
-                    <td className="px-3 py-2">{row.name}</td>
-                    <td className="px-3 py-2">{row.unit}</td>
-                    <td className="px-3 py-2 text-right">{row.quantity}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(row.unitPriceExclVat)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(row.amountExclVat)}</td>
-                    <td className="px-3 py-2 text-right">{row.vatRatePct}%</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(row.vatAmount)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(row.amountInclVat)}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatVnd(row.customerPaidAmount)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(row.paymentFeeAmount)}</td>
-                    <td className="px-3 py-2 text-right font-medium text-emerald-700">
-                      {formatVnd(row.netReceivedAmount)}
-                    </td>
-                  </tr>
-                ))}
-                {data.rows.length === 0 && (
-                  <tr>
-                    <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
-                      Không có dòng hàng VAT {data.vatRatePct}% trong kỳ
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </Card>
-
-          <Card className="overflow-x-auto p-0">
-            <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700">
-              Bảng kê đơn (đối chiếu — không in lên HĐ)
+            <div className="text-sm text-slate-600">
+              Kỳ lọc: <strong>{formatInvoicePeriod(data.dateFrom, data.dateTo)}</strong>
             </div>
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                <tr>
-                  <th className="px-3 py-2">Mã đơn</th>
-                  <th className="px-3 py-2">SKU</th>
-                  <th className="px-3 py-2">Đơn vị tính</th>
-                  <th className="px-3 py-2 text-right">SL</th>
-                  <th className="px-3 py-2 text-right">Giá bán đã VAT</th>
-                  <th className="px-3 py-2 text-right">Đơn giá trước VAT</th>
-                  <th className="px-3 py-2 text-right">VAT</th>
-                  <th className="px-3 py-2 text-right">Khách thanh toán</th>
-                  <th className="px-3 py-2 text-right">Phí cổng</th>
-                  <th className="px-3 py-2 text-right">CardOn nhận (sau phí)</th>
+          </div>
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-2">STT</th>
+                <th className="px-3 py-2">Tên hàng hóa, dịch vụ</th>
+                <th className="px-3 py-2">ĐVT</th>
+                <th className="px-3 py-2 text-right">Số lượng</th>
+                <th className="px-3 py-2 text-right">Đơn giá</th>
+                <th className="px-3 py-2 text-right">Thành tiền</th>
+                <th className="px-3 py-2 text-right">Thuế suất GTGT</th>
+                <th className="px-3 py-2 text-right">Thuế GTGT</th>
+                <th className="px-3 py-2 text-right">Cộng</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.rows.map((row) => (
+                <tr key={`${row.sku}-${row.stt}`} className="border-t border-slate-100">
+                  <td className="px-3 py-2">{row.stt}</td>
+                  <td className="px-3 py-2">{row.name}</td>
+                  <td className="px-3 py-2">{row.unit}</td>
+                  <td className="px-3 py-2 text-right">{row.quantity}</td>
+                  <td className="px-3 py-2 text-right">{formatInvoiceUnitPrice(row.unitPriceExclVat)}</td>
+                  <td className="px-3 py-2 text-right">{formatInvoiceAmount(row.amountExclVat)}</td>
+                  <td className="px-3 py-2 text-right">{row.vatRatePct}%</td>
+                  <td className="px-3 py-2 text-right">{formatInvoiceAmount(row.vatAmount)}</td>
+                  <td className="px-3 py-2 text-right font-medium">{formatInvoiceAmount(row.amountInclVat)}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {data.details.map((d) => (
-                  <tr key={`${d.orderId}-${d.sku}`} className="border-t border-slate-100">
-                    <td className="px-3 py-2 font-mono text-xs">{d.orderCode}</td>
-                    <td className="px-3 py-2">{d.sku}</td>
-                    <td className="px-3 py-2">{d.unit}</td>
-                    <td className="px-3 py-2 text-right">{d.quantity}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(d.sellInclVatUnit)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(d.unitPriceExclVat)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(d.vatAmount)}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatVnd(d.customerPaidAmount)}</td>
-                    <td className="px-3 py-2 text-right">{formatVnd(d.paymentFeeAmount)}</td>
-                    <td className="px-3 py-2 text-right font-medium text-emerald-700">
-                      {formatVnd(d.netReceivedAmount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Card>
-        </>
+              ))}
+              {data.rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
+                    Không có dòng hàng VAT {data.vatRatePct}% trong kỳ{' '}
+                    {formatInvoicePeriod(data.dateFrom, data.dateTo)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <div className="flex justify-end border-t border-slate-200 px-4 py-4">
+            <div className="w-full max-w-md space-y-2 text-sm">
+              <div className="flex justify-between gap-6">
+                <span>Tổng tiền trước thuế</span>
+                <span>{formatInvoiceAmount(data.totals.amountExclVat)}</span>
+              </div>
+              <div className="flex justify-between gap-6">
+                <span>Tổng tiền thuế GTGT</span>
+                <span>{formatInvoiceAmount(data.totals.vatAmount)}</span>
+              </div>
+              <div className="flex justify-between gap-6 border-t border-slate-200 pt-2 font-semibold">
+                <span>Tổng cộng tiền thanh toán</span>
+                <span>{formatInvoiceAmount(data.totals.amountInclVat)}</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Theo kỳ lọc {formatInvoicePeriod(data.dateFrom, data.dateTo)}
+              </p>
+              <p className="text-slate-700">
+                Số tiền viết bằng chữ:{' '}
+                <strong>{data.amountInWords}</strong>
+              </p>
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
