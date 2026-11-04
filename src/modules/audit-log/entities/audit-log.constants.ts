@@ -40,6 +40,10 @@ export const SECRET_FIELD_PATTERNS = [
   'secretkey',
   'webhooksecret',
   'bottoken',
+  'installsecret',
+  'activationcode',
+  'matchingid',
+  'qrsvg',
 ] as const;
 
 export const MAX_AUDIT_JSON_BYTES = 50 * 1024;
