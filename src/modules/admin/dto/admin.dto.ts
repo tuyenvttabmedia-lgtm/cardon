@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   AgentStatus,
   FulfillmentStatus,
@@ -6,6 +6,8 @@ import {
   PaymentGatewayCode,
   PaymentRecordStatus,
   ProductVariantType,
+  RefundCurrency,
+  RefundIntendedMethod,
 } from '@prisma/client';
 import {
   IsDateString,
@@ -14,6 +16,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -50,6 +53,10 @@ export class AdminOrderQueryDto {
   @IsOptional()
   @IsEnum(ProductVariantType)
   productType?: ProductVariantType;
+
+  @IsOptional()
+  @IsEnum(ProductVariantType)
+  excludeProductType?: ProductVariantType;
 
   @IsOptional()
   @IsUUID()
@@ -250,6 +257,20 @@ export class AdminProviderTransactionQueryDto {
   take?: number;
 }
 
+export class CloseEsimQueryClaimDto {
+  @IsUUID()
+  queryAttemptId!: string;
+
+  @IsUUID()
+  createAttemptId!: string;
+
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(512)
+  reason!: string;
+}
+
 export class OrderManualRecoveryDto {
   @IsIn(['retry', 'switch_provider', 'refund', 'mark_fulfilled'])
   action!: 'retry' | 'switch_provider' | 'refund' | 'mark_fulfilled';
@@ -262,6 +283,23 @@ export class OrderManualRecoveryDto {
   @IsString()
   @MaxLength(512)
   note?: string;
+
+  @IsOptional()
+  @IsUUID()
+  paymentId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  amount?: string;
+
+  @IsOptional()
+  @IsEnum(RefundCurrency)
+  currency?: RefundCurrency;
+
+  @IsOptional()
+  @IsEnum(RefundIntendedMethod)
+  intendedMethod?: RefundIntendedMethod;
 }
 
 export class ProviderRuntimeSettingsDto {

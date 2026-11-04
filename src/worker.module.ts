@@ -10,6 +10,7 @@ import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ProductModule } from './modules/product/product.module';
 import { ProviderModule } from './modules/provider/provider.module';
+import { EsimModule } from './modules/esim/esim.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { WebhookDeliveryModule } from './modules/webhook-delivery/webhook-delivery.module';
 import { ContentAutomationModule } from './modules/content-automation/content-automation.module';
@@ -31,6 +32,7 @@ import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
     OrderModule,
     PaymentModule,
     ProviderModule,
+    EsimModule,
     NotificationModule,
     PaidOrderWatchdogModule,
     OrderRevenueReconcileModule,

@@ -1,7 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { HomeServiceType } from '@prisma/client';
 import { CreateProductDto, UpdateProductDto } from '../dto/product.dto';
-import { filterPublicCatalogByHomeService } from '../entities/catalog-availability';
+import {
+  filterPublicCatalogByHomeService,
+  isExcludedFromCustomerCatalog,
+} from '../entities/catalog-availability';
 import { assertCategoryHasHomeService } from '../entities/home-service';
 import { mapAdminProduct, mapProduct } from '../entities/product.mapper';
 import { CategoryRepository } from '../repositories/category.repository';
@@ -59,7 +62,13 @@ export class ProductService {
 
     let homeService = product.homeService;
     if (dto.categoryId) {
-      homeService = await this.resolveCategoryHomeService(dto.categoryId);
+      const nextHomeService = await this.resolveCategoryHomeService(dto.categoryId);
+      if (nextHomeService !== product.homeService) {
+        throw new BadRequestException(
+          `Cannot move product from ${product.homeService} to ${nextHomeService}`,
+        );
+      }
+      homeService = nextHomeService;
     }
 
     const updated = await this.productRepository.update(id, {
@@ -116,10 +125,7 @@ export class ProductService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
-    const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
-    if (!dataEnabled && product.homeService === HomeServiceType.DATA) {
-      throw new NotFoundException('Product not found');
-    }
+    this.assertCustomerCatalogVisible(product.homeService);
     return mapProduct(product);
   }
 
@@ -128,11 +134,15 @@ export class ProductService {
     if (!product) {
       throw new NotFoundException('Product not found');
     }
+    this.assertCustomerCatalogVisible(product.homeService);
+    return mapProduct(product);
+  }
+
+  private assertCustomerCatalogVisible(homeService: HomeServiceType) {
     const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
-    if (!dataEnabled && product.homeService === HomeServiceType.DATA) {
+    if (isExcludedFromCustomerCatalog(homeService, dataEnabled)) {
       throw new NotFoundException('Product not found');
     }
-    return mapProduct(product);
   }
 
   async deleteProduct(id: string) {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ProductVariantStatus } from '@prisma/client';
+import { HomeServiceType, ProductVariantStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { ACTIVE_PRODUCT_WHERE, ACTIVE_VARIANT_WHERE } from '../../product/entities/product.constants';
 import { PricingService } from '../../product/services/pricing.service';
@@ -22,7 +22,10 @@ export class AgentApiCatalogService {
       where: {
         ...ACTIVE_VARIANT_WHERE,
         status: ProductVariantStatus.ACTIVE,
-        product: ACTIVE_PRODUCT_WHERE,
+        product: {
+          ...ACTIVE_PRODUCT_WHERE,
+          homeService: { not: HomeServiceType.ESIM },
+        },
       },
       select: {
         id: true,

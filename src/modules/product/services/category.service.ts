@@ -29,6 +29,10 @@ export class CategoryService {
       if (service === HomeServiceType.DATA && !dataEnabled) {
         continue;
       }
+      // Phase A does not create a public eSIM catalog root.
+      if (service === HomeServiceType.ESIM) {
+        continue;
+      }
       const slug = HOME_SERVICE_ROOT_SLUGS[service];
       const existing = await this.categoryRepository.findBySlug(slug);
       if (!existing) {

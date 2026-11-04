@@ -67,6 +67,7 @@ export default function SettingsSystemPage() {
         agentLowBalanceThreshold: form.agentLowBalanceThreshold,
         customerTopupEnabled: form.customerTopupEnabled,
         customerDataEnabled: form.customerDataEnabled,
+        customerEsimEnabled: form.customerEsimEnabled,
         auditLogRetentionDays: form.auditLogRetentionDays ?? 360,
         agentDepositMinAmount: form.agentDepositMinAmount ?? 5_000_000,
         agentDepositMaxAmount: form.agentDepositMaxAmount ?? 300_000_000,
@@ -168,6 +169,25 @@ export default function SettingsSystemPage() {
                 </span>
                 <span className="mt-1 block text-xs leading-relaxed text-slate-500">
                   {vi.settings.customerDataHint}
+                </span>
+              </span>
+            </label>
+          </div>
+          <div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={form.customerEsimEnabled === true}
+                onChange={(e) => setForm({ ...form, customerEsimEnabled: e.target.checked })}
+              />
+              <span>
+                <span className="flex items-center font-medium text-slate-700">
+                  {vi.settings.customerEsimLabel}
+                  <InfoTooltip text={vi.settings.customerEsimTooltip} />
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                  {vi.settings.customerEsimHint}
                 </span>
               </span>
             </label>

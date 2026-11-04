@@ -201,6 +201,13 @@ export class PaidOrderWatchdogService {
     );
   }
 
+  private isEsimOnly(order: PaidOrderAnomaly): boolean {
+    return (
+      order.orderItems.length > 0 &&
+      order.orderItems.every((item) => item.variant.type === ProductVariantType.ESIM || item.variant.type === 'ESIM')
+    );
+  }
+
   private hasDispatchableItem(order: PaidOrderAnomaly): boolean {
     return order.orderItems.some((item) => {
       const type = item.variant.type;
@@ -247,6 +254,15 @@ export class PaidOrderWatchdogService {
       order.fulfillmentStatus === FulfillmentStatus.PENDING &&
       !this.hasDispatchableItem(order)
     ) {
+      if (this.isEsimOnly(order)) {
+        return {
+          resource: 'order_fulfillment_esim_pending',
+          severity: SystemNotificationSeverity.WARNING,
+          title: `Đơn eSIM mô phỏng đã thu tiền: ${order.orderCode}`,
+          message: `Đơn eSIM mô phỏng PAID + PENDING ${ageMinutes} phút. Không tự gọi nhà cung cấp.`,
+          ageMinutes,
+        };
+      }
       return {
         resource: 'order_fulfillment_no_dispatchable_item',
         severity: SystemNotificationSeverity.WARNING,

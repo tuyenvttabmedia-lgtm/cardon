@@ -91,6 +91,27 @@ export class NotificationQueueProducer {
     );
   }
 
+  enqueueEsimReady(
+    orderId: string,
+    email: string,
+    options?: { testData?: boolean; sandboxAccount?: boolean },
+  ) {
+    const template = options?.testData
+      ? EMAIL_TEMPLATE.ESIM_TEST_READY
+      : options?.sandboxAccount
+        ? EMAIL_TEMPLATE.ESIM_SANDBOX_READY
+        : EMAIL_TEMPLATE.ESIM_READY;
+    return this.enqueue(
+      {
+        channel: NOTIFICATION_CHANNEL.EMAIL,
+        template,
+        recipientEmail: email,
+        payload: { orderId },
+      },
+      `email-esim-ready-${orderId}`,
+    );
+  }
+
   enqueueTopupDelivery(orderId: string, email: string, isData: boolean) {
     return this.enqueue(
       {

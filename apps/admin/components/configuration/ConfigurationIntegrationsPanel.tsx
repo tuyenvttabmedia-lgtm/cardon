@@ -6,7 +6,7 @@ import { ConfigurationStatusBadge } from '@/components/configuration/Configurati
 import { Card } from '@/components/ui/Display';
 import { Button } from '@/components/ui/Form';
 import { vi } from '@/lib/i18n/vi';
-import { configurationCenterApi, ApiClientError } from '@/services/api-client';
+import { configurationCenterApi, settingsAdminApi, ApiClientError } from '@/services/api-client';
 
 type TestResult = { ok?: boolean; message?: string };
 
@@ -56,6 +56,26 @@ const ITEMS: IntegrationItem[] = [
     label: 'Provider eSale',
     moduleId: 'providers',
     test: () => configurationCenterApi.testProvider(),
+  },
+  {
+    key: 'airalo',
+    href: '/configuration/airalo',
+    label: 'Airalo',
+    moduleId: 'airalo',
+    test: () =>
+      settingsAdminApi.testAiraloCatalogue().then((r) => ({
+        ok: r.ok,
+        message: `${r.count} gói catalogue`,
+      })),
+    hint: 'Partner API eSIM. Lưu client_id / client_secret trên trang này.',
+  },
+  {
+    key: 'paypal',
+    href: '/configuration/paypal',
+    label: 'PayPal',
+    moduleId: 'paypal',
+    test: null,
+    hint: 'Chỉ eSIM quốc tế (USD). Không đụng MegaPay / SePay thẻ-nạp.',
   },
   {
     key: 'webhooks',

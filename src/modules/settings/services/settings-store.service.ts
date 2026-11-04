@@ -9,6 +9,9 @@ import {
   StoredPaymentGateway,
   StoredPaymentMethod,
   StoredProviderEsale,
+  StoredProviderEsimGo,
+  StoredProviderAiralo,
+  StoredPaymentPaypal,
   StoredOrder,
   StoredPaymentRuntime,
   StoredPaymentGatewayRuntime,
@@ -523,7 +526,7 @@ export class SettingsStoreService implements OnModuleInit {
       bankCode: config?.bankCode ?? stored?.bankCode ?? '',
       accountName: config?.accountName ?? stored?.accountName ?? '',
       qrTemplate: config?.qrTemplate ?? stored?.qrTemplate ?? 'compact',
-      webhookUrl: stored?.webhookUrl ?? '',
+      webhookUrl: this.resolveSepayWebhookUrl(stored?.webhookUrl),
       apiKey: this.encryption.maskSecret(config?.apiKey),
       secretKey: this.encryption.maskSecret(config?.merchantSecretKey),
       webhookSecret: this.encryption.maskSecret(
@@ -675,6 +678,150 @@ export class SettingsStoreService implements OnModuleInit {
     };
   }
 
+  resolveEsimGoCredentials(): { apiKey: string; baseUrl: string } {
+    const stored = this.getStored<StoredProviderEsimGo>(SETTINGS_KEYS.PROVIDER_ESIM_GO);
+    let storedKey = '';
+    if (stored?.apiKeyEnc) {
+      try {
+        storedKey = this.decryptField(stored.apiKeyEnc)?.trim() ?? '';
+      } catch {
+        storedKey = '';
+      }
+    }
+    const apiKey = storedKey || (this.configService.get<string>('esimGo.apiKey') ?? '').trim();
+    const configuredBase = this.configService.get<string>('esimGo.baseUrl')?.trim() ?? '';
+    const baseUrl = configuredBase.startsWith('https://api.esim-go.com')
+      ? configuredBase.replace(/\/$/, '')
+      : 'https://api.esim-go.com/v2.5';
+    return { apiKey, baseUrl };
+  }
+
+  getEsimGoAdminView(): Record<string, unknown> {
+    const credentials = this.resolveEsimGoCredentials();
+    return {
+      providerCode: 'ESIM_GO',
+      baseUrl: credentials.baseUrl,
+      apiKey: this.encryption.maskSecret(credentials.apiKey || undefined),
+      configured: credentials.apiKey !== '',
+      deprecated: true,
+      source: this.hasDbSetting(SETTINGS_KEYS.PROVIDER_ESIM_GO) ? 'database' : 'environment',
+    };
+  }
+
+  resolveAiraloCredentials(): { clientId: string; clientSecret: string; baseUrl: string } {
+    const stored = this.getStored<StoredProviderAiralo>(SETTINGS_KEYS.PROVIDER_AIRALO);
+    let clientId = '';
+    let clientSecret = '';
+    if (stored?.clientIdEnc) {
+      try {
+        clientId = this.decryptField(stored.clientIdEnc)?.trim() ?? '';
+      } catch {
+        clientId = '';
+      }
+    }
+    if (stored?.clientSecretEnc) {
+      try {
+        clientSecret = this.decryptField(stored.clientSecretEnc)?.trim() ?? '';
+      } catch {
+        clientSecret = '';
+      }
+    }
+    if (!clientId) {
+      clientId = (this.configService.get<string>('airalo.clientId') ?? '').trim();
+    }
+    if (!clientSecret) {
+      clientSecret = (this.configService.get<string>('airalo.clientSecret') ?? '').trim();
+    }
+    const configuredBase =
+      stored?.baseUrl?.trim() ||
+      this.configService.get<string>('airalo.baseUrl')?.trim() ||
+      'https://partners-api.airalo.com';
+    const baseUrl = normalizeAiraloBaseUrl(configuredBase);
+    return { clientId, clientSecret, baseUrl };
+  }
+
+  resolveAiraloAccountMode(): 'sandbox' | 'production' {
+    const stored = this.getStored<StoredProviderAiralo>(SETTINGS_KEYS.PROVIDER_AIRALO);
+    if (stored?.accountMode === 'production') return 'production';
+    if (stored?.accountMode === 'sandbox') return 'sandbox';
+    const fromEnv = (this.configService.get<string>('airalo.accountMode') ?? '').trim().toLowerCase();
+    return fromEnv === 'production' ? 'production' : 'sandbox';
+  }
+
+  resolveAiraloUsdVndRate(): number {
+    const stored = this.getStored<StoredProviderAiralo>(SETTINGS_KEYS.PROVIDER_AIRALO);
+    const rate = Number(stored?.usdVndRate);
+    return Number.isFinite(rate) && rate >= 10_000 ? rate : 26_000;
+  }
+
+  getAiraloAdminView(): Record<string, unknown> {
+    const credentials = this.resolveAiraloCredentials();
+    return {
+      providerCode: 'AIRALO',
+      apiVersion: 'v2',
+      baseUrl: credentials.baseUrl,
+      clientId: this.encryption.maskSecret(credentials.clientId || undefined),
+      clientSecret: this.encryption.maskSecret(credentials.clientSecret || undefined),
+      usdVndRate: this.resolveAiraloUsdVndRate(),
+      accountMode: this.resolveAiraloAccountMode(),
+      configured: credentials.clientId !== '' && credentials.clientSecret !== '',
+      source: this.hasDbSetting(SETTINGS_KEYS.PROVIDER_AIRALO) ? 'database' : 'environment',
+    };
+  }
+
+  resolvePaypalConfig(): {
+    esimEnabled: boolean;
+    clientId: string;
+    clientSecret: string;
+    mode: 'sandbox' | 'live';
+  } {
+    const stored = this.getStored<StoredPaymentPaypal>(SETTINGS_KEYS.PAYMENT_PAYPAL);
+    let clientId = '';
+    let clientSecret = '';
+    if (stored?.clientIdEnc) {
+      try {
+        clientId = this.decryptField(stored.clientIdEnc)?.trim() ?? '';
+      } catch {
+        clientId = '';
+      }
+    }
+    if (stored?.clientSecretEnc) {
+      try {
+        clientSecret = this.decryptField(stored.clientSecretEnc)?.trim() ?? '';
+      } catch {
+        clientSecret = '';
+      }
+    }
+    if (!clientId) {
+      clientId = (this.configService.get<string>('paypal.clientId') ?? '').trim();
+    }
+    if (!clientSecret) {
+      clientSecret = (this.configService.get<string>('paypal.clientSecret') ?? '').trim();
+    }
+    const modeFromStore = stored?.mode === 'live' ? 'live' : stored?.mode === 'sandbox' ? 'sandbox' : null;
+    const modeFromEnv = this.configService.get<string>('paypal.mode') === 'live' ? 'live' : 'sandbox';
+    const mode = modeFromStore ?? modeFromEnv;
+    const esimEnabled =
+      typeof stored?.esimEnabled === 'boolean'
+        ? stored.esimEnabled
+        : this.configService.get<boolean>('paypal.esimEnabled') === true;
+    return { esimEnabled, clientId, clientSecret, mode };
+  }
+
+  getPaypalAdminView(): Record<string, unknown> {
+    const config = this.resolvePaypalConfig();
+    return {
+      gatewayCode: 'PAYPAL',
+      esimEnabled: config.esimEnabled,
+      mode: config.mode,
+      clientId: this.encryption.maskSecret(config.clientId || undefined),
+      clientSecret: this.encryption.maskSecret(config.clientSecret || undefined),
+      configured: config.clientId !== '' && config.clientSecret !== '',
+      source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_PAYPAL) ? 'database' : 'environment',
+      note: 'Chỉ dùng cho eSIM quốc tế (USD). Không áp dụng thẻ game / nạp cước.',
+    };
+  }
+
   resolveSmtpConfig(): ResolvedSmtpConfig | null {
     const stored = this.getStored<StoredSmtp>(SETTINGS_KEYS.SMTP);
     const host = stored?.host ?? this.configService.get<string>('smtp.host');
@@ -749,6 +896,7 @@ export class SettingsStoreService implements OnModuleInit {
       agentRegistrationMode,
       customerTopupEnabled: stored?.customerTopupEnabled ?? false,
       customerDataEnabled: stored?.customerDataEnabled ?? false,
+      customerEsimEnabled: stored?.customerEsimEnabled === true,
       auditLogRetentionDays:
         stored?.auditLogRetentionDays ?? AUDIT_LOG_RETENTION_DAYS_DEFAULT,
       agentDepositMinAmount:
@@ -962,6 +1110,24 @@ export class SettingsStoreService implements OnModuleInit {
     };
   }
 
+  private resolveSepayWebhookUrl(stored?: string): string {
+    const saved = stored?.trim() ?? '';
+    const publicUrl = (
+      this.configService.get<string>('appPublicUrl') ??
+      this.getStored<{ publicUrl?: string }>(SETTINGS_KEYS.SYSTEM)?.publicUrl ??
+      ''
+    ).replace(/\/$/, '');
+    const computed = publicUrl
+      ? `${publicUrl}/api/v1/payments/webhook/sepay`
+      : '';
+    if (!saved) return computed;
+    const runningLocal = /localhost|127\.0\.0\.1/i.test(publicUrl);
+    if (runningLocal && /cardon\.vn/i.test(saved)) {
+      return computed || saved;
+    }
+    return saved;
+  }
+
   private buildMegapayCallbackUrl(): string {
     const publicUrl = this.configService.get<string>('appPublicUrl');
     const apiPrefix = this.configService.get<string>('app.apiPrefix') ?? 'api/v1';
@@ -1011,6 +1177,29 @@ export class SettingsStoreService implements OnModuleInit {
       ...resolved,
       source: this.hasDbSetting(SETTINGS_KEYS.MAINTENANCE) ? 'database' : 'environment',
     };
+  }
+}
+
+const DEAD_AIRALO_HOSTS = new Set(['sandbox-partners-api.airalo.com']);
+const DEFAULT_AIRALO_BASE_URL = 'https://partners-api.airalo.com';
+
+/** Retired sandbox hostname no longer resolves. Sandbox is now an Airalo account mode. */
+export function normalizeAiraloBaseUrl(value: string): string {
+  const trimmed = value.trim().replace(/\/$/, '');
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase();
+    if (DEAD_AIRALO_HOSTS.has(host)) return DEFAULT_AIRALO_BASE_URL;
+  } catch {
+    return DEFAULT_AIRALO_BASE_URL;
+  }
+  return trimmed || DEFAULT_AIRALO_BASE_URL;
+}
+
+export function isRetiredAiraloSandboxHost(value: string): boolean {
+  try {
+    return DEAD_AIRALO_HOSTS.has(new URL(value.trim()).hostname.toLowerCase());
+  } catch {
+    return false;
   }
 }
 

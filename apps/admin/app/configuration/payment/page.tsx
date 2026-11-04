@@ -19,6 +19,21 @@ import type {
   PaymentStrategySettings,
 } from '@/types/api';
 
+function isLocalhostWebhook(url?: string): boolean {
+  try {
+    const host = new URL(url ?? '').hostname.toLowerCase();
+    return host === 'localhost' || host === '127.0.0.1';
+  } catch {
+    return /localhost|127\.0\.0\.1/i.test(url ?? '');
+  }
+}
+
+function isProductionWebhookOnLocal(url?: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const runningLocal = /localhost|127\.0\.0\.1/i.test(window.location.hostname);
+  return runningLocal && /cardon\.vn/i.test(url ?? '');
+}
+
 /** SePay gateway form (VietQR HMAC + optional Payment Gateway). */
 function SepayGatewayForm({
   title,
@@ -257,6 +272,33 @@ function SepayGatewayForm({
             value={form.webhookUrl ?? ''}
             onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
           />
+          {isLocalhostWebhook(form.webhookUrl) ? (
+            <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              SePay (kể cả sandbox) <strong>không gọi được</strong>{' '}
+              <code>http://localhost/…</code>. Endpoint CardOn trên máy bạn vẫn
+              chạy — chỉ máy bạn mới POST được.
+              <br />
+              Trên dashboard SePay đừng dán <code>https://cardon.vn/…</code> (IPN
+              sẽ vào production). Muốn test đủ vòng: dùng tunnel công khai, hoặc
+              sau khi thanh toán sandbox hãy giả lập IPN về localhost.
+            </p>
+          ) : null}
+          {isProductionWebhookOnLocal(form.webhookUrl) ? (
+            <p className="mt-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+              Webhook đang trỏ <code>cardon.vn</code> trong khi bạn chạy
+              localhost — IPN sandbox sẽ báo về production, không về máy này.
+              Đổi thành <code>http://localhost/api/v1/payments/webhook/sepay</code>.
+            </p>
+          ) : null}
+          {(form.environment ?? 'production') === 'production' &&
+          /^SP-TEST/i.test(form.merchantId ?? '') ? (
+            <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+              Merchant <code>SP-TEST-…</code> là sandbox nhưng môi trường đang
+              là <strong>Production</strong> (checkout <code>pay.sepay.vn</code>
+              ). Đổi môi trường sang Sandbox để dùng{' '}
+              <code>pay-sandbox.sepay.vn</code>.
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">

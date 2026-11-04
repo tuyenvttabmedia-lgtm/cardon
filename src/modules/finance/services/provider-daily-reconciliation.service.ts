@@ -8,6 +8,7 @@ import { ProviderRegistryService } from '../../provider/services/provider-regist
 import { ProviderRepository } from '../../provider/repositories/provider.repository';
 import { ProviderBalanceRepository } from '../../provider/repositories/provider-balance.repository';
 import { ProviderOperationsRepository } from '../repositories/provider-operations.repository';
+import { ESIM_AIRALO_PROVIDER_CODE, ESIM_GO_PROVIDER_CODE } from '../../esim/esim.constants';
 
 const DAILY_RECON_MS = 24 * 60 * 60 * 1000;
 
@@ -48,6 +49,9 @@ export class ProviderDailyReconciliationService implements OnModuleInit, OnModul
   async runForAllProviders(reportDate: Date) {
     const providers = await this.providerRepository.listActiveProviders();
     for (const provider of providers) {
+      if (provider.code === ESIM_GO_PROVIDER_CODE || provider.code === ESIM_AIRALO_PROVIDER_CODE) {
+        continue;
+      }
       try {
         await this.reconcileProviderDay(provider.id, reportDate);
       } catch (error) {

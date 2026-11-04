@@ -21,6 +21,8 @@ import type {
   KycApproveResult,
   ManualReviewResponse,
   AdminPayment,
+  AdminRefundDetail,
+  AdminRefundListResponse,
   Order,
   PaginatedResponse,
   Product,
@@ -50,6 +52,14 @@ import type {
   AdminOrderDetail,
   AdminOrderListItem,
   AdminOrderSummary,
+  EsimOpsHealth,
+  EsimOpsDashboard,
+  EsimOpsListResponse,
+  EsimInstallReveal,
+  EsimOpsDetail,
+  AdminEsimTestOrderBody,
+  OrderView,
+  PaymentCheckoutView,
   AdminStaff,
   AutoFixResponse,
   GlobalSearchResult,
@@ -58,6 +68,12 @@ import type {
   PaymentGatewaySettings,
   PaymentMethodConfig,
   GatewayFeesReport,
+  ProviderEsimGoSettings,
+  ProviderAiraloSettings,
+  AiraloCatalogueView,
+  AiraloImportSummary,
+  EsimCatalogLifecycle,
+  PaymentPaypalSettings,
   ProviderEsaleSettings,
   SmtpSettings,
   SystemSettings,
@@ -292,6 +308,67 @@ export const adminApi = {
     });
     return apiRequest<PaginatedResponse<AdminPayment>>(`/admin/payments?${q}`);
   },
+  listRefundRequests(params: Record<string, string | number | boolean | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, String(v));
+    });
+    return apiRequest<AdminRefundListResponse>(`/admin/refund-requests?${q}`);
+  },
+  getRefundRequest(id: string) {
+    return apiRequest<AdminRefundDetail>(`/admin/refund-requests/${id}`);
+  },
+  createRefundRequest(
+    orderId: string,
+    body: { paymentId: string; amount: string; reason: string; currency?: string },
+  ) {
+    return apiRequest<unknown>(`/admin/orders/${orderId}/refunds`, { method: 'POST', body });
+  },
+  approveRefundRequest(id: string) {
+    return apiRequest<unknown>(`/admin/refund-requests/${id}/approve`, { method: 'POST' });
+  },
+  cancelRefundRequest(id: string) {
+    return apiRequest<unknown>(`/admin/refund-requests/${id}/cancel`, { method: 'POST' });
+  },
+  clearRefundEsimReview(id: string) {
+    return apiRequest<unknown>(`/admin/refund-requests/${id}/esim-review/clear`, {
+      method: 'POST',
+    });
+  },
+  executeRefundRequest(id: string, body?: { amount?: string }) {
+    return apiRequest<unknown>(`/admin/refund-requests/${id}/execute`, {
+      method: 'POST',
+      body: body ?? {},
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+    });
+  },
+  completeRefundAttempt(
+    id: string,
+    body: {
+      bankTransactionReference: string;
+      amount: string;
+      currency: string;
+      transferredAt: string;
+      destinationHint: string;
+    },
+  ) {
+    return apiRequest<unknown>(`/admin/refund-attempts/${id}/complete`, { method: 'POST', body });
+  },
+  failRefundAttempt(id: string, body: { errorCode: string; errorMessage?: string }) {
+    return apiRequest<unknown>(`/admin/refund-attempts/${id}/fail`, { method: 'POST', body });
+  },
+  unconfirmRefundAttempt(id: string, body?: { errorCode?: string }) {
+    return apiRequest<unknown>(`/admin/refund-attempts/${id}/unconfirm`, {
+      method: 'POST',
+      body: body ?? {},
+    });
+  },
+  reconcileRefundAttempt(
+    id: string,
+    body: { decision: 'VERIFIED' | 'REJECTED'; statementEvidenceRef: string },
+  ) {
+    return apiRequest<unknown>(`/admin/refund-attempts/${id}/reconcile`, { method: 'POST', body });
+  },
   resolvePayment(id: string, action: 'approve' | 'reject', reason?: string) {
     return apiRequest<unknown>(`/admin/payments/${id}/resolve`, {
       method: 'POST',
@@ -472,6 +549,65 @@ export const adminApi = {
   },
   globalSearch(q: string) {
     return apiRequest<GlobalSearchResult>(`/admin/search?q=${encodeURIComponent(q)}`);
+  },
+  getEsimOpsHealth() {
+    return apiRequest<EsimOpsHealth>('/admin/esim-ops/health');
+  },
+  getEsimOpsDashboard(params: Record<string, string | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, v);
+    });
+    const qs = q.toString();
+    return apiRequest<EsimOpsDashboard>(`/admin/esim-ops/dashboard${qs ? `?${qs}` : ''}`);
+  },
+  listEsimOps(params: Record<string, string | number | boolean | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, String(v));
+    });
+    const qs = q.toString();
+    return apiRequest<EsimOpsListResponse>(`/admin/esim-ops/orders${qs ? `?${qs}` : ''}`);
+  },
+  getEsimOpsDetail(id: string) {
+    return apiRequest<EsimOpsDetail>(`/admin/esim-ops/orders/${id}`);
+  },
+  revealEsimInstallSecret(id: string) {
+    return apiRequest<EsimInstallReveal>(`/admin/esim-ops/orders/${id}/reveal`, { method: 'POST' });
+  },
+  recoverEsimOrder(id: string) {
+    return apiRequest<FulfillmentResult>(`/admin/esim-ops/orders/${id}/recover`, { method: 'POST' });
+  },
+  closeEsimQueryClaim(
+    orderId: string,
+    body: { queryAttemptId: string; createAttemptId: string; reason: string },
+  ) {
+    return apiRequest<{ result: 'closed' | 'not_closed' }>(
+      `/admin/orders/${orderId}/esim-query-claims/close`,
+      { method: 'POST', body },
+    );
+  },
+  /**
+   * SUPER_ADMIN + orders.manage. Does not create a payment.
+   * For VN send paymentMethodCode `VIETQR` (never the gateway name `SEPAY`).
+   * Backend defaults market to VN. Uses apiRequest once — no public POST /orders fallback.
+   */
+  createEsimTestOrder(body: AdminEsimTestOrderBody) {
+    return apiRequest<OrderView>('/admin/esim-ops/orders', {
+      method: 'POST',
+      body,
+    });
+  },
+  /**
+   * Existing retail `POST /payments`. Caller must pass a fresh Idempotency-Key
+   * and must not retry when the outcome is unknown.
+   */
+  createSepayCheckout(orderId: string, idempotencyKey: string) {
+    return apiRequest<PaymentCheckoutView>('/payments', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: { orderId, gateway: 'SEPAY' },
+    });
   },
   getOrderDetail(id: string, gatewayTransaction?: string) {
     const params = new URLSearchParams();
@@ -1039,6 +1175,70 @@ export const settingsAdminApi = {
   },
   updatePaymentMethods(body: { methods: PaymentMethodConfig[] }) {
     return apiRequest<{ methods: PaymentMethodConfig[] }>('/admin/settings/payment/methods', {
+      method: 'PUT',
+      body,
+    });
+  },
+  getEsimGo() {
+    return apiRequest<ProviderEsimGoSettings>('/admin/settings/provider/esim-go');
+  },
+  updateEsimGo(body: { apiKey?: string }) {
+    return apiRequest<ProviderEsimGoSettings>('/admin/settings/provider/esim-go', {
+      method: 'PUT',
+      body,
+    });
+  },
+  testEsimGoCatalogue() {
+    return apiRequest<{ ok: boolean; count: number; names: string[] }>(
+      '/admin/settings/provider/esim-go/test-catalogue',
+      { method: 'POST' },
+    );
+  },
+  getAiralo() {
+    return apiRequest<ProviderAiraloSettings>('/admin/settings/provider/airalo');
+  },
+  updateAiralo(body: {
+    clientId?: string;
+    clientSecret?: string;
+    baseUrl?: string;
+    usdVndRate?: number;
+    accountMode?: 'sandbox' | 'production';
+  }) {
+    return apiRequest<ProviderAiraloSettings>('/admin/settings/provider/airalo', {
+      method: 'PUT',
+      body,
+    });
+  },
+  getAiraloCatalogue() {
+    return apiRequest<AiraloCatalogueView>('/admin/settings/provider/airalo/catalogue');
+  },
+  importAiraloCatalogue() {
+    return apiRequest<AiraloImportSummary>('/admin/settings/provider/airalo/import', {
+      method: 'POST',
+    });
+  },
+  setAiraloPackageLifecycle(id: string, lifecycle: EsimCatalogLifecycle) {
+    return apiRequest<unknown>(`/admin/settings/provider/airalo/packages/${id}`, {
+      method: 'PATCH',
+      body: { lifecycle },
+    });
+  },
+  testAiraloCatalogue() {
+    return apiRequest<{ ok: boolean; count: number; names: string[] }>(
+      '/admin/settings/provider/airalo/test-catalogue',
+      { method: 'POST' },
+    );
+  },
+  getPaypal() {
+    return apiRequest<PaymentPaypalSettings>('/admin/settings/payment/paypal');
+  },
+  updatePaypal(body: {
+    esimEnabled?: boolean;
+    mode?: 'sandbox' | 'live';
+    clientId?: string;
+    clientSecret?: string;
+  }) {
+    return apiRequest<PaymentPaypalSettings>('/admin/settings/payment/paypal', {
       method: 'PUT',
       body,
     });

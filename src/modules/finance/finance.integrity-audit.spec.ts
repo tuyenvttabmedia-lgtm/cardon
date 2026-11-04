@@ -31,7 +31,7 @@ import { ExportService } from './services/export.service';
 
 /** Mirrors prisma/seed.mjs finance-related permissions */
 const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
-  SUPPORT: ['users.read', 'orders.read', 'orders.retry', 'payments.view', 'agents.kyc.review'],
+  SUPPORT: ['users.read', 'orders.read', 'orders.retry', 'refund.request', 'payments.view', 'agents.kyc.review'],
   ACCOUNTANT: [
     'users.read',
     'orders.read',
@@ -42,6 +42,10 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
     'payments.review',
     'finance.view',
     'finance.manage',
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
+    'refund.reconcile',
   ],
   ADMIN: [
     'finance.view',
@@ -101,6 +105,37 @@ describe('Phase 4B.1 — CHECK 1: Profit correctness', () => {
         }),
       }),
     );
+  });
+
+  it('current profit and gateway queries do not filter by homeService', async () => {
+    const { FinanceRepository } = await import('./repositories/finance.repository');
+    const prisma = {
+      order: { findMany: jest.fn().mockResolvedValue([]) },
+      orderItem: { findMany: jest.fn().mockResolvedValue([]) },
+    };
+    const repo = new FinanceRepository(prisma as never);
+    const dateFrom = new Date('2026-06-01T00:00:00.000Z');
+    const dateTo = new Date('2026-06-30T00:00:00.000Z');
+
+    await repo.calculateProfit({ dateFrom, dateTo });
+    await repo.calculateGatewayFees({ dateFrom, dateTo });
+    await repo.findB2cCompletedOrderItemsForVat(dateFrom, dateTo);
+
+    const profitWhere = prisma.order.findMany.mock.calls[0][0].where;
+    const feeWhere = prisma.order.findMany.mock.calls[1][0].where;
+    const vatWhere = prisma.orderItem.findMany.mock.calls[0][0].where;
+    expect(JSON.stringify(profitWhere)).not.toContain('ESIM');
+    expect(JSON.stringify(profitWhere)).not.toContain('homeService');
+    expect(JSON.stringify(feeWhere)).not.toContain('ESIM');
+    expect(JSON.stringify(feeWhere)).not.toContain('homeService');
+    expect(vatWhere.order).toEqual(
+      expect.objectContaining({
+        channel: 'B2C',
+        paymentStatus: OrderPaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.COMPLETED,
+      }),
+    );
+    expect(JSON.stringify(vatWhere)).not.toContain('homeService');
   });
 });
 

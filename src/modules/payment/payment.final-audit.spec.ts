@@ -292,11 +292,11 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
         join(process.cwd(), 'prisma/schema.prisma'),
         'utf8',
       );
-      expect(schema).toContain('gateway          PaymentGatewayCode');
-      expect(schema).toContain('gatewayResponse  Json');
-      expect(schema).toContain('paidAt           DateTime?');
-      expect(schema).toContain('expiresAt        DateTime?');
-      expect(schema).toContain('createdAt        DateTime');
+      expect(schema).toMatch(/gateway\s+PaymentGatewayCode/);
+      expect(schema).toMatch(/gatewayResponse\s+Json/);
+      expect(schema).toMatch(/paidAt\s+DateTime\?/);
+      expect(schema).toMatch(/expiresAt\s+DateTime\?/);
+      expect(schema).toMatch(/createdAt\s+DateTime/);
     });
 
     it('success webhook merge stores normalized gatewayTransactionId', () => {

@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CatalogProductStatus, HomeServiceType, ProductVariantType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { UpdateProductDto } from './dto/product.dto';
 import { PricingService } from './services/pricing.service';
 import { ProductService } from './services/product.service';
 import { ProviderMappingService } from './services/provider-mapping.service';
@@ -15,6 +16,7 @@ describe('ProductService', () => {
     findActiveById: jest.Mock;
     softDelete: jest.Mock;
     findById: jest.Mock;
+    update: jest.Mock;
   };
   let categoryRepository: { findById: jest.Mock };
 
@@ -26,6 +28,7 @@ describe('ProductService', () => {
       findActiveById: jest.fn(),
       softDelete: jest.fn(),
       findById: jest.fn(),
+      update: jest.fn(),
     };
     categoryRepository = {
       findById: jest.fn().mockResolvedValue({
@@ -120,6 +123,174 @@ describe('ProductService', () => {
     const result = await service.disableProduct('prod-1');
     expect(result.status).toBe(CatalogProductStatus.INACTIVE);
     expect(productRepository.softDelete).toHaveBeenCalledWith('prod-1');
+  });
+
+  function storedProduct(homeService: HomeServiceType) {
+    return {
+      id: 'prod-1',
+      categoryId: 'cat-current',
+      homeService,
+      slug: 'sample',
+      name: 'Sample',
+      description: null,
+      status: CatalogProductStatus.ACTIVE,
+      deletedAt: null,
+    };
+  }
+
+  function category(id: string, homeService: HomeServiceType) {
+    return { id, homeService };
+  }
+
+  async function expectMoveRejected(from: HomeServiceType, to: HomeServiceType, categoryId: string) {
+    productRepository.findById.mockResolvedValue(storedProduct(from));
+    categoryRepository.findById.mockResolvedValue(category(categoryId, to));
+
+    await expect(service.updateProduct('prod-1', { categoryId })).rejects.toBeInstanceOf(BadRequestException);
+    expect(productRepository.update).not.toHaveBeenCalled();
+  }
+
+  it('rejects moving an ESIM product into a CARD category', async () => {
+    await expectMoveRejected(HomeServiceType.ESIM, HomeServiceType.GAME_CARD, 'cat-card');
+  });
+
+  it('rejects moving a CARD product into an ESIM category', async () => {
+    await expectMoveRejected(HomeServiceType.GAME_CARD, HomeServiceType.ESIM, 'cat-esim');
+  });
+
+  it('rejects moving an ESIM product into a TOPUP category', async () => {
+    await expectMoveRejected(HomeServiceType.ESIM, HomeServiceType.TOPUP, 'cat-topup');
+  });
+
+  it('rejects moving a CARD product into a DATA category', async () => {
+    await expectMoveRejected(HomeServiceType.GAME_CARD, HomeServiceType.DATA, 'cat-data');
+  });
+
+  it('rejects moving an ESIM product into a DATA category', async () => {
+    await expectMoveRejected(HomeServiceType.ESIM, HomeServiceType.DATA, 'cat-data');
+  });
+
+  it('rejects moving an ESIM product into a PHONE_CARD category', async () => {
+    await expectMoveRejected(HomeServiceType.ESIM, HomeServiceType.PHONE_CARD, 'cat-phone');
+  });
+
+  it('allows moving an ESIM product to another ESIM category', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.ESIM));
+    categoryRepository.findById.mockResolvedValue(category('cat-esim-2', HomeServiceType.ESIM));
+    productRepository.update.mockResolvedValue({
+      ...storedProduct(HomeServiceType.ESIM),
+      categoryId: 'cat-esim-2',
+    });
+
+    const result = await service.updateProduct('prod-1', { categoryId: 'cat-esim-2' });
+
+    expect(result.homeService).toBe(HomeServiceType.ESIM);
+    expect(productRepository.update).toHaveBeenCalledWith(
+      'prod-1',
+      expect.objectContaining({
+        homeService: HomeServiceType.ESIM,
+        category: { connect: { id: 'cat-esim-2' } },
+      }),
+    );
+  });
+
+  it('allows moving a CARD product to another CARD category', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.GAME_CARD));
+    categoryRepository.findById.mockResolvedValue(category('cat-card-2', HomeServiceType.GAME_CARD));
+    productRepository.update.mockResolvedValue({
+      ...storedProduct(HomeServiceType.GAME_CARD),
+      categoryId: 'cat-card-2',
+    });
+
+    await service.updateProduct('prod-1', { categoryId: 'cat-card-2' });
+
+    expect(productRepository.update).toHaveBeenCalledWith(
+      'prod-1',
+      expect.objectContaining({
+        homeService: HomeServiceType.GAME_CARD,
+        category: { connect: { id: 'cat-card-2' } },
+      }),
+    );
+  });
+
+  it('returns 404 when the product does not exist', async () => {
+    productRepository.findById.mockResolvedValue(null);
+
+    await expect(service.updateProduct('missing', { categoryId: 'cat-card' })).rejects.toThrow(
+      'Product not found',
+    );
+    expect(productRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the destination category does not exist', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.ESIM));
+    categoryRepository.findById.mockResolvedValue(null);
+
+    await expect(service.updateProduct('prod-1', { categoryId: 'missing-cat' })).rejects.toThrow(
+      'Category not found',
+    );
+    expect(productRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 when the product is already soft-deleted', async () => {
+    productRepository.findById.mockResolvedValue({
+      ...storedProduct(HomeServiceType.ESIM),
+      deletedAt: new Date('2026-10-12T00:00:00.000Z'),
+    });
+
+    await expect(service.updateProduct('prod-1', { categoryId: 'cat-esim-2' })).rejects.toThrow(
+      'Product not found',
+    );
+    expect(categoryRepository.findById).not.toHaveBeenCalled();
+    expect(productRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('uses the destination category homeService instead of a client-supplied value', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.ESIM));
+    categoryRepository.findById.mockResolvedValue(category('cat-card', HomeServiceType.GAME_CARD));
+
+    await expect(
+      service.updateProduct('prod-1', {
+        categoryId: 'cat-card',
+        homeService: HomeServiceType.ESIM,
+      } as UpdateProductDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(productRepository.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps a same-service move when the client sends a different homeService', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.GAME_CARD));
+    categoryRepository.findById.mockResolvedValue(category('cat-card-2', HomeServiceType.GAME_CARD));
+    productRepository.update.mockResolvedValue({
+      ...storedProduct(HomeServiceType.GAME_CARD),
+      categoryId: 'cat-card-2',
+    });
+
+    await service.updateProduct('prod-1', {
+      categoryId: 'cat-card-2',
+      homeService: HomeServiceType.ESIM,
+    } as UpdateProductDto);
+
+    expect(productRepository.update).toHaveBeenCalledWith(
+      'prod-1',
+      expect.objectContaining({
+        homeService: HomeServiceType.GAME_CARD,
+        category: { connect: { id: 'cat-card-2' } },
+      }),
+    );
+  });
+
+  it('rejects a cross-service move when the client repeats the product homeService', async () => {
+    productRepository.findById.mockResolvedValue(storedProduct(HomeServiceType.GAME_CARD));
+    categoryRepository.findById.mockResolvedValue(category('cat-esim', HomeServiceType.ESIM));
+
+    await expect(
+      service.updateProduct('prod-1', {
+        categoryId: 'cat-esim',
+        homeService: HomeServiceType.GAME_CARD,
+      } as UpdateProductDto),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(productRepository.update).not.toHaveBeenCalled();
   });
 });
 
@@ -243,6 +414,24 @@ describe('ProviderMappingService', () => {
 
     expect(result.providerProductCode).toBe('123');
     expect(mappingRepository.create).toHaveBeenCalled();
+  });
+
+  it('rejects eSale mapping on an eSIM variant', async () => {
+    variantRepository.findById.mockResolvedValue({
+      id: 'var-esim',
+      type: 'ESIM',
+      deletedAt: null,
+    });
+    prisma.provider.findFirst.mockResolvedValue({ id: 'prov-esale', code: 'ESALE' });
+
+    await expect(
+      service.createMapping('var-esim', {
+        providerId: 'prov-esale',
+        providerProductCode: 'GAR-500',
+        providerCost: 450000,
+      }),
+    ).rejects.toThrow('eSIM chỉ được mapping nhà cung cấp Airalo');
+    expect(mappingRepository.create).not.toHaveBeenCalled();
   });
 });
 

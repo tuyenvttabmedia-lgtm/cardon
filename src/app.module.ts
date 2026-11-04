@@ -12,6 +12,7 @@ import { ServerHealthModule } from './modules/server-health/server-health.module
 import { OrderModule } from './modules/order/order.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { ProviderModule } from './modules/provider/provider.module';
+import { EsimModule } from './modules/esim/esim.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { FinanceModule } from './modules/finance/finance.module';

@@ -10,6 +10,8 @@ import { NotificationModule } from '../notification/notification.module';
 
 import { ProductModule } from '../product/product.module';
 
+import { EsimQueueModule } from '../esim/esim-queue.module';
+
 import { EsaleConfigService } from './adapters/esale/esale.config';
 
 import { EsaleHttpClient } from './adapters/esale/esale.client';
@@ -87,7 +89,7 @@ const workerProviders = shouldRegisterWorkers() ? [ProviderWorker, TopupWorker] 
 
 @Module({
 
-  imports: [forwardRef(() => AuthModule), forwardRef(() => ProductModule), forwardRef(() => NotificationModule), OrderEventModule, ActivityEventModule],
+  imports: [forwardRef(() => AuthModule), forwardRef(() => ProductModule), forwardRef(() => NotificationModule), EsimQueueModule, OrderEventModule, ActivityEventModule],
 
   controllers: [ProviderController],
 

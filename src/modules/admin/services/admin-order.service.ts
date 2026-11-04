@@ -6,6 +6,8 @@ import {
 
   NotFoundException,
 
+  Optional,
+
 } from '@nestjs/common';
 
 import {
@@ -37,6 +39,8 @@ import { ADMIN_AUDIT_ACTIONS } from '../entities/admin.constants';
 import { AdminRepository } from '../repositories/admin.repository';
 
 import { AdminAuditService } from './admin-audit.service';
+import { EsimAdminService } from '../../esim/esim-admin.service';
+import { RefundRequestService } from './refund-request.service';
 
 
 
@@ -67,6 +71,9 @@ export class AdminOrderService {
     private readonly notificationService: NotificationService,
 
     private readonly cardEncryption: CardEncryptionService,
+
+    @Optional() private readonly esimAdmin?: EsimAdminService,
+    @Optional() private readonly refundRequests?: RefundRequestService,
 
   ) {}
 
@@ -146,6 +153,41 @@ export class AdminOrderService {
 
 
 
+    if (this.esimAdmin && (await this.esimAdmin.isEsimOrder(orderId))) {
+
+      const recovery = await this.esimAdmin.recoverInstall(orderId);
+      const fulfillmentStatus = recovery.fulfillmentStatus;
+
+      await this.adminAudit.record(
+
+        adminId,
+
+        ADMIN_AUDIT_ACTIONS.ADMIN_PROVIDER_RETRY,
+
+        AuditTargetType.ORDER,
+
+        orderId,
+
+        {
+          fulfillmentStatus,
+          esimRecovered: true,
+          // Contract of this admin path. Not proof a provider GET ran.
+          recovery: 'query_only',
+          created: recovery.created === true,
+          createOpened: recovery.created === true,
+          queried: recovery.queried === true,
+          hasOpenCreate: recovery.hasOpenCreate === true,
+          hasReference: recovery.hasReference === true,
+        },
+
+      );
+
+      return { fulfillmentStatus, providerTransactionId: null, cardsDelivered: 0 };
+
+    }
+
+
+
     const result = await this.fulfillmentDispatchService.retryOrderFulfillment(orderId);
 
 
@@ -195,6 +237,32 @@ export class AdminOrderService {
     if (!order) {
 
       throw new NotFoundException('Order not found');
+
+    }
+
+
+
+    if (dto.action === 'refund') {
+
+      if (!this.refundRequests) {
+
+        throw new BadRequestException('Refund request service is not available');
+
+      }
+
+      return this.refundRequests.createForOrder(adminId, orderId, {
+
+        paymentId: dto.paymentId,
+
+        amount: dto.amount,
+
+        currency: dto.currency,
+
+        reason: dto.note,
+
+        intendedMethod: dto.intendedMethod,
+
+      });
 
     }
 
@@ -323,48 +391,6 @@ export class AdminOrderService {
 
 
         return result;
-
-      }
-
-
-
-      case 'refund': {
-
-        await this.repository.updateOrderFulfillmentStatus(
-
-          orderId,
-
-          FulfillmentStatus.FAILED,
-
-        );
-
-
-
-        await this.adminAudit.record(
-
-          adminId,
-
-          ADMIN_AUDIT_ACTIONS.ADMIN_MANUAL_REFUND,
-
-          AuditTargetType.ORDER,
-
-          orderId,
-
-          { note: dto.note ?? 'Admin marked for manual refund — payment unchanged' },
-
-        );
-
-
-
-        return {
-
-          orderId,
-
-          fulfillmentStatus: FulfillmentStatus.FAILED,
-
-          manualRefund: true,
-
-        };
 
       }
 
@@ -544,6 +570,33 @@ export class AdminOrderService {
 
     return { cardRecordId, serial };
 
+  }
+
+  async closeEsimQueryClaim(
+    adminId: string,
+    input: {
+      orderId: string;
+      queryAttemptId: string;
+      createAttemptId: string;
+      reason: string;
+    },
+  ) {
+    if (adminId.trim() === '') {
+      throw new BadRequestException('Admin is required');
+    }
+    if (input.reason.trim() === '') {
+      throw new BadRequestException('A reason is required');
+    }
+    if (!this.esimAdmin) {
+      throw new BadRequestException('eSIM admin is unavailable');
+    }
+    return this.esimAdmin.closeSentQueryClaim({
+      adminId: adminId.trim(),
+      orderId: input.orderId,
+      queryAttemptId: input.queryAttemptId,
+      createAttemptId: input.createAttemptId,
+      reason: input.reason.trim(),
+    });
   }
 
 }

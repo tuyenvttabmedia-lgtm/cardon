@@ -262,6 +262,70 @@ export interface Order {
   items: OrderItem[];
 }
 
+/** Matches backend `mapOrder` / `OrderView` after the API interceptor unwraps `data`. */
+export interface InvoiceMetadata {
+  companyName?: string;
+  taxCode?: string;
+  address?: string;
+}
+
+export interface OrderView {
+  id: string;
+  orderCode: string;
+  channel: string;
+  isGuestOrder: boolean;
+  guestEmail: string | null;
+  guestPhone: string | null;
+  invoiceRequired: boolean;
+  invoiceMetadata: InvoiceMetadata;
+  customerNote: string | null;
+  totalAmount: string;
+  faceValue: string;
+  sellAmount: string;
+  discountAmount: string;
+  paymentMethodCode: string | null;
+  methodDisplayName: string | null;
+  paymentGateway: string | null;
+  settlementType: string | null;
+  paymentFeePercent: string;
+  paymentFeeFixed: string;
+  paymentFeeAmount: string;
+  customerPaid: string;
+  providerCost: string;
+  profit: string;
+  paymentStatus: string;
+  fulfillmentStatus: string;
+  customerStatus: string;
+  customerStatusLabel: string;
+  paymentExpiresAt: string | null;
+  createdAt: string;
+  items: OrderItem[];
+}
+
+/** Body for `POST /admin/esim-ops/orders`. VN uses `VIETQR`, not gateway name `SEPAY`. */
+export interface AdminEsimTestOrderBody {
+  variantId: string;
+  paymentMethodCode?: string;
+  market?: 'VN' | 'INTL';
+}
+
+/** `POST /payments` view after interceptor unwrap. Matches backend `mapPayment`. */
+export interface PaymentCheckoutView {
+  id: string;
+  orderId: string;
+  gateway: string;
+  paymentReference: string;
+  amount: string;
+  status: string;
+  paymentUrl?: string;
+  checkoutUrl?: string;
+  checkoutFormFields?: Record<string, string>;
+  displayMode?: 'qr_inline' | 'redirect' | 'open_payment';
+  expiresAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
 export interface AdminOrderListItem {
   id: string;
   orderCode: string;
@@ -282,6 +346,155 @@ export interface AdminOrderListItem {
   fulfillmentStatus: string;
   createdAt: string;
   totalAmount: string;
+}
+
+export interface EsimOpsHealth {
+  baseUrl: string;
+  configured: boolean;
+  hostResolves: boolean;
+  hostname: string;
+  retiredSandboxHost: boolean;
+  note: string;
+}
+
+export interface EsimOpsListItem {
+  id: string;
+  orderCode: string;
+  customerEmail: string | null;
+  customerName: string | null;
+  packageTitle: string | null;
+  providerProductCode: string | null;
+  airaloOrderId: string | null;
+  lastError: string | null;
+  profilePresent: boolean;
+  paymentStatus: string;
+  fulfillmentStatus: string;
+  paymentMethod: string | null;
+  customerPaid: string;
+  createdAt: string;
+  lane?: 'commerce' | 'sandbox';
+  paidUnfulfilled?: boolean;
+  providerMode?: string | null;
+}
+
+export interface EsimOpsMoneyBucket {
+  currency: string;
+  gateway: string;
+  amount: string;
+  payments: number;
+}
+
+export interface EsimOpsDashboard {
+  range: { from: string; to: string; preset: string };
+  definitions: Record<string, string>;
+  orders: {
+    total: number;
+    commerce: number;
+    sandbox: number;
+    unpaid: number;
+    paid: number;
+    paidUnfulfilled: number;
+    completed: number;
+    processing: number;
+    needManualReview: number;
+    waitingAdminRetry: number;
+    failed: number;
+    payment: Record<string, number>;
+    fulfillment: Record<string, number>;
+  };
+  installSuccessRate: { numerator: number; denominator: number; rate: number | null };
+  revenue: { commerce: EsimOpsMoneyBucket[]; sandbox: EsimOpsMoneyBucket[] };
+  checkoutCostSnapshot: {
+    available: boolean;
+    reason: string;
+    amounts: EsimOpsMoneyBucket[];
+    costComplete: boolean;
+  };
+  topPackages: Array<{
+    code: string;
+    title: string;
+    countryIso: string;
+    orders: number;
+    commercePaid: number;
+  }>;
+  countries: Array<{ countryIso: string; orders: number; commercePaid: number }>;
+}
+
+export interface EsimOpsListResponse {
+  summary: {
+    total: number;
+    paidWaiting: number;
+    needReview: number;
+    completed: number;
+    unpaid: number;
+  };
+  page: { skip: number; take: number; total: number };
+  items: EsimOpsListItem[];
+}
+
+export interface EsimOpsDetail {
+  id: string;
+  orderCode: string;
+  paymentStatus: string;
+  fulfillmentStatus: string;
+  lane?: 'commerce' | 'sandbox';
+  paidUnfulfilled?: boolean;
+  createdAt: string;
+  customer: {
+    name: string | null;
+    email: string | null;
+    phone: string | null;
+  };
+  pricing: {
+    customerPaid: string;
+    sellAmount: string;
+    providerCost: string;
+    paymentFeeAmount: string;
+    paymentMethod: string | null;
+    paymentGateway: string | null;
+  };
+  payments: Array<{
+    paymentReference: string;
+    gateway: string;
+    amount: string;
+    status: string;
+    paidAt: string | null;
+  }>;
+  lastError: string | null;
+  present: boolean;
+  providerName: string | null;
+  providerCode: string | null;
+  providerMode: string | null;
+  providerProductCode: string | null;
+  packageTitle: string | null;
+  airaloOrderId: string | null;
+  profilePresent: boolean;
+  installSecretMasked: string | null;
+  installSecret: string | null;
+  canRevealInstallSecret?: boolean;
+  attempts: Array<{
+    id: string;
+    operation: string;
+    outcome: string;
+    providerReference: string | null;
+    providerStatus: string | null;
+    errorMessage: string | null;
+    createdAt: string;
+    completedAt: string | null;
+  }>;
+  adminActions?: Array<{
+    id: string;
+    action: string;
+    at: string;
+    actor: string;
+    metadata: Record<string, unknown>;
+  }>;
+}
+
+export interface EsimInstallReveal {
+  installSecret: string;
+  qrSvg: string | null;
+  appleSetupUrl: string | null;
 }
 
 export interface AdminOrderSummary {
@@ -354,6 +567,128 @@ export interface PaginatedResponse<T> {
   total: number;
 }
 
+export interface AdminRefundStaff {
+  id: string;
+  email: string;
+}
+
+export interface AdminRefundAttemptView {
+  id: string;
+  status: string;
+  reconStatus: string;
+  amount: string;
+  currency: string;
+  method: string;
+  isOpen: boolean;
+  payoutRecorded: boolean;
+  reconVerified: boolean;
+  bankTransactionReference: string | null;
+  destinationHint: string | null;
+  transferredAt: string | null;
+  executedBy: AdminRefundStaff | null;
+  verifiedBy: AdminRefundStaff | null;
+  verifiedAt: string | null;
+  statementEvidenceRef: string | null;
+  errorCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminRefundListItem {
+  id: string;
+  orderId: string;
+  orderCode: string | null;
+  paymentId: string;
+  amount: string;
+  currency: string;
+  status: string;
+  intendedMethod: string;
+  esimGate: string;
+  requiresManualReview: boolean;
+  latestAttemptStatus: string | null;
+  latestReconStatus: string | null;
+  payoutRecorded: boolean;
+  reconVerified: boolean;
+  needsAction: boolean;
+  requestedAt: string | null;
+  updatedAt: string | null;
+  requestedBy: AdminRefundStaff | null;
+  approvedBy: AdminRefundStaff | null;
+  executedBy: AdminRefundStaff | null;
+}
+
+export interface AdminRefundListResponse {
+  items: AdminRefundListItem[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+export interface AdminRefundDetail {
+  id: string;
+  orderId: string;
+  paymentId: string;
+  amount: string;
+  currency: string;
+  reason: string;
+  status: string;
+  intendedMethod: string;
+  esimGate: string;
+  requiresManualReview: boolean;
+  esimReview: {
+    esimReviewCleared: boolean;
+    esimReviewClearedAt: string | null;
+    esimReviewClearedById: string | null;
+  };
+  requestedAt: string | null;
+  updatedAt: string | null;
+  approvedAt: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  requestedBy: AdminRefundStaff | null;
+  approvedBy: AdminRefundStaff | null;
+  cancelledBy: AdminRefundStaff | null;
+  order: {
+    id: string;
+    orderCode: string;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+    totalAmount: string;
+  };
+  payment: {
+    id: string;
+    amount: string;
+    status: string;
+    gateway: string;
+    paymentReference: string;
+    paidAt: string | null;
+    createdAt: string | null;
+  };
+  cover: {
+    paymentAmount: string;
+    succeeded: string;
+    reserved: string;
+    remainingRefundable: string;
+    remainingOnRequest: string;
+  };
+  attempts: AdminRefundAttemptView[];
+  warnings: Array<
+    | 'CREATE_UNCLEAR'
+    | 'HAS_REFERENCE'
+    | 'ISSUED'
+    | 'UNCONFIRMED'
+    | 'MANUAL_REVIEW'
+    | 'PARTIAL'
+  >;
+  auditEvents: Array<{
+    id: string;
+    action: string;
+    createdAt: string | null;
+    actorId: string;
+    metadata: Record<string, string | number | boolean>;
+  }>;
+}
+
 export interface ProviderTransaction {
   id: string;
   orderId: string;
@@ -384,7 +719,56 @@ export interface ProviderProductSync {
   message?: string;
 }
 
-export type HomeServiceType = 'GAME_CARD' | 'PHONE_CARD' | 'TOPUP' | 'DATA';
+export type HomeServiceType = 'GAME_CARD' | 'PHONE_CARD' | 'TOPUP' | 'DATA' | 'ESIM';
+
+export function isEsimHomeService(homeService?: string | null): boolean {
+  return homeService === 'ESIM';
+}
+
+export function isEsimCatalogCategory(category: { homeService?: string | null }): boolean {
+  return isEsimHomeService(category.homeService);
+}
+
+export function isEsimCatalogProduct(product: {
+  homeService?: string | null;
+  category?: { homeService?: string | null } | null;
+}): boolean {
+  return isEsimHomeService(product.homeService) || isEsimHomeService(product.category?.homeService);
+}
+
+export function filterStandardCatalogProducts<
+  T extends {
+    homeService?: string | null;
+    category?: { homeService?: string | null } | null;
+  },
+>(products: T[]): T[] {
+  return products.filter((product) => !isEsimCatalogProduct(product));
+}
+
+export function filterEsimCatalogProducts<
+  T extends {
+    homeService?: string | null;
+    category?: { homeService?: string | null } | null;
+  },
+>(products: T[]): T[] {
+  return products.filter((product) => isEsimCatalogProduct(product));
+}
+
+export function filterStandardCatalogCategories<
+  T extends { homeService?: string | null; status?: string },
+>(categories: T[], activeOnly = false): T[] {
+  return categories.filter(
+    (category) => !isEsimCatalogCategory(category) && (!activeOnly || category.status === 'ACTIVE'),
+  );
+}
+
+export function filterEsimCatalogCategories<
+  T extends { homeService?: string | null; status?: string },
+>(categories: T[], activeOnly = false): T[] {
+  return categories.filter(
+    (category) => isEsimCatalogCategory(category) && (!activeOnly || category.status === 'ACTIVE'),
+  );
+}
 
 export interface Category {
   id: string;
@@ -419,6 +803,7 @@ export interface Product {
   logoUrl?: string | null;
   bannerUrl?: string | null;
   status: string;
+  createdAt?: string | null;
   homeService?: HomeServiceType | null;
   category?: {
     id: string;
@@ -1411,6 +1796,18 @@ export interface CmsThemeSettings {
     requireLogin?: boolean;
     active?: boolean;
   }>;
+  homeBackgrounds?: {
+    homeHeroBg?: string;
+    homeCategoryGameBg?: string;
+    homeCategoryPhoneCardBg?: string;
+    homeCategoryTopupBg?: string;
+    homeCategoryEsimBg?: string;
+    hubHeroGameBg?: string;
+    hubHeroPhoneBg?: string;
+    hubHeroTopupBg?: string;
+    hubHeroEsimBg?: string;
+    siteFooterBg?: string;
+  };
 }
 
 export interface ContactMessage {
@@ -1721,6 +2118,77 @@ export interface GatewayFeesReport {
   }>;
 }
 
+export interface ProviderEsimGoSettings extends SettingsSourceView {
+  providerCode: 'ESIM_GO';
+  baseUrl: string;
+  apiKey?: string;
+  retired?: boolean;
+  message?: string;
+}
+
+export interface ProviderAiraloSettings extends SettingsSourceView {
+  providerCode: 'AIRALO';
+  apiVersion?: 'v2';
+  baseUrl: string;
+  clientId?: string;
+  clientSecret?: string;
+  usdVndRate?: number;
+  accountMode?: 'sandbox' | 'production';
+}
+
+export type EsimCatalogLifecycle =
+  | 'IMPORTED'
+  | 'MAPPED'
+  | 'REVIEW_REQUIRED'
+  | 'PUBLISHED'
+  | 'INACTIVE';
+
+export interface AiraloCataloguePackageRow {
+  id: string;
+  providerPackageId: string;
+  destinationKey: string;
+  countryIso: string;
+  title: string;
+  operatorTitle: string;
+  packageType: string;
+  validityDays: number;
+  dataAmountMb: number;
+  isUnlimited: boolean;
+  fupClear: boolean;
+  costCurrency: string;
+  costAmount: number;
+  costVnd: number;
+  sellPriceVnd: number;
+  lifecycle: EsimCatalogLifecycle;
+  reviewReason: string | null;
+  variantId: string | null;
+  productSlug: string | null;
+  productName: string | null;
+}
+
+export interface AiraloCatalogueView {
+  counts: Partial<Record<EsimCatalogLifecycle, number>>;
+  packages: AiraloCataloguePackageRow[];
+}
+
+export interface AiraloImportSummary {
+  imported: number;
+  published: number;
+  mapped: number;
+  reviewRequired: number;
+  inactive: number;
+  destinationsPublished: string[];
+}
+
+export interface PaymentPaypalSettings extends SettingsSourceView {
+  gatewayCode: 'PAYPAL';
+  esimEnabled: boolean;
+  mode: 'sandbox' | 'live';
+  clientId?: string;
+  clientSecret?: string;
+  note?: string;
+}
+
 export interface ProviderEsaleSettings extends SettingsSourceView {
   cardApiUrl?: string;
   topupApiUrl?: string;
@@ -1750,6 +2218,7 @@ export interface SystemSettings extends SettingsSourceView {
   agentRegistrationMode?: 'INVITE_ONLY' | 'PUBLIC_APPROVAL' | 'DISABLED';
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
+  customerEsimEnabled?: boolean;
   /** Days to keep config/admin audit logs. Default 360. Range 30–3650. */
   auditLogRetentionDays?: number;
   /** Min VND per agent deposit (SePay QR). Default 5_000_000. */
@@ -1820,7 +2289,7 @@ export interface AdminDeliveryItem {
 }
 
 export interface AdminOrderDelivery {
-  type: 'CARD' | 'TOPUP' | 'DATA';
+  type: 'CARD' | 'TOPUP' | 'DATA' | 'ESIM';
   productName: string | null;
   faceValue: string | null;
   quantity: number | null;
@@ -1907,6 +2376,29 @@ export interface AdminOrderDetail {
     metadata: unknown;
     createdAt: string;
   }>;
+  esimDelivery?: {
+    present: boolean;
+    providerName: string | null;
+    providerCode: string | null;
+    providerMode: string | null;
+    providerProductCode: string | null;
+    packageTitle: string | null;
+    airaloOrderId: string | null;
+    profilePresent: boolean;
+    installSecretMasked: string | null;
+    installSecret: string | null;
+    canRevealInstallSecret?: boolean;
+    attempts: Array<{
+      id: string;
+      operation: string;
+      outcome: string;
+      providerReference: string | null;
+      providerStatus: string | null;
+      errorMessage: string | null;
+      createdAt: string;
+      completedAt: string | null;
+    }>;
+  };
   order: Order;
 }
 

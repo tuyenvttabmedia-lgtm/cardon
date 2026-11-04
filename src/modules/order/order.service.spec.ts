@@ -14,6 +14,7 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { OrderService } from './services/order.service';
 import { OrderExpirationService } from './services/order-expiration.service';
+import { EsimOrderService } from '../esim/esim-order.service';
 
 describe('OrderService', () => {
   let service: OrderService;
@@ -580,5 +581,203 @@ describe('Order state machine', () => {
         paymentExpiresAt: new Date('2020-01-01'),
       }),
     ).toThrow(BadRequestException);
+  });
+});
+
+describe('B3.49 legacy order lanes', () => {
+  const customerUser = {
+    id: 'user-1',
+    email: 'customer@cardon.vn',
+    role: 'CUSTOMER' as const,
+  };
+
+  function legacyVariant(
+    id: string,
+    type: 'CARD' | 'TOPUP' | 'DATA',
+    homeService: 'GAME_CARD' | 'PHONE_CARD' | 'TOPUP' | 'DATA',
+  ) {
+    return {
+      id,
+      sku: id,
+      name: id,
+      type,
+      faceValue: new Decimal(100000),
+      sellPrice: new Decimal(99000),
+      status: 'ACTIVE',
+      product: { homeService },
+    };
+  }
+
+  function buildService(
+    variant: ReturnType<typeof legacyVariant>,
+    customerDataEnabled = true,
+  ) {
+    const esimCreate = jest.fn();
+    const orderRepository = {
+      createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'txn-1' }),
+      createWithTransaction: jest.fn().mockResolvedValue({
+        id: 'order-1',
+        orderCode: 'ORD-LEGACY',
+      }),
+      createOrderItem: jest.fn().mockResolvedValue({ id: 'item-1' }),
+    };
+    const settingsStore = {
+      resolvePaymentMethod: jest.fn().mockReturnValue({
+        gatewayCode: 'SEPAY',
+        methodCode: 'VIETQR',
+        displayName: 'VietQR',
+        settlementType: 'DIRECT_TO_MERCHANT',
+        percentageFee: 0,
+        fixedFee: 0,
+      }),
+      getPublicPaymentMethods: jest.fn().mockReturnValue([
+        { methodCode: 'VIETQR' },
+      ]),
+      resolveOrderConfig: jest.fn().mockReturnValue({
+        guestMaxOrderAmount: 0,
+        customerMaxOrderAmount: 0,
+      }),
+      resolveSystemConfig: jest.fn().mockReturnValue({
+        customerEsimEnabled: false,
+        customerDataEnabled,
+      }),
+    };
+    const prisma = {
+      $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
+        cb({
+          order: {
+            findFirst: jest.fn().mockResolvedValue({
+              id: 'order-1',
+              orderCode: 'ORD-LEGACY',
+              channel: OrderChannel.B2C,
+              isGuestOrder: false,
+              guestEmail: customerUser.email,
+              guestPhone: null,
+              invoiceRequired: false,
+              invoiceMetadata: {},
+              customerNote: null,
+              totalAmount: new Decimal(99000),
+              faceValue: new Decimal(100000),
+              sellAmount: new Decimal(99000),
+              discountAmount: new Decimal(0),
+              paymentMethodCode: 'VIETQR',
+              methodDisplayName: 'VietQR',
+              paymentGateway: 'SEPAY',
+              settlementType: 'DIRECT_TO_MERCHANT',
+              paymentFeePercent: new Decimal(0),
+              paymentFeeFixed: new Decimal(0),
+              paymentFeeAmount: new Decimal(0),
+              customerPaid: new Decimal(99000),
+              providerCost: new Decimal(97500),
+              profit: new Decimal(1500),
+              paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+              fulfillmentStatus: FulfillmentStatus.PENDING,
+              paymentExpiresAt: new Date('2026-10-13T12:00:00Z'),
+              createdAt: new Date('2026-10-13T11:00:00Z'),
+              orderItems: [],
+            }),
+          },
+        }),
+      ),
+      systemSetting: { findUnique: jest.fn().mockResolvedValue({ value: 15 }) },
+    };
+    const service = new OrderService(
+      prisma as never,
+      orderRepository as never,
+      { findActiveById: jest.fn().mockResolvedValue(variant) } as never,
+      { getCustomerPrice: jest.fn().mockResolvedValue('99000.00') } as never,
+      { findLowestActiveCost: jest.fn().mockResolvedValue({ providerCost: new Decimal(97500) }) } as never,
+      settingsStore as never,
+      { recordOrderCreated: jest.fn() } as never,
+      { decrypt: jest.fn() } as never,
+      { create: esimCreate } as never,
+    );
+    return { service, esimCreate, orderRepository };
+  }
+
+  it.each([
+    ['GAME_CARD', 'game-card'],
+    ['PHONE_CARD', 'phone-card'],
+  ])('%s create stays on the legacy order path', async (_homeService, variantId) => {
+    const { service, esimCreate, orderRepository } = buildService(
+      legacyVariant(variantId, 'CARD', _homeService as 'GAME_CARD' | 'PHONE_CARD'),
+    );
+    const result = await service.createOrder(
+      { items: [{ variantId, quantity: 1 }] },
+      customerUser,
+    );
+    expect(result.orderCode).toBe('ORD-LEGACY');
+    expect(esimCreate).not.toHaveBeenCalled();
+    expect(orderRepository.createWithTransaction).toHaveBeenCalled();
+  });
+
+  it.each(['TOPUP', 'DATA'] as const)('%s create stays on the legacy order path', async (type) => {
+    const { service, esimCreate, orderRepository } = buildService(
+      legacyVariant(type.toLowerCase(), type, type),
+    );
+    await service.createOrder(
+      { items: [{ variantId: type.toLowerCase(), quantity: 1 }] },
+      customerUser,
+    );
+    expect(esimCreate).not.toHaveBeenCalled();
+    expect(orderRepository.createWithTransaction).toHaveBeenCalled();
+  });
+
+  it('rejects DATA when the data flag is off and still creates a card order', async () => {
+    const data = buildService(legacyVariant('data', 'DATA', 'DATA'), false);
+    await expect(
+      data.service.createOrder({ items: [{ variantId: 'data', quantity: 1 }] }, customerUser),
+    ).rejects.toThrow('Dịch vụ nạp data tạm ngưng.');
+    expect(data.esimCreate).not.toHaveBeenCalled();
+    expect(data.orderRepository.createWithTransaction).not.toHaveBeenCalled();
+
+    const card = buildService(legacyVariant('game-card', 'CARD', 'GAME_CARD'), false);
+    await card.service.createOrder(
+      { items: [{ variantId: 'game-card', quantity: 1 }] },
+      customerUser,
+    );
+    expect(card.esimCreate).not.toHaveBeenCalled();
+    expect(card.orderRepository.createWithTransaction).toHaveBeenCalled();
+  });
+
+  it('rejects an eSIM order when sales are disabled and does not write a legacy order', async () => {
+    const orderRepository = {
+      createFinancialTransaction: jest.fn(),
+      createWithTransaction: jest.fn(),
+      createOrderItem: jest.fn(),
+    };
+    const esimOrders = new EsimOrderService(
+      { $transaction: jest.fn() } as never,
+      orderRepository as never,
+      { findActiveById: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      {
+        resolveSystemConfig: () => ({ customerEsimEnabled: false }),
+        getPublicPaymentMethods: () => [],
+        resolvePaymentMethod: () => {
+          throw new Error('payment should not be resolved');
+        },
+      } as never,
+      { get: () => false } as never,
+    );
+    const service = new OrderService(
+      { systemSetting: { findUnique: jest.fn() } } as never,
+      orderRepository as never,
+      {
+        findActiveById: jest.fn().mockResolvedValue({ id: 'esim', type: 'ESIM' }),
+      } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      esimOrders,
+    );
+
+    await expect(
+      service.createOrder({ items: [{ variantId: 'esim', quantity: 1 }] }, customerUser),
+    ).rejects.toThrow('eSIM sales are disabled');
+    expect(orderRepository.createWithTransaction).not.toHaveBeenCalled();
   });
 });

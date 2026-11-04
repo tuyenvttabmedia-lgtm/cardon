@@ -8,6 +8,8 @@ export const CONFIGURATION_SECTIONS = [
   { href: '/configuration/maintenance', label: vi.configuration.maintenance, title: vi.configuration.maintenanceTitle, subtitle: vi.configuration.maintenanceHint },
   { href: '/configuration/payment', label: vi.configuration.payment, title: vi.settings.paymentTitle, subtitle: vi.configuration.paymentSubtitle },
   { href: '/configuration/providers', label: vi.configuration.providers, title: vi.settings.providerTitle, subtitle: vi.configuration.providersSubtitle },
+  { href: '/configuration/airalo', label: vi.configuration.airalo, title: vi.configuration.airaloTitle, subtitle: vi.configuration.airaloSubtitle },
+  { href: '/configuration/paypal', label: vi.configuration.paypal, title: vi.configuration.paypalTitle, subtitle: vi.configuration.paypalSubtitle },
   { href: '/configuration/orders', label: vi.configuration.orders, title: vi.settings.orderTitle, subtitle: vi.configuration.ordersSubtitle },
   { href: '/configuration/smtp', label: vi.configuration.smtp, title: vi.settings.smtpTitle, subtitle: vi.configuration.smtpSubtitle },
   { href: '/configuration/telegram', label: vi.configuration.telegram, title: vi.configuration.telegramTitle, subtitle: vi.configuration.telegramSubtitle },

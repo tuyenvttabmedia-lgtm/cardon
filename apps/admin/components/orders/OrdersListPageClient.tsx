@@ -31,7 +31,7 @@ const DELIVERY_FILTERS: { value: string; label: string }[] = [
   { value: 'FAILED', label: vi.status.FAILED },
   { value: 'NEED_SUPPORT', label: 'Cần hỗ trợ' },
 ];
-const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA'] as const;
+const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA', 'ESIM'] as const;
 const DATE_PRESETS: { value: DatePreset | ''; label: string }[] = [
   { value: '', label: vi.app.all },
   { value: 'today', label: 'Hôm nay' },
@@ -75,6 +75,7 @@ function buildQueryParams(
   if (filters.paymentFilter) params.paymentFilter = filters.paymentFilter;
   if (filters.deliveryStatus) params.deliveryStatus = filters.deliveryStatus;
   if (filters.productType) params.productType = filters.productType;
+  else if (channel === 'B2C') params.excludeProductType = 'ESIM';
   if (filters.providerId) params.providerId = filters.providerId;
 
   if (filters.datePreset && filters.datePreset !== 'custom') {
@@ -157,7 +158,7 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
             <p className="admin-page-subtitle">
               {isAgent
                 ? 'Chỉ đơn channel AGENT — tách biệt đơn bán lẻ web.'
-                : 'Chỉ đơn bán lẻ (B2C). Đơn đại lý xem tại Đơn đại lý.'}
+                : 'Chỉ đơn bán lẻ thẻ / nạp. Đơn eSIM nằm ở menu Đơn hàng eSIM.'}
             </p>
           </div>
           <SectionNav
@@ -168,6 +169,15 @@ export function OrdersListPageClient({ channel }: { channel: ChannelMode }) {
             ]}
           />
         </div>
+
+        {!isAgent && (
+          <Card className="border-indigo-100 bg-indigo-50/70 p-4 text-sm text-indigo-950">
+            Đơn eSIM không còn nằm ở đây.{' '}
+            <Link href="/esim-ops" className="font-semibold text-admin-700 hover:underline">
+              Mở Đơn hàng eSIM
+            </Link>
+          </Card>
+        )}
 
         <OrderSummaryCards summary={summary} />
 

@@ -1,6 +1,7 @@
 ﻿import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -456,6 +457,113 @@ export class PaymentService {
     return {
       ok: true,
       paymentReference: payment.paymentReference,
+    };
+  }
+
+  /**
+   * Return-URL / poll reconcile. Queries the gateway; never trusts ?payment=success.
+   * On SUCCESS, same path as webhook: mark PAID then dispatch esim_queue / card / topup.
+   */
+  async syncFromGateway(orderId: string, user?: AuthenticatedUser) {
+    if (!user?.id) {
+      throw new UnauthorizedException('Login required');
+    }
+    const payment = await this.paymentRepository.findLatestByOrderId(orderId);
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+    if (payment.order.userId && payment.order.userId !== user.id) {
+      throw new ForbiddenException();
+    }
+
+    if (payment.status === PaymentRecordStatus.SUCCESS) {
+      await this.fulfillmentDispatchService.dispatchOrderFulfillment(
+        payment.orderId,
+        'webhook',
+      );
+      return {
+        paymentReference: payment.paymentReference,
+        status: PaymentRecordStatus.SUCCESS,
+        synced: false,
+      };
+    }
+
+    if (payment.status !== PaymentRecordStatus.PENDING) {
+      return {
+        paymentReference: payment.paymentReference,
+        status: payment.status,
+        synced: false,
+      };
+    }
+
+    const provider = this.providerRegistry.get(payment.gateway);
+    const queried = await provider.queryTransaction(payment.paymentReference);
+    if (queried.status !== 'SUCCESS') {
+      return {
+        paymentReference: payment.paymentReference,
+        status: queried.status,
+        synced: false,
+      };
+    }
+
+    if (queried.amount && queried.amount !== '0.00') {
+      assertWebhookAmountMatches(payment.amount, queried.amount);
+    }
+
+    const expired = isWebhookPaymentExpired({
+      paymentStatus: payment.status,
+      orderPaymentStatus: payment.order.paymentStatus,
+      expiresAt: payment.expiresAt,
+    });
+    if (expired) {
+      await this.handleLateSuccessWebhook(payment, {
+        source: 'gateway_query',
+        paymentReference: payment.paymentReference,
+      });
+      return {
+        paymentReference: payment.paymentReference,
+        status: PaymentRecordStatus.EXPIRED,
+        synced: false,
+        manualReview: true,
+      };
+    }
+
+    const gatewayResponse = this.mergeGatewayResponseWithTransactionId(
+      {
+        source: 'gateway_query',
+        paymentReference: payment.paymentReference,
+        queriedStatus: queried.status,
+        queriedAmount: queried.amount,
+      },
+      undefined,
+    );
+    const duplicate = await this.processSuccessWebhookAtomically(
+      payment.id,
+      payment.orderId,
+      gatewayResponse,
+    );
+    if (!duplicate) {
+      await this.paymentAuditService.recordPaymentSuccess({
+        orderId: payment.orderId,
+        paymentId: payment.id,
+        metadata: {
+          paymentReference: payment.paymentReference,
+          source: 'gateway_query',
+        },
+      });
+      await this.notificationService.notifyPaymentSuccess(payment.orderId);
+    }
+    const queueJobIds = await this.fulfillmentDispatchService.dispatchOrderFulfillment(
+      payment.orderId,
+      'webhook',
+    );
+    this.logger.log(
+      `Payment sync enqueued fulfillment orderId=${payment.orderId} paymentReference=${payment.paymentReference} queueJobIds=${queueJobIds.join(',')}`,
+    );
+    return {
+      paymentReference: payment.paymentReference,
+      status: PaymentRecordStatus.SUCCESS,
+      synced: !duplicate,
     };
   }
 

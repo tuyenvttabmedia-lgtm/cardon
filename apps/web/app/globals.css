@@ -47,6 +47,133 @@ body {
     @apply pb-7 md:pb-8;
   }
 
+  /** Mobile horizontal snap carousel / chip rails. */
+  .esim-slide {
+    display: flex;
+    gap: 0.625rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .esim-slide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .esim-slide > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+
+  /** Two cards visible per viewport on small screens only. */
+  @media (max-width: 639px) {
+    .esim-slide-2col > * {
+      width: calc(50% - 0.3125rem);
+    }
+  }
+
+  .esim-chip-rail {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.125rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .esim-chip-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .esim-chip-rail > * {
+    flex-shrink: 0;
+  }
+
+  /* Full-bleed hero. Photo fades into page gray (#f5f7fa) on L/R + bottom. */
+  .home-hero-banner {
+    background-color: #f5f7fa;
+  }
+
+  /* Soft rim into body gray: left/right + bottom. Intersect keeps center opaque. */
+  .home-hero-banner::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    aspect-ratio: 2068 / 550;
+    background-image: var(--home-hero);
+    background-repeat: no-repeat;
+    background-position: center top;
+    background-size: 100% auto;
+    pointer-events: none;
+    -webkit-mask-image:
+      linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+      linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image:
+      linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+      linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+    mask-composite: intersect;
+  }
+
+  /* Below desktop: photo is a top strip — pad content to clear it (home + hubs). */
+  @media (max-width: 1023.98px) {
+    .home-hero-banner > .site-container {
+      padding-top: calc(100% * 550 / 2068 + 20px);
+    }
+  }
+
+  /* 1024–1279px: let the section grow with copy so badge sits below the menu. */
+  @media (min-width: 1024px) and (max-width: 1279.98px) {
+    .home-hero-banner {
+      height: auto;
+      aspect-ratio: auto;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .home-hero-banner {
+      aspect-ratio: 2068 / 550;
+    }
+  }
+
+  @media (min-width: 1900px) {
+    .home-hero-banner {
+      height: 500px;
+      aspect-ratio: auto;
+      overflow: hidden;
+    }
+
+    .home-hero-banner::before {
+      height: 100%;
+      aspect-ratio: auto;
+      background-size: cover;
+      background-position: center top;
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+      mask-composite: intersect;
+    }
+  }
+
+  /*
+   * Hub pages share home spacing + mask. Clip only so the absolute photo cannot
+   * paint into the checkout card; the mask still softens L/R/bottom into gray.
+   */
+  .home-hero-banner--hub {
+    overflow: hidden;
+    isolation: isolate;
+  }
+
   .news-card-mobile {
     @apply flex gap-3 rounded-2xl bg-white p-3;
   }

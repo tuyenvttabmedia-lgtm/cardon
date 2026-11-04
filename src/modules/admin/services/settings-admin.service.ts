@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AuditTargetType, Prisma } from '@prisma/client';
+import { AuditTargetType, EsimCatalogLifecycle, Prisma } from '@prisma/client';
 import { EsaleHttpClient } from '../../provider/adapters/esale/esale.client';
 import { ProviderRepository } from '../../provider/repositories/provider.repository';
 import { ProviderHealthService } from '../../provider/services/provider-health.service';
@@ -13,6 +13,8 @@ import {
   SETTINGS_AUDIT_ACTION,
   SETTINGS_KEYS,
   StoredPaymentGateway,
+  StoredProviderAiralo,
+  StoredPaymentPaypal,
   StoredProviderEsale,
   StoredOrder,
   StoredPaymentGatewayRuntime,
@@ -22,7 +24,7 @@ import {
 } from '../../settings/entities/settings.constants';
 import { SettingsEncryptionService } from '../../settings/services/settings-encryption.service';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
-import { SettingsStoreService } from '../../settings/services/settings-store.service';
+import { isRetiredAiraloSandboxHost, SettingsStoreService } from '../../settings/services/settings-store.service';
 import { validateGatewayPriorities } from '../../settings/entities/payment-gateway-priority';
 import {
   TestSmtpDto,
@@ -32,11 +34,17 @@ import {
   UpdatePaymentStrategyDto,
   UpdatePaymentGatewayRuntimeDto,
   UpdateProviderEsaleDto,
+  UpdateProviderAiraloDto,
+  UpdateAiraloPackageLifecycleDto,
+  UpdatePaymentPaypalDto,
+  UpdateProviderEsimGoDto,
   UpdateSmtpSettingsDto,
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
 } from '../dto/settings.dto';
+import { EsimAiraloAdapter } from '../../esim/esim-airalo.adapter';
+import { EsimAiraloCatalogueService } from '../../esim/esim-airalo-catalogue.service';
 import { AdminAuditService } from './admin-audit.service';
 
 @Injectable()
@@ -51,6 +59,8 @@ export class SettingsAdminService {
     private readonly providerHealthService: ProviderHealthService,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly smtpProvider: SmtpEmailProvider,
+    private readonly airalo: EsimAiraloAdapter,
+    private readonly airaloCatalogue: EsimAiraloCatalogueService,
   ) {}
 
   getPaymentMegapay() {
@@ -90,6 +100,109 @@ export class SettingsAdminService {
 
   getProviderEsale() {
     return this.settingsStore.getEsaleAdminView();
+  }
+
+  getProviderEsimGo() {
+    return {
+      ...this.settingsStore.getEsimGoAdminView(),
+      retired: true,
+      message: 'eSIM Go đã gỡ khỏi runtime. Dùng cấu hình Airalo.',
+    };
+  }
+
+  async updateProviderEsimGo(_adminId: string, _dto: UpdateProviderEsimGoDto) {
+    throw new BadRequestException('eSIM Go đã ngừng dùng. Cấu hình Airalo thay thế.');
+  }
+
+  async testEsimGoCatalogue() {
+    throw new BadRequestException('eSIM Go đã ngừng dùng. Dùng kiểm tra catalogue Airalo.');
+  }
+
+  getProviderAiralo() {
+    return this.settingsStore.getAiraloAdminView();
+  }
+
+  async updateProviderAiralo(adminId: string, dto: UpdateProviderAiraloDto) {
+    if (dto.baseUrl && isRetiredAiraloSandboxHost(dto.baseUrl)) {
+      throw new BadRequestException(
+        'sandbox-partners-api.airalo.com no longer resolves. Use https://partners-api.airalo.com — Airalo sandbox is an account mode, not a separate host.',
+      );
+    }
+    const current =
+      (await this.settingsStore.getRawStored<StoredProviderAiralo>(
+        SETTINGS_KEYS.PROVIDER_AIRALO,
+      )) ?? {};
+    const next: StoredProviderAiralo = {
+      clientIdEnc: this.mergeSecretField(dto.clientId, current.clientIdEnc),
+      clientSecretEnc: this.mergeSecretField(dto.clientSecret, current.clientSecretEnc),
+      baseUrl: dto.baseUrl?.trim() || current.baseUrl,
+      usdVndRate: dto.usdVndRate ?? current.usdVndRate,
+      accountMode: dto.accountMode ?? current.accountMode ?? 'sandbox',
+    };
+    await this.persist(adminId, SETTINGS_KEYS.PROVIDER_AIRALO, next as Prisma.InputJsonValue, [
+      'clientId',
+      'clientSecret',
+      'baseUrl',
+      'usdVndRate',
+      'accountMode',
+    ]);
+    await this.providerRepository.ensureAiraloProvider();
+    return this.getProviderAiralo();
+  }
+
+  async testAiraloCatalogue() {
+    const view = this.settingsStore.getAiraloAdminView();
+    if (view.configured !== true) {
+      throw new BadRequestException('Chưa có Airalo client_id / client_secret');
+    }
+    try {
+      const bundles = await this.airalo.listBundles();
+      return {
+        ok: true,
+        count: bundles.length,
+        names: bundles.slice(0, 20).map((bundle) => bundle.name),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Airalo catalogue request failed';
+      throw new BadRequestException(message);
+    }
+  }
+
+  listAiraloCatalogue() {
+    return this.airaloCatalogue.listAdminCatalogue();
+  }
+
+  importAiraloCatalogue() {
+    return this.airaloCatalogue.importFromAiralo();
+  }
+
+  setAiraloPackageLifecycle(id: string, dto: UpdateAiraloPackageLifecycleDto) {
+    return this.airaloCatalogue.setLifecycle(id, dto.lifecycle as EsimCatalogLifecycle);
+  }
+
+  getPaymentPaypal() {
+    return this.settingsStore.getPaypalAdminView();
+  }
+
+  async updatePaymentPaypal(adminId: string, dto: UpdatePaymentPaypalDto) {
+    const current =
+      (await this.settingsStore.getRawStored<StoredPaymentPaypal>(
+        SETTINGS_KEYS.PAYMENT_PAYPAL,
+      )) ?? {};
+    const next: StoredPaymentPaypal = {
+      esimEnabled:
+        typeof dto.esimEnabled === 'boolean' ? dto.esimEnabled : current.esimEnabled,
+      mode: dto.mode ?? current.mode,
+      clientIdEnc: this.mergeSecretField(dto.clientId, current.clientIdEnc),
+      clientSecretEnc: this.mergeSecretField(dto.clientSecret, current.clientSecretEnc),
+    };
+    await this.persist(adminId, SETTINGS_KEYS.PAYMENT_PAYPAL, next as Prisma.InputJsonValue, [
+      'esimEnabled',
+      'mode',
+      'clientId',
+      'clientSecret',
+    ]);
+    return this.getPaymentPaypal();
   }
 
   getSmtp() {
@@ -409,6 +522,8 @@ export class SettingsAdminService {
         dto.customerTopupEnabled ?? current.customerTopupEnabled ?? false,
       customerDataEnabled:
         dto.customerDataEnabled ?? current.customerDataEnabled ?? false,
+      customerEsimEnabled:
+        dto.customerEsimEnabled ?? current.customerEsimEnabled ?? false,
       auditLogRetentionDays:
         dto.auditLogRetentionDays ??
         current.auditLogRetentionDays ??
@@ -437,6 +552,7 @@ export class SettingsAdminService {
       'agentRegistrationMode',
       'customerTopupEnabled',
       'customerDataEnabled',
+      'customerEsimEnabled',
       'auditLogRetentionDays',
       'agentDepositMinAmount',
       'agentDepositMaxAmount',

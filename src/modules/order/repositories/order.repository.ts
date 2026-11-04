@@ -25,7 +25,13 @@ const ORDER_INCLUDE_WITH_CARDS = {
   orderItems: {
     include: {
       variant: {
-        select: { sku: true, name: true, type: true },
+        select: { sku: true, name: true, type: true, product: { select: { name: true } } },
+      },
+      esimQuote: {
+        select: { providerProductCode: true },
+      },
+      esimProfile: {
+        select: { id: true, installSecretEnc: true },
       },
       cardRecords: {
         select: {
@@ -158,6 +164,22 @@ export class OrderRepository {
         ],
       },
       include: ORDER_INCLUDE_WITH_CARDS,
+    });
+  }
+
+  findAiraloPackageByCode(providerPackageId: string) {
+    return this.prisma.esimAiraloPackage.findUnique({
+      where: { providerPackageId },
+      select: {
+        title: true,
+        dataAmountMb: true,
+        isUnlimited: true,
+        validityDays: true,
+        fupClear: true,
+        lifecycle: true,
+        rawSafeMeta: true,
+        variant: { select: { name: true, metadata: true } },
+      },
     });
   }
 

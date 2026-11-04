@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { FulfillmentStatus, OrderChannel, ProductVariantStatus } from '@prisma/client';
+import { FulfillmentStatus, HomeServiceType, OrderChannel, ProductVariantStatus } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { startOfVietnamToday } from '../../../common/utils/vietnam-time.util';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
@@ -148,7 +148,11 @@ export class AgentPlatformService {
     const agent = await this.requireAgentByUser(userId, 'products.read');
 
     const variants = await this.prisma.productVariant.findMany({
-      where: { deletedAt: null, status: ProductVariantStatus.ACTIVE },
+      where: {
+        deletedAt: null,
+        status: ProductVariantStatus.ACTIVE,
+        product: { homeService: { not: HomeServiceType.ESIM } },
+      },
       select: {
         id: true,
         sku: true,

@@ -1,6 +1,8 @@
 import {
   buildSepayPgCheckoutFields,
   getSepayPgCheckoutUrl,
+  mapSepayPgOrderStatus,
+  querySepayPgOrder,
   signSepayPgFields,
 } from './sepay.pg';
 
@@ -47,5 +49,37 @@ describe('sepay.pg', () => {
     expect(result.order_invoice_number).toBe('PAY-001');
     expect(result.order_amount).toBe('50000');
     expect(result.signature).toBeTruthy();
+  });
+
+  it('maps SePay PG order statuses', () => {
+    expect(mapSepayPgOrderStatus('CAPTURED')).toBe('SUCCESS');
+    expect(mapSepayPgOrderStatus('CANCELLED')).toBe('FAILED');
+    expect(mapSepayPgOrderStatus('AUTHENTICATION_NOT_NEEDED')).toBe('PENDING');
+  });
+
+  it('queries SePay PG by invoice number', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            order_id: 'SEPAY-1',
+            order_invoice_number: 'DH45479305',
+            order_status: 'CAPTURED',
+            order_amount: '181000.00',
+          },
+        ],
+      }),
+    });
+    const result = await querySepayPgOrder({
+      environment: 'sandbox',
+      merchantId: 'SP-TEST',
+      merchantSecretKey: 'secret',
+      invoiceNumber: 'DH45479305',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.status).toBe('SUCCESS');
+    expect(result.amount).toBe('181000.00');
+    expect(String(fetchImpl.mock.calls[0][0])).toContain('q=DH45479305');
   });
 });

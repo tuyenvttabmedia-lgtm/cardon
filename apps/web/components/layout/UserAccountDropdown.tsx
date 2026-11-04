@@ -10,6 +10,7 @@ const MENU = [
   { href: ACCOUNT_PATHS.profile, label: 'Thông tin tài khoản' },
   { href: ACCOUNT_PATHS.orders, label: 'Lịch sử giao dịch' },
   { href: ACCOUNT_PATHS.cards, label: 'Mã thẻ đã mua' },
+  { href: ACCOUNT_PATHS.esim, label: 'eSIM' },
   { href: ACCOUNT_PATHS.topups, label: 'Nạp cước' },
   { href: ACCOUNT_PATHS.data, label: 'Nạp Data', requiresData: true },
   { href: ACCOUNT_PATHS.password, label: 'Bảo mật' },

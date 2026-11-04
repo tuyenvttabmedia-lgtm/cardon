@@ -114,6 +114,32 @@ export default () => ({
   notification: {
     adminAlertEmail: process.env.ADMIN_ALERT_EMAIL,
   },
+  esim: {
+    /** Sales gate. Default off. Admin settings cannot turn this on by themselves. */
+    enabled: process.env.ESIM_ENABLED === 'true',
+    /** mock unless the string is exactly "live". Not stored in admin settings. */
+    providerMode: process.env.ESIM_PROVIDER_MODE === 'live' ? 'live' : 'mock',
+    /** Arms Airalo HTTP for this process. Mock card and phone flows do not read it. */
+    liveArm: process.env.ESIM_LIVE_ARM === 'true',
+  },
+  /** @deprecated eSIM Go removed from runtime. Kept only for local cleanup scripts. */
+  esimGo: {
+    baseUrl: process.env.ESIM_GO_BASE_URL?.trim() || 'https://api.esim-go.com/v2.5',
+    apiKey: process.env.ESIM_GO_API_KEY ?? '',
+  },
+  airalo: {
+    baseUrl: process.env.AIRALO_BASE_URL?.trim() || 'https://partners-api.airalo.com',
+    clientId: process.env.AIRALO_CLIENT_ID ?? '',
+    clientSecret: process.env.AIRALO_CLIENT_SECRET ?? '',
+    accountMode: process.env.AIRALO_ACCOUNT_MODE === 'production' ? 'production' : 'sandbox',
+  },
+  paypal: {
+    /** Feature flag. Default off. Cards/topup never read this. */
+    esimEnabled: process.env.PAYPAL_ESIM_ENABLED === 'true',
+    clientId: process.env.PAYPAL_CLIENT_ID ?? '',
+    clientSecret: process.env.PAYPAL_CLIENT_SECRET ?? '',
+    mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox',
+  },
   esale: {
     useMock: process.env.ESALE_USE_MOCK === 'true',
     cardApiUrl: process.env.ESALE_API_URL_CARD ?? process.env.ESALE_API_URL,
