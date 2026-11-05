@@ -84,7 +84,25 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
     }
   }
 
+  const esimLiveArmed =
+    isEnabledFlag(env.ESIM_ENABLED) &&
+    env.ESIM_PROVIDER_MODE === 'live' &&
+    isEnabledFlag(env.ESIM_LIVE_ARM);
+  if (esimLiveArmed && (!env.AIRALO_CLIENT_ID || !env.AIRALO_CLIENT_SECRET)) {
+    errors.push(
+      'AIRALO_CLIENT_ID and AIRALO_CLIENT_SECRET are required when eSIM live arm is on',
+    );
+  }
+
+  if (isEnabledFlag(env.PAYPAL_ESIM_ENABLED)) {
+    errors.push('PAYPAL_ESIM_ENABLED must stay off until PayPal eSIM checkout is live');
+  }
+
   if (errors.length > 0) {
     throw new Error(`Production environment validation failed:\n- ${errors.join('\n- ')}`);
   }
+}
+
+function isEnabledFlag(value: unknown): boolean {
+  return value === true || value === 'true';
 }
