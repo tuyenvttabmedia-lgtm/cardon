@@ -105,10 +105,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
-  const register = useCallback(async (payload: RegisterPayload) => {
-    // Server withholds session until email verification — do not auto-login.
-    return authApi.register(payload);
-  }, []);
+  const register = useCallback(
+    async (payload: RegisterPayload) => {
+      const result = await authApi.register(payload);
+      const me = await authApi.me();
+      setAuthSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: me,
+      });
+      setUser(me);
+      router.refresh();
+      return result;
+    },
+    [router],
+  );
 
   const logout = useCallback(() => {
     clearAuthSession();

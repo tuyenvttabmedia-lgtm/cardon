@@ -29,11 +29,7 @@ import {
   ResendVerificationDto,
   VerifyEmailDto,
 } from './dto/agent-register.dto';
-import {
-  AuthResult,
-  AuthUserSummary,
-  RegisterPendingResult,
-} from './interfaces/auth-result.interface';
+import { AuthResult, AuthUserSummary } from './interfaces/auth-result.interface';
 import { TokenService } from './token.service';
 import { MaintenanceAvailabilityService } from '../maintenance-center/services/maintenance-availability.service';
 import { ActivityEventDispatcher } from '../activity-event/activity-event-dispatcher.service';
@@ -59,7 +55,7 @@ export class AuthService {
     private readonly maintenanceAvailability: MaintenanceAvailabilityService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<RegisterPendingResult> {
+  async register(dto: RegisterDto): Promise<AuthResult> {
     this.maintenanceAvailability.assertLoginAllowed(UserRole.CUSTOMER);
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
@@ -100,6 +96,8 @@ export class AuthService {
           passwordHash,
           role: UserRole.CUSTOMER,
           status: UserStatus.ACTIVE,
+          // Retail customers (game/phone/topup) do not require email verification.
+          emailVerifiedAt: acceptedTermsAt,
           acceptedTermsAt,
         },
       });
@@ -113,20 +111,21 @@ export class AuthService {
       throw error;
     }
 
-    const verifyToken = await this.createEmailVerificationToken(user.id);
-    await this.notificationService.notifyUserRegister(
-      email,
-      verifyToken,
-      dto.fullName.trim(),
-    );
+    // Welcome email is optional; agents still use verify-email onboarding separately.
+    try {
+      const verifyToken = await this.createEmailVerificationToken(user.id);
+      await this.notificationService.notifyUserRegister(
+        email,
+        verifyToken,
+        dto.fullName.trim(),
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Customer welcome email failed for ${email}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
-    // No session until email is verified — blocks email-squat account use.
-    return {
-      requiresEmailVerification: true,
-      email,
-      message:
-        'Registration successful. Please check your email to verify your account before signing in.',
-    };
+    return this.issueAuthResult(user, undefined);
   }
 
   async login(dto: LoginDto, context?: ActivityRequestContext): Promise<AuthResult> {
@@ -188,10 +187,8 @@ export class AuthService {
       );
     }
 
-    if (
-      (user.role === UserRole.CUSTOMER || user.role === UserRole.AGENT) &&
-      user.emailVerifiedAt == null
-    ) {
+    // Email verification is required for agents only — not retail customers.
+    if (user.role === UserRole.AGENT && user.emailVerifiedAt == null) {
       await this.auditService.recordSecurityEvent({
         userId: user.id,
         action: AUDIT_ACTIONS.LOGIN_FAILED,
