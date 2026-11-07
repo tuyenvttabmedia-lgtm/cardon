@@ -13,6 +13,11 @@ const WORKER_NAMES = ['ProviderWorker', 'TopupWorker', 'EsimWorker'] as const;
  */
 async function scanRole(role: 'worker' | 'api', moduleFile: './worker.module' | './app.module', exportName: string) {
   process.env.APP_ROLE = role;
+  // ConfigModule validates on import; graph scan never connects to Redis/DB.
+  process.env.REDIS_URL ??= 'redis://127.0.0.1:6379';
+  process.env.JWT_SECRET ??= 'wave2-graph-test-jwt-secret-32chars!!';
+  process.env.ENCRYPTION_KEY ??= '0123456789abcdef0123456789abcdef';
+  process.env.DATABASE_URL ??= 'postgresql://cardon:cardon@127.0.0.1:5432/cardon';
   jest.resetModules();
   const imported = await import(moduleFile);
   const root = imported[exportName];
