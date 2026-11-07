@@ -10,6 +10,7 @@ export const HOME_SERVICE_ROOT_NAMES: Record<HomeServiceType, string> = {
   [HomeServiceType.PHONE_CARD]: 'Thẻ điện thoại',
   [HomeServiceType.TOPUP]: 'Nạp cước',
   [HomeServiceType.DATA]: 'Nạp Data',
+  [HomeServiceType.ESIM]: 'eSIM du lịch',
 };
 
 /** @deprecated Phase 6O31 — classification uses Category.homeService column. Kept for seed/repair scripts. */
@@ -18,6 +19,7 @@ export const HOME_SERVICE_ROOT_SLUGS: Record<HomeServiceType, string> = {
   [HomeServiceType.PHONE_CARD]: 'phone-card',
   [HomeServiceType.TOPUP]: 'topup',
   [HomeServiceType.DATA]: 'data',
+  [HomeServiceType.ESIM]: 'esim-test',
 };
 
 const ALLOWED_VARIANT_TYPES: Record<HomeServiceType, ProductVariantType[]> = {
@@ -25,6 +27,7 @@ const ALLOWED_VARIANT_TYPES: Record<HomeServiceType, ProductVariantType[]> = {
   [HomeServiceType.PHONE_CARD]: [ProductVariantType.CARD],
   [HomeServiceType.TOPUP]: [ProductVariantType.TOPUP],
   [HomeServiceType.DATA]: [ProductVariantType.DATA],
+  [HomeServiceType.ESIM]: [ProductVariantType.ESIM],
 };
 
 /** Legacy slug hints — migration/repair scripts only. */

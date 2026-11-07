@@ -180,12 +180,51 @@ export interface OrderTimelineStep {
   at: string | null;
 }
 
+export type EsimDeliveryKind = 'none' | 'waiting' | 'ready' | 'stuck';
+
+export interface EsimPackageSpec {
+  title: string | null;
+  dataAllowanceLabel: string | null;
+  validityLabel: string | null;
+  activationLabel: string | null;
+  fupClear: boolean | null;
+  fairUsagePolicy: string | null;
+  catalogueLifecycle: string | null;
+  specSource: 'catalogue_current';
+  notice: string;
+}
+
+export interface EsimDelivery {
+  kind: EsimDeliveryKind;
+  destination: string;
+  packageName: string | null;
+  testData: boolean;
+  sandboxAccount?: boolean;
+  notice: string | null;
+  installSecret: string | null;
+  qrSvg: string | null;
+  appleSetupUrl: string | null;
+  canRevealInstallSecret?: boolean;
+  packageSpec?: EsimPackageSpec | null;
+  id?: string | null;
+  orderId?: string;
+  orderCode?: string;
+  createdAt?: string;
+}
+
+export interface EsimInstallReveal {
+  installSecret: string;
+  qrSvg: string | null;
+  appleSetupUrl: string | null;
+}
+
 export interface OrderDeliveryResponse {
   order: Order;
   timeline: OrderTimelineStep[];
   delivery: {
     cards: CardSummary[];
     hasCards: boolean;
+    esim?: EsimDelivery;
   };
 }
 
@@ -234,6 +273,8 @@ export interface CreateOrderPayload {
   guestPhone?: string;
   customerNote?: string;
   paymentMethodCode?: string;
+  /** eSIM only: VN = SePay VND, INTL = PayPal USD */
+  market?: 'VN' | 'INTL';
   clientDeviceInfo?: Record<string, unknown>;
 }
 

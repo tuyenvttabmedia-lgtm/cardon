@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -32,6 +33,7 @@ import {
   AdminOrderQueryDto,
   AdminPaymentQueryDto,
   AdminProviderTransactionQueryDto,
+  CloseEsimQueryClaimDto,
   OrderManualRecoveryDto,
   ProviderRuntimeSettingsDto,
   ProviderAlertSettingsDto,
@@ -40,7 +42,17 @@ import {
   AdminUpdateAgentDto,
   ResolvePaymentReviewDto,
 } from '../dto/admin.dto';
+import {
+  AdminRefundRequestQueryDto,
+  CompleteRefundAttemptDto,
+  CreateRefundRequestDto,
+  ExecuteRefundRequestDto,
+  FailRefundAttemptDto,
+  ReconcileRefundAttemptDto,
+  UnconfirmRefundAttemptDto,
+} from '../dto/refund-request.dto';
 import { ADMIN_PERMISSIONS } from '../entities/admin.constants';
+import { IDEMPOTENCY_KEY_HEADER } from '../../payment/entities/payment.constants';
 import { AdminAgentService } from '../services/admin-agent.service';
 import { AdminAuditLogService } from '../services/admin-audit-log.service';
 import { AdminDashboardService } from '../services/admin-dashboard.service';
@@ -48,6 +60,7 @@ import { AdminOrderService } from '../services/admin-order.service';
 import { AdminOrderDetailService } from '../services/admin-order-detail.service';
 import { AdminPaymentService } from '../services/admin-payment.service';
 import { AdminProviderService } from '../services/admin-provider.service';
+import { RefundRequestService } from '../services/refund-request.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -61,6 +74,7 @@ export class AdminController {
     private readonly agentService: AdminAgentService,
     private readonly auditLogService: AdminAuditLogService,
     private readonly activityDispatcher: ActivityEventDispatcher,
+    private readonly refundRequests: RefundRequestService,
   ) {}
 
   @Get('dashboard')
@@ -115,6 +129,140 @@ export class AdminController {
     @Body() dto: OrderManualRecoveryDto,
   ) {
     return this.orderService.manualRecovery(user.id, id, dto);
+  }
+
+  @Post('orders/:id/refunds')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_REQUEST)
+  createRefundRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateRefundRequestDto,
+  ) {
+    return this.refundRequests.createForOrder(user.id, id, dto);
+  }
+
+  @Get('refund-requests')
+  @Permissions(
+    ADMIN_PERMISSIONS.REFUND_REQUEST,
+    ADMIN_PERMISSIONS.REFUND_APPROVE,
+    ADMIN_PERMISSIONS.REFUND_EXECUTE,
+    ADMIN_PERMISSIONS.REFUND_RECONCILE,
+  )
+  listRefundRequests(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: AdminRefundRequestQueryDto,
+  ) {
+    return this.refundRequests.list(user.id, query);
+  }
+
+  @Get('refund-requests/:id')
+  @Permissions(
+    ADMIN_PERMISSIONS.REFUND_REQUEST,
+    ADMIN_PERMISSIONS.REFUND_APPROVE,
+    ADMIN_PERMISSIONS.REFUND_EXECUTE,
+    ADMIN_PERMISSIONS.REFUND_RECONCILE,
+  )
+  getRefundRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.refundRequests.getById(user.id, id);
+  }
+
+  @Post('refund-requests/:id/approve')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_APPROVE)
+  approveRefundRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.refundRequests.approve(user.id, id);
+  }
+
+  @Post('refund-requests/:id/cancel')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_REQUEST, ADMIN_PERMISSIONS.REFUND_APPROVE)
+  cancelRefundRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.refundRequests.cancel(user.id, id);
+  }
+
+  @Post('refund-requests/:id/esim-review/clear')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_APPROVE)
+  clearRefundEsimReview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.refundRequests.clearEsimReview(user.id, id);
+  }
+
+  @Post('refund-requests/:id/execute')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_EXECUTE)
+  executeRefundRequest(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string,
+    @Body() dto: ExecuteRefundRequestDto,
+  ) {
+    return this.refundRequests.execute(user.id, id, {
+      amount: dto?.amount,
+      idempotencyKey,
+    });
+  }
+
+  @Post('refund-attempts/:id/complete')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_EXECUTE)
+  completeRefundAttempt(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteRefundAttemptDto,
+  ) {
+    return this.refundRequests.complete(user.id, id, dto);
+  }
+
+  @Post('refund-attempts/:id/fail')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_EXECUTE)
+  failRefundAttempt(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: FailRefundAttemptDto,
+  ) {
+    return this.refundRequests.fail(user.id, id, dto);
+  }
+
+  @Post('refund-attempts/:id/unconfirm')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_EXECUTE)
+  unconfirmRefundAttempt(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UnconfirmRefundAttemptDto,
+  ) {
+    return this.refundRequests.markUnconfirmed(user.id, id, dto ?? {});
+  }
+
+  @Post('refund-attempts/:id/reconcile')
+  @Permissions(ADMIN_PERMISSIONS.REFUND_RECONCILE)
+  reconcileRefundAttempt(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReconcileRefundAttemptDto,
+  ) {
+    return this.refundRequests.reconcile(user.id, id, dto);
+  }
+
+  @Post('orders/:id/esim-query-claims/close')
+  @Permissions('orders.retry')
+  closeEsimQueryClaim(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CloseEsimQueryClaimDto,
+  ) {
+    return this.orderService.closeEsimQueryClaim(user.id, {
+      orderId: id,
+      queryAttemptId: dto.queryAttemptId,
+      createAttemptId: dto.createAttemptId,
+      reason: dto.reason,
+    });
   }
 
   @Get('payments/manual-review')

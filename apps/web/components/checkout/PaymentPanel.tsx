@@ -137,29 +137,31 @@ export function SepayQrDisplay({
   const [error, setError] = useState(false);
 
   return (
-    <div className="h-full rounded-2xl border border-cardon-border bg-white p-5 text-center shadow-card sm:p-8">
+    <div className="flex h-full w-full flex-col rounded-2xl border border-cardon-border bg-white p-4 text-center shadow-card sm:p-6 lg:p-8">
       <p className="text-base font-semibold text-cardon-navy sm:text-lg">Quét mã QR để thanh toán</p>
-      <p className="mt-1 text-sm text-cardon-gray">
+      <p className="mt-1 text-xs text-cardon-gray sm:text-sm">
         Chuyển đúng số tiền. Nội dung / tài khoản VA đã gắn với đơn hàng.
       </p>
-      <div className="relative mx-auto mt-5 aspect-square w-full max-w-[300px] sm:max-w-[360px]">
-        {!error ? (
-          <Image
-            src={paymentUrl}
-            alt="Mã QR chuyển khoản"
-            fill
-            className="object-contain"
-            unoptimized
-            onError={() => setError(true)}
-          />
-        ) : (
-          <p className="flex h-full items-center justify-center text-sm text-red-600">
-            Không tải được QR.
-          </p>
-        )}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
+        <div className="relative aspect-square w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px]">
+          {!error ? (
+            <Image
+              src={paymentUrl}
+              alt="Mã QR chuyển khoản"
+              fill
+              className="object-contain"
+              unoptimized
+              onError={() => setError(true)}
+            />
+          ) : (
+            <p className="flex h-full items-center justify-center text-sm text-red-600">
+              Không tải được QR.
+            </p>
+          )}
+        </div>
       </div>
       {bankInfo?.accountNumber ? (
-        <div className="mt-5 space-y-1.5 rounded-xl bg-cardon-light px-4 py-3 text-left text-sm sm:px-5 sm:py-4">
+        <div className="mt-auto space-y-1.5 rounded-xl bg-cardon-light px-3.5 py-3 text-left text-sm sm:px-5 sm:py-4">
           {bankInfo.bankName || bankInfo.bankCode ? (
             <p>
               <span className="text-cardon-gray">Ngân hàng: </span>
@@ -170,7 +172,9 @@ export function SepayQrDisplay({
           ) : null}
           <p>
             <span className="text-cardon-gray">Số TK VA: </span>
-            <span className="font-semibold text-cardon-navy">{bankInfo.accountNumber}</span>
+            <span className="break-all font-semibold text-cardon-navy">
+              {bankInfo.accountNumber}
+            </span>
           </p>
           {bankInfo.accountName ? (
             <p>

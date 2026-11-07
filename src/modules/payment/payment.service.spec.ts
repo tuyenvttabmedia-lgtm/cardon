@@ -154,6 +154,17 @@ describe('PaymentService', () => {
     expect(paymentAuditService.recordPaymentCreated).toHaveBeenCalled();
   });
 
+  it('rejects payment create when the JWT owner does not match the order', async () => {
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-other',
+        { id: 'other-user', email: 'o@test.com', role: 'CUSTOMER' },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('returns same payment for duplicate idempotency key', async () => {
     paymentRepository.findByIdempotencyKey.mockResolvedValue({
       id: 'pay-existing',

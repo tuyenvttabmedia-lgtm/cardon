@@ -175,14 +175,27 @@ function CheckoutShellInner({
   } | null>(null);
 
   const {
-    methods: paymentMethods,
+    methods: allPaymentMethods,
     paymentMethodCode,
     setPaymentMethodCode,
     selectedMethod,
     gateway,
     setGateway,
-    hasMethods: hasPaymentMethods,
   } = usePaymentMethods();
+  /** Cards/topup/data stay on MegaPay. eSIM VN uses SePay on its own pages. */
+  const paymentMethods = useMemo(
+    () => allPaymentMethods.filter((method) => method.gatewayCode === 'MEGAPAY' && method.enabled),
+    [allPaymentMethods],
+  );
+  const hasPaymentMethods = paymentMethods.length > 0;
+
+  useEffect(() => {
+    if (paymentMethods.length === 0) return;
+    if (paymentMethodCode && paymentMethods.some((m) => m.methodCode === paymentMethodCode)) {
+      return;
+    }
+    setPaymentMethodCode(paymentMethods[0].methodCode);
+  }, [paymentMethods, paymentMethodCode, setPaymentMethodCode]);
 
   const dataReady = siteConfig?.data?.ready ?? false;
   const topupReady = siteConfig?.topup?.ready ?? false;

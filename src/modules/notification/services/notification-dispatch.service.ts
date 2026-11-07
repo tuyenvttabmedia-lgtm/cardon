@@ -165,6 +165,9 @@ export class NotificationDispatchService {
       EMAIL_TEMPLATE.ORDER_SUCCESS,
       EMAIL_TEMPLATE.TOPUP_SUCCESS,
       EMAIL_TEMPLATE.DATA_SUCCESS,
+      EMAIL_TEMPLATE.ESIM_READY,
+      EMAIL_TEMPLATE.ESIM_TEST_READY,
+      EMAIL_TEMPLATE.ESIM_SANDBOX_READY,
     ]);
 
     if (!orderId || !orderTemplates.has(template as never)) {
@@ -182,14 +185,17 @@ export class NotificationDispatchService {
     const customerName =
       order.user?.email?.split('@')[0] ?? order.guestEmail?.split('@')[0] ?? 'Quý khách';
 
+    const publicUrl = this.configService.get<string>('appPublicUrl') ?? 'https://cardon.vn';
+    const { installSecret: _omitSecret, ...safePayload } = payload;
     const enriched: Record<string, unknown> = {
-      ...payload,
+      ...safePayload,
       orderCode: order.orderCode,
       customerName,
       items,
       total: order.totalAmount.toFixed(0),
       amount: order.totalAmount.toFixed(0),
       totalAmount: order.totalAmount.toFixed(2),
+      accountUrl: `${publicUrl.replace(/\/$/, '')}/tai-khoan/esim`,
     };
 
     if (

@@ -15,6 +15,7 @@ const LINKS = [
   { href: ACCOUNT_PATHS.profile, label: 'Thông tin tài khoản', icon: '👤' },
   { href: ACCOUNT_PATHS.orders, label: 'Lịch sử giao dịch', icon: '📋' },
   { href: ACCOUNT_PATHS.cards, label: 'Thẻ đã mua', icon: '💳' },
+  { href: ACCOUNT_PATHS.esim, label: 'eSIM', icon: '📶' },
   { href: ACCOUNT_PATHS.topups, label: 'Nạp cước', icon: '⚡' },
   { href: ACCOUNT_PATHS.data, label: 'Nạp Data', icon: '📶', requiresData: true },
   { href: ACCOUNT_PATHS.support, label: 'Hỗ trợ', icon: '🎧' },

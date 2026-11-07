@@ -12,6 +12,32 @@ import {
 } from './order-revenue-reconcile.engine';
 
 describe('order-revenue-reconcile.engine', () => {
+  it('does not require provider SUCCESS when the order has no card or topup item', () => {
+    const issues = detectOrderRevenueIssues({
+      orders: [
+        {
+          id: 'o-esim',
+          orderCode: 'ORD-ESIM',
+          channel: OrderChannel.B2C,
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.COMPLETED,
+          totalAmount: '150000.00',
+          paymentReference: 'PAY-ESIM',
+          paymentStatusRecord: PaymentRecordStatus.SUCCESS,
+          hasCardOrTopupItem: false,
+          latestProviderStatus: null,
+          latestProviderRequestId: null,
+          isSandbox: false,
+        },
+      ],
+      payments: [],
+    });
+
+    expect(
+      issues.some((issue) => issue.issueCode === 'COMPLETED_ORDER_MISSING_PROVIDER_SUCCESS'),
+    ).toBe(false);
+  });
+
   it('flags a paid B2C order without a SUCCESS payment record', () => {
     const issues = detectOrderRevenueIssues({
       orders: [

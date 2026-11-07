@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentGatewayCode } from '@prisma/client';
 import { MegaPayProvider } from './megapay/megapay.provider';
+import { PaypalProvider } from './paypal/paypal.provider';
 import { SePayProvider } from './sepay/sepay.provider';
 import { PaymentProviderInterface } from './payment-provider.interface';
 
@@ -11,10 +12,12 @@ export class PaymentProviderRegistry {
   constructor(
     megapayProvider: MegaPayProvider,
     sepayProvider: SePayProvider,
+    paypalProvider: PaypalProvider,
   ) {
     this.providers = new Map<PaymentGatewayCode, PaymentProviderInterface>([
       [PaymentGatewayCode.MEGAPAY, megapayProvider],
       [PaymentGatewayCode.SEPAY, sepayProvider],
+      [PaymentGatewayCode.PAYPAL, paypalProvider],
     ]);
   }
 

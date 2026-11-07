@@ -29,7 +29,10 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
       {NAV_ITEMS.filter((item) =>
         canAccessNavItem(item, permissions, user?.role ?? ''),
       ).map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active =
+          item.href === '/orders'
+            ? pathname === '/orders' || /^\/orders\/[^/]+$/.test(pathname)
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}
@@ -297,6 +300,26 @@ export function RequirePermission({
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
         <p className="font-medium text-amber-900">403 — {vi.app.noPermission}</p>
         <p className="mt-1 text-sm text-amber-800">Quyền: {permission}</p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
+export function RequireAnyPermission({
+  permissions,
+  children,
+}: {
+  permissions: string[];
+  children: React.ReactNode;
+}) {
+  const { can, loading } = useAuth();
+  if (loading) return <p className="text-slate-500">Đang tải...</p>;
+  if (!permissions.some((permission) => can(permission))) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6">
+        <p className="font-medium text-amber-900">403 — {vi.app.noPermission}</p>
+        <p className="mt-1 text-sm text-amber-800">Quyền: {permissions.join(', ')}</p>
       </div>
     );
   }

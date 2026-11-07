@@ -206,6 +206,28 @@ export class OrderController {
 
 
 
+  @Post(':id/esim/reveal')
+
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+
+  @UseGuards(OptionalJwtAuthGuard)
+
+  revealEsim(
+
+    @Param('id', ParseUUIDPipe) id: string,
+
+    @Body() dto: RevealPinDto,
+
+    @CurrentUser() user?: AuthenticatedUser,
+
+  ) {
+
+    return this.orderDeliveryService.revealEsimInstall(id, user, dto.email);
+
+  }
+
+
+
   @Get(':id/cards')
 
   @UseGuards(JwtAuthGuard)

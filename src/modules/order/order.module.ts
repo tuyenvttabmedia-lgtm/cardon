@@ -11,15 +11,20 @@ import { OrderAuditService } from './services/order-audit.service';
 import { OrderDeliveryService } from './services/order-delivery.service';
 import { OrderExpirationService } from './services/order-expiration.service';
 import { OrderService } from './services/order.service';
+import { EsimModule } from '../esim/esim.module';
+import { SettingsModule } from '../settings/settings.module';
 
 @Module({
   imports: [
     AuthModule,
     ProductModule,
     ProviderModule,
+    SettingsModule,
     OrderEventModule,
     MaintenanceCenterModule,
     forwardRef(() => NotificationModule),
+    /** Required so OrderService can delegate eSIM creates to EsimOrderService. */
+    forwardRef(() => EsimModule),
   ],
   controllers: [OrderController],
   providers: [

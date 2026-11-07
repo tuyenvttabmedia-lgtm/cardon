@@ -13,6 +13,7 @@ import { SepayConfigService } from './sepay.config';
 import {
   buildSepayPgCheckoutFields,
   getSepayPgCheckoutUrl,
+  querySepayPgOrder,
 } from './sepay.pg';
 import { buildSepayQrUrl } from './sepay.qr';
 import {
@@ -225,6 +226,42 @@ export class SePayProvider implements PaymentProviderInterface {
   }
 
   async queryTransaction(reference: string): Promise<ProviderTransactionStatus> {
+    const config = this.configService.getConfig();
+    if (
+      config.mode === 'payment_gateway' &&
+      config.merchantId &&
+      config.merchantSecretKey
+    ) {
+      try {
+        const queried = await querySepayPgOrder({
+          environment: config.environment ?? 'sandbox',
+          merchantId: config.merchantId,
+          merchantSecretKey: config.merchantSecretKey,
+          invoiceNumber: reference,
+        });
+        const amountNum = queried.amount != null ? Number(queried.amount) : NaN;
+        const amount = Number.isFinite(amountNum)
+          ? formatSepayAmount(amountNum)
+          : '0.00';
+        this.logSafe('queryTransaction', {
+          paymentReference: reference,
+          amount: Number(amount),
+          status: queried.status,
+        });
+        return {
+          paymentReference: reference,
+          status: queried.status,
+          amount,
+        };
+      } catch (error) {
+        this.logger.warn(
+          `SePay PG query failed payment_reference=${reference} error=${
+            error instanceof Error ? error.message : 'unknown'
+          }`,
+        );
+      }
+    }
+
     this.logSafe('queryTransaction', {
       paymentReference: reference,
       amount: undefined,

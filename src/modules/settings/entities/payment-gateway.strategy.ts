@@ -1,10 +1,14 @@
 export type MvpPaymentGatewayCode = 'MEGAPAY' | 'SEPAY';
 
+/** PayPal is eSIM-international only — never a card/topup MVP gateway. */
+export type EsimInternationalGatewayCode = 'PAYPAL';
+
 export type FuturePaymentGatewayCode =
   | 'PAYOS'
   | 'VNPAY'
   | 'MOMO'
-  | 'ZALOPAY';
+  | 'ZALOPAY'
+  | EsimInternationalGatewayCode;
 
 export type PaymentGatewayCode = MvpPaymentGatewayCode | FuturePaymentGatewayCode;
 

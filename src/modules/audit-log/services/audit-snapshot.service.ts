@@ -46,10 +46,25 @@ export class AuditSnapshotService {
           resourceName: code,
         };
       }
+      case AuditSnapshotKey.PAYMENT_PAYPAL:
+        return {
+          data: this.settingsStore.getPaypalAdminView(),
+          resourceName: 'PayPal eSIM',
+        };
       case AuditSnapshotKey.PROVIDER_ESALE:
         return {
           data: this.settingsStore.getEsaleAdminView(),
           resourceName: 'eSale Provider',
+        };
+      case AuditSnapshotKey.PROVIDER_ESIM_GO:
+        return {
+          data: this.settingsStore.getEsimGoAdminView(),
+          resourceName: 'eSIM Go',
+        };
+      case AuditSnapshotKey.PROVIDER_AIRALO:
+        return {
+          data: this.settingsStore.getAiraloAdminView(),
+          resourceName: 'Airalo',
         };
       case AuditSnapshotKey.SMTP:
         return { data: this.settingsStore.getSmtpAdminView(), resourceName: 'SMTP' };

@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { ESIM_AIRALO_PROVIDER_CODE, ESIM_GO_PROVIDER_CODE } from '../../esim/esim.constants';
 
 import {
 
@@ -76,7 +77,10 @@ export class AdminProviderService {
 
   async getProvidersStatus() {
 
-    const providers = await this.repository.listProviderStatus();
+    const providers = (await this.repository.listProviderStatus()).filter(
+      (provider) =>
+        provider.code !== ESIM_GO_PROVIDER_CODE && provider.code !== ESIM_AIRALO_PROVIDER_CODE,
+    );
 
 
 
@@ -312,7 +316,8 @@ export class AdminProviderService {
 
   async checkBalance(providerId: string) {
 
-    await this.requireProvider(providerId);
+    const provider = await this.requireProvider(providerId);
+    this.assertCardProvider(provider.code);
 
     const result = await this.providerHealthService.syncProviderBalance(providerId);
 
@@ -335,6 +340,7 @@ export class AdminProviderService {
   async syncProducts(providerId: string) {
 
     const provider = await this.requireProvider(providerId);
+    this.assertCardProvider(provider.code);
 
     const adapter = this.providerRegistry.getAdapter(provider.code);
 
@@ -423,6 +429,7 @@ export class AdminProviderService {
   async testConnection(providerId: string) {
 
     const provider = await this.requireProvider(providerId);
+    this.assertCardProvider(provider.code);
 
     const adapter = this.providerRegistry.getAdapter(provider.code);
 
@@ -593,6 +600,14 @@ export class AdminProviderService {
   }
 
 
+
+  private assertCardProvider(code: string) {
+    if (code === ESIM_GO_PROVIDER_CODE || code === ESIM_AIRALO_PROVIDER_CODE) {
+      throw new BadRequestException(
+        'Travel eSIM providers are configured separately and are not eSale providers',
+      );
+    }
+  }
 
   private async requireProvider(providerId: string) {
 

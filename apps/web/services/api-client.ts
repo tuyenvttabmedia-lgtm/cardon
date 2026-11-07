@@ -234,7 +234,7 @@ export const accountApi = {
   },
   listOrders(
     tab: 'all' | 'processing' | 'completed' = 'all',
-    type?: 'CARD' | 'TOPUP' | 'DATA',
+    type?: 'CARD' | 'TOPUP' | 'DATA' | 'ESIM',
     skip = 0,
     take = 15,
   ) {
@@ -247,6 +247,12 @@ export const accountApi = {
     return apiRequest<import('@/types/api').PaginatedList<AccountOrder>>(
       `/account/orders${qs ? `?${qs}` : ''}`,
     );
+  },
+  listEsimProfiles() {
+    return apiRequest<import('@/types/api').EsimDelivery[]>('/esim/profiles');
+  },
+  getEsimProfile(orderId: string) {
+    return apiRequest<import('@/types/api').EsimDelivery>(`/esim/profiles/${orderId}`);
   },
   listCards(skip = 0, take = 15) {
     const params = new URLSearchParams();
@@ -370,6 +376,13 @@ export const orderApi = {
       },
     );
   },
+  revealEsim(orderId: string, guestEmail?: string) {
+    return apiRequest<import('@/types/api').EsimInstallReveal>(`/orders/${orderId}/esim/reveal`, {
+      method: 'POST',
+      body: guestEmail ? { email: guestEmail } : {},
+      auth: !guestEmail,
+    });
+  },
   getById(id: string) {
     return apiRequest<Order>(`/orders/${id}`);
   },
@@ -394,5 +407,13 @@ export const paymentApi = {
       body: payload,
       headers: { 'idempotency-key': idempotencyKey },
     });
+  },
+  syncFromGateway(orderId: string) {
+    return apiRequest<{
+      paymentReference: string;
+      status: string;
+      synced: boolean;
+      manualReview?: boolean;
+    }>(`/payments/orders/${orderId}/sync`, { method: 'POST' });
   },
 };

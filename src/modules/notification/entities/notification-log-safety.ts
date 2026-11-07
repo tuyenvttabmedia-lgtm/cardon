@@ -6,6 +6,19 @@ const SENSITIVE_LOG_PATTERNS = [
   /password[_-]?reset/i,
   /secretKey/i,
   /apiKey/i,
+  /installSecret/i,
+  /install[_-]?secret/i,
+  /activationCode/i,
+  /activation[_-]?code/i,
+  /matchingId/i,
+  /qrSvg/i,
+];
+
+/** eSIM LPA / mock install material that must never appear in logs. */
+const ESIM_INSTALL_CONTENT_PATTERNS = [
+  /\bLPA:\d\$/i,
+  /TEST-ESIM-NOT-REAL/i,
+  /:\d\$[^$\s]+\$[^$\s]+/,
 ];
 
 export function sanitizeNotificationLogContext(
@@ -32,6 +45,9 @@ export function sanitizeNotificationLogContext(
 
 export function containsSensitiveContent(text: string): boolean {
   if (/\b\d{4,}\b/.test(text) && /\bpin\b/i.test(text)) {
+    return true;
+  }
+  if (ESIM_INSTALL_CONTENT_PATTERNS.some((pattern) => pattern.test(text))) {
     return true;
   }
   return SENSITIVE_LOG_PATTERNS.some((pattern) => pattern.test(text));

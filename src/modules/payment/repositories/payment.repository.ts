@@ -42,6 +42,14 @@ export class PaymentRepository {
     });
   }
 
+  findLatestByOrderId(orderId: string) {
+    return this.prisma.payment.findFirst({
+      where: { orderId, ...ACTIVE_PAYMENT_WHERE },
+      include: { order: true },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   findPendingExpired(now: Date) {
     return this.prisma.payment.findMany({
       where: {

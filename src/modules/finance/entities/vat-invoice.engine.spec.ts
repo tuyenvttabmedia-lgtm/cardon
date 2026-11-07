@@ -7,6 +7,7 @@ import {
   mapHomeServiceToVatLine,
   roundVnd,
   splitInclusiveVat,
+  VAT_RATE_BY_LINE,
   vatRateForLine,
   vndInWords,
 } from './vat-invoice.engine';
@@ -17,6 +18,30 @@ describe('vat-invoice.engine', () => {
     expect(vatRateForLine('TOPUP')).toBe(0.1);
     expect(vatRateForLine('PHONE_CARD')).toBe(0.1);
     expect(vatRateForLine('GAME_CARD')).toBe(0.08);
+    expect(mapHomeServiceToVatLine('DATA')).toBe('DATA');
+    expect(mapHomeServiceToVatLine('ESIM')).toBe('OTHER');
+    expect(['GAME_CARD', 'PHONE_CARD', 'TOPUP', 'DATA']).not.toContain(
+      mapHomeServiceToVatLine('ESIM'),
+    );
+  });
+
+  it('keeps the current legacy homeService lines', () => {
+    expect(mapHomeServiceToVatLine('GAME_CARD')).toBe('GAME_CARD');
+    expect(mapHomeServiceToVatLine('PHONE_CARD')).toBe('PHONE_CARD');
+    expect(mapHomeServiceToVatLine('TOPUP')).toBe('TOPUP');
+    expect(mapHomeServiceToVatLine('DATA')).toBe('DATA');
+    expect(vatRateForLine('GAME_CARD')).toBe(VAT_RATE_BY_LINE.GAME_CARD);
+    expect(vatRateForLine('PHONE_CARD')).toBe(VAT_RATE_BY_LINE.PHONE_CARD);
+    expect(vatRateForLine('TOPUP')).toBe(VAT_RATE_BY_LINE.TOPUP);
+    expect(vatRateForLine('DATA')).toBe(VAT_RATE_BY_LINE.DATA);
+  });
+
+  it('maps ESIM to OTHER as the current technical default, not an approved tax rule', () => {
+    const line = mapHomeServiceToVatLine('ESIM');
+    expect(line).toBe('OTHER');
+    expect(['GAME_CARD', 'PHONE_CARD', 'TOPUP', 'DATA']).not.toContain(line);
+    expect(vatRateForLine(line)).toBe(0.1);
+    expect(VAT_RATE_BY_LINE.OTHER).toBe(0.1);
   });
 
   it('supplier Viettel topup 20k @ 1.8% → payable 19640', () => {

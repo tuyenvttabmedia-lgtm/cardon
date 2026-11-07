@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Req,
@@ -36,6 +38,10 @@ import {
   UpdatePaymentStrategyDto,
   UpdatePaymentGatewayRuntimeDto,
   UpdateProviderEsaleDto,
+  UpdateProviderAiraloDto,
+  UpdateAiraloPackageLifecycleDto,
+  UpdatePaymentPaypalDto,
+  UpdateProviderEsimGoDto,
   UpdateSmtpSettingsDto,
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
@@ -189,6 +195,91 @@ export class SettingsAdminController {
     @Body() dto: UpdateProviderEsaleDto,
   ) {
     return this.settingsAdminService.updateProviderEsale(user.id, dto);
+  }
+
+  @Get('provider/esim-go')
+  getEsimGo() {
+    return this.settingsAdminService.getProviderEsimGo();
+  }
+
+  @Put('provider/esim-go')
+  @Audit({
+    resource: SystemAuditResource.PROVIDER,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PROVIDER_ESIM_GO,
+    detectEnableDisable: false,
+  })
+  updateEsimGo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProviderEsimGoDto,
+  ) {
+    return this.settingsAdminService.updateProviderEsimGo(user.id, dto);
+  }
+
+  @Post('provider/esim-go/test-catalogue')
+  testEsimGoCatalogue() {
+    return this.settingsAdminService.testEsimGoCatalogue();
+  }
+
+  @Get('provider/airalo')
+  getAiralo() {
+    return this.settingsAdminService.getProviderAiralo();
+  }
+
+  @Put('provider/airalo')
+  @Audit({
+    resource: SystemAuditResource.PROVIDER,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PROVIDER_AIRALO,
+    detectEnableDisable: false,
+  })
+  updateAiralo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProviderAiraloDto,
+  ) {
+    return this.settingsAdminService.updateProviderAiralo(user.id, dto);
+  }
+
+  @Post('provider/airalo/test-catalogue')
+  testAiraloCatalogue() {
+    return this.settingsAdminService.testAiraloCatalogue();
+  }
+
+  @Get('provider/airalo/catalogue')
+  listAiraloCatalogue() {
+    return this.settingsAdminService.listAiraloCatalogue();
+  }
+
+  @Post('provider/airalo/import')
+  importAiraloCatalogue() {
+    return this.settingsAdminService.importAiraloCatalogue();
+  }
+
+  @Patch('provider/airalo/packages/:id')
+  setAiraloPackageLifecycle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAiraloPackageLifecycleDto,
+  ) {
+    return this.settingsAdminService.setAiraloPackageLifecycle(id, dto);
+  }
+
+  @Get('payment/paypal')
+  getPaypal() {
+    return this.settingsAdminService.getPaymentPaypal();
+  }
+
+  @Put('payment/paypal')
+  @Audit({
+    resource: SystemAuditResource.PAYMENT_GATEWAY,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PAYMENT_PAYPAL,
+    detectEnableDisable: true,
+  })
+  updatePaypal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdatePaymentPaypalDto,
+  ) {
+    return this.settingsAdminService.updatePaymentPaypal(user.id, dto);
   }
 
   @Post('provider/esale/test-connection')

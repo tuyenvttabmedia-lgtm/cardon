@@ -4,6 +4,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UnauthorizedException,
@@ -15,6 +16,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Request } from 'express';
 import { Public } from '../../../common/decorators/public.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentDepositWebhookService } from '../../agent-deposit/services/agent-deposit-webhook.service';
@@ -47,6 +49,16 @@ export class PaymentController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.paymentService.createPayment(dto, idempotencyKey, user);
+  }
+
+  @Post('orders/:orderId/sync')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  syncFromGateway(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.paymentService.syncFromGateway(orderId, user);
   }
 
   @Post('webhook/:gateway')

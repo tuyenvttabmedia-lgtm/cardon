@@ -1,10 +1,29 @@
 import {
   computeMarginPrice,
+  DEFAULT_AGENT_MARGIN_CONFIG,
   computePreviewPrice,
 } from './agent-margin.constants';
 
 describe('computeMarginPrice (face-based CK)', () => {
   const roundTo = 100;
+
+  it('keeps legacy margin rules separate from the zero eSIM rule', () => {
+    expect(DEFAULT_AGENT_MARGIN_CONFIG.services.GAME_CARD).toEqual({
+      marginType: 'PERCENT',
+      value: 0.5,
+    });
+    expect(DEFAULT_AGENT_MARGIN_CONFIG.services.PHONE_CARD.value).toBe(0.5);
+    expect(DEFAULT_AGENT_MARGIN_CONFIG.services.TOPUP.value).toBe(0.3);
+    expect(DEFAULT_AGENT_MARGIN_CONFIG.services.DATA.value).toBe(0.3);
+    expect(DEFAULT_AGENT_MARGIN_CONFIG.services.ESIM.value).toBe(0);
+    const cardPrice = computeMarginPrice(
+      9700,
+      10000,
+      DEFAULT_AGENT_MARGIN_CONFIG.services.GAME_CARD,
+      roundTo,
+    );
+    expect(cardPrice).toBe(9800);
+  });
 
   it('PHONE_CARD: NCC 3% CK, CardOn 1% → agent 9800', () => {
     const price = computeMarginPrice(

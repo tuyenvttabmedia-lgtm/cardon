@@ -1,3 +1,4 @@
+import { esimDeliveryNotice } from '../../esim/esim-delivery.view';
 import { EmailTemplateType } from '../entities/notification.constants';
 import { formatCardDeliveryEmailBlocks } from './card-delivery-email.format';
 
@@ -80,6 +81,29 @@ export function renderEmailTemplate(
         html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Đơn nạp data ${escapeHtml(String(data.orderCode ?? ''))} đã được nhà mạng xác nhận.</p>`,
         text: `Nạp data thành công — đơn ${String(data.orderCode ?? '')}`,
       };
+    case 'ESIM_TEST_READY':
+      return {
+        subject: `eSIM mô phỏng đã lưu — đơn ${String(data.orderCode ?? '')}`,
+        html: `<p>Hồ sơ eSIM mô phỏng nội bộ của đơn ${escapeHtml(String(data.orderCode ?? ''))} đã được lưu.</p><p>Không cài lên thiết bị thật. Xem trong tài khoản. Email này không chứa mã cài đặt.</p>`,
+        text: `Hồ sơ eSIM mô phỏng nội bộ của đơn ${String(data.orderCode ?? '')} đã lưu. Không cài lên thiết bị thật. Xem trong tài khoản. Không có mã cài đặt trong email.`,
+      };
+    case 'ESIM_SANDBOX_READY': {
+      const sandboxAccountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
+      const sandboxNotice = esimDeliveryNotice('ready', false, true) ?? '';
+      return {
+        subject: `[TEST] Mã cài eSIM đã sẵn sàng — đơn ${String(data.orderCode ?? '')}`,
+        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng trên CardOn.</p><p>${escapeHtml(sandboxNotice)}</p><p>Mở tài khoản CardOn để xem mã cài và hướng dẫn: <a href="${sandboxAccountUrl}">${sandboxAccountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
+        text: `[TEST] Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng trên CardOn. ${sandboxNotice} Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
+      };
+    }
+    case 'ESIM_READY': {
+      const accountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
+      return {
+        subject: `Mã cài eSIM đã sẵn sàng — đơn ${String(data.orderCode ?? '')}`,
+        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng.</p><p>Mở tài khoản CardOn để xem mã QR và hướng dẫn cài: <a href="${accountUrl}">${accountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
+        text: `Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng. Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
+      };
+    }
     case 'AGENT_APPROVED': {
       const loginUrl = escapeHtml(String(data.partnerLoginUrl ?? ''));
       return {

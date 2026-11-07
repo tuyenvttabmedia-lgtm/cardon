@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { EsimQueueProducer } from '../../esim/esim-queue.producer';
 import { ProductVariantType } from '@prisma/client';
 import { ProviderOrderRepository } from '../repositories/provider.repository';
 import { ProviderQueueProducer } from './provider-queue.producer';
@@ -21,6 +22,7 @@ export class FulfillmentDispatchService {
     private readonly topupQueueProducer: TopupQueueProducer,
     private readonly providerService: ProviderService,
     private readonly topupService: TopupService,
+    @Optional() private readonly esimQueue?: EsimQueueProducer,
   ) {}
 
   async dispatchOrderFulfillment(
@@ -33,12 +35,16 @@ export class FulfillmentDispatchService {
       return [];
     }
 
-    const hasCard = order.orderItems.some(
-      (item) => item.variant.type === ProductVariantType.CARD,
-    );
-    const hasTopup = order.orderItems.some((item) =>
-      this.isTopupVariant(item.variant.type),
-    );
+    const { hasEsim, hasCard, hasTopup } = this.classifyOrderItems(order.orderItems);
+    this.assertNotMixedEsim(hasEsim, hasCard, hasTopup);
+
+    if (hasEsim && !hasCard && !hasTopup) {
+      if (!this.esimQueue) {
+        this.logger.warn(`Order ${orderId} is eSIM-only and esim queue is not registered`);
+        return [];
+      }
+      return [await this.esimQueue.enqueueFulfillment(orderId)];
+    }
 
     const jobIds: string[] = [];
 
@@ -64,9 +70,12 @@ export class FulfillmentDispatchService {
       throw new Error('Order not found');
     }
 
-    const hasTopup = order.orderItems.some((item) =>
-      this.isTopupVariant(item.variant.type),
-    );
+    const { hasEsim, hasCard, hasTopup } = this.classifyOrderItems(order.orderItems);
+    this.assertNotMixedEsim(hasEsim, hasCard, hasTopup);
+
+    if (hasEsim && !hasCard && !hasTopup) {
+      throw new Error('eSIM orders are not retried through the card provider');
+    }
 
     if (hasTopup) {
       return this.topupService.retryFulfillment(orderId);
@@ -77,6 +86,22 @@ export class FulfillmentDispatchService {
     }
 
     return this.providerService.retryFulfillment(orderId);
+  }
+
+  private classifyOrderItems(
+    orderItems: Array<{ variant: { type: ProductVariantType } }>,
+  ) {
+    return {
+      hasEsim: orderItems.some((item) => item.variant.type === ProductVariantType.ESIM),
+      hasCard: orderItems.some((item) => item.variant.type === ProductVariantType.CARD),
+      hasTopup: orderItems.some((item) => this.isTopupVariant(item.variant.type)),
+    };
+  }
+
+  private assertNotMixedEsim(hasEsim: boolean, hasCard: boolean, hasTopup: boolean) {
+    if (hasEsim && (hasCard || hasTopup)) {
+      throw new BadRequestException('eSIM orders cannot include other product types');
+    }
   }
 
   private isTopupVariant(type: ProductVariantType): boolean {

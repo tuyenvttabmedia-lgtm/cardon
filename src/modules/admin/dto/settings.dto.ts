@@ -125,6 +125,67 @@ export class UpdatePaymentGatewayDto {
   reqDomain?: string;
 }
 
+export class UpdateProviderEsimGoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  apiKey?: string;
+}
+
+export class UpdateProviderAiraloDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  clientSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  baseUrl?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(10_000)
+  @Max(100_000)
+  usdVndRate?: number;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'production'])
+  accountMode?: 'sandbox' | 'production';
+}
+
+export class UpdateAiraloPackageLifecycleDto {
+  @IsString()
+  @IsIn(['MAPPED', 'REVIEW_REQUIRED', 'PUBLISHED', 'INACTIVE'])
+  lifecycle!: 'MAPPED' | 'REVIEW_REQUIRED' | 'PUBLISHED' | 'INACTIVE';
+}
+
+export class UpdatePaymentPaypalDto {
+  @IsOptional()
+  @IsBoolean()
+  esimEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'live'])
+  mode?: 'sandbox' | 'live';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  clientSecret?: string;
+}
+
 export class UpdateProviderEsaleDto {
   @IsOptional()
   @IsBoolean()
@@ -250,6 +311,10 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsBoolean()
   customerDataEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  customerEsimEnabled?: boolean;
 
   @IsOptional()
   @IsInt()

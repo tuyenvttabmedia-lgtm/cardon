@@ -75,4 +75,10 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(64)
   paymentMethodCode?: string;
+
+  /** eSIM market lane: VN (VND+SePay) or INTL (USD+PayPal). Ignored for cards/topup. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  market?: string;
 }

@@ -8,6 +8,10 @@ export const SETTINGS_KEYS = {
   PAYMENT_GATEWAY_SEPAY: 'settings.payment.gateway.sepay',
   PAYMENT_METHODS: 'settings.payment.methods',
   PROVIDER_ESALE: 'settings.provider.esale',
+  /** @deprecated eSIM Go retired — use PROVIDER_AIRALO */
+  PROVIDER_ESIM_GO: 'settings.provider.esim_go',
+  PROVIDER_AIRALO: 'settings.provider.airalo',
+  PAYMENT_PAYPAL: 'settings.payment.paypal',
   SMTP: 'settings.smtp',
   SYSTEM: 'settings.system',
   ORDER: 'settings.order',
@@ -54,7 +58,8 @@ export interface StoredPaymentGateway {
   paymentMethod?: 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER';
 }
 
-export type PaymentMethodGateway = 'SEPAY' | 'MEGAPAY';
+/** PAYPAL is eSIM-international only — not used by card/topup methods. */
+export type PaymentMethodGateway = 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
 
 export type PaymentSettlementType =
   | 'DIRECT_TO_MERCHANT'
@@ -138,6 +143,31 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
   },
 ];
 
+/** @deprecated eSIM Go API token. Kept for cleanup / audit of old settings only. */
+export interface StoredProviderEsimGo {
+  apiKeyEnc?: string;
+}
+
+/** Airalo Partner API credentials. Separate from eSale. Does not enable customer sales alone. */
+export interface StoredProviderAiralo {
+  clientIdEnc?: string;
+  clientSecretEnc?: string;
+  baseUrl?: string;
+  /** Admin FX used only when Airalo V2 has no VND net_price. */
+  usdVndRate?: number;
+  /** Partner Platform account mode. Same API host; Production is one-way on Airalo. */
+  accountMode?: 'sandbox' | 'production';
+}
+
+/** PayPal eSIM international flag + secrets. Cards/topup never read this. */
+export interface StoredPaymentPaypal {
+  esimEnabled?: boolean;
+  clientIdEnc?: string;
+  clientSecretEnc?: string;
+  /** PayPal API mode — not MegaPay/SePay environment naming. */
+  mode?: 'sandbox' | 'live';
+}
+
 export interface StoredProviderEsale {
   enabled?: boolean;
   environment?: SettingsEnvironment;
@@ -170,6 +200,8 @@ export interface StoredSystem {
   agentRegistrationMode?: 'INVITE_ONLY' | 'PUBLIC_APPROVAL' | 'DISABLED';
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
+  /** eSIM storefront. Default false. Does not enable a live provider. */
+  customerEsimEnabled?: boolean;
   /** Days to keep system_audit_logs + audit_logs. Default 360. */
   auditLogRetentionDays?: number;
   /** Min VND per agent deposit transaction (Admin override). */

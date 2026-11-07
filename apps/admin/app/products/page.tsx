@@ -24,7 +24,16 @@ import { formatVnd } from '@/lib/utils';
 
 import { MediaImageField } from '@/components/marketing/MediaImageField';
 
-import type { Category, HomeServiceType, Product, ProviderMapping, ProviderStatus } from '@/types/api';
+import {
+  filterStandardCatalogCategories,
+  filterStandardCatalogProducts,
+  isEsimCatalogProduct,
+  type Category,
+  type HomeServiceType,
+  type Product,
+  type ProviderMapping,
+  type ProviderStatus,
+} from '@/types/api';
 
 
 
@@ -52,6 +61,8 @@ function variantTypesForHomeService(homeService?: HomeServiceType | null): strin
       return ['TOPUP'];
     case 'DATA':
       return ['DATA'];
+    case 'ESIM':
+      return [];
     default:
       return ['CARD', 'TOPUP', 'DATA'];
   }
@@ -150,6 +161,15 @@ export default function ProductsPage() {
     [selectedProductHomeService],
   );
 
+  useEffect(() => {
+    if (!selectedProduct || !isEsimCatalogProduct(selectedProduct)) return;
+    setSelectedProduct(null);
+    setSelectedVariantId('');
+    setMappings([]);
+    setEditProduct(null);
+    setEditVariant(null);
+  }, [selectedProduct]);
+
   const [editVariant, setEditVariant] = useState<{
 
     id: string;
@@ -220,10 +240,17 @@ export default function ProductsPage() {
 
         const updated = prods.find((p) => p.id === selectedProduct.id) ?? null;
 
-        setSelectedProduct(updated);
-
-        if (updated && selectedVariantId) {
-          await loadMappings(selectedVariantId);
+        if (!updated || isEsimCatalogProduct(updated)) {
+          setSelectedProduct(null);
+          setSelectedVariantId('');
+          setMappings([]);
+          setEditProduct(null);
+          setEditVariant(null);
+        } else {
+          setSelectedProduct(updated);
+          if (selectedVariantId) {
+            await loadMappings(selectedVariantId);
+          }
         }
 
       }
@@ -247,6 +274,12 @@ export default function ProductsPage() {
 
 
   async function loadMappings(variantId: string) {
+    const variant = products
+      .flatMap((product) => product.variants ?? [])
+      .find((item) => item.id === variantId);
+    if (variant?.type === 'ESIM' || (selectedProduct && isEsimCatalogProduct(selectedProduct))) {
+      return;
+    }
     setSelectedVariantId(variantId);
     setMappings(await productAdminApi.listProviderMappings(variantId));
   }
@@ -401,7 +434,7 @@ export default function ProductsPage() {
 
   async function createVariant() {
 
-    if (!selectedProduct) return;
+    if (!selectedProduct || isEsimCatalogProduct(selectedProduct) || newVariant.type === 'ESIM') return;
 
     const sku = newVariant.sku.trim().toUpperCase();
 
@@ -541,7 +574,7 @@ export default function ProductsPage() {
 
   async function saveEditVariant() {
 
-    if (!editVariant) return;
+    if (!editVariant || editVariant.type === 'ESIM') return;
 
     try {
 
@@ -705,7 +738,7 @@ export default function ProductsPage() {
 
               <ul className="mt-3 space-y-2 text-sm">
 
-                {categories.map((c) => (
+                {filterStandardCatalogCategories(categories).map((c) => (
 
                   <li key={c.id} className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2">
 
@@ -838,7 +871,7 @@ export default function ProductsPage() {
 
               <ul className="mt-3 max-h-64 space-y-2 overflow-y-auto text-sm">
 
-                {products.map((p) => (
+                {filterStandardCatalogProducts(products).map((p) => (
 
                   <li key={p.id}>
 
@@ -882,7 +915,7 @@ export default function ProductsPage() {
 
                   <option value="">{vi.products.selectCategory}</option>
 
-                  {categories.filter((c) => c.status === 'ACTIVE').map((c) => (
+                  {filterStandardCatalogCategories(categories, true).map((c) => (
 
                     <option key={c.id} value={c.id}>
 
@@ -1070,7 +1103,10 @@ export default function ProductsPage() {
 
                           variant="ghost"
 
+                          hidden={v.type === 'ESIM'}
+
                           onClick={() => {
+                            if (v.type === 'ESIM') return;
                             const meta = (v.metadata ?? {}) as Record<string, string>;
                             setEditVariant({
                               id: v.id,
@@ -1659,7 +1695,7 @@ export default function ProductsPage() {
                   value={editProduct.categoryId}
                   onChange={(e) => setEditProduct({ ...editProduct, categoryId: e.target.value })}
                 >
-                  {categories.filter((c) => c.status === 'ACTIVE').map((c) => (
+                  {filterStandardCatalogCategories(categories, true).map((c) => (
                     <option key={c.id} value={c.id}>
                       {categoryOptionLabel(c)}
                     </option>

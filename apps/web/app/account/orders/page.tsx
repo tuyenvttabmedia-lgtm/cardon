@@ -9,7 +9,7 @@ import type { AccountOrder } from '@/types/api';
 import { formatVnd, cn } from '@/lib/utils';
 import { paymentStatusLabelVi, resolveCustomerOrderStatusLabel } from '@/lib/order-labels';
 
-type OrderTypeFilter = 'all' | 'CARD' | 'TOPUP' | 'DATA';
+type OrderTypeFilter = 'all' | 'CARD' | 'TOPUP' | 'DATA' | 'ESIM';
 type OrderStatusFilter = 'all' | 'processing' | 'completed';
 
 const TYPE_FILTERS: Array<{ id: OrderTypeFilter; label: string; requiresData?: boolean }> = [
@@ -17,6 +17,7 @@ const TYPE_FILTERS: Array<{ id: OrderTypeFilter; label: string; requiresData?: b
   { id: 'CARD', label: 'Mua thẻ' },
   { id: 'TOPUP', label: 'Nạp cước' },
   { id: 'DATA', label: 'Nạp Data', requiresData: true },
+  { id: 'ESIM', label: 'eSIM' },
 ];
 
 const STATUS_FILTERS: Array<{ id: OrderStatusFilter; label: string }> = [
@@ -42,6 +43,10 @@ function orderMatchesType(order: AccountOrder, type: OrderTypeFilter): boolean {
 
 function hasCards(order: AccountOrder): boolean {
   return order.items?.some((i) => i.variantType === 'CARD') ?? false;
+}
+
+function hasEsim(order: AccountOrder): boolean {
+  return order.items?.some((i) => i.variantType === 'ESIM') ?? false;
 }
 
 const LIST_PAGE_SIZES = [10, 50, 100] as const;
@@ -107,7 +112,7 @@ export default function AccountOrdersPage() {
   return (
     <div>
       <h2 className="text-lg font-bold text-cardon-navy">Lịch sử giao dịch</h2>
-      <p className="mt-1 text-sm text-cardon-gray">Theo dõi trạng thái và nhận thẻ an toàn</p>
+      <p className="mt-1 text-sm text-cardon-gray">Theo dõi đơn thẻ, nạp cước và eSIM</p>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
@@ -189,6 +194,14 @@ export default function AccountOrdersPage() {
                   >
                     {expandedOrderId === o.id && expandMode === 'cards' ? 'Ẩn thẻ' : 'Xem thẻ'}
                   </button>
+                )}
+                {hasEsim(o) && o.paymentStatus === 'PAID' && (
+                  <a
+                    href="/tai-khoan/esim"
+                    className="text-xs font-semibold text-cardon-blue hover:underline"
+                  >
+                    Xem mã eSIM
+                  </a>
                 )}
               </div>
               {expandedOrderId === o.id && expandMode && (

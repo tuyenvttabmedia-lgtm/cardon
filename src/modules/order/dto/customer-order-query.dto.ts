@@ -7,8 +7,8 @@ export class CustomerOrderQueryDto {
   tab?: 'all' | 'processing' | 'completed';
 
   @IsOptional()
-  @IsIn(['CARD', 'TOPUP', 'DATA'])
-  type?: 'CARD' | 'TOPUP' | 'DATA';
+  @IsIn(['CARD', 'TOPUP', 'DATA', 'ESIM'])
+  type?: 'CARD' | 'TOPUP' | 'DATA' | 'ESIM';
 
   @IsOptional()
   @Type(() => Number)

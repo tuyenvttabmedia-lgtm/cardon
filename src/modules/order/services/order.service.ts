@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { FulfillmentStatus, OrderPaymentStatus, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -35,6 +36,7 @@ import { mapOrder } from '../entities/order.mapper';
 import { assertCanModifyOrderMetadata, assertCanMarkPaid, assertPaymentTransition } from '../entities/order-state.machine';
 import { OrderRepository } from '../repositories/order.repository';
 import { OrderAuditService } from './order-audit.service';
+import { EsimOrderService } from '../../esim/esim-order.service';
 
 function buildClientTrace(
   dto: CreateOrderDto,
@@ -73,6 +75,7 @@ export class OrderService {
     private readonly settingsStore: SettingsStoreService,
     private readonly orderAuditService: OrderAuditService,
     private readonly cardEncryption: CardEncryptionService,
+    @Optional() private readonly esimOrders?: EsimOrderService,
   ) {}
 
   async createOrder(
@@ -91,6 +94,17 @@ export class OrderService {
           'companyName, taxCode, and address are required when invoiceRequired is true',
         );
       }
+    }
+
+    const esimLane = await this.classifyEsimLane(dto);
+    if (esimLane === 'mixed') {
+      throw new BadRequestException('eSIM orders cannot include other product types');
+    }
+    if (esimLane === 'esim') {
+      if (!this.esimOrders) {
+        throw new BadRequestException('eSIM sales are disabled');
+      }
+      return this.esimOrders.create(dto, user, requestMeta);
     }
 
     const lineItems = await this.resolveLineItems(dto);
@@ -556,6 +570,27 @@ export class OrderService {
     }
 
     return resolved;
+  }
+
+  private async classifyEsimLane(
+    dto: CreateOrderDto,
+  ): Promise<'none' | 'esim' | 'mixed'> {
+    let esim = 0;
+    let other = 0;
+    for (const item of dto.items) {
+      const variant = await this.variantRepository.findActiveById(item.variantId);
+      if (!variant) {
+        if (esim > 0) {
+          throw new BadRequestException(`Variant ${item.variantId} is not available`);
+        }
+        continue;
+      }
+      if (String(variant.type) === 'ESIM') esim += 1;
+      else other += 1;
+    }
+    if (esim > 0 && other > 0) return 'mixed';
+    if (esim > 0) return 'esim';
+    return 'none';
   }
 
   private async getPaymentTimeoutMinutes(): Promise<number> {

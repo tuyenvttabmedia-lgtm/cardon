@@ -1,7 +1,19 @@
 /**
  * Phase 4A.1 — Admin Security Audit Tests
  */
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import {
+  BadRequestException,
+  ForbiddenException,
+  RequestMethod,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  GUARDS_METADATA,
+  METHOD_METADATA,
+  PATH_METADATA,
+} from '@nestjs/common/constants';
 import {
   AgentStatus,
   AuditTargetType,
@@ -12,8 +24,14 @@ import {
   PaymentRecordStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
+import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { AdminController } from './controllers/admin.controller';
+import { CloseEsimQueryClaimDto } from './dto/admin.dto';
 import { assertAdminAgentResponseSafe, mapAdminAgent } from './entities/admin-agent.mapper';
 import { ADMIN_AUDIT_ACTIONS, ADMIN_PAGINATION_MAX } from './entities/admin.constants';
 import { resolveAdminPagination } from './utils/admin-pagination.util';
@@ -28,6 +46,7 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
     'users.read',
     'orders.read',
     'orders.retry',
+    'refund.request',
     'payments.view',
     'agents.kyc.review',
   ],
@@ -39,12 +58,19 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
     'invoice.manage',
     'agents.credit',
     'payments.review',
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
+    'refund.reconcile',
   ],
   ADMIN: [
     'users.read',
     'orders.read',
     'orders.manage',
     'orders.retry',
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
     'payments.view',
     'ledger.view',
     'providers.manage',
@@ -64,7 +90,36 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
 const ADMIN_ENDPOINT_PERMISSIONS: Record<string, string[]> = {
   'GET /admin/dashboard': ['admin.dashboard'],
   'GET /admin/orders': ['orders.read'],
+  'GET /admin/esim-ops/health': ['orders.read'],
+  'GET /admin/esim-ops/dashboard': ['orders.read'],
+  'GET /admin/esim-ops/orders': ['orders.read'],
+  'GET /admin/esim-ops/orders/:id': ['orders.read'],
+  'POST /admin/esim-ops/orders': ['orders.manage'],
+  'POST /admin/esim-ops/orders/:id/reveal': ['orders.read'],
+  'POST /admin/esim-ops/orders/:id/recover': ['orders.retry'],
   'POST /admin/orders/:id/retry': ['orders.retry'],
+  'POST /admin/orders/:id/refunds': ['refund.request'],
+  'GET /admin/refund-requests': [
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
+    'refund.reconcile',
+  ],
+  'GET /admin/refund-requests/:id': [
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
+    'refund.reconcile',
+  ],
+  'POST /admin/refund-requests/:id/approve': ['refund.approve'],
+  'POST /admin/refund-requests/:id/cancel': ['refund.request', 'refund.approve'],
+  'POST /admin/refund-requests/:id/esim-review/clear': ['refund.approve'],
+  'POST /admin/refund-requests/:id/execute': ['refund.execute'],
+  'POST /admin/refund-attempts/:id/complete': ['refund.execute'],
+  'POST /admin/refund-attempts/:id/fail': ['refund.execute'],
+  'POST /admin/refund-attempts/:id/unconfirm': ['refund.execute'],
+  'POST /admin/refund-attempts/:id/reconcile': ['refund.reconcile'],
+  'POST /admin/orders/:id/esim-query-claims/close': ['orders.retry'],
   'GET /admin/payments': ['payments.view'],
   'GET /admin/payments/manual-review': ['payments.review'],
   'POST /admin/payments/:id/resolve': ['payments.review'],
@@ -95,6 +150,21 @@ describe('Phase 4A.1 — CHECK 1: Permission enforcement', () => {
     expect(roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/dashboard'])).toBe(
       false,
     );
+    expect(
+      roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/esim-ops/dashboard']),
+    ).toBe(true);
+    expect(
+      roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/orders/:id/refunds']),
+    ).toBe(true);
+    expect(
+      roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/refund-requests/:id/approve']),
+    ).toBe(false);
+    expect(
+      roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/refund-requests/:id/execute']),
+    ).toBe(false);
+    expect(
+      roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/refund-attempts/:id/reconcile']),
+    ).toBe(false);
   });
 
   it('ACCOUNTANT can payment review but cannot suspend agent or access dashboard', () => {
@@ -107,11 +177,21 @@ describe('Phase 4A.1 — CHECK 1: Permission enforcement', () => {
     expect(roleCanAccess('ACCOUNTANT', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/dashboard'])).toBe(
       false,
     );
+    expect(
+      roleCanAccess('ACCOUNTANT', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/refund-attempts/:id/reconcile']),
+    ).toBe(true);
   });
 
-  it('ADMIN has full admin module permissions from seed matrix', () => {
-    for (const required of Object.values(ADMIN_ENDPOINT_PERMISSIONS)) {
-      expect(roleCanAccess('ADMIN', required)).toBe(true);
+  it('ADMIN has admin module permissions except refund.reconcile-only endpoints', () => {
+    for (const [endpoint, required] of Object.entries(ADMIN_ENDPOINT_PERMISSIONS)) {
+      if (required.every((code) => code === 'refund.reconcile')) {
+        expect(roleCanAccess('ADMIN', required)).toBe(false);
+        continue;
+      }
+      expect({ endpoint, allowed: roleCanAccess('ADMIN', required) }).toEqual({
+        endpoint,
+        allowed: true,
+      });
     }
   });
 
@@ -481,5 +561,246 @@ describe('Phase 4A.1 — CHECK 8: Pagination protection', () => {
 describe('Phase 4A.1 — Ledger type sanity', () => {
   it('admin credit path uses CREDIT ledger type', () => {
     expect(LedgerEntryType.CREDIT).toBe('CREDIT');
+  });
+});
+
+const CLOSE_ESIM_QUERY_CLAIM_ROUTE = 'POST /admin/orders/:id/esim-query-claims/close';
+const QUERY_ATTEMPT_ID = '11111111-1111-4111-8111-111111111111';
+const CREATE_ATTEMPT_ID = '22222222-2222-4222-8222-222222222222';
+
+function closeClaimBodyPipe() {
+  return new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: { enableImplicitConversion: true },
+  });
+}
+
+function validCloseClaimBody() {
+  return {
+    queryAttemptId: QUERY_ATTEMPT_ID,
+    createAttemptId: CREATE_ATTEMPT_ID,
+    reason: 'Worker process confirmed stopped',
+  };
+}
+
+describe('B3.36 — close eSIM QUERY claim', () => {
+  const handler = AdminController.prototype.closeEsimQueryClaim;
+
+  it('exposes one POST route under the admin controller', () => {
+    expect(Reflect.getMetadata(PATH_METADATA, AdminController)).toBe('admin');
+    expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe(
+      'orders/:id/esim-query-claims/close',
+    );
+    expect(Reflect.getMetadata(METHOD_METADATA, handler)).toBe(RequestMethod.POST);
+    expect(ADMIN_ENDPOINT_PERMISSIONS[CLOSE_ESIM_QUERY_CLAIM_ROUTE]).toEqual([
+      'orders.retry',
+    ]);
+
+    const source = readFileSync(
+      join(__dirname, 'controllers/admin.controller.ts'),
+      'utf8',
+    );
+    expect(source.match(/esim-query-claims\/close/g)).toHaveLength(1);
+    expect(source.match(/orders\/:id\/recovery/g)).toHaveLength(1);
+  });
+
+  it('requires orders.retry and keeps the existing admin guards', () => {
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, handler)).toEqual(['orders.retry']);
+    expect(Reflect.getMetadata(GUARDS_METADATA, AdminController)).toEqual(
+      expect.arrayContaining([JwtAuthGuard, PermissionsGuard]),
+    );
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, handler)).toBeUndefined();
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AdminController)).toBeUndefined();
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.retryOrder)).toEqual([
+      'orders.retry',
+    ]);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.orderManualRecovery),
+    ).toEqual(['orders.retry']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.createRefundRequest),
+    ).toEqual(['refund.request']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.listRefundRequests),
+    ).toEqual(['refund.request', 'refund.approve', 'refund.execute', 'refund.reconcile']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.getRefundRequest),
+    ).toEqual(['refund.request', 'refund.approve', 'refund.execute', 'refund.reconcile']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.approveRefundRequest),
+    ).toEqual(['refund.approve']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.cancelRefundRequest),
+    ).toEqual(['refund.request', 'refund.approve']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.clearRefundEsimReview),
+    ).toEqual(['refund.approve']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.executeRefundRequest),
+    ).toEqual(['refund.execute']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.completeRefundAttempt),
+    ).toEqual(['refund.execute']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.failRefundAttempt),
+    ).toEqual(['refund.execute']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.unconfirmRefundAttempt),
+    ).toEqual(['refund.execute']);
+    expect(
+      Reflect.getMetadata(PERMISSIONS_KEY, AdminController.prototype.reconcileRefundAttempt),
+    ).toEqual(['refund.reconcile']);
+  });
+
+  it('rejects an unauthenticated request before the handler runs', async () => {
+    const closeEsimQueryClaim = jest.fn();
+    const guard = new JwtAuthGuard({
+      getAllAndOverride: jest.fn().mockReturnValue(false),
+    } as never);
+    await expect(
+      guard.canActivate({
+        switchToHttp: () => ({
+          getRequest: () => ({}),
+          getResponse: () => ({}),
+        }),
+        getHandler: () => handler,
+        getClass: () => AdminController,
+      } as never),
+    ).rejects.toThrow(/jwt|Unauthorized|authentication/i);
+    expect(closeEsimQueryClaim).not.toHaveBeenCalled();
+  });
+
+  it('rejects a user who does not have orders.retry', async () => {
+    expect(roleCanAccess('UNKNOWN', ['orders.retry'])).toBe(false);
+    const guard = new PermissionsGuard(
+      { getAllAndOverride: jest.fn().mockReturnValue(['orders.retry']) } as never,
+      { roleHasAnyPermission: jest.fn().mockResolvedValue(false) } as never,
+    );
+    const context = {
+      getHandler: () => handler,
+      getClass: () => AdminController,
+      switchToHttp: () => ({
+        getRequest: () => ({ user: { id: 'user-1', role: 'SUPPORT' } }),
+      }),
+    };
+
+    await expect(guard.canActivate(context as never)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('forwards the session admin and validated body to the existing service', async () => {
+    const closeEsimQueryClaim = jest.fn().mockResolvedValue({ result: 'closed' });
+    const controller = new AdminController(
+      {} as never,
+      { closeEsimQueryClaim } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const forged = {
+      ...validCloseClaimBody(),
+      adminId: 'forged-admin',
+      refund: true,
+      mark_fulfilled: true,
+    };
+
+    await controller.closeEsimQueryClaim(
+      { id: 'session-admin' } as AuthenticatedUser,
+      '33333333-3333-4333-8333-333333333333',
+      forged as CloseEsimQueryClaimDto,
+    );
+
+    expect(closeEsimQueryClaim).toHaveBeenCalledTimes(1);
+    expect(closeEsimQueryClaim).toHaveBeenCalledWith('session-admin', {
+      orderId: '33333333-3333-4333-8333-333333333333',
+      queryAttemptId: QUERY_ATTEMPT_ID,
+      createAttemptId: CREATE_ATTEMPT_ID,
+      reason: 'Worker process confirmed stopped',
+    });
+  });
+
+  it('does not reuse the recovery DTO or call the repository', () => {
+    const source = readFileSync(
+      join(__dirname, 'controllers/admin.controller.ts'),
+      'utf8',
+    );
+    const method = source.slice(
+      source.indexOf("orders/:id/esim-query-claims/close"),
+      source.indexOf("@Get('payments/manual-review')"),
+    );
+
+    expect(method).toContain('CloseEsimQueryClaimDto');
+    expect(method).not.toContain('OrderManualRecoveryDto');
+    expect(method).toContain('this.orderService.closeEsimQueryClaim(user.id');
+    expect(method).not.toContain('closeSentQueryClaim');
+    expect(method).not.toContain('refund');
+    expect(method).not.toContain('mark_fulfilled');
+  });
+
+  it('rejects a body that omits a required field or uses a blank reason', async () => {
+    const pipe = closeClaimBodyPipe();
+    const cases = [
+      { createAttemptId: CREATE_ATTEMPT_ID, reason: 'confirmed stopped' },
+      { queryAttemptId: QUERY_ATTEMPT_ID, reason: 'confirmed stopped' },
+      { queryAttemptId: QUERY_ATTEMPT_ID, createAttemptId: CREATE_ATTEMPT_ID },
+      {
+        queryAttemptId: QUERY_ATTEMPT_ID,
+        createAttemptId: CREATE_ATTEMPT_ID,
+        reason: '   ',
+      },
+      {
+        queryAttemptId: '',
+        createAttemptId: CREATE_ATTEMPT_ID,
+        reason: 'confirmed stopped',
+      },
+      {
+        queryAttemptId: 12,
+        createAttemptId: CREATE_ATTEMPT_ID,
+        reason: 'confirmed stopped',
+      },
+    ];
+
+    for (const body of cases) {
+      await expect(
+        pipe.transform(body, { type: 'body', metatype: CloseEsimQueryClaimDto }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    }
+  });
+
+  it('rejects adminId, refund, mark_fulfilled, and unknown fields', async () => {
+    const main = readFileSync(join(process.cwd(), 'src/main.ts'), 'utf8');
+    expect(main).toContain('whitelist: true');
+    expect(main).toContain('forbidNonWhitelisted: true');
+
+    const pipe = closeClaimBodyPipe();
+    for (const extra of [
+      { adminId: 'forged-admin' },
+      { refund: true },
+      { mark_fulfilled: true },
+      { outcome: 'closed' },
+    ]) {
+      await expect(
+        pipe.transform(
+          { ...validCloseClaimBody(), ...extra },
+          { type: 'body', metatype: CloseEsimQueryClaimDto },
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    }
+  });
+
+  it('accepts the three approved fields', async () => {
+    const result = await closeClaimBodyPipe().transform(validCloseClaimBody(), {
+      type: 'body',
+      metatype: CloseEsimQueryClaimDto,
+    });
+
+    expect(result).toEqual(validCloseClaimBody());
   });
 });
