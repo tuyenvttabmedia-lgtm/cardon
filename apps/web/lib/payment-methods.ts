@@ -54,6 +54,7 @@ export function methodGateway(method: PublicPaymentMethod): PaymentGatewayCode {
 
 /** @deprecated use method.gatewayCode */
 export function publicCodeToGateway(code: string): PaymentGatewayCode | null {
+  if (code === 'PAYPAL') return 'PAYPAL';
   if (code === 'BANK_QR' || code.startsWith('SEPAY') || code === 'VIETQR' || code === 'NAPAS_247') {
     return 'SEPAY';
   }

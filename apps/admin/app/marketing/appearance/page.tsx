@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { MarketingNav } from '@/components/marketing/MarketingNav';
+import { HomeBackgroundFields } from '@/components/marketing/HomeBackgroundFields';
 import { MediaImageField } from '@/components/marketing/MediaImageField';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { Card, ErrorMessage } from '@/components/ui/Display';
@@ -13,11 +14,12 @@ import { extractGoogleMapsEmbedUrl } from '@/lib/google-map';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsThemeSettings } from '@/types/api';
 
-type MenuItem = { label: string; href: string; sortOrder?: number };
-type FooterColumn = { title: string; links: Array<{ label: string; href: string }> };
+type MenuItem = CmsThemeSettings['headerMenu'][number];
+type FooterColumn = CmsThemeSettings['footerColumns'][number];
 type MobileNavItem = NonNullable<CmsThemeSettings['mobileNav']>[number];
 
 const SECTIONS = [
+  { id: 'home-backgrounds', label: 'Ảnh nền' },
   { id: 'logos', label: 'Logo' },
   { id: 'company', label: 'Công ty' },
   { id: 'compliance', label: 'BCT & Map' },
@@ -206,6 +208,19 @@ export default function AppearancePage() {
         </nav>
 
         <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+          <Card id="home-backgrounds" className="scroll-mt-16 space-y-4 xl:col-span-2">
+            <div>
+              <h2 className="font-semibold">Ảnh nền trang chủ</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Tải ảnh mới, thay thế hoặc gỡ từng nền. Gỡ ảnh để trang chủ dùng lại file mặc định.
+                Chỉ quản trị viên có quyền CMS mới lưu được. Gỡ ảnh để dùng lại file mặc định đi kèm.
+              </p>
+            </div>
+            <HomeBackgroundFields
+              value={form.homeBackgrounds ?? {}}
+              onChange={(homeBackgrounds) => setForm({ ...form, homeBackgrounds })}
+            />
+          </Card>
           <Card id="logos" className="scroll-mt-16 space-y-4 xl:col-span-2">
             <div>
               <h2 className="font-semibold">Logo & ảnh mặc định</h2>
@@ -243,7 +258,7 @@ export default function AppearancePage() {
             <div>
               <h2 className="font-semibold">Thông tin công ty (Cột 1 footer)</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Tên, MST, địa chỉ, email, giờ làm việc. Hotline hiện ở cột Hỗ trợ.
+                Tên pháp nhân, MST, địa chỉ, hotline và email giữ một giá trị. Nhãn tiếng Anh để trống thì trang dùng nhãn sẵn có. Mô tả có bản tiếng Việt và tiếng Anh.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -261,6 +276,35 @@ export default function AppearancePage() {
                   }
                 />
               </div>
+              <div className="sm:col-span-2">
+                <Label>{vi.appearance.description}</Label>
+                <Input
+                  className="mt-1"
+                  value={form.companyInfo?.description ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      companyInfo: { ...form.companyInfo, description: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>
+                  {vi.appearance.descriptionEn}{' '}
+                  <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+                </Label>
+                <Input
+                  className="mt-1"
+                  value={form.companyInfo?.descriptionEn ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      companyInfo: { ...form.companyInfo, descriptionEn: e.target.value },
+                    })
+                  }
+                />
+              </div>
               <div>
                 <Label>Mã số thuế</Label>
                 <Input
@@ -269,6 +313,12 @@ export default function AppearancePage() {
                   value={form.companyInfo?.taxCode ?? ''}
                   onChange={(e) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, taxCode: e.target.value } })
+                  }
+                />
+                <EnglishLabelField
+                  value={form.companyInfo?.taxLabelEn ?? ''}
+                  onChange={(taxLabelEn) =>
+                    setForm({ ...form, companyInfo: { ...form.companyInfo, taxLabelEn } })
                   }
                 />
               </div>
@@ -282,7 +332,13 @@ export default function AppearancePage() {
                     setForm({ ...form, companyInfo: { ...form.companyInfo, hotline: e.target.value } })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Cột Hỗ trợ (Hotline: …)</p>
+                <EnglishLabelField
+                  value={form.companyInfo?.hotlineLabelEn ?? ''}
+                  onChange={(hotlineLabelEn) =>
+                    setForm({ ...form, companyInfo: { ...form.companyInfo, hotlineLabelEn } })
+                  }
+                />
+                <p className="mt-1 text-xs text-slate-500">Một số điện thoại. Nhãn để trống thì dùng Hotline / catalog.</p>
               </div>
               <div className="sm:col-span-2">
                 <Label>Địa chỉ</Label>
@@ -292,6 +348,12 @@ export default function AppearancePage() {
                   value={form.companyInfo?.address ?? ''}
                   onChange={(e) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, address: e.target.value } })
+                  }
+                />
+                <EnglishLabelField
+                  value={form.companyInfo?.addressLabelEn ?? ''}
+                  onChange={(addressLabelEn) =>
+                    setForm({ ...form, companyInfo: { ...form.companyInfo, addressLabelEn } })
                   }
                 />
               </div>
@@ -306,7 +368,13 @@ export default function AppearancePage() {
                     setForm({ ...form, companyInfo: { ...form.companyInfo, email: e.target.value } })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Cột 1 footer (Email: …)</p>
+                <EnglishLabelField
+                  value={form.companyInfo?.emailLabelEn ?? ''}
+                  onChange={(emailLabelEn) =>
+                    setForm({ ...form, companyInfo: { ...form.companyInfo, emailLabelEn } })
+                  }
+                />
+                <p className="mt-1 text-xs text-slate-500">Một địa chỉ email. Nhãn để trống thì dùng Email.</p>
               </div>
               <div>
                 <Label>Thời gian làm việc</Label>
@@ -321,7 +389,13 @@ export default function AppearancePage() {
                     })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Cột 1 footer (Thời gian làm việc: …)</p>
+                <EnglishLabelField
+                  value={form.companyInfo?.hoursLabelEn ?? ''}
+                  onChange={(hoursLabelEn) =>
+                    setForm({ ...form, companyInfo: { ...form.companyInfo, hoursLabelEn } })
+                  }
+                />
+                <p className="mt-1 text-xs text-slate-500">Giá trị giờ làm việc giữ nguyên. Nhãn để trống thì dùng catalog.</p>
               </div>
             </div>
           </Card>
@@ -422,7 +496,7 @@ export default function AppearancePage() {
             <div>
               <h2 className="font-semibold">Kênh liên hệ (trang /lien-he)</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ — 5 kênh cố định.
+                Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ — 5 kênh cố định. Nhãn để trống thì dùng nhãn sẵn có. Giá trị và liên kết không đổi theo ngôn ngữ.
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -447,6 +521,24 @@ export default function AppearancePage() {
                         Hiện
                       </label>
                     </div>
+                    <Input
+                      placeholder={vi.appearance.label}
+                      value={channel.label ?? ''}
+                      onChange={(e) => {
+                        const contactChannels = [...(form.contactChannels ?? [])];
+                        contactChannels[i] = { ...contactChannels[i], label: e.target.value };
+                        setForm({ ...form, contactChannels });
+                      }}
+                    />
+                    <Input
+                      placeholder={vi.appearance.labelEn}
+                      value={channel.labelEn ?? ''}
+                      onChange={(e) => {
+                        const contactChannels = [...(form.contactChannels ?? [])];
+                        contactChannels[i] = { ...contactChannels[i], labelEn: e.target.value };
+                        setForm({ ...form, contactChannels });
+                      }}
+                    />
                     <Input
                       placeholder="Nội dung hiển thị"
                       value={channel.value}
@@ -482,26 +574,35 @@ export default function AppearancePage() {
             </div>
             <div className="space-y-2">
               {form.headerMenu.map((item, i) => (
-                <div key={i} className="grid gap-2 rounded-lg border border-slate-100 p-2.5 sm:grid-cols-[1fr_1fr_5rem_auto]">
-                  <Input
-                    value={item.label}
-                    onChange={(e) => updateMenu(i, { label: e.target.value })}
-                    placeholder={vi.appearance.label}
-                  />
-                  <Input
-                    value={item.href}
-                    onChange={(e) => updateMenu(i, { href: e.target.value })}
-                    placeholder={vi.appearance.url}
-                  />
-                  <Input
-                    type="number"
-                    value={item.sortOrder ?? i}
-                    onChange={(e) => updateMenu(i, { sortOrder: Number(e.target.value) })}
-                    placeholder="#"
-                  />
-                  <Button size="sm" variant="ghost" onClick={() => removeMenu(i)}>
-                    {vi.appearance.remove}
-                  </Button>
+                <div key={i} className="space-y-2 rounded-lg border border-slate-100 p-2.5">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      value={item.label}
+                      onChange={(e) => updateMenu(i, { label: e.target.value })}
+                      placeholder={vi.appearance.label}
+                    />
+                    <Input
+                      value={item.labelEn ?? ''}
+                      onChange={(e) => updateMenu(i, { labelEn: e.target.value })}
+                      placeholder={vi.appearance.labelEn}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_5rem_auto]">
+                    <Input
+                      value={item.href}
+                      onChange={(e) => updateMenu(i, { href: e.target.value })}
+                      placeholder={vi.appearance.url}
+                    />
+                    <Input
+                      type="number"
+                      value={item.sortOrder ?? i}
+                      onChange={(e) => updateMenu(i, { sortOrder: Number(e.target.value) })}
+                      placeholder="#"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => removeMenu(i)}>
+                      {vi.appearance.remove}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -517,12 +618,19 @@ export default function AppearancePage() {
             <div className="space-y-2">
               {(form.mobileNav ?? []).map((item, i) => (
                 <div key={i} className="space-y-2 rounded-lg border border-slate-100 p-2.5">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_4rem_1fr_4rem]">
+                  <div className="grid gap-2 sm:grid-cols-2">
                     <Input
                       value={item.label}
                       onChange={(e) => updateMobileNav(i, { label: e.target.value })}
                       placeholder={vi.appearance.label}
                     />
+                    <Input
+                      value={item.labelEn ?? ''}
+                      onChange={(e) => updateMobileNav(i, { labelEn: e.target.value })}
+                      placeholder={vi.appearance.labelEn}
+                    />
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[4rem_1fr_4rem]">
                     <Input
                       value={item.icon}
                       onChange={(e) => updateMobileNav(i, { icon: e.target.value })}
@@ -596,6 +704,12 @@ export default function AppearancePage() {
                         onChange={(e) => updateFooterCol(ci, { title: e.target.value })}
                         placeholder={vi.appearance.columnTitle}
                       />
+                      <Input
+                        className="min-w-0 flex-1 bg-white"
+                        value={col.titleEn ?? ''}
+                        onChange={(e) => updateFooterCol(ci, { titleEn: e.target.value })}
+                        placeholder={vi.appearance.titleEn}
+                      />
                     </div>
                     <div className="flex gap-1">
                       <Button
@@ -632,7 +746,17 @@ export default function AppearancePage() {
                               links[li] = { ...links[li], label: e.target.value };
                               updateFooterCol(ci, { links });
                             }}
-                            placeholder="Nhãn"
+                            placeholder={vi.appearance.label}
+                          />
+                          <Input
+                            className="bg-white"
+                            value={link.labelEn ?? ''}
+                            onChange={(e) => {
+                              const links = [...col.links];
+                              links[li] = { ...links[li], labelEn: e.target.value };
+                              updateFooterCol(ci, { links });
+                            }}
+                            placeholder={vi.appearance.labelEn}
                           />
                           <div className="flex gap-1.5">
                             <Input
@@ -685,5 +809,17 @@ export default function AppearancePage() {
         </div>
       </div>
     </RequirePermission>
+  );
+}
+
+function EnglishLabelField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="mt-2">
+      <Label>
+        {vi.appearance.labelEn}{' '}
+        <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+      </Label>
+      <Input className="mt-1" value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
   );
 }

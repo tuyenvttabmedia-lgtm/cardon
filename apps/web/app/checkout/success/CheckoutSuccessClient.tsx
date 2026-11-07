@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { PageContainer } from '@/components/layout/PageContainer';
 import { OrderDeliveryContent } from '@/components/order/OrderDeliveryContent';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +15,8 @@ export default function CheckoutSuccessPageClient() {
   const orderCode = searchParams.get('orderCode');
   const email = searchParams.get('email');
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const t = useT();
+  const { locale } = useLocale();
   const [delivery, setDelivery] = useState<OrderDeliveryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,12 +50,12 @@ export default function CheckoutSuccessPageClient() {
             setDelivery(data);
             setError(null);
           } else {
-            setError('Không tìm thấy đơn hàng');
+            setError(t('order.notFound'));
           }
         }
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Không tải được đơn hàng');
+          setError(customerFacingError(locale, err));
         }
       } finally {
         if (active) setLoading(false);
@@ -64,12 +68,12 @@ export default function CheckoutSuccessPageClient() {
       active = false;
       clearInterval(timer);
     };
-  }, [orderCode, email, isAuthenticated, authLoading]);
+  }, [orderCode, email, isAuthenticated, authLoading, locale, t]);
 
   if (!orderCode || (!isAuthenticated && !email)) {
     return (
       <PageContainer>
-        <p className="text-cardon-gray">Thiếu thông tin đơn hàng.</p>
+        <p className="text-cardon-gray">{t('pay.missing')}</p>
       </PageContainer>
     );
   }
@@ -77,7 +81,7 @@ export default function CheckoutSuccessPageClient() {
   if (authLoading || (loading && !delivery)) {
     return (
       <PageContainer>
-        <p className="text-cardon-gray">Đang tải đơn hàng...</p>
+        <p className="text-cardon-gray">{t('order.loading')}</p>
       </PageContainer>
     );
   }
@@ -94,7 +98,7 @@ export default function CheckoutSuccessPageClient() {
           }
           guestEmail={!isAuthenticated && email ? email : undefined}
           backHref={isAuthenticated ? '/tai-khoan/lich-su-giao-dich' : '/'}
-          backLabel={isAuthenticated ? '← Về lịch sử giao dịch' : '← Về trang chủ'}
+          backLabel={isAuthenticated ? `← ${t('order.backHistory')}` : `← ${t('common.backHome')}`}
         />
       )}
     </PageContainer>

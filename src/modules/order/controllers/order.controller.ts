@@ -30,6 +30,8 @@ import {
 
   extractClientUserAgent,
 
+  extractClientCountryCode,
+
 } from '../../../common/utils/request-client.util';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -94,7 +96,11 @@ export class OrderController {
 
       req
 
-        ? { ip: extractClientIp(req), userAgent: extractClientUserAgent(req) }
+        ? {
+            ip: extractClientIp(req),
+            userAgent: extractClientUserAgent(req),
+            countryCode: extractClientCountryCode(req),
+          }
 
         : undefined,
 
@@ -201,6 +207,28 @@ export class OrderController {
   ) {
 
     return this.orderDeliveryService.revealPin(id, cardId, user, dto.email);
+
+  }
+
+
+
+  @Post(':id/esim/reveal')
+
+  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+
+  @UseGuards(OptionalJwtAuthGuard)
+
+  revealEsim(
+
+    @Param('id', ParseUUIDPipe) id: string,
+
+    @Body() dto: RevealPinDto,
+
+    @CurrentUser() user?: AuthenticatedUser,
+
+  ) {
+
+    return this.orderDeliveryService.revealEsimInstall(id, user, dto.email);
 
   }
 

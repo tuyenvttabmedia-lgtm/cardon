@@ -46,13 +46,32 @@ export default function SettingsSystemPage() {
   const depositMaxError = validateVndAmount(depositMax, false);
   const depositRangeError =
     depositMax < depositMin ? 'Tối đa phải ≥ tối thiểu' : null;
+  const esimMaxVnd = form?.esimMaxChargeAmountVnd ?? 2_000_000;
+  const esimMaxUsd = form?.esimMaxChargeAmountUsd ?? 80;
+  const esimVndError =
+    !Number.isFinite(esimMaxVnd) || esimMaxVnd < 0 || !Number.isInteger(esimMaxVnd)
+      ? vi.settings.esimMaxChargeInvalid
+      : esimMaxVnd > 500_000_000
+        ? 'Tối đa 500.000.000 VND'
+        : null;
+  const esimUsdRounded = Math.round(esimMaxUsd * 100) / 100;
+  const esimUsdError =
+    !Number.isFinite(esimMaxUsd) || esimMaxUsd < 0
+      ? vi.settings.esimMaxChargeInvalid
+      : esimMaxUsd > 80
+        ? 'Tối đa 80 USD (hard cap PayPal eSIM)'
+        : Math.abs(esimUsdRounded - esimMaxUsd) > 1e-9
+          ? 'USD tối đa 2 chữ số thập phân'
+          : null;
   const hasValidationError = Boolean(
     providerThresholdError ||
       agentThresholdError ||
       retentionError ||
       depositMinError ||
       depositMaxError ||
-      depositRangeError,
+      depositRangeError ||
+      esimVndError ||
+      esimUsdError,
   );
 
   async function save() {
@@ -67,6 +86,9 @@ export default function SettingsSystemPage() {
         agentLowBalanceThreshold: form.agentLowBalanceThreshold,
         customerTopupEnabled: form.customerTopupEnabled,
         customerDataEnabled: form.customerDataEnabled,
+        customerEsimEnabled: form.customerEsimEnabled,
+        esimMaxChargeAmountVnd: form.esimMaxChargeAmountVnd ?? 2_000_000,
+        esimMaxChargeAmountUsd: form.esimMaxChargeAmountUsd ?? 80,
         auditLogRetentionDays: form.auditLogRetentionDays ?? 360,
         agentDepositMinAmount: form.agentDepositMinAmount ?? 5_000_000,
         agentDepositMaxAmount: form.agentDepositMaxAmount ?? 300_000_000,
@@ -172,6 +194,73 @@ export default function SettingsSystemPage() {
               </span>
             </label>
           </div>
+          <div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={form.customerEsimEnabled === true}
+                onChange={(e) => setForm({ ...form, customerEsimEnabled: e.target.checked })}
+              />
+              <span>
+                <span className="flex items-center font-medium text-slate-700">
+                  {vi.settings.customerEsimLabel}
+                  <InfoTooltip text={vi.settings.customerEsimTooltip} />
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-slate-500">
+                  {vi.settings.customerEsimHint}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          <div className="space-y-3 border-t border-slate-200 pt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">{vi.settings.esimOrderLimitTitle}</h3>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                {vi.settings.esimOrderLimitDesc}
+              </p>
+            </div>
+            <SettingsField
+              label={vi.settings.esimMaxChargeVndLabel}
+              tooltip={vi.settings.esimMaxChargeVndTooltip}
+              hint={vi.settings.esimMaxChargeVndHint}
+            >
+              <VndInput
+                value={form.esimMaxChargeAmountVnd ?? 2_000_000}
+                allowZero
+                onChange={(esimMaxChargeAmountVnd) =>
+                  setForm({ ...form, esimMaxChargeAmountVnd })
+                }
+              />
+              {esimVndError ? (
+                <p className="mt-1 text-xs text-red-600">{esimVndError}</p>
+              ) : null}
+            </SettingsField>
+            <SettingsField
+              label={vi.settings.esimMaxChargeUsdLabel}
+              tooltip={vi.settings.esimMaxChargeUsdTooltip}
+              hint={vi.settings.esimMaxChargeUsdHint}
+            >
+              <Input
+                type="number"
+                min={0}
+                max={80}
+                step={0.01}
+                value={form.esimMaxChargeAmountUsd ?? 80}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    esimMaxChargeAmountUsd: Number(e.target.value),
+                  })
+                }
+              />
+              {esimUsdError ? (
+                <p className="mt-1 text-xs text-red-600">{esimUsdError}</p>
+              ) : null}
+            </SettingsField>
+          </div>
+
           <SettingsField
             label={vi.settings.auditLogRetentionLabel}
             tooltip={vi.settings.auditLogRetentionTooltip}

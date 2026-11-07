@@ -1,5 +1,7 @@
 import {
 
+  BadRequestException,
+
   ConflictException,
 
   Injectable,
@@ -107,6 +109,8 @@ export class ProviderMappingService {
       throw new NotFoundException('Provider not found');
 
     }
+
+    assertProviderMatchesVariant(variant.type, provider.code);
 
 
 
@@ -333,6 +337,24 @@ export class ProviderMappingService {
       .findByVariantId(variantId)
 
       .then((rows) => rows.map(mapProviderMapping));
+
+  }
+
+}
+
+const ESIM_PROVIDER_CODE = 'AIRALO';
+
+function assertProviderMatchesVariant(variantType: string | undefined, providerCode: string) {
+
+  if (variantType === 'ESIM' && providerCode !== ESIM_PROVIDER_CODE) {
+
+    throw new BadRequestException('eSIM chỉ được mapping nhà cung cấp Airalo, không dùng eSale.');
+
+  }
+
+  if (variantType && variantType !== 'ESIM' && providerCode === ESIM_PROVIDER_CODE) {
+
+    throw new BadRequestException('Airalo chỉ dùng cho biến thể eSIM.');
 
   }
 

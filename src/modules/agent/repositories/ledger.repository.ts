@@ -55,6 +55,18 @@ export class LedgerRepository {
     });
   }
 
+  findByReference(
+    referenceType: LedgerReferenceType,
+    referenceId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.ledgerEntry.findFirst({
+      where: { referenceType, referenceId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /** Ledger is append-only — mutations forbidden at repository layer. */
   updateEntry(): never {
     throw new ForbiddenException('Ledger entries are immutable');

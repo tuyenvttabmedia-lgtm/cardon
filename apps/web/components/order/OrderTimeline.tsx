@@ -1,5 +1,7 @@
 'use client';
 
+import { useDateTime, useT } from '@/components/i18n/LocaleProvider';
+import type { MessageKey } from '@/lib/i18n/messages';
 import { cn } from '@/lib/utils';
 import type { OrderTimelineStep } from '@/types/api';
 
@@ -9,10 +11,25 @@ function stepIcon(state: OrderTimelineStep['state']) {
   return '○';
 }
 
+const TIMELINE_KEYS: Record<string, MessageKey> = {
+  'Thanh toán thành công': 'timeline.payOk',
+  'Chờ thanh toán': 'timeline.waitPay',
+  'Đang lấy mã cài eSIM': 'timeline.fetchEsim',
+  'Đã có mã cài': 'timeline.esimReady',
+  'Hoàn thành': 'timeline.done',
+  'Đang lấy mã thẻ': 'timeline.fetchCard',
+  'Đã nhận mã thẻ': 'timeline.cardReady',
+  'Email đã gửi': 'timeline.emailSent',
+  'Đang gửi yêu cầu nạp': 'timeline.topupSend',
+  'Nhà mạng xác nhận': 'timeline.telco',
+};
+
 export function OrderTimeline({ steps }: { steps: OrderTimelineStep[] }) {
+  const t = useT();
+  const formatWhen = useDateTime();
   return (
     <div className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:p-6">
-      <h2 className="text-lg font-semibold text-cardon-navy">Tiến trình đơn hàng</h2>
+      <h2 className="text-lg font-semibold text-cardon-navy">{t('order.timeline')}</h2>
       <ol className="mt-4 space-y-0">
         {steps.map((step, index) => (
           <li key={step.key} className="flex gap-3">
@@ -41,11 +58,11 @@ export function OrderTimeline({ steps }: { steps: OrderTimelineStep[] }) {
                   step.state === 'pending' && 'text-cardon-gray',
                 )}
               >
-                {step.label}
+                {TIMELINE_KEYS[step.label] ? t(TIMELINE_KEYS[step.label]) : step.label}
               </p>
               {step.at && (
                 <p className="mt-0.5 text-xs text-cardon-gray">
-                  {new Date(step.at).toLocaleString('vi-VN')}
+                  {formatWhen(step.at)}
                 </p>
               )}
             </div>

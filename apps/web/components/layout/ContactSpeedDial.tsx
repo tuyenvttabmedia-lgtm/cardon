@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { useBarePath, useT } from '@/components/i18n/LocaleProvider';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import {
   buildSpeedDialActions,
@@ -17,15 +17,19 @@ function shouldHideSpeedDial(pathname: string): boolean {
   return false;
 }
 
-/** Pages with the sticky mobile pay bar above the bottom nav. */
+/** Checkout hubs with the sticky mobile pay bar above the bottom nav. */
 function isPurchaseSurface(pathname: string): boolean {
   return (
-    pathname === '/' ||
     pathname.startsWith('/the-game') ||
     pathname.startsWith('/the-dien-thoai') ||
     pathname.startsWith('/nap-cuoc') ||
     pathname.startsWith('/nap-data')
   );
+}
+
+/** eSIM product detail has its own bottom bar above the mobile nav. */
+function isEsimDetailSurface(pathname: string): boolean {
+  return /^\/esim\/esim-/.test(pathname);
 }
 
 const ACTION_ICON_SRC: Record<SpeedDialActionId, string> = {
@@ -47,14 +51,16 @@ function SpeedDialActionButton({
   index: number;
   onNavigate: () => void;
 }) {
+  const t = useT();
+  const label = action.id === 'hotline' ? t('contact.callNow') : action.label;
   return (
     <a
       href={action.href}
       target={action.external ? '_blank' : undefined}
       rel={action.external ? 'noopener noreferrer' : undefined}
       tabIndex={open ? 0 : -1}
-      aria-label={action.label}
-      title={action.label}
+      aria-label={label}
+      title={label}
       onClick={onNavigate}
       className={cn(
         'relative block h-14 w-14 overflow-hidden rounded-full shadow-card transition duration-200 ease-out',
@@ -78,7 +84,8 @@ function SpeedDialActionButton({
 }
 
 export function ContactSpeedDial() {
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const t = useT();
   const { contactChannels } = useThemeSettings();
   const actions = buildSpeedDialActions(contactChannels);
   const [open, setOpen] = useState(false);
@@ -118,15 +125,22 @@ export function ContactSpeedDial() {
   }
 
   const purchaseSurface = isPurchaseSurface(pathname);
+  const esimDetail = isEsimDetailSurface(pathname);
 
   return (
     <div
       ref={rootRef}
       className={cn(
         'fixed right-4 z-[60] flex flex-col items-end gap-3 md:right-8',
-        purchaseSurface
-          ? 'bottom-[calc(12rem+env(safe-area-inset-bottom))] lg:bottom-8'
-          : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8',
+        esimDetail
+          ? 'bottom-[calc(9.25rem+env(safe-area-inset-bottom))] md:bottom-8'
+          : pathname === '/esim'
+            ? 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 lg:bottom-8'
+          : purchaseSurface
+            ? 'bottom-[calc(12rem+env(safe-area-inset-bottom))] lg:bottom-8'
+            : pathname === '/'
+              ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))] md:bottom-8'
+              : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8',
       )}
     >
       <div id={listId} className="flex flex-col items-end gap-3" aria-hidden={!open}>
@@ -143,7 +157,7 @@ export function ContactSpeedDial() {
 
       <button
         type="button"
-        aria-label={open ? 'Đóng hỗ trợ nhanh' : 'Mở hỗ trợ nhanh'}
+        aria-label={open ? t('support.close') : t('support.open')}
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => setOpen((value) => !value)}

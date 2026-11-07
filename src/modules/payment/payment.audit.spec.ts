@@ -181,7 +181,7 @@ describe('Phase 2E.1 Payment Safety Audit', () => {
         require('path').join(process.cwd(), 'prisma/schema.prisma'),
         'utf8',
       );
-      expect(schema).toContain('paymentReference String              @unique');
+      expect(schema).toMatch(/paymentReference\s+String\s+@unique/);
     });
   });
 

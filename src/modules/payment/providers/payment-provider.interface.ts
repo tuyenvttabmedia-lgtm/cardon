@@ -11,6 +11,10 @@ export interface CreateProviderPaymentParams {
   methodCode?: string | null;
   /** Force SePay legacy QR (shared STK + transfer content) even when B2C uses payment_gateway. */
   preferLegacyQr?: boolean;
+  /** PayPal eSIM is USD. Other gateways ignore this. */
+  currency?: string;
+  /** Storefront language for return/cancel URLs. */
+  locale?: 'vi' | 'en';
 }
 
 export interface ProviderPaymentResult {
@@ -34,7 +38,8 @@ export interface WebhookVerificationResult {
 export interface ProviderTransactionStatus {
   paymentReference: string;
   status: PaymentRecordStatusLike;
-  amount: string;
+  /** Required before sync settles SUCCESS. Missing/invalid must not become "0.00". */
+  amount?: string;
 }
 
 export type PaymentRecordStatusLike = 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED';

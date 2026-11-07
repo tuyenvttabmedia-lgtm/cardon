@@ -10,7 +10,6 @@ import {
   FulfillmentStatus,
   LedgerReferenceType,
   Prisma,
-  ProductVariantStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
@@ -120,13 +119,8 @@ export class AgentApiBuyService {
       );
     }
 
-    const variant = await this.variantRepository.findBySku(dto.product_code);
-    if (
-      !variant ||
-      variant.deletedAt ||
-      variant.status !== ProductVariantStatus.ACTIVE ||
-      !this.repository.isCardVariant(variant.type)
-    ) {
+    const variant = await this.variantRepository.findActiveBySku(dto.product_code);
+    if (!variant || !this.repository.isCardVariant(variant.type)) {
       throw new AppHttpException(
         ErrorCode.INVALID_SKU,
         'Product not found or inactive',
@@ -426,6 +420,16 @@ export class AgentApiBuyService {
 
     if (params.fulfillmentStatus === FulfillmentStatus.COMPLETED) {
       await this.prisma.$transaction(async (tx) => {
+        // Claim HOLD first so concurrent replay cannot debit/release twice.
+        const claim = await this.repository.claimFinancialTransactionStatus(
+          params.financialTransactionId,
+          FinancialTransactionStatus.HOLD,
+          FinancialTransactionStatus.COMPLETED,
+          tx,
+        );
+        if (claim.count !== 1) {
+          return;
+        }
         if (params.isSandbox) {
           await this.ledgerService.debitSandboxFromHoldInTransaction(
             tx,
@@ -442,17 +446,21 @@ export class AgentApiBuyService {
             'Agent buy card debit',
           );
         }
-        await this.repository.updateFinancialTransactionStatus(
-          params.financialTransactionId,
-          FinancialTransactionStatus.COMPLETED,
-          tx,
-        );
       });
       return;
     }
 
     if (this.shouldReleaseHold(failureCode, params.fulfillmentStatus)) {
       await this.prisma.$transaction(async (tx) => {
+        const claim = await this.repository.claimFinancialTransactionStatus(
+          params.financialTransactionId,
+          FinancialTransactionStatus.HOLD,
+          FinancialTransactionStatus.RELEASED,
+          tx,
+        );
+        if (claim.count !== 1) {
+          return;
+        }
         if (params.isSandbox) {
           await this.ledgerService.releaseSandboxInTransaction(
             tx,
@@ -469,11 +477,6 @@ export class AgentApiBuyService {
             'Agent buy card release',
           );
         }
-        await this.repository.updateFinancialTransactionStatus(
-          params.financialTransactionId,
-          FinancialTransactionStatus.RELEASED,
-          tx,
-        );
         await this.repository.markOrderFailed(params.orderId, tx);
       });
       return;

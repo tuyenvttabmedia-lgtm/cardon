@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { BlogArticlePageView, buildBlogArticleMetadata } from '@/components/blog/BlogArticlePageView';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { getBlogPost } from '@/lib/cms-api';
 import { blogPostPath } from '@/lib/routes';
 
@@ -19,7 +20,8 @@ export default async function TinTucArticlePage({
   params: Promise<{ category: string; slug: string }>;
 }) {
   const { category, slug } = await params;
-  const data = await getBlogPost(slug);
+  const locale = await readRequestLocale();
+  const data = await getBlogPost(slug, locale);
   if (!data) notFound();
 
   const { post } = data;

@@ -1,18 +1,17 @@
 import { Suspense } from 'react';
-import { HomePageClient } from '@/components/home/HomePageClient';
+import { CardonHomePage } from '@/components/home/CardonHomePage';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { listBlogPosts, listFaqs } from '@/lib/cms-api';
 
 export default async function HomePage() {
+  const locale = await readRequestLocale();
   const [newsPosts, faqs] = await Promise.all([
-    listBlogPosts({ take: 8 }),
-    listFaqs({ featured: true, limit: 10 }),
+    listBlogPosts({ take: 4, locale }),
+    listFaqs({ featured: true, limit: 6 }),
   ]);
   return (
-    <Suspense fallback={<p className="text-cardon-gray">Đang tải...</p>}>
-      <HomePageClient
-        newsPosts={newsPosts ?? []}
-        initialFaqs={faqs ? faqs.items : undefined}
-      />
+    <Suspense fallback={<p className="site-container py-8 text-cardon-gray">Đang tải...</p>}>
+      <CardonHomePage newsPosts={newsPosts ?? []} initialFaqs={faqs ? faqs.items : undefined} />
     </Suspense>
   );
 }

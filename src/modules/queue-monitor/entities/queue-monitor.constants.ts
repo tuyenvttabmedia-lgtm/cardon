@@ -8,6 +8,7 @@ export const QUEUE_DISPLAY_NAMES: Record<QueueName, string> = {
   reconciliation_queue: 'Reconciliation',
   notification_queue: 'Notification',
   webhook_delivery_queue: 'Webhook Delivery',
+  esim_queue: 'eSIM',
   content_automation_queue: 'Content Automation',
 };
 

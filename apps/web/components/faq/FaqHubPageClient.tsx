@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
 import {
   fetchFaqsClient,
@@ -24,6 +25,8 @@ function mapItem(row: PublicFaqItem): FaqItem {
 }
 
 export function FaqHubPageClient() {
+  const t = useT();
+  const { locale } = useLocale();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [categories, setCategories] = useState<PublicFaqCategory[]>([]);
@@ -94,8 +97,8 @@ export function FaqHubPageClient() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const sidebarCategories = useMemo(
-    () => [{ id: 'all', name: 'Tất cả', slug: '', sortOrder: -1 }, ...categories],
-    [categories],
+    () => [{ id: 'all', name: t('common.all'), slug: '', sortOrder: -1 }, ...categories],
+    [categories, t],
   );
 
   const selectCategory = (slug: string) => {
@@ -112,11 +115,14 @@ export function FaqHubPageClient() {
     <div className="page-shell py-8">
       <nav className="mb-4 text-sm text-cardon-gray">
         <Link href="/" className="hover:text-cardon-blue">
-          Trang chủ
+          {t('nav.home')}
         </Link>
         <span className="mx-2">›</span>
-        <span className="text-cardon-navy">Trợ giúp</span>
+        <span className="text-cardon-navy">{t('faq.help')}</span>
       </nav>
+      {locale === 'en' ? (
+        <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+      ) : null}
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">Trung tâm trợ giúp</h1>
@@ -126,7 +132,7 @@ export function FaqHubPageClient() {
         <input
           ref={searchInputRef}
           type="search"
-          placeholder="Tìm câu hỏi..."
+          placeholder={t('faq.search')}
           className="mt-4 w-full rounded-xl border border-cardon-border px-4 py-3 text-sm outline-none focus:border-cardon-blue md:max-w-lg"
           value={query}
           onChange={(e) => setQuery(e.target.value)}

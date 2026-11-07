@@ -19,6 +19,7 @@ import {
   ProviderTransactionMetadata,
   RECOVERABLE_PROVIDER_STATUSES,
 } from '../entities/provider-transaction.metadata';
+import { persistAdminTestFulfillmentSkip } from '../../esim/esim-admin-test.rules';
 
 @Injectable()
 export class ProviderRepository {
@@ -33,6 +34,34 @@ export class ProviderRepository {
   findProviderByCode(code: string) {
     return this.prisma.provider.findFirst({
       where: { code: code.toUpperCase(), deletedAt: null },
+    });
+  }
+
+  /** @deprecated eSIM Go is retired. Prefer ensureAiraloProvider. */
+  ensureEsimGoProvider() {
+    return this.prisma.provider.upsert({
+      where: { code: 'ESIM_GO' },
+      create: {
+        code: 'ESIM_GO',
+        name: 'eSIM Go',
+        apiCredentials: '{"source":"settings.provider.esim_go"}',
+        status: ProviderStatus.INACTIVE,
+      },
+      update: { status: ProviderStatus.INACTIVE },
+    });
+  }
+
+  /** Separate from eSale. Does not store Airalo secrets. */
+  ensureAiraloProvider() {
+    return this.prisma.provider.upsert({
+      where: { code: 'AIRALO' },
+      create: {
+        code: 'AIRALO',
+        name: 'Airalo',
+        apiCredentials: '{"source":"settings.provider.airalo"}',
+        status: ProviderStatus.ACTIVE,
+      },
+      update: { status: ProviderStatus.ACTIVE },
     });
   }
 
@@ -143,6 +172,10 @@ export class ProviderOrderRepository {
         },
       },
     });
+  }
+
+  markAdminTestFulfillmentSkipped(orderId: string): Promise<boolean> {
+    return persistAdminTestFulfillmentSkip(this.prisma as never, orderId);
   }
 
   claimFulfillmentProcessing(orderId: string, tx: Prisma.TransactionClient) {

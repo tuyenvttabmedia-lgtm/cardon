@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 import { useEffect, useState } from 'react';
 
@@ -28,7 +28,9 @@ import { CardDeliveryTools } from '@/components/orders/CardDeliveryTools';
 
 import type { AdminOrderDetail } from '@/types/api';
 
-
+function isEsimOrder(detail: AdminOrderDetail): boolean {
+  return detail.esimDelivery?.present === true || detail.overview.products.some((product) => product.type === 'ESIM');
+}
 
 const TABS = [
   { id: 'overview' as const, label: vi.orders.tabOverview },
@@ -43,9 +45,11 @@ const TABS = [
 export default function OrderDetailPage() {
 
   const params = useParams<{ id: string }>();
+  const router = useRouter();
 
   const { can } = useAuth();
 
+  const [redirectingEsim, setRedirectingEsim] = useState(false);
   const [detail, setDetail] = useState<AdminOrderDetail | null>(null);
 
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('overview');
@@ -61,6 +65,11 @@ export default function OrderDetailPage() {
     setError(null);
     try {
       const data = await adminApi.getOrderDetail(params.id, filter || undefined);
+      if (isEsimOrder(data)) {
+        setRedirectingEsim(true);
+        router.replace(`/esim-ops/${params.id}`);
+        return;
+      }
       setDetail(data);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : vi.orders.loadError);
@@ -104,7 +113,9 @@ export default function OrderDetailPage() {
   return (
 
     <RequirePermission permission="orders.read">
-
+      {redirectingEsim ? (
+        <p className="text-sm text-slate-600">Đang mở trang vận hành eSIM…</p>
+      ) : (
       <div className="space-y-6">
 
         <div className="flex items-center justify-between">
@@ -124,7 +135,8 @@ export default function OrderDetailPage() {
           {can('orders.retry') && detail && (
             <div className="flex flex-wrap items-center gap-2">
               {(detail.order.fulfillmentStatus === 'COMPLETED' ||
-                (detail.cardDelivery?.cardCount ?? 0) > 0) && (
+                (detail.cardDelivery?.cardCount ?? 0) > 0 ||
+                detail.esimDelivery?.profilePresent) && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -142,12 +154,25 @@ export default function OrderDetailPage() {
                 <>
                   <Button
                     disabled={actionBusy}
-                    title="Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới bấm Giao lại"
-                    onClick={() => void runAction(vi.orders.retryFulfillment, () => adminApi.retryOrder(params.id))}
+                    title={
+                      isEsimOrder(detail)
+                        ? 'Lấy lại mã cài từ đơn nhà cung cấp đã tạo. Không tạo đơn NCC mới và không đi luồng thẻ.'
+                        : 'Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới bấm Giao lại'
+                    }
+                    onClick={() =>
+                      void runAction(
+                        isEsimOrder(detail) ? 'Đọc lại đơn nhà cung cấp' : vi.orders.retryFulfillment,
+                        () => adminApi.retryOrder(params.id),
+                      )
+                    }
                   >
-                    {actionBusy ? 'Đang giao…' : vi.orders.retryFulfillment}
+                    {actionBusy
+                      ? 'Đang xử lý…'
+                      : isEsimOrder(detail)
+                        ? 'Đọc lại đơn nhà cung cấp'
+                        : vi.orders.retryFulfillment}
                   </Button>
-                  {detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' && (
+                  {detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' && !isEsimOrder(detail) && (
                     <>
                       <Button
                         variant="secondary"
@@ -167,16 +192,18 @@ export default function OrderDetailPage() {
                       >
                         Đánh dấu hoàn tất
                       </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={actionBusy}
-                        onClick={() =>
-                          void adminApi.orderManualRecovery(params.id, 'refund').then(() => load())
-                        }
-                      >
-                        Hoàn tiền
-                      </Button>
                     </>
+                  )}
+                  {detail.order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' && (
+                    <Button
+                      variant="ghost"
+                      disabled={actionBusy}
+                      onClick={() =>
+                        void adminApi.orderManualRecovery(params.id, 'refund').then(() => load())
+                      }
+                    >
+                      Hoàn tiền
+                    </Button>
                   )}
                 </>
               )}
@@ -270,7 +297,7 @@ export default function OrderDetailPage() {
 
             </div>
 
-            {detail.paymentTrace?.length > 0 && (
+            {detail.paymentTrace?.length > 0 && !isEsimOrder(detail) && (
               <div className="rounded-lg border border-sky-100 bg-sky-50/60 p-4 text-sm">
                 <h3 className="font-semibold text-sky-950">Đối soát thanh toán (MMS)</h3>
                 <p className="mt-1 text-xs text-sky-800">
@@ -313,7 +340,7 @@ export default function OrderDetailPage() {
                   <h3 className="font-semibold">Khách hàng</h3>
                   <dl className="mt-3 space-y-2">
                     <div className="flex justify-between gap-4">
-                      <dt className="text-slate-500">Mệnh giá</dt>
+                      <dt className="text-slate-500">{isEsimOrder(detail) ? 'Giá gói' : 'Mệnh giá'}</dt>
                       <dd>{formatVnd(detail.overview.pricing.faceValue)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
@@ -374,6 +401,10 @@ export default function OrderDetailPage() {
               </div>
             )}
 
+            {isEsimOrder(detail) && detail.esimDelivery && (
+              <EsimOpsSummary ops={detail.esimDelivery} />
+            )}
+
             <table className="w-full text-sm">
 
               <thead>
@@ -386,7 +417,7 @@ export default function OrderDetailPage() {
 
                   <th>{vi.orders.quantity}</th>
 
-                  <th className="py-2 text-right">Mệnh giá</th>
+                  <th className="py-2 text-right">{isEsimOrder(detail) ? 'Giá gói' : 'Mệnh giá'}</th>
 
                   <th className="py-2 text-right">Giá bán</th>
 
@@ -500,7 +531,9 @@ export default function OrderDetailPage() {
 
           <Card className="space-y-4 p-4">
 
-            {detail.providerTrace.length === 0 ? (
+            {isEsimOrder(detail) && detail.esimDelivery ? (
+              <EsimAttemptsPanel ops={detail.esimDelivery} />
+            ) : detail.providerTrace.length === 0 ? (
               <p className="text-sm text-slate-500">
                 Chưa có giao dịch nhà cung cấp. Thường do đơn chưa thanh toán thành công hoặc chưa bắt đầu giao hàng.
               </p>
@@ -544,7 +577,9 @@ export default function OrderDetailPage() {
 
         {detail && tab === 'delivery' && detail.delivery && (
           <Card className="space-y-6 p-4">
-            {detail.delivery.type === 'CARD' ? (
+            {detail.delivery.type === 'ESIM' || isEsimOrder(detail) ? (
+              <EsimDeliveryPanel ops={detail.esimDelivery} orderId={params.id} />
+            ) : detail.delivery.type === 'CARD' ? (
               <>
                 <section className="grid gap-3 md:grid-cols-3 text-sm">
                   <div>
@@ -630,9 +665,11 @@ export default function OrderDetailPage() {
                 )}
               </section>
             )}
-            <p className="border-t border-slate-100 pt-4 text-xs text-slate-500">
-              {vi.orders.emailDelivery}: {detail.cardDelivery.emailDeliveryStatus}
-            </p>
+            {detail.delivery.type !== 'ESIM' && !isEsimOrder(detail) && (
+              <p className="border-t border-slate-100 pt-4 text-xs text-slate-500">
+                {vi.orders.emailDelivery}: {detail.cardDelivery.emailDeliveryStatus}
+              </p>
+            )}
           </Card>
         )}
 
@@ -675,6 +712,137 @@ export default function OrderDetailPage() {
         )}
 
       </div>
+      )}
     </RequirePermission>
+  );
+}
+
+type EsimOps = NonNullable<AdminOrderDetail['esimDelivery']>;
+
+function EsimOpsSummary({ ops }: { ops: EsimOps }) {
+  return (
+    <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-4 text-sm">
+      <h3 className="font-semibold text-indigo-950">Đơn hàng eSIM</h3>
+      <p className="mt-1 text-xs text-indigo-800">
+        Đơn này không đi luồng thẻ. Không đổi NCC, không PIN, không MegaPay MMS.
+      </p>
+      <dl className="mt-3 grid gap-2 md:grid-cols-2">
+        <div>
+          <dt className="text-slate-500">Mã gói NCC</dt>
+          <dd className="font-mono text-xs break-all">{ops.providerProductCode ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Mã đơn NCC</dt>
+          <dd className="font-mono text-xs">{ops.airaloOrderId ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Nhà cung cấp / chế độ</dt>
+          <dd>
+            {ops.providerName ?? '—'} · {ops.providerMode ?? '—'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Mã cài eSIM</dt>
+          <dd>{ops.profilePresent ? ops.installSecretMasked : 'Chưa có — cần đọc lại đơn NCC'}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function EsimDeliveryPanel({ ops, orderId }: { ops?: EsimOps; orderId: string }) {
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  if (!ops?.present) {
+    return (
+      <p className="text-sm text-slate-500">
+        Chưa có hồ sơ eSIM. Nếu đơn đã thanh toán, bấm «Đọc lại đơn nhà cung cấp» để lấy mã cài từ đơn đã tạo.
+      </p>
+    );
+  }
+  return (
+    <section className="space-y-4 text-sm">
+      <h3 className="font-semibold">Giao eSIM</h3>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <p className="text-xs text-slate-500">Tên gói</p>
+          <p className="font-medium">{ops.packageTitle ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Mã gói NCC</p>
+          <p className="font-mono text-xs break-all">{ops.providerProductCode ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Mã đơn NCC</p>
+          <p className="font-mono">{ops.airaloOrderId ?? '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500">Trạng thái hồ sơ</p>
+          <p>{ops.profilePresent ? 'Đã lưu mã cài' : 'Chưa có mã cài'}</p>
+        </div>
+      </div>
+      <div className="rounded border p-4">
+        <CopyValueRow label="Mã cài (đã che)" value={revealed ?? ops.installSecretMasked ?? '—'} />
+        {ops.canRevealInstallSecret ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mt-3"
+            disabled={revealing}
+            onClick={() => {
+              if (revealed) {
+                setRevealed(null);
+                setRevealError(null);
+                return;
+              }
+              setRevealing(true);
+              setRevealError(null);
+              void adminApi
+                .revealEsimInstallSecret(orderId)
+                .then((payload) => setRevealed(payload.installSecret))
+                .catch((err) => {
+                  setRevealError(err instanceof ApiClientError ? err.message : 'Không mở được mã cài');
+                })
+                .finally(() => setRevealing(false));
+            }}
+          >
+            {revealing ? 'Đang mở…' : revealed ? 'Ẩn mã' : 'Hiện mã cài'}
+          </Button>
+        ) : null}
+        {revealError ? <p className="mt-2 text-xs text-red-600">{revealError}</p> : null}
+        {!ops.profilePresent && (
+          <p className="mt-2 text-xs text-amber-800">
+            Nhà cung cấp đã nhận đơn nhưng chưa đọc được mã cài. Dùng «Đọc lại đơn nhà cung cấp».
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EsimAttemptsPanel({ ops }: { ops: EsimOps }) {
+  const attempts = ops.attempts;
+  if (attempts.length === 0) {
+    return <p className="text-sm text-slate-500">Chưa có lần gọi nhà cung cấp.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-slate-600">
+        Nhật ký tạo đơn / đọc lại NCC. Đọc lại chỉ lấy mã cài từ đơn đã tạo, không tạo eSIM mới.
+      </p>
+      {attempts.map((attempt) => (
+        <div key={attempt.id} className="rounded border p-3 text-sm">
+          <p>
+            <strong>{attempt.operation}</strong> · {attempt.outcome}
+            {attempt.providerStatus ? ` · ${attempt.providerStatus}` : ''}
+          </p>
+          <p className="font-mono text-xs">
+            ref {attempt.providerReference ?? '—'} · {formatDateTime(attempt.createdAt)}
+          </p>
+          {attempt.errorMessage && <p className="mt-1 text-xs text-amber-800">{attempt.errorMessage}</p>}
+        </div>
+      ))}
+    </div>
   );
 }

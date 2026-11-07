@@ -183,11 +183,10 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
       expect(prisma.order.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
+            isGuestOrder: true,
+            userId: null,
             orderCode: { equals: 'ORD-123', mode: 'insensitive' },
-            OR: [
-              { guestEmail: { equals: 'guest@test.com', mode: 'insensitive' } },
-              { user: { email: { equals: 'guest@test.com', mode: 'insensitive' } } },
-            ],
+            guestEmail: { equals: 'guest@test.com', mode: 'insensitive' },
           }),
         }),
       );

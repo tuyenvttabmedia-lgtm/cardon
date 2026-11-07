@@ -66,6 +66,12 @@ export class UpdatePaymentGatewayDto {
   @MaxLength(512)
   webhookSecret?: string;
 
+  /** SePay Payment Gateway IPN secret. Stored apart from the VietQR HMAC. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  ipnSecret?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(512)
@@ -123,6 +129,72 @@ export class UpdatePaymentGatewayDto {
   @IsString()
   @MaxLength(512)
   reqDomain?: string;
+}
+
+export class UpdateProviderEsimGoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  apiKey?: string;
+}
+
+export class UpdateProviderAiraloDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  clientSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  baseUrl?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(10_000)
+  @Max(100_000)
+  usdVndRate?: number;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'production'])
+  accountMode?: 'sandbox' | 'production';
+}
+
+export class UpdateAiraloPackageLifecycleDto {
+  @IsString()
+  @IsIn(['MAPPED', 'REVIEW_REQUIRED', 'PUBLISHED', 'INACTIVE'])
+  lifecycle!: 'MAPPED' | 'REVIEW_REQUIRED' | 'PUBLISHED' | 'INACTIVE';
+}
+
+export class UpdatePaymentPaypalDto {
+  @IsOptional()
+  @IsBoolean()
+  esimEnabled?: boolean;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'live'])
+  mode?: 'sandbox' | 'live';
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  clientSecret?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  webhookId?: string;
 }
 
 export class UpdateProviderEsaleDto {
@@ -250,6 +322,26 @@ export class UpdateSystemSettingsDto {
   @IsOptional()
   @IsBoolean()
   customerDataEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  customerEsimEnabled?: boolean;
+
+  /** Max eSIM charge VND per order. 0 = off. Default 2_000_000 when unset. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(500_000_000)
+  esimMaxChargeAmountVnd?: number;
+
+  /** Max eSIM charge USD per order. 0 = admin setting off (hard cap 80 remains). Default 80. Absolute max 80. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(80)
+  esimMaxChargeAmountUsd?: number;
 
   @IsOptional()
   @IsInt()
@@ -409,4 +501,19 @@ export class UpdatePaymentMethodsDto {
   @ValidateNested({ each: true })
   @Type(() => PaymentMethodConfigDto)
   methods!: PaymentMethodConfigDto[];
+}
+
+/** 1 USD = rate VND. The service rejects non-positive and over-precise values. */
+export class CreateFxRateDto {
+  @IsString()
+  @MaxLength(32)
+  rate!: string;
+
+  @IsString()
+  @MaxLength(40)
+  observedAt!: string;
+
+  @IsInt()
+  @Min(1)
+  maxStalenessSeconds!: number;
 }

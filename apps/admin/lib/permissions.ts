@@ -30,8 +30,15 @@ export const NAV_ITEMS: NavItem[] = [
 
   { href: '/orders', label: vi.nav.orders, permission: 'orders.read' },
   { href: '/orders/agent', label: 'Đơn đại lý', permission: 'orders.read' },
+  { href: '/esim-ops', label: vi.nav.esimOps, permission: 'orders.read' },
+  {
+    href: '/refunds',
+    label: vi.nav.refunds,
+    permissions: ['refund.request', 'refund.approve', 'refund.execute', 'refund.reconcile'],
+  },
 
   { href: '/products', label: vi.nav.products, permission: 'products.manage' },
+  { href: '/products/esim', label: 'Catalog eSIM', permission: 'products.manage' },
 
   { href: '/providers', label: vi.nav.providers, permission: 'providers.manage' },
 
@@ -106,11 +113,11 @@ export const NAV_ITEMS: NavItem[] = [
 
 const ROLE_NAV_ALLOWLIST: Record<string, string[]> = {
 
-  ACCOUNTANT: ['/finance', '/operations', '/orders', '/payments', '/agents'],
+  ACCOUNTANT: ['/finance', '/operations', '/orders', '/esim-ops', '/refunds', '/payments', '/agents'],
 
   MARKETING: ['/marketing'],
 
-  SUPPORT: ['/dashboard', '/orders', '/orders/agent', '/payments', '/customers', '/support', '/monitoring', '/operations', '/agents'],
+  SUPPORT: ['/dashboard', '/orders', '/orders/agent', '/esim-ops', '/refunds', '/payments', '/customers', '/support', '/monitoring', '/operations', '/agents'],
 
 };
 

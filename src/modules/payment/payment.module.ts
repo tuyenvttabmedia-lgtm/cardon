@@ -11,6 +11,7 @@ import { MegapayConfigService } from './providers/megapay/megapay.config';
 import { DepositCodeHttpClient } from './providers/megapay/depositcode.client';
 import { MegapayPgHttpClient } from './providers/megapay/megapay-pg.client';
 import { MegaPayProvider } from './providers/megapay/megapay.provider';
+import { PaypalProvider } from './providers/paypal/paypal.provider';
 import { SePayProvider } from './providers/sepay/sepay.provider';
 import { SepayConfigService } from './providers/sepay/sepay.config';
 import { PaymentProviderRegistry } from './providers/payment-provider.registry';
@@ -22,6 +23,8 @@ import { ExpirationCronService } from './services/expiration-cron.service';
 import { PaymentAuditService } from './services/payment-audit.service';
 import { PaymentExpirationService } from './services/payment-expiration.service';
 import { PaymentService } from './services/payment.service';
+import { EsimSepayPaymentService } from './services/esim-sepay-payment.service';
+import { EsimPaypalPaymentService } from './services/esim-paypal-payment.service';
 
 @Module({
   imports: [
@@ -42,8 +45,11 @@ import { PaymentService } from './services/payment.service';
     MegaPayProvider,
     SepayConfigService,
     SePayProvider,
+    PaypalProvider,
     PaymentProviderRegistry,
     PaymentService,
+    EsimSepayPaymentService,
+    EsimPaypalPaymentService,
     PaymentAuditService,
     PaymentExpirationService,
     ExpirationCronService,

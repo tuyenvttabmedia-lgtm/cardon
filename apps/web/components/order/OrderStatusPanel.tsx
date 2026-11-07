@@ -1,9 +1,8 @@
+'use client';
+
+import { useLocale, useDateTime, useMoney, useT } from '@/components/i18n/LocaleProvider';
 import { Badge } from '@/components/ui/Badge';
-import {
-  formatVnd,
-  paymentStatusLabel,
-} from '@/lib/utils';
-import { resolveCustomerOrderStatusLabel } from '@/lib/order-labels';
+import { paymentStatusLabel, resolveCustomerOrderStatusLabel } from '@/lib/order-labels';
 import type { Order } from '@/types/api';
 
 function statusTone(status: string): 'default' | 'success' | 'warning' | 'danger' {
@@ -16,13 +15,17 @@ function statusTone(status: string): 'default' | 'success' | 'warning' | 'danger
 }
 
 export function OrderStatusPanel({ order }: { order: Order }) {
-  const customerLabel = resolveCustomerOrderStatusLabel(order);
+  const t = useT();
+  const money = useMoney();
+  const formatWhen = useDateTime();
+  const { locale } = useLocale();
+  const customerLabel = resolveCustomerOrderStatusLabel(order, locale);
 
   return (
     <div className="rounded-2xl border border-cardon-border bg-white p-6 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-cardon-gray">Mã đơn hàng</p>
+          <p className="text-sm text-cardon-gray">{t('result.orderCode')}</p>
           <p className="text-xl font-bold text-cardon-navy">{order.orderCode}</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -30,18 +33,18 @@ export function OrderStatusPanel({ order }: { order: Order }) {
             {customerLabel}
           </Badge>
           <Badge tone={statusTone(order.paymentStatus)}>
-            {paymentStatusLabel(order.paymentStatus)}
+            {paymentStatusLabel(order.paymentStatus, locale)}
           </Badge>
         </div>
       </div>
       <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
         <div>
-          <dt className="text-cardon-gray">Tổng tiền</dt>
-          <dd className="font-semibold text-cardon-navy">{formatVnd(order.totalAmount)}</dd>
+          <dt className="text-cardon-gray">{t('common.total')}</dt>
+          <dd className="font-semibold text-cardon-navy">{money(order.totalAmount)}</dd>
         </div>
         <div>
-          <dt className="text-cardon-gray">Ngày tạo</dt>
-          <dd className="text-cardon-navy">{new Date(order.createdAt).toLocaleString('vi-VN')}</dd>
+          <dt className="text-cardon-gray">{t('order.created')}</dt>
+          <dd className="text-cardon-navy">{formatWhen(order.createdAt)}</dd>
         </div>
         {order.guestEmail && (
           <div>
@@ -54,9 +57,9 @@ export function OrderStatusPanel({ order }: { order: Order }) {
         {order.items.map((item) => (
           <li key={item.id} className="flex justify-between px-4 py-3 text-sm">
             <span className="text-cardon-navy">
-              {item.variant?.name ?? 'Sản phẩm'} × {item.quantity}
+              {item.variant?.name ?? t('common.product')} × {item.quantity}
             </span>
-            <span className="font-medium text-cardon-navy">{formatVnd(item.totalAmount)}</span>
+            <span className="font-medium text-cardon-navy">{money(item.totalAmount)}</span>
           </li>
         ))}
       </ul>

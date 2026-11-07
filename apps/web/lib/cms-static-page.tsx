@@ -5,7 +5,8 @@ import { CmsPageView } from '@/components/cms/CmsPageView';
 import { getCmsPage, listStaticNavPages } from '@/lib/cms-api';
 import { GIOI_THIEU_LANDING_HTML } from '@/lib/cms-block-snippets';
 import { defaultPageLayoutForSlug, resolveEffectivePageLayout, type CmsPageLayoutValue } from '@/lib/cms-page-layout';
-import { buildCmsMetadata } from '@/lib/seo';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
+import { buildCmsMetadata, isPublishedEnglishDocument } from '@/lib/seo';
 import { staticPageLabel } from '@/lib/static-pages';
 
 export const CMS_STATIC_FALLBACK: Record<string, string> = {
@@ -47,15 +48,27 @@ const FALLBACK_EXCERPTS: Record<string, string> = {
 };
 
 export async function buildStaticPageMetadata(slug: string): Promise<Metadata> {
-  const page = await getCmsPage(slug);
+  const locale = await readRequestLocale();
+  const [page, english] = await Promise.all([
+    getCmsPage(slug, locale),
+    locale === 'en' ? Promise.resolve(null) : getCmsPage(slug, 'en'),
+  ]);
   const title = page?.seo?.metaTitle ?? page?.title ?? staticPageLabel(slug);
   const description =
     page?.seo?.metaDescription ?? page?.excerpt ?? `${staticPageLabel(slug)} — CardOn.vn`;
-  return buildCmsMetadata(page ?? { title, excerpt: description, slug }, page?.seo ?? null, '');
+  const englishDoc = locale === 'en' ? page : english;
+  return buildCmsMetadata(
+    page ?? { title, excerpt: description, slug },
+    page?.seo ?? null,
+    '',
+    locale,
+    isPublishedEnglishDocument(englishDoc),
+  );
 }
 
 async function resolvePageContent(slug: string) {
-  const [page, navPages] = await Promise.all([getCmsPage(slug), listStaticNavPages()]);
+  const locale = await readRequestLocale();
+  const [page, navPages] = await Promise.all([getCmsPage(slug, locale), listStaticNavPages(locale)]);
   const title = page?.title ?? staticPageLabel(slug);
   const content = page?.content ?? CMS_STATIC_FALLBACK[slug];
   const excerpt = page?.excerpt ?? FALLBACK_EXCERPTS[slug] ?? null;
@@ -68,7 +81,15 @@ async function resolvePageContent(slug: string) {
 
   if (!content) return null;
 
-  return { slug, title, content, excerpt, pageLayout, navItems };
+  return {
+    slug,
+    title,
+    content,
+    excerpt,
+    pageLayout,
+    navItems,
+    contentFallback: locale === 'en' && page?.fallback !== false,
+  };
 }
 
 export async function renderStaticPage(slug: string) {
@@ -82,10 +103,18 @@ export async function renderCmsContentPage(slug: string) {
 }
 
 export async function renderContactPage() {
-  const page = await getCmsPage('lien-he');
+  const locale = await readRequestLocale();
+  const page = await getCmsPage('lien-he', locale);
   const title = page?.title ?? staticPageLabel('lien-he');
   const intro = page?.content ?? CMS_STATIC_FALLBACK['lien-he'];
   const subtitle = page?.excerpt?.trim() || 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.';
 
-  return <ContactPageClient title={title} subtitle={subtitle} introHtml={intro} />;
+  return (
+    <ContactPageClient
+      title={title}
+      subtitle={subtitle}
+      introHtml={intro}
+      contentFallback={locale === 'en' && page?.fallback !== false}
+    />
+  );
 }

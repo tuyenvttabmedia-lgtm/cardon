@@ -10,14 +10,10 @@ import {
 } from '@/lib/footer-config';
 import { DEFAULT_CONTACT_CHANNELS, normalizeContactChannels } from '@/lib/contact-channels';
 import { DEFAULT_MOBILE_NAV, type MobileNavItem } from '@/lib/mobile-nav.defaults';
+import { resolveHomeBackgrounds } from '@/lib/home-backgrounds';
+import { SYSTEM_HEADER_MENU } from '@/lib/i18n/theme-labels';
 
-export const DEFAULT_HEADER_MENU = [
-  { label: 'Trang chủ', href: '/', sortOrder: 0 },
-  { label: 'Mua thẻ', href: '/#mua-the', sortOrder: 1 },
-  { label: 'Nạp cước', href: '/nap-cuoc', sortOrder: 2 },
-  { label: 'Nạp Data', href: '/nap-data', sortOrder: 3 },
-  { label: 'Tin tức', href: '/tin-tuc', sortOrder: 4 },
-];
+export const DEFAULT_HEADER_MENU = SYSTEM_HEADER_MENU;
 
 export const DEFAULT_COMPANY_INFO: CompanyInfo = {
   companyName: 'CardOn.vn',
@@ -53,10 +49,16 @@ export function useThemeSettings() {
       href: (item.href ?? '/').trim() || '/',
     }));
 
-  const headerMenu =
+  const headerMenu: Array<{
+    label: string;
+    href: string;
+    sortOrder?: number;
+    labelEn?: string;
+    navKey?: string;
+  }> =
     validMenu.length > 0
       ? [...validMenu].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-      : DEFAULT_HEADER_MENU;
+      : [...DEFAULT_HEADER_MENU];
 
   const companyInfo: CompanyInfo = { ...DEFAULT_COMPANY_INFO, ...theme?.companyInfo };
   const contactChannels = normalizeContactChannels(theme?.contactChannels ?? DEFAULT_CONTACT_CHANNELS);
@@ -68,7 +70,10 @@ export function useThemeSettings() {
     rawMobileNav.length > 0
       ? [...rawMobileNav]
           .map((item, i) => ({
+            ...item,
             label: (item.label ?? '').trim() || `Mục ${i + 1}`,
+            labelEn: item.labelEn?.trim() || undefined,
+            navKey: item.navKey?.trim() || undefined,
             icon: (item.icon ?? '📱').trim() || '📱',
             url: (item.url ?? '/').trim() || '/',
             sortOrder: item.sortOrder ?? i,
@@ -81,6 +86,18 @@ export function useThemeSettings() {
   const logoDesktop = theme?.logoDesktop || '/images/cardon-logo-full.png';
   const logoMobile = theme?.logoMobile || '/images/cardon-icon.png';
   const favicon = theme?.favicon || '/images/cardon-icon.png';
+  const homeBackgrounds = resolveHomeBackgrounds(theme?.homeBackgrounds);
 
-  return { theme, headerMenu, footerColumns, mobileNav, logoDesktop, logoMobile, favicon, companyInfo, contactChannels };
+  return {
+    theme,
+    headerMenu,
+    footerColumns,
+    mobileNav,
+    logoDesktop,
+    logoMobile,
+    favicon,
+    companyInfo,
+    contactChannels,
+    homeBackgrounds,
+  };
 }

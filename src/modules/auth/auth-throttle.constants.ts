@@ -21,3 +21,14 @@ export const AUTH_FORGOT_PASSWORD_THROTTLE = {
   limit: parsePositiveInt(process.env.AUTH_FORGOT_PASSWORD_THROTTLE_LIMIT, 5),
   ttl: parsePositiveInt(process.env.AUTH_FORGOT_PASSWORD_THROTTLE_TTL_MS, DEFAULT_TTL_MS),
 };
+
+/** Registration / agent-register / verify / reset — stop mass account & token spray. */
+export const AUTH_REGISTER_THROTTLE = {
+  limit: parsePositiveInt(process.env.AUTH_REGISTER_THROTTLE_LIMIT, 5),
+  ttl: parsePositiveInt(process.env.AUTH_REGISTER_THROTTLE_TTL_MS, DEFAULT_TTL_MS),
+};
+
+export const AUTH_RESET_PASSWORD_THROTTLE = {
+  limit: parsePositiveInt(process.env.AUTH_RESET_PASSWORD_THROTTLE_LIMIT, 10),
+  ttl: parsePositiveInt(process.env.AUTH_RESET_PASSWORD_THROTTLE_TTL_MS, DEFAULT_TTL_MS),
+};

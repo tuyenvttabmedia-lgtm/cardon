@@ -23,6 +23,7 @@ import {
 } from './entities/agent-api-signature';
 import { AgentApiAuthService } from './services/agent-api-auth.service';
 import { AgentApiBuyService } from './services/agent-api-buy.service';
+import { AgentApiRepository } from './repositories/agent-api.repository';
 
 describe('AgentApiAuthService', () => {
   let service: AgentApiAuthService;
@@ -194,11 +195,12 @@ describe('AgentApiBuyService', () => {
     createFinancialTransaction: jest.Mock;
     createAgentOrderWithHold: jest.Mock;
     updateFinancialTransactionStatus: jest.Mock;
+    claimFinancialTransactionStatus: jest.Mock;
     markOrderFailed: jest.Mock;
     isCardVariant: jest.Mock;
   };
   let agentRepository: { lockForUpdate: jest.Mock };
-  let variantRepository: { findBySku: jest.Mock };
+  let variantRepository: { findActiveBySku: jest.Mock };
   let pricingService: { getAgentPrice: jest.Mock; resolveAgentPrice: jest.Mock };
   let ledgerService: {
     holdInTransaction: jest.Mock;
@@ -255,12 +257,13 @@ describe('AgentApiBuyService', () => {
       createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'fin-1' }),
       createAgentOrderWithHold: jest.fn().mockResolvedValue(completedOrder),
       updateFinancialTransactionStatus: jest.fn(),
+      claimFinancialTransactionStatus: jest.fn().mockResolvedValue({ count: 1 }),
       markOrderFailed: jest.fn(),
       isCardVariant: jest.fn().mockReturnValue(true),
     };
     agentRepository = { lockForUpdate: jest.fn() };
     variantRepository = {
-      findBySku: jest.fn().mockResolvedValue(variant),
+      findActiveBySku: jest.fn().mockResolvedValue(variant),
     };
     pricingService = {
       getAgentPrice: jest.fn().mockResolvedValue('100000.00'),
@@ -316,6 +319,79 @@ describe('AgentApiBuyService', () => {
       { scheduleForOrder: jest.fn() } as never,
     );
   });
+
+  it('classifies only CARD variants through the real repository helper', () => {
+    const classifier = new AgentApiRepository({} as never);
+    expect(classifier.isCardVariant(ProductVariantType.CARD)).toBe(true);
+    expect(classifier.isCardVariant(ProductVariantType.ESIM)).toBe(false);
+    expect(classifier.isCardVariant(ProductVariantType.TOPUP)).toBe(false);
+    expect(classifier.isCardVariant(ProductVariantType.DATA)).toBe(false);
+  });
+
+  it.each(['TOPUP', 'DATA', 'ESIM'] as const)(
+    'rejects a %s SKU before hold, debit, or release',
+    async (type) => {
+      const classifier = new AgentApiRepository({} as never);
+      repository.isCardVariant.mockImplementation((variantType: ProductVariantType) =>
+        classifier.isCardVariant(variantType),
+      );
+      repository.findOrderByAgentRequestId.mockResolvedValue(null);
+      variantRepository.findActiveBySku.mockResolvedValue({
+        ...variant,
+        sku: `${type}_TEST`,
+        type: ProductVariantType[type],
+      });
+
+      await expect(
+        service.buyCard(ctx, {
+          product_code: `${type}_TEST`,
+          quantity: 1,
+          request_id: 'req-buy-001',
+        }),
+      ).rejects.toMatchObject({ code: ErrorCode.INVALID_SKU });
+
+      expect(ledgerService.holdInTransaction).not.toHaveBeenCalled();
+      expect(ledgerService.debitFromHoldInTransaction).not.toHaveBeenCalled();
+      expect(ledgerService.releaseInTransaction).not.toHaveBeenCalled();
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(pricingService.getAgentPrice).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['GAME_100K', 'PHONE_100K'])(
+    'lets CARD sku %s reach the existing hold path',
+    async (sku) => {
+      const { BadRequestException } = await import('@nestjs/common');
+      const classifier = new AgentApiRepository({} as never);
+      repository.isCardVariant.mockImplementation((type: ProductVariantType) =>
+        classifier.isCardVariant(type),
+      );
+      repository.findOrderByAgentRequestId.mockResolvedValue(null);
+      variantRepository.findActiveBySku.mockResolvedValue({
+        ...variant,
+        sku,
+        type: ProductVariantType.CARD,
+      });
+      ledgerService.holdInTransaction.mockRejectedValue(
+        new BadRequestException('INSUFFICIENT_BALANCE'),
+      );
+      prisma.$transaction.mockImplementation(async (cb) =>
+        cb({ order: { findFirst: jest.fn().mockResolvedValue(null) } }),
+      );
+
+      await expect(
+        service.buyCard(ctx, {
+          product_code: sku,
+          quantity: 1,
+          request_id: 'req-buy-001',
+        }),
+      ).rejects.toMatchObject({ code: ErrorCode.INSUFFICIENT_BALANCE });
+
+      expect(repository.isCardVariant).toHaveBeenCalledWith(ProductVariantType.CARD);
+      expect(ledgerService.holdInTransaction).toHaveBeenCalled();
+      expect(ledgerService.debitFromHoldInTransaction).not.toHaveBeenCalled();
+    },
+  );
 
   it('returns balance snapshot', async () => {
     const result = await service.getBalance(ctx);

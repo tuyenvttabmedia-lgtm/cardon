@@ -1,8 +1,9 @@
 /**
  * Checkout / payment idempotency rules (Phase 2D.1 — documented).
  *
- * Current Order Core does NOT deduplicate rapid double-clicks on POST /orders.
- * Each submit creates a new order + financial_transaction row.
+ * Legacy Order Core does NOT deduplicate rapid double-clicks on POST /orders.
+ * Each card/topup submit creates a new order + financial_transaction row.
+ * eSIM lane reuses an in-flight order for the same user + variant (no schema change).
  *
  * Payment phase MUST implement:
  *
@@ -18,7 +19,8 @@
  */
 export const ORDER_IDEMPOTENCY_RULES = {
   orderCreation: {
-    currentBehavior: 'Each POST /orders creates a new order (no dedup)',
+    currentBehavior:
+      'Legacy POST /orders creates a new order (no dedup). eSIM reuses in-flight user+variant orders.',
     paymentPhaseRequirement:
       'Idempotency-Key on payment creation; webhook uses payment_reference',
   },

@@ -4,6 +4,7 @@ import {
   Headers,
   HttpCode,
   Param,
+  ParseUUIDPipe,
   Post,
   Req,
   UnauthorizedException,
@@ -15,6 +16,7 @@ import { ModuleRef } from '@nestjs/core';
 import { Request } from 'express';
 import { Public } from '../../../common/decorators/public.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentDepositWebhookService } from '../../agent-deposit/services/agent-deposit-webhook.service';
@@ -23,6 +25,7 @@ import { MaintenanceModule } from '../../maintenance-center/decorators/maintenan
 import { IDEMPOTENCY_KEY_HEADER } from '../entities/payment.constants';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { PaymentService } from '../services/payment.service';
+import { EsimSepayPaymentService } from '../services/esim-sepay-payment.service';
 import {
   depositCodeNotifyBadAmount,
   depositCodeNotifyBadSignature,
@@ -35,6 +38,7 @@ import {
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentService,
+    private readonly esimSepayPaymentService: EsimSepayPaymentService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -47,6 +51,26 @@ export class PaymentController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.paymentService.createPayment(dto, idempotencyKey, user);
+  }
+
+  @Post('orders/:orderId/sync')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  syncFromGateway(
+    @Param('orderId', ParseUUIDPipe) orderId: string,
+    @CurrentUser() user?: AuthenticatedUser,
+  ) {
+    return this.paymentService.syncFromGateway(orderId, user);
+  }
+
+  @Post('ipn/esim/sepay')
+  @Public()
+  @HttpCode(200)
+  esimSepayIpn(
+    @Body() payload: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.esimSepayPaymentService.handleIpn(payload, headers);
   }
 
   @Post('webhook/:gateway')

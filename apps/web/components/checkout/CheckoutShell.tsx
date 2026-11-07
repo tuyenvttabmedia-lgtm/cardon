@@ -23,6 +23,11 @@ import { CatalogDataPackageGrid } from '@/components/catalog/CatalogDataPackageG
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
 import { getActiveVariants, useProducts } from '@/hooks/useProducts';
+import { useRetailMarket } from '@/hooks/useRetailMarket';
+import { VnOnlyMarketNotice } from '@/components/market/VnOnlyMarketNotice';
+import { readBrowserLocale, stripLocalePrefix } from '@/lib/i18n/locale';
+import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 import { buildCustomerPriceViewFromVariant } from '@/lib/customer-price';
 import {
@@ -63,7 +68,7 @@ import {
   TOPUP_CARRIERS,
 } from '@/lib/topup-flow';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
-import { cn, formatVnd, generateIdempotencyKey } from '@/lib/utils';
+import { cn, generateIdempotencyKey } from '@/lib/utils';
 import type { OrderAmountLimitDetails } from '@/lib/order-limit';
 import { parseOrderAmountLimitError } from '@/lib/order-limit';
 import {
@@ -144,10 +149,15 @@ function CheckoutShellInner({
   serviceUnavailable,
 }: CheckoutShellProps) {
   const router = useRouter();
-  const pathname = usePathname();
+  const pathname = stripLocalePrefix(usePathname() || '/').pathname;
+  const t = useT();
+  const { locale } = useLocale();
+  const money = useMoney();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, refreshUser } = useAuth();
   const { products, loading, error } = useProducts();
+  const retailMarket = useRetailMarket();
+  const vnOnlyBlocked = retailMarket === 'INTL';
   const payInFlightRef = useRef(false);
   const autoCatalogInitialized = useRef(false);
 
@@ -175,14 +185,27 @@ function CheckoutShellInner({
   } | null>(null);
 
   const {
-    methods: paymentMethods,
+    methods: allPaymentMethods,
     paymentMethodCode,
     setPaymentMethodCode,
     selectedMethod,
     gateway,
     setGateway,
-    hasMethods: hasPaymentMethods,
   } = usePaymentMethods();
+  /** Cards/topup/data stay on MegaPay. eSIM VN uses SePay on its own pages. */
+  const paymentMethods = useMemo(
+    () => allPaymentMethods.filter((method) => method.gatewayCode === 'MEGAPAY' && method.enabled),
+    [allPaymentMethods],
+  );
+  const hasPaymentMethods = paymentMethods.length > 0;
+
+  useEffect(() => {
+    if (paymentMethods.length === 0) return;
+    if (paymentMethodCode && paymentMethods.some((m) => m.methodCode === paymentMethodCode)) {
+      return;
+    }
+    setPaymentMethodCode(paymentMethods[0].methodCode);
+  }, [paymentMethods, paymentMethodCode, setPaymentMethodCode]);
 
   const dataReady = siteConfig?.data?.ready ?? false;
   const topupReady = siteConfig?.topup?.ready ?? false;
@@ -458,11 +481,13 @@ function CheckoutShellInner({
   ]);
 
   async function handlePay() {
+    if (vnOnlyBlocked) {
+      setCheckoutError(t('market.vnOnly'));
+      return;
+    }
     if (mode !== 'CARD' && !telcoReady) {
       setCheckoutError(
-        mode === 'TOPUP'
-          ? 'Dịch vụ nạp cước đang tạm ngưng. Vui lòng thử lại sau.'
-          : 'Dịch vụ nạp data đang tạm ngưng. Vui lòng thử lại sau.',
+        mode === 'TOPUP' ? t('checkout.topupPaused') : t('checkout.dataPaused'),
       );
       return;
     }
@@ -491,7 +516,7 @@ function CheckoutShellInner({
         setLoginModalOpen(true);
         return;
       }
-      setCheckoutError(validationError);
+      setCheckoutError(t(validationError));
       return;
     }
 
@@ -508,13 +533,13 @@ function CheckoutShellInner({
           paymentMethodCode: paymentMethodCode ?? undefined,
         });
         setLoginModalOpen(true);
-        setCheckoutError('Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại để thanh toán.');
+        setCheckoutError(t('checkout.sessionExpired'));
         return;
       }
     }
 
     if (!variant || !user?.email || !gateway || !paymentMethodCode || !hasPaymentMethods) {
-      if (!hasPaymentMethods) setCheckoutError('Hiện chưa có phương thức thanh toán khả dụng');
+      if (!hasPaymentMethods) setCheckoutError(t('checkout.noMethods'));
       return;
     }
 
@@ -540,6 +565,7 @@ function CheckoutShellInner({
           items: [{ variantId: variant.id, quantity: orderQuantity }],
           paymentMethodCode,
           clientDeviceInfo: collectClientDeviceInfo(),
+          locale: readBrowserLocale(),
         });
       } else {
         const normalizedPhone = normalizeVnPhone(phone);
@@ -553,6 +579,7 @@ function CheckoutShellInner({
           customerNote: note,
           paymentMethodCode,
           clientDeviceInfo: collectClientDeviceInfo(),
+          locale: readBrowserLocale(),
         });
       }
 
@@ -600,14 +627,14 @@ function CheckoutShellInner({
             paymentMethodCode: paymentMethodCode ?? undefined,
           });
           setLoginModalOpen(true);
-          setCheckoutError('Vui lòng đăng nhập để tiếp tục thanh toán.');
+          setCheckoutError(t('checkout.loginRequired'));
           setOrderLimitError(null);
         } else {
-          setCheckoutError(err.message);
+          setCheckoutError(customerFacingError(locale, err));
           setOrderLimitError(null);
         }
       } else {
-        setCheckoutError('Thanh toán thất bại');
+        setCheckoutError(t('checkout.payFailed'));
         setOrderLimitError(null);
       }
     } finally {
@@ -617,12 +644,12 @@ function CheckoutShellInner({
   }
 
   const payButtonLabel = checkoutLoading
-    ? 'Đang tạo giao dịch...'
+    ? t('checkout.creating')
     : isOverOrderLimit
       ? orderQuantity > 1
-        ? 'Giảm số lượng để tiếp tục'
-        : 'Đơn hàng vượt quá giới hạn'
-      : 'Thanh toán';
+        ? t('checkout.reduceQty')
+        : t('checkout.overLimit')
+      : t('checkout.pay');
   const canPay =
     mode === 'CARD'
       ? Boolean(variant && hasPaymentMethods && paymentMethodCode)
@@ -634,7 +661,7 @@ function CheckoutShellInner({
             hasPaymentMethods &&
             paymentMethodCode,
         );
-  const payDisabled = !canPay || isOverOrderLimit || checkoutLoading;
+  const payDisabled = !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked;
 
   const megapayResumeHref = useMemo(() => {
     if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
@@ -661,6 +688,8 @@ function CheckoutShellInner({
       <LoginRequiredModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
       <div className="space-y-4">
+        {vnOnlyBlocked ? <VnOnlyMarketNotice /> : null}
+
         {(title || description) && (
           <div className="text-center">
             {title && <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{title}</h2>}
@@ -671,7 +700,7 @@ function CheckoutShellInner({
         {serviceUnavailable}
 
         {loading && <CheckoutSkeleton />}
-        {error && <p className="rounded-xl bg-red-50 p-4 text-red-700">{error}</p>}
+        {error && <p className="rounded-xl bg-red-50 p-4 text-red-700">{customerFacingError(locale, new Error(error))}</p>}
 
         {!loading && !error && (
           <div
@@ -681,9 +710,9 @@ function CheckoutShellInner({
             <div className="min-h-[420px] space-y-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-card md:p-6">
               {mode === 'CARD' && (
                 <section className="min-h-[140px]">
-                  <StepTitle n={1} title="Chọn loại thẻ" />
+                  <StepTitle n={1} title={t('checkout.chooseCard')} />
                   {cardProducts.length === 0 ? (
-                    <p className="text-sm text-cardon-gray">Chưa có sản phẩm trong danh mục này.</p>
+                    <p className="text-sm text-cardon-gray">{t('product.noCatalog')}</p>
                   ) : (
                     <CatalogSelectorGrid>
                       {cardProducts.map((p) => (
@@ -705,7 +734,7 @@ function CheckoutShellInner({
               {mode !== 'CARD' && (
                 <div>
                   <label className="text-sm font-semibold text-cardon-navy">
-                    {mode === 'TOPUP' ? 'Số điện thoại cần nạp' : 'Số điện thoại'}
+                    {mode === 'TOPUP' ? t('checkout.phone') : t('checkout.phoneShort')}
                   </label>
                   <Input
                     className="mt-2"
@@ -749,17 +778,17 @@ function CheckoutShellInner({
               )}
 
               <section className={cn(mode === 'CARD' ? 'min-h-[120px]' : 'min-h-[96px]')}>
-                {mode === 'CARD' && <StepTitle n={2} title="Chọn mệnh giá" />}
+                {mode === 'CARD' && <StepTitle n={2} title={t('product.denom')} />}
                 {mode === 'TOPUP' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">Chọn mệnh giá</p>
+                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.denom')}</p>
                 )}
                 {mode === 'DATA' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">Chọn gói Data</p>
+                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.dataPlan')}</p>
                 )}
 
                 {variantOptions.length === 0 ? (
                   <p className="text-sm text-cardon-gray">
-                    {mode === 'DATA' ? 'Không có gói data khả dụng.' : 'Chưa có mệnh giá khả dụng'}
+                    {mode === 'DATA' ? t('product.noData') : t('product.noDenom')}
                   </p>
                 ) : mode === 'DATA' ? (
                   <CatalogDataPackageGrid>
@@ -783,8 +812,8 @@ function CheckoutShellInner({
                     {variantOptions.map(({ variant: v }) => (
                       <CatalogDenomCard
                         key={v.id}
-                        faceValueLabel={formatVnd(v.faceValue)}
-                        sellPriceLabel={formatVnd(v.sellPrice)}
+                        faceValueLabel={money(v.faceValue)}
+                        sellPriceLabel={money(v.sellPrice)}
                         selected={variant?.id === v.id}
                         onClick={() => handleVariantChange(v)}
                       />
@@ -795,7 +824,7 @@ function CheckoutShellInner({
 
               {mode === 'CARD' && (
                 <>
-                  <StepTitle n={3} title="Chọn số lượng thẻ" />
+                  <StepTitle n={3} title={t('checkout.qtyCards')} />
                   <div className="flex flex-wrap items-center gap-4">
                     <QuantityInput
                       value={quantity}
@@ -803,7 +832,7 @@ function CheckoutShellInner({
                       max={DEFAULT_MAX_QUANTITY}
                       onChange={handleQuantityChange}
                     />
-                    <span className="text-sm text-cardon-green">Còn hàng: 999+</span>
+                    <span className="text-sm text-cardon-green">{t('product.stock')}</span>
                   </div>
 
                 </>
@@ -811,9 +840,9 @@ function CheckoutShellInner({
 
               <div className="lg:hidden">
                 {mode === 'CARD' ? (
-                  <StepTitle n={4} title="Thanh toán" />
+                  <StepTitle n={4} title={t('checkout.pay')} />
                 ) : (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">Phương thức thanh toán</p>
+                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.payMethod')}</p>
                 )}
                 {hasPaymentMethods && paymentMethodCode ? (
                   <div className="grid gap-2">
@@ -913,9 +942,9 @@ function CheckoutShellInner({
         <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 border-t border-gray-200 bg-white p-3 shadow-lg lg:hidden">
           <div className="site-container flex items-center gap-3">
             <div className="flex-1">
-              <p className="text-xs text-cardon-gray">Tổng tiền</p>
+              <p className="text-xs text-cardon-gray">{t('common.total')}</p>
               <p className="text-lg font-bold text-cardon-danger">
-                {pricing ? formatVnd(pricing.totalPayment) : '—'}
+                {pricing ? money(pricing.totalPayment) : '—'}
               </p>
             </div>
             <button
@@ -926,7 +955,7 @@ function CheckoutShellInner({
             >
               {payButtonLabel}
               {!checkoutLoading && pricing && !isOverOrderLimit
-                ? ` ${formatVnd(pricing.totalPayment)}`
+                ? ` ${money(pricing.totalPayment)}`
                 : ''}
             </button>
           </div>

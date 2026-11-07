@@ -1,58 +1,82 @@
+import type { Locale } from '@/lib/i18n/locale';
+import { translate, type MessageKey } from '@/lib/i18n/messages';
+
+const PAYMENT_KEYS: Record<string, MessageKey> = {
+  WAITING_PAYMENT: 'status.waitingPayment',
+  PAID: 'status.paid',
+  FAILED: 'status.payFailed',
+  EXPIRED: 'status.expired',
+  REFUNDED: 'status.refunded',
+};
+
+const FULFILLMENT_KEYS: Record<string, MessageKey> = {
+  PENDING: 'status.pending',
+  PROCESSING: 'status.delivering',
+  COMPLETED: 'status.done',
+  FAILED: 'status.failed',
+  WAITING_ADMIN_RETRY: 'status.retry',
+  NEED_MANUAL_REVIEW: 'status.review',
+};
+
+const CUSTOMER_KEYS: Record<string, MessageKey> = {
+  WAITING_PAYMENT: 'status.waitingPayment',
+  PAID: 'status.paid',
+  PROCESSING_PROVIDER: 'status.provider',
+  DELIVERED: 'status.delivered',
+  NEED_SUPPORT: 'status.review',
+};
+
+export function paymentStatusLabel(status: string, locale: Locale = 'vi'): string {
+  const key = PAYMENT_KEYS[status];
+  return key ? translate(locale, key) : status;
+}
+
 export function paymentStatusLabelVi(status: string): string {
-  const map: Record<string, string> = {
-    WAITING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    FAILED: 'Thanh toán thất bại',
-    EXPIRED: 'Đã hết hạn',
-    REFUNDED: 'Đã hoàn tiền',
-  };
-  return map[status] ?? status;
+  return paymentStatusLabel(status, 'vi');
+}
+
+export function fulfillmentStatusLabel(status: string, locale: Locale = 'vi'): string {
+  const key = FULFILLMENT_KEYS[status];
+  return key ? translate(locale, key) : status;
 }
 
 export function fulfillmentStatusLabelVi(status: string): string {
-  const map: Record<string, string> = {
-    PENDING: 'Chờ xử lý',
-    PROCESSING: 'Đang giao thẻ',
-    COMPLETED: 'Hoàn thành',
-    FAILED: 'Thất bại',
-    WAITING_ADMIN_RETRY: 'Đang xử lý',
-    NEED_MANUAL_REVIEW: 'Cần hỗ trợ',
-  };
-  return map[status] ?? status;
+  return fulfillmentStatusLabel(status, 'vi');
+}
+
+export function customerOrderStatusLabel(status: string, locale: Locale = 'vi'): string {
+  const key = CUSTOMER_KEYS[status];
+  return key ? translate(locale, key) : status;
 }
 
 export function customerOrderStatusLabelVi(status: string): string {
-  const map: Record<string, string> = {
-    WAITING_PAYMENT: 'Chờ thanh toán',
-    PAID: 'Đã thanh toán',
-    PROCESSING_PROVIDER: 'Đang xử lý',
-    DELIVERED: 'Hoàn thành',
-    NEED_SUPPORT: 'Cần hỗ trợ',
-  };
-  return map[status] ?? status;
+  return customerOrderStatusLabel(status, 'vi');
 }
 
-export function resolveCustomerOrderStatusLabel(order: {
-  customerStatusLabel?: string;
-  customerStatus?: string;
-  paymentStatus: string;
-  fulfillmentStatus: string;
-}): string {
-  if (order.customerStatusLabel) return order.customerStatusLabel;
-  if (order.customerStatus) return customerOrderStatusLabelVi(order.customerStatus);
-  if (order.paymentStatus === 'WAITING_PAYMENT') return customerOrderStatusLabelVi('WAITING_PAYMENT');
-  if (order.fulfillmentStatus === 'COMPLETED') return customerOrderStatusLabelVi('DELIVERED');
+export function resolveCustomerOrderStatusLabel(
+  order: {
+    customerStatusLabel?: string;
+    customerStatus?: string;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+  },
+  locale: Locale = 'vi',
+): string {
+  if (locale === 'vi' && order.customerStatusLabel) return order.customerStatusLabel;
+  if (order.customerStatus) return customerOrderStatusLabel(order.customerStatus, locale);
+  if (order.paymentStatus === 'WAITING_PAYMENT') return customerOrderStatusLabel('WAITING_PAYMENT', locale);
+  if (order.fulfillmentStatus === 'COMPLETED') return customerOrderStatusLabel('DELIVERED', locale);
   if (order.fulfillmentStatus === 'WAITING_ADMIN_RETRY') {
-    return customerOrderStatusLabelVi('PROCESSING_PROVIDER');
+    return customerOrderStatusLabel('PROCESSING_PROVIDER', locale);
+  }
+  if (order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' || order.fulfillmentStatus === 'FAILED') {
+    return customerOrderStatusLabel('NEED_SUPPORT', locale);
   }
   if (
-    order.fulfillmentStatus === 'NEED_MANUAL_REVIEW' ||
-    order.fulfillmentStatus === 'FAILED'
+    order.paymentStatus === 'PAID' &&
+    (order.fulfillmentStatus === 'PROCESSING' || order.fulfillmentStatus === 'PENDING')
   ) {
-    return customerOrderStatusLabelVi('NEED_SUPPORT');
+    return customerOrderStatusLabel('PROCESSING_PROVIDER', locale);
   }
-  if (order.paymentStatus === 'PAID' && (order.fulfillmentStatus === 'PROCESSING' || order.fulfillmentStatus === 'PENDING')) {
-    return customerOrderStatusLabelVi('PROCESSING_PROVIDER');
-  }
-  return fulfillmentStatusLabelVi(order.fulfillmentStatus);
+  return fulfillmentStatusLabel(order.fulfillmentStatus, locale);
 }

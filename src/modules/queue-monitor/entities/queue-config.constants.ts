@@ -93,6 +93,18 @@ export const QUEUE_READONLY_CONFIG: Record<QueueName, QueueReadonlyConfig> = {
     rateLimit: null,
     workerCount: 1,
   },
+  esim_queue: {
+    attempts: 1,
+    backoff: { type: 'fixed', delay: 0 },
+    concurrency: 1,
+    limiter: null,
+    defaultJobOptions: {
+      ...DEFAULT_JOB_OPTIONS,
+      attempts: 1,
+    },
+    rateLimit: null,
+    workerCount: 1,
+  },
   content_automation_queue: {
     attempts: 2,
     backoff: DEFAULT_BACKOFF,

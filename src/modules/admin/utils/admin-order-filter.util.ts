@@ -153,6 +153,14 @@ export function buildAdminOrderWhere(query: AdminOrderQueryDto): Prisma.OrderWhe
         variant: { type: query.productType as ProductVariantType },
       },
     };
+  } else if (query.excludeProductType) {
+    where.NOT = {
+      orderItems: {
+        some: {
+          variant: { type: query.excludeProductType as ProductVariantType },
+        },
+      },
+    };
   }
 
   if (query.providerId) {

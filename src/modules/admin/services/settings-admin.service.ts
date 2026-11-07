@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { AuditTargetType, Prisma } from '@prisma/client';
+import { AuditTargetType, EsimCatalogLifecycle, Prisma } from '@prisma/client';
 import { EsaleHttpClient } from '../../provider/adapters/esale/esale.client';
 import { ProviderRepository } from '../../provider/repositories/provider.repository';
 import { ProviderHealthService } from '../../provider/services/provider-health.service';
@@ -13,6 +13,8 @@ import {
   SETTINGS_AUDIT_ACTION,
   SETTINGS_KEYS,
   StoredPaymentGateway,
+  StoredProviderAiralo,
+  StoredPaymentPaypal,
   StoredProviderEsale,
   StoredOrder,
   StoredPaymentGatewayRuntime,
@@ -22,7 +24,9 @@ import {
 } from '../../settings/entities/settings.constants';
 import { SettingsEncryptionService } from '../../settings/services/settings-encryption.service';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
-import { SettingsStoreService } from '../../settings/services/settings-store.service';
+import { PaypalClient } from '../../payment/providers/paypal/paypal.client';
+import { evaluatePaypalLiveGuard, isPaypalPlaceholder } from '../../payment/providers/paypal/paypal.rules';
+import { isRetiredAiraloSandboxHost, SettingsStoreService } from '../../settings/services/settings-store.service';
 import { validateGatewayPriorities } from '../../settings/entities/payment-gateway-priority';
 import {
   TestSmtpDto,
@@ -32,11 +36,17 @@ import {
   UpdatePaymentStrategyDto,
   UpdatePaymentGatewayRuntimeDto,
   UpdateProviderEsaleDto,
+  UpdateProviderAiraloDto,
+  UpdateAiraloPackageLifecycleDto,
+  UpdatePaymentPaypalDto,
+  UpdateProviderEsimGoDto,
   UpdateSmtpSettingsDto,
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
 } from '../dto/settings.dto';
+import { EsimAiraloAdapter } from '../../esim/esim-airalo.adapter';
+import { EsimAiraloCatalogueService } from '../../esim/esim-airalo-catalogue.service';
 import { AdminAuditService } from './admin-audit.service';
 
 @Injectable()
@@ -51,7 +61,11 @@ export class SettingsAdminService {
     private readonly providerHealthService: ProviderHealthService,
     private readonly providerRegistry: ProviderRegistryService,
     private readonly smtpProvider: SmtpEmailProvider,
+    private readonly airalo: EsimAiraloAdapter,
+    private readonly airaloCatalogue: EsimAiraloCatalogueService,
   ) {}
+
+  private paypalClient = new PaypalClient();
 
   getPaymentMegapay() {
     return this.settingsStore.getMegapayAdminView();
@@ -90,6 +104,173 @@ export class SettingsAdminService {
 
   getProviderEsale() {
     return this.settingsStore.getEsaleAdminView();
+  }
+
+  getProviderEsimGo() {
+    return {
+      ...this.settingsStore.getEsimGoAdminView(),
+      retired: true,
+      message: 'eSIM Go đã gỡ khỏi runtime. Dùng cấu hình Airalo.',
+    };
+  }
+
+  async updateProviderEsimGo(_adminId: string, _dto: UpdateProviderEsimGoDto) {
+    throw new BadRequestException('eSIM Go đã ngừng dùng. Cấu hình Airalo thay thế.');
+  }
+
+  async testEsimGoCatalogue() {
+    throw new BadRequestException('eSIM Go đã ngừng dùng. Dùng kiểm tra catalogue Airalo.');
+  }
+
+  getProviderAiralo() {
+    return this.settingsStore.getAiraloAdminView();
+  }
+
+  async updateProviderAiralo(adminId: string, dto: UpdateProviderAiraloDto) {
+    if (dto.baseUrl && isRetiredAiraloSandboxHost(dto.baseUrl)) {
+      throw new BadRequestException(
+        'sandbox-partners-api.airalo.com no longer resolves. Use https://partners-api.airalo.com — Airalo sandbox is an account mode, not a separate host.',
+      );
+    }
+    const current =
+      (await this.settingsStore.getRawStored<StoredProviderAiralo>(
+        SETTINGS_KEYS.PROVIDER_AIRALO,
+      )) ?? {};
+    const next: StoredProviderAiralo = {
+      clientIdEnc: this.mergeSecretField(dto.clientId, current.clientIdEnc),
+      clientSecretEnc: this.mergeSecretField(dto.clientSecret, current.clientSecretEnc),
+      baseUrl: dto.baseUrl?.trim() || current.baseUrl,
+      usdVndRate: dto.usdVndRate ?? current.usdVndRate,
+      accountMode: dto.accountMode ?? current.accountMode ?? 'sandbox',
+    };
+    await this.persist(adminId, SETTINGS_KEYS.PROVIDER_AIRALO, next as Prisma.InputJsonValue, [
+      'clientId',
+      'clientSecret',
+      'baseUrl',
+      'usdVndRate',
+      'accountMode',
+    ]);
+    await this.providerRepository.ensureAiraloProvider();
+    return this.getProviderAiralo();
+  }
+
+  async testAiraloCatalogue() {
+    const view = this.settingsStore.getAiraloAdminView();
+    if (view.configured !== true) {
+      throw new BadRequestException('Chưa có Airalo client_id / client_secret');
+    }
+    try {
+      const bundles = await this.airalo.listBundles();
+      return {
+        ok: true,
+        count: bundles.length,
+        names: bundles.slice(0, 20).map((bundle) => bundle.name),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Airalo catalogue request failed';
+      throw new BadRequestException(message);
+    }
+  }
+
+  listAiraloCatalogue() {
+    return this.airaloCatalogue.listAdminCatalogue();
+  }
+
+  importAiraloCatalogue() {
+    return this.airaloCatalogue.importFromAiralo();
+  }
+
+  setAiraloPackageLifecycle(id: string, dto: UpdateAiraloPackageLifecycleDto) {
+    return this.airaloCatalogue.setLifecycle(id, dto.lifecycle as EsimCatalogLifecycle);
+  }
+
+  getPaymentPaypal() {
+    return this.settingsStore.getPaypalAdminView();
+  }
+
+  async updatePaymentPaypal(adminId: string, dto: UpdatePaymentPaypalDto) {
+    for (const value of [dto.clientId, dto.clientSecret, dto.webhookId]) {
+      if (isPaypalPlaceholder(value)) {
+        throw new BadRequestException('PayPal placeholder values cannot be saved');
+      }
+    }
+    const current =
+      (await this.settingsStore.getRawStored<StoredPaymentPaypal>(
+        SETTINGS_KEYS.PAYMENT_PAYPAL,
+      )) ?? {};
+    const beforeFlags = this.paypalFlagSnapshot();
+    const nextMode = dto.mode ?? current.mode ?? 'sandbox';
+    const liveGuard = evaluatePaypalLiveGuard({
+      mode: nextMode === 'live' ? 'live' : 'sandbox',
+      clientId: this.paypalPlain(dto.clientId, current.clientIdEnc),
+      clientSecret: this.paypalPlain(dto.clientSecret, current.clientSecretEnc),
+      webhookId: this.paypalPlain(dto.webhookId, current.webhookIdEnc),
+    });
+    if (!liveGuard.ok) {
+      throw new BadRequestException(
+        'PayPal LIVE requires client id, client secret, and webhook id. Mode was not changed.',
+      );
+    }
+    const next: StoredPaymentPaypal = {
+      esimEnabled: current.esimEnabled === true,
+      mode: nextMode === 'live' ? 'live' : 'sandbox',
+      clientIdEnc: this.mergeSecretField(dto.clientId, current.clientIdEnc),
+      clientSecretEnc: this.mergeSecretField(dto.clientSecret, current.clientSecretEnc),
+      webhookIdEnc: this.mergeSecretField(dto.webhookId, current.webhookIdEnc),
+    };
+    const changed = ['mode', 'clientId', 'clientSecret', 'webhookId'];
+    await this.persist(
+      adminId,
+      SETTINGS_KEYS.PAYMENT_PAYPAL,
+      next as Prisma.InputJsonValue,
+      changed,
+      this.paypalAuditMeta(current.mode ?? 'sandbox', next.mode ?? 'sandbox', beforeFlags),
+    );
+    return this.getPaymentPaypal();
+  }
+
+  async testPaypalConnection(adminId: string) {
+    const before = this.settingsStore.getPaypalAdminView();
+    const config = this.settingsStore.resolvePaypalConfig();
+    if (before.connectionStatus === 'NOT_CONFIGURED' || before.connectionStatus === 'INCOMPLETE') {
+      return {
+        connectionStatus: before.connectionStatus,
+        probed: false,
+        connected: false,
+      };
+    }
+    if (config.mode === 'live') {
+      return {
+        connectionStatus: 'CONNECTION_ERROR',
+        reason: 'LIVE_PROBE_DISABLED',
+        probed: false,
+        connected: false,
+      };
+    }
+    const result = await this.paypalClient.probeAccessToken(config);
+    const current =
+      (await this.settingsStore.getRawStored<StoredPaymentPaypal>(SETTINGS_KEYS.PAYMENT_PAYPAL)) ?? {};
+    const next: StoredPaymentPaypal = {
+      ...current,
+      lastProbe: {
+        at: new Date().toISOString(),
+        ok: result.ok,
+        ...(result.ok ? {} : { reason: result.reason }),
+      },
+    };
+    await this.persist(
+      adminId,
+      SETTINGS_KEYS.PAYMENT_PAYPAL,
+      next as Prisma.InputJsonValue,
+      ['lastProbe'],
+      this.paypalAuditMeta(config.mode, config.mode, this.paypalFlagSnapshot()),
+    );
+    return {
+      connectionStatus: result.ok ? 'CONFIGURED' : 'CONNECTION_ERROR',
+      reason: result.ok ? undefined : result.reason,
+      probed: true,
+      connected: false,
+    };
   }
 
   getSmtp() {
@@ -282,11 +463,15 @@ export class SettingsAdminService {
         SETTINGS_KEYS.PAYMENT_SEPAY,
       )) ?? {};
 
+    const ipnWasStoredAsHmac =
+      current.integrationMode === 'payment_gateway' &&
+      !current.ipnSecretEnc &&
+      !!current.webhookSecretEnc;
     const next: StoredPaymentGateway = {
       ...current,
       enabled: dto.enabled ?? current.enabled,
       environment: dto.environment ?? current.environment,
-      integrationMode: dto.integrationMode ?? current.integrationMode,
+      integrationMode: 'legacy_qr',
       merchantId: dto.merchantId ?? current.merchantId,
       paymentMethod: dto.paymentMethod ?? current.paymentMethod,
       bankAccount: dto.bankAccount ?? current.bankAccount,
@@ -296,10 +481,13 @@ export class SettingsAdminService {
       webhookUrl: dto.webhookUrl ?? current.webhookUrl,
       apiKeyEnc: this.mergeSecretField(dto.apiKey, current.apiKeyEnc),
       secretKeyEnc: this.mergeSecretField(dto.secretKey, current.secretKeyEnc),
-      webhookSecretEnc: this.mergeSecretField(
-        dto.webhookSecret,
-        current.webhookSecretEnc,
+      ipnSecretEnc: this.mergeSecretField(
+        dto.ipnSecret,
+        ipnWasStoredAsHmac ? current.webhookSecretEnc : current.ipnSecretEnc,
       ),
+      webhookSecretEnc: ipnWasStoredAsHmac
+        ? this.mergeSecretField(dto.webhookSecret, undefined)
+        : this.mergeSecretField(dto.webhookSecret, current.webhookSecretEnc),
     };
 
     await this.persist(adminId, SETTINGS_KEYS.PAYMENT_SEPAY, next as Prisma.InputJsonValue, [
@@ -316,6 +504,7 @@ export class SettingsAdminService {
       'apiKey',
       'secretKey',
       'webhookSecret',
+      'ipnSecret',
     ]);
     return this.getPaymentSepay();
   }
@@ -409,6 +598,12 @@ export class SettingsAdminService {
         dto.customerTopupEnabled ?? current.customerTopupEnabled ?? false,
       customerDataEnabled:
         dto.customerDataEnabled ?? current.customerDataEnabled ?? false,
+      customerEsimEnabled:
+        dto.customerEsimEnabled ?? current.customerEsimEnabled ?? false,
+      esimMaxChargeAmountVnd:
+        dto.esimMaxChargeAmountVnd ?? current.esimMaxChargeAmountVnd,
+      esimMaxChargeAmountUsd:
+        dto.esimMaxChargeAmountUsd ?? current.esimMaxChargeAmountUsd,
       auditLogRetentionDays:
         dto.auditLogRetentionDays ??
         current.auditLogRetentionDays ??
@@ -437,6 +632,9 @@ export class SettingsAdminService {
       'agentRegistrationMode',
       'customerTopupEnabled',
       'customerDataEnabled',
+      'customerEsimEnabled',
+      'esimMaxChargeAmountVnd',
+      'esimMaxChargeAmountUsd',
       'auditLogRetentionDays',
       'agentDepositMinAmount',
       'agentDepositMaxAmount',
@@ -511,6 +709,37 @@ export class SettingsAdminService {
     return { ok: true, messageId: result.messageId };
   }
 
+  private paypalFlagSnapshot() {
+    const view = this.settingsStore.getPaypalAdminView();
+    return {
+      paypalEsimEnabled: view.paypalEsimEnabled === true,
+      customerEsimEnabled: view.customerEsimEnabled === true,
+      salesOpen: view.salesOpen === true,
+    };
+  }
+
+  private paypalAuditMeta(
+    modeBefore: string,
+    modeAfter: string,
+    flags: { paypalEsimEnabled: boolean; customerEsimEnabled: boolean; salesOpen: boolean },
+  ) {
+    return {
+      modeBefore,
+      modeAfter,
+      paypalEsimEnabledBefore: flags.paypalEsimEnabled,
+      paypalEsimEnabledAfter: flags.paypalEsimEnabled,
+      customerEsimEnabledBefore: flags.customerEsimEnabled,
+      customerEsimEnabledAfter: flags.customerEsimEnabled,
+      salesOpenBefore: flags.salesOpen,
+      salesOpenAfter: flags.salesOpen,
+    };
+  }
+
+  private paypalPlain(incoming: string | undefined, existingEnc: string | undefined): string {
+    if (incoming && !this.encryption.isMaskedInput(incoming)) return incoming.trim();
+    return this.settingsStore.decryptField(existingEnc)?.trim() ?? '';
+  }
+
   private mergeSecretField(
     incoming: string | undefined,
     existingEnc: string | undefined,
@@ -525,6 +754,7 @@ export class SettingsAdminService {
     key: string,
     value: Prisma.InputJsonValue,
     updatedFields: string[],
+    extra?: Record<string, unknown>,
   ) {
     await this.settingsRepository.upsert(key, value);
     await this.settingsStore.reload();
@@ -533,7 +763,7 @@ export class SettingsAdminService {
       SETTINGS_AUDIT_ACTION,
       AuditTargetType.USER,
       adminId,
-      { settingKey: key, updatedFields },
+      { settingKey: key, updatedFields, actorId: adminId, ...extra },
     );
   }
 }

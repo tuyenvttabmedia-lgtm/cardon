@@ -33,4 +33,8 @@ export class SepayConfigService {
   getConfig(): SepayConfig {
     return this.settingsStore.resolveSepayConfig();
   }
+
+  getPaymentGateway() {
+    return this.settingsStore.resolveSepayPaymentGateway();
+  }
 }

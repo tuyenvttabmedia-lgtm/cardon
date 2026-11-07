@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { AgentStatus, UserRole, UserStatus } from '@prisma/client';
+import { AgentStatus, Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../database/prisma.service';
@@ -32,11 +32,16 @@ export class AgentRegistrationService {
 
     const invite = await this.agentInviteService.requireInviteForMode(dto.inviteToken, email);
 
-    const existing = await this.prisma.user.findFirst({
-      where: { email, deletedAt: null },
-    });
-    if (existing) {
-      throw new ConflictException('Email đã được đăng ký');
+    const [existingEmail, existingPhone] = await Promise.all([
+      this.prisma.user.findFirst({
+        where: { email, deletedAt: null },
+      }),
+      this.prisma.user.findFirst({
+        where: { phone, deletedAt: null },
+      }),
+    ]);
+    if (existingEmail || existingPhone) {
+      throw new ConflictException('Không thể đăng ký với thông tin đã cung cấp');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -52,18 +57,29 @@ export class AgentRegistrationService {
       username = `${usernameBase.slice(0, 20)}_${suffix}`;
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        username,
-        fullName: email.split('@')[0] ?? 'Đại lý',
-        email,
-        phone,
-        passwordHash,
-        role: UserRole.AGENT,
-        status: UserStatus.ACTIVE,
-        acceptedTermsAt: new Date(),
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          username,
+          fullName: email.split('@')[0] ?? 'Đại lý',
+          email,
+          phone,
+          passwordHash,
+          role: UserRole.AGENT,
+          status: UserStatus.ACTIVE,
+          acceptedTermsAt: new Date(),
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Không thể đăng ký với thông tin đã cung cấp');
+      }
+      throw error;
+    }
 
     const agent = await this.prisma.agent.create({
       data: {

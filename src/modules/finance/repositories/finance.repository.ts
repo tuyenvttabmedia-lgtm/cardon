@@ -17,6 +17,11 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
 import { ACTIVE_ORDER_WHERE } from '../../order/entities/order.constants';
+import {
+  EXCLUDE_ADMIN_TEST_ORDERS,
+  EXCLUDE_ADMIN_TEST_PAYMENTS,
+} from '../../order/entities/commercial-order.where';
+import { isPersistedAdminTest } from '../../esim/esim-admin-test.rules';
 import { ACTIVE_PAYMENT_WHERE } from '../../payment/entities/payment.constants';
 import {
   extractGatewayTransactionId,
@@ -58,6 +63,7 @@ export class FinanceRepository {
     return this.prisma.payment.findMany({
       where: {
         ...ACTIVE_PAYMENT_WHERE,
+        ...EXCLUDE_ADMIN_TEST_PAYMENTS,
         gateway,
         OR: [
           { paidAt: { gte: start, lt: end } },
@@ -248,6 +254,7 @@ export class FinanceRepository {
   }) {
     const orderWhere: Prisma.OrderWhereInput = {
       ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
       paymentStatus: OrderPaymentStatus.PAID,
       fulfillmentStatus: FulfillmentStatus.COMPLETED,
       createdAt: { gte: filters.dateFrom, lte: filters.dateTo },
@@ -299,6 +306,7 @@ export class FinanceRepository {
     let orderCount = 0;
 
     for (const order of orders) {
+      if (isPersistedAdminTest(order.clientTrace)) continue;
       orderCount += 1;
       revenue = revenue.add(order.totalAmount);
 
@@ -335,6 +343,7 @@ export class FinanceRepository {
     const agg = await this.prisma.order.aggregate({
       where: {
         ...ACTIVE_ORDER_WHERE,
+        ...EXCLUDE_ADMIN_TEST_ORDERS,
         paymentStatus: OrderPaymentStatus.PAID,
         createdAt: { gte: dateFrom, lte: dateTo },
       },
@@ -365,6 +374,7 @@ export class FinanceRepository {
   }) {
     const orderWhere: Prisma.OrderWhereInput = {
       ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
       paymentStatus: OrderPaymentStatus.PAID,
       createdAt: { gte: filters.dateFrom, lte: filters.dateTo },
       paymentMethodCode: { not: null },
@@ -377,6 +387,7 @@ export class FinanceRepository {
     const orders = await this.prisma.order.findMany({
       where: orderWhere,
       select: {
+        clientTrace: true,
         paymentGateway: true,
         paymentMethodCode: true,
         methodDisplayName: true,
@@ -403,6 +414,7 @@ export class FinanceRepository {
     >();
 
     for (const order of orders) {
+      if (isPersistedAdminTest(order.clientTrace)) continue;
       const gateway = order.paymentGateway ?? 'UNKNOWN';
       const methodCode = order.paymentMethodCode ?? 'UNKNOWN';
       const methodDisplayName = order.methodDisplayName ?? methodCode;
@@ -468,6 +480,7 @@ export class FinanceRepository {
   }) {
     const orderWhere: Prisma.OrderWhereInput = {
       ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
       paymentStatus: OrderPaymentStatus.PAID,
       createdAt: { gte: filters.dateFrom, lte: filters.dateTo },
       settlementType: { not: null },
@@ -483,6 +496,7 @@ export class FinanceRepository {
     const orders = await this.prisma.order.findMany({
       where: orderWhere,
       select: {
+        clientTrace: true,
         paymentGateway: true,
         paymentMethodCode: true,
         methodDisplayName: true,
@@ -505,6 +519,7 @@ export class FinanceRepository {
     const buckets = new Map<string, Bucket>();
 
     for (const order of orders) {
+      if (isPersistedAdminTest(order.clientTrace)) continue;
       const settlementType = order.settlementType ?? 'UNKNOWN';
       const gateway = order.paymentGateway ?? 'UNKNOWN';
       const key = `${settlementType}::${gateway}`;
@@ -597,6 +612,7 @@ export class FinanceRepository {
     const orders = await this.prisma.order.findMany({
       where: {
         ...ACTIVE_ORDER_WHERE,
+        ...EXCLUDE_ADMIN_TEST_ORDERS,
         paymentStatus: OrderPaymentStatus.PAID,
         paymentGateway: filters.gatewayCode,
         createdAt: {
@@ -605,6 +621,7 @@ export class FinanceRepository {
         },
       },
       select: {
+        clientTrace: true,
         customerPaid: true,
         paymentFeeAmount: true,
       },
@@ -612,13 +629,16 @@ export class FinanceRepository {
 
     let totalVolume = new Decimal(0);
     let totalFee = new Decimal(0);
+    let transactionCount = 0;
     for (const order of orders) {
+      if (isPersistedAdminTest(order.clientTrace)) continue;
+      transactionCount += 1;
       totalVolume = totalVolume.add(order.customerPaid);
       totalFee = totalFee.add(order.paymentFeeAmount);
     }
 
     return {
-      transactionCount: orders.length,
+      transactionCount,
       totalVolume,
       totalFee,
     };
@@ -631,6 +651,7 @@ export class FinanceRepository {
   }) {
     const where: Prisma.PaymentWhereInput = {
       ...ACTIVE_PAYMENT_WHERE,
+      ...EXCLUDE_ADMIN_TEST_PAYMENTS,
       status: PaymentRecordStatus.SUCCESS,
       createdAt: { gte: filters.dateFrom, lte: filters.dateTo },
     };
@@ -868,6 +889,7 @@ export class FinanceRepository {
       where: {
         order: {
           ...ACTIVE_ORDER_WHERE,
+          ...EXCLUDE_ADMIN_TEST_ORDERS,
           channel: 'B2C',
           paymentStatus: OrderPaymentStatus.PAID,
           fulfillmentStatus: FulfillmentStatus.COMPLETED,

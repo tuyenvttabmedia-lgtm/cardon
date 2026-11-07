@@ -33,7 +33,10 @@ import {
   UpdateCmsSeoSettingsDto,
   UpdateCmsThemeDto,
   UpsertCmsCategoryDto,
+  UpsertCmsCategoryTranslationDto,
+  UpsertCmsPageTranslationDto,
   UpsertCmsTagDto,
+  UpsertCmsTagTranslationDto,
 } from '../dto/cms.dto';
 import { CMS_PERMISSION } from '../entities/cms.constants';
 import { CmsMediaService } from '../services/cms-media.service';
@@ -80,6 +83,15 @@ export class CmsAdminController {
   @Post('pages/:id/publish')
   publishPage(@Param('id', ParseUUIDPipe) id: string) {
     return this.cmsService.publishPage(id);
+  }
+
+  @Put('pages/:id/translations/:locale')
+  savePageTranslation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('locale') locale: string,
+    @Body() dto: UpsertCmsPageTranslationDto,
+  ) {
+    return this.cmsService.savePageTranslation(id, locale, dto);
   }
 
   @Get('banners')
@@ -137,7 +149,16 @@ export class CmsAdminController {
 
   @Get('categories')
   listCategories() {
-    return this.cmsService.listCategories();
+    return this.cmsService.listCategoriesForAdmin();
+  }
+
+  @Put('categories/:id/translations/:locale')
+  saveCategoryTranslation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('locale') locale: string,
+    @Body() dto: UpsertCmsCategoryTranslationDto,
+  ) {
+    return this.cmsService.saveCategoryTranslation(id, locale, dto);
   }
 
   @Post('categories')
@@ -179,6 +200,15 @@ export class CmsAdminController {
   @Delete('tags/:id')
   deleteTag(@Param('id', ParseUUIDPipe) id: string) {
     return this.cmsService.deleteTag(id);
+  }
+
+  @Put('tags/:id/translations/:locale')
+  saveTagTranslation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('locale') locale: string,
+    @Body() dto: UpsertCmsTagTranslationDto,
+  ) {
+    return this.cmsService.saveTagTranslation(id, locale, dto);
   }
 
   @Patch('tags/:id/visibility')

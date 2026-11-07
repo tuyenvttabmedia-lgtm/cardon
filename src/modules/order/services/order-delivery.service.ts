@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import {
   FulfillmentStatus,
@@ -13,10 +14,25 @@ import {
 import { CardEncryptionService } from '../../provider/services/card-encryption.service';
 import { NotificationService } from '../../notification/services/notification.service';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
+import {
+  appleEsimSetupUrl,
+  buildEsimDelivery,
+  destinationFromNames,
+  emptyEsimDelivery,
+  isEsimTestSecret,
+  isEsimVariantType,
+  isInstallableLpa,
+  lpaForDisplay,
+  resolveEsimDeliveryKind,
+  type EsimDeliveryView,
+} from '../../esim/esim-delivery.view';
+import { buildEsimPackageSpec } from '../../esim/esim-package-spec';
+import { renderLpaQrSvg } from '../../esim/esim-lpa-qr';
 import { mapOrder } from '../entities/order.mapper';
 import { buildOrderTimeline } from '../entities/order-timeline.builder';
 import { OrderEventService } from './order-event.service';
 import { OrderRepository } from '../repositories/order.repository';
+import { SettingsStoreService } from '../../settings/services/settings-store.service';
 
 export interface CardSummaryView {
   id: string;
@@ -40,6 +56,7 @@ export class OrderDeliveryService {
     private readonly orderEvents: OrderEventService,
     private readonly cardEncryption: CardEncryptionService,
     private readonly notificationService: NotificationService,
+    @Optional() private readonly settings?: SettingsStoreService,
   ) {}
 
   async getCustomerDelivery(orderId: string, userId: string) {
@@ -138,6 +155,53 @@ export class OrderDeliveryService {
     };
   }
 
+  async revealEsimInstall(
+    orderId: string,
+    user?: AuthenticatedUser,
+    guestEmail?: string,
+  ) {
+    if (!user && !guestEmail?.trim()) {
+      throw new BadRequestException('email is required for guest eSIM reveal');
+    }
+
+    const order = user
+      ? await this.orderRepository.findByIdForUserWithDelivery(orderId, user.id)
+      : await this.orderRepository.findByIdForGuestWithDelivery(orderId, guestEmail?.trim() ?? '');
+
+    if (!order) {
+      throw new NotFoundException(
+        user
+          ? 'Order not found'
+          : 'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
+    }
+
+    const item = order.orderItems.find((row) => isEsimVariantType(row.variant?.type));
+    let secret: string | null = null;
+    if (item?.esimProfile?.installSecretEnc) {
+      try {
+        const decrypted = this.cardEncryption.decrypt(item.esimProfile.installSecretEnc);
+        secret = isInstallableLpa(decrypted) ? decrypted : null;
+      } catch {
+        secret = null;
+      }
+    }
+    if (!secret) {
+      throw new NotFoundException(
+        user
+          ? 'Order not found'
+          : 'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.',
+      );
+    }
+
+    const display = lpaForDisplay(secret);
+    return {
+      installSecret: display,
+      qrSvg: renderLpaQrSvg(secret),
+      appleSetupUrl: isEsimTestSecret(secret) ? null : appleEsimSetupUrl(display),
+    };
+  }
+
   private async buildDeliveryResponse(order: {
     id: string;
     orderCode: string;
@@ -146,7 +210,13 @@ export class OrderDeliveryService {
     guestEmail: string | null;
     userId: string | null;
     orderItems: Array<{
-      variant: { name: string; type: ProductVariantType } | null;
+      variant: {
+        name: string;
+        type: ProductVariantType;
+        product?: { name: string } | null;
+      } | null;
+      esimQuote?: { providerProductCode: string } | null;
+      esimProfile?: { installSecretEnc: string } | null;
       cardRecords: Array<{
         id: string;
         encryptedSerial: string;
@@ -189,8 +259,58 @@ export class OrderDeliveryService {
       delivery: {
         cards,
         hasCards: cards.length > 0,
+        esim: await this.buildEsimDelivery(order),
       },
     };
+  }
+
+  private async buildEsimDelivery(order: {
+    id: string;
+    orderCode: string;
+    paymentStatus: OrderPaymentStatus;
+    fulfillmentStatus: FulfillmentStatus;
+    orderItems: Array<{
+      variant: {
+        name: string;
+        type: ProductVariantType;
+        product?: { name: string } | null;
+      } | null;
+      esimQuote?: { providerProductCode: string } | null;
+      esimProfile?: { installSecretEnc: string } | null;
+    }>;
+  }): Promise<EsimDeliveryView> {
+    const item = order.orderItems.find((row) => isEsimVariantType(row.variant?.type));
+    if (!item?.variant) {
+      return emptyEsimDelivery();
+    }
+    let secret: string | null = null;
+    if (item.esimProfile?.installSecretEnc) {
+      try {
+        const decrypted = this.cardEncryption.decrypt(item.esimProfile.installSecretEnc);
+        secret = isInstallableLpa(decrypted) ? decrypted : null;
+      } catch {
+        secret = null;
+      }
+    }
+    const packageRow = item.esimQuote?.providerProductCode
+      ? await this.orderRepository.findAiraloPackageByCode?.(item.esimQuote.providerProductCode)
+      : null;
+    return buildEsimDelivery({
+      kind: resolveEsimDeliveryKind({
+        isEsim: true,
+        paymentStatus: order.paymentStatus,
+        fulfillmentStatus: order.fulfillmentStatus,
+        hasValidSecret: Boolean(secret),
+      }),
+      destination: destinationFromNames(item.variant.product?.name, item.variant.name),
+      packageName: item.variant.name,
+      secret,
+      includeSecrets: false,
+      packageSpec: buildEsimPackageSpec(packageRow, item.variant.name),
+      sandboxAccount: this.settings?.resolveAiraloAccountMode() !== 'production',
+      orderId: order.id,
+      orderCode: order.orderCode,
+    });
   }
 
   private buildCardSummaries(order: {

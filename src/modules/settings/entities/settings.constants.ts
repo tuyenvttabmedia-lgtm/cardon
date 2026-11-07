@@ -8,6 +8,10 @@ export const SETTINGS_KEYS = {
   PAYMENT_GATEWAY_SEPAY: 'settings.payment.gateway.sepay',
   PAYMENT_METHODS: 'settings.payment.methods',
   PROVIDER_ESALE: 'settings.provider.esale',
+  /** @deprecated eSIM Go retired — use PROVIDER_AIRALO */
+  PROVIDER_ESIM_GO: 'settings.provider.esim_go',
+  PROVIDER_AIRALO: 'settings.provider.airalo',
+  PAYMENT_PAYPAL: 'settings.payment.paypal',
   SMTP: 'settings.smtp',
   SYSTEM: 'settings.system',
   ORDER: 'settings.order',
@@ -24,7 +28,11 @@ export type SettingsEnvironment = 'sandbox' | 'production';
 export interface StoredPaymentGateway {
   enabled?: boolean;
   environment?: SettingsEnvironment;
-  /** legacy_qr | payment_gateway — defaults to payment_gateway when merchantId is set */
+  /**
+   * Old rows only. VietQR and Payment Gateway are stored together.
+   * webhookSecretEnc is the VietQR HMAC. ipnSecretEnc is the eSIM IPN secret.
+   * A payment_gateway row that has no ipnSecretEnc still keeps the IPN in webhookSecretEnc.
+   */
   integrationMode?: 'legacy_qr' | 'payment_gateway';
   merchantId?: string;
   endpoint?: string;
@@ -32,7 +40,10 @@ export interface StoredPaymentGateway {
   callbackUrl?: string;
   webhookUrl?: string;
   secretKeyEnc?: string;
+  /** VietQR / bank-transfer HMAC. Not the Payment Gateway IPN secret. */
   webhookSecretEnc?: string;
+  /** SePay Payment Gateway IPN secret for eSIM. Never written into webhookSecretEnc. */
+  ipnSecretEnc?: string;
   apiKeyEnc?: string;
   /** MegaPay DepositCode RSA public key (PEM) for notify verify */
   notifyPublicKeyEnc?: string;
@@ -54,7 +65,8 @@ export interface StoredPaymentGateway {
   paymentMethod?: 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER';
 }
 
-export type PaymentMethodGateway = 'SEPAY' | 'MEGAPAY';
+/** PAYPAL is eSIM-international only — not used by card/topup methods. */
+export type PaymentMethodGateway = 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
 
 export type PaymentSettlementType =
   | 'DIRECT_TO_MERCHANT'
@@ -77,8 +89,8 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
   {
     gatewayCode: 'SEPAY',
     methodCode: 'VIETQR',
-    displayName: 'VietQR',
-    description: 'Chuyển khoản QR',
+    displayName: 'Chuyển khoản (Viet QR)',
+    description: 'Chuyển khoản QR ngân hàng (Viet QR)',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'DIRECT_TO_MERCHANT',
@@ -114,9 +126,9 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
   {
     gatewayCode: 'MEGAPAY',
     methodCode: 'DEPOSIT_CODE',
-    displayName: 'Chuyển khoản VietQR',
+    displayName: 'Chuyển khoản (Viet QR)',
     description:
-      'Chuyển khoản VietQR / mã nộp tiền (MegaPay PG payType=VA).',
+      'Chuyển khoản Viet QR / mã nộp tiền (MegaPay PG payType=VA).',
     iconUrl: null,
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
@@ -137,6 +149,34 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     fixedFee: 0,
   },
 ];
+
+/** @deprecated eSIM Go API token. Kept for cleanup / audit of old settings only. */
+export interface StoredProviderEsimGo {
+  apiKeyEnc?: string;
+}
+
+/** Airalo Partner API credentials. Separate from eSale. Does not enable customer sales alone. */
+export interface StoredProviderAiralo {
+  clientIdEnc?: string;
+  clientSecretEnc?: string;
+  baseUrl?: string;
+  /** Admin FX used only when Airalo V2 has no VND net_price. */
+  usdVndRate?: number;
+  /** Partner Platform account mode. Same API host; Production is one-way on Airalo. */
+  accountMode?: 'sandbox' | 'production';
+}
+
+/** PayPal eSIM international flag + secrets. Cards/topup never read this. */
+export interface StoredPaymentPaypal {
+  esimEnabled?: boolean;
+  clientIdEnc?: string;
+  clientSecretEnc?: string;
+  webhookIdEnc?: string;
+  /** PayPal API mode — not MegaPay/SePay environment naming. */
+  mode?: 'sandbox' | 'live';
+  /** Last admin-requested probe. Never stores tokens or secrets. */
+  lastProbe?: { at: string; ok: boolean; reason?: string };
+}
 
 export interface StoredProviderEsale {
   enabled?: boolean;
@@ -170,6 +210,18 @@ export interface StoredSystem {
   agentRegistrationMode?: 'INVITE_ONLY' | 'PUBLIC_APPROVAL' | 'DISABLED';
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
+  /** eSIM storefront. Default false. Does not enable a live provider. */
+  customerEsimEnabled?: boolean;
+  /**
+   * Max charge_amount per eSIM order in VND (SePay). Default 2_000_000.
+   * 0 = disabled. Invalid/missing values must fall back to default — never treat as 0.
+   */
+  esimMaxChargeAmountVnd?: number;
+  /**
+   * Max charge_amount per eSIM order in USD (PayPal). Default 80. Absolute hard max 80.
+   * 0 = disable admin setting (hard cap 80 still applies). Invalid / >80 → default 80.
+   */
+  esimMaxChargeAmountUsd?: number;
   /** Days to keep system_audit_logs + audit_logs. Default 360. */
   auditLogRetentionDays?: number;
   /** Min VND per agent deposit transaction (Admin override). */

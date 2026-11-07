@@ -3,6 +3,8 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   Put,
   Req,
@@ -36,12 +38,18 @@ import {
   UpdatePaymentStrategyDto,
   UpdatePaymentGatewayRuntimeDto,
   UpdateProviderEsaleDto,
+  UpdateProviderAiraloDto,
+  UpdateAiraloPackageLifecycleDto,
+  UpdatePaymentPaypalDto,
+  UpdateProviderEsimGoDto,
   UpdateSmtpSettingsDto,
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
+  CreateFxRateDto,
 } from '../dto/settings.dto';
 import { SettingsAdminService } from '../services/settings-admin.service';
+import { FxRateService } from '../../fx/fx-rate.service';
 
 @Controller('admin/settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,7 +59,52 @@ export class SettingsAdminController {
     private readonly settingsAdminService: SettingsAdminService,
     private readonly activityDispatcher: ActivityEventDispatcher,
     private readonly settingsStore: SettingsStoreService,
+    private readonly fxRates: FxRateService,
   ) {}
+
+  @Get('fx-rates')
+  listFxRates() {
+    return this.fxRates.list();
+  }
+
+  @Post('fx-rates')
+  @Audit({ resource: SystemAuditResource.PRICING, action: SystemAuditAction.CREATE, resourceName: 'fx-rate' })
+  createFxRate(@Body() dto: CreateFxRateDto) {
+    return this.fxRates.createDraft(dto);
+  }
+
+  @Post('fx-rates/:id/publish')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  publishFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.publish(id, user.id);
+  }
+
+  @Post('fx-rates/:id/approve')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  approveFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.approve(id, user.id);
+  }
+
+  @Post('fx-rates/:id/reject')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  rejectFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.reject(id, user.id);
+  }
 
   @Get('payment/megapay')
   getMegapay() {
@@ -189,6 +242,96 @@ export class SettingsAdminController {
     @Body() dto: UpdateProviderEsaleDto,
   ) {
     return this.settingsAdminService.updateProviderEsale(user.id, dto);
+  }
+
+  @Get('provider/esim-go')
+  getEsimGo() {
+    return this.settingsAdminService.getProviderEsimGo();
+  }
+
+  @Put('provider/esim-go')
+  @Audit({
+    resource: SystemAuditResource.PROVIDER,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PROVIDER_ESIM_GO,
+    detectEnableDisable: false,
+  })
+  updateEsimGo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProviderEsimGoDto,
+  ) {
+    return this.settingsAdminService.updateProviderEsimGo(user.id, dto);
+  }
+
+  @Post('provider/esim-go/test-catalogue')
+  testEsimGoCatalogue() {
+    return this.settingsAdminService.testEsimGoCatalogue();
+  }
+
+  @Get('provider/airalo')
+  getAiralo() {
+    return this.settingsAdminService.getProviderAiralo();
+  }
+
+  @Put('provider/airalo')
+  @Audit({
+    resource: SystemAuditResource.PROVIDER,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PROVIDER_AIRALO,
+    detectEnableDisable: false,
+  })
+  updateAiralo(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateProviderAiraloDto,
+  ) {
+    return this.settingsAdminService.updateProviderAiralo(user.id, dto);
+  }
+
+  @Post('provider/airalo/test-catalogue')
+  testAiraloCatalogue() {
+    return this.settingsAdminService.testAiraloCatalogue();
+  }
+
+  @Get('provider/airalo/catalogue')
+  listAiraloCatalogue() {
+    return this.settingsAdminService.listAiraloCatalogue();
+  }
+
+  @Post('provider/airalo/import')
+  importAiraloCatalogue() {
+    return this.settingsAdminService.importAiraloCatalogue();
+  }
+
+  @Patch('provider/airalo/packages/:id')
+  setAiraloPackageLifecycle(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAiraloPackageLifecycleDto,
+  ) {
+    return this.settingsAdminService.setAiraloPackageLifecycle(id, dto);
+  }
+
+  @Get('payment/paypal')
+  getPaypal() {
+    return this.settingsAdminService.getPaymentPaypal();
+  }
+
+  @Put('payment/paypal')
+  @Audit({
+    resource: SystemAuditResource.PAYMENT_GATEWAY,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.PAYMENT_PAYPAL,
+    detectEnableDisable: true,
+  })
+  updatePaypal(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdatePaymentPaypalDto,
+  ) {
+    return this.settingsAdminService.updatePaymentPaypal(user.id, dto);
+  }
+
+  @Post('payment/paypal/test-connection')
+  testPaypal(@CurrentUser() user: AuthenticatedUser) {
+    return this.settingsAdminService.testPaypalConnection(user.id);
   }
 
   @Post('provider/esale/test-connection')

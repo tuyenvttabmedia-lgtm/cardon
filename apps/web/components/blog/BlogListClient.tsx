@@ -10,6 +10,7 @@ import type { PublicBlogPost } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath } from '@/lib/routes';
 import { matchesViSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 
 const GRID_COLUMNS = 3;
 /** Cards in the grid section (must be multiple of GRID_COLUMNS for a full last row). */
@@ -38,6 +39,7 @@ export function BlogListClient({
   categoryIntro,
   postBasePath = BLOG_BASE_PATH,
   listBasePath = BLOG_BASE_PATH,
+  contentFallback = false,
 }: {
   posts: PublicBlogPost[];
   pageTitle?: string;
@@ -47,7 +49,10 @@ export function BlogListClient({
   categoryIntro?: string | null;
   postBasePath?: string;
   listBasePath?: string;
+  contentFallback?: boolean;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
@@ -131,6 +136,9 @@ export function BlogListClient({
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{pageTitle}</h1>
+          {locale === 'en' && contentFallback ? (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+          ) : null}
           <p className="mt-1 text-sm text-cardon-gray">{categoryIntro ?? pageSubtitle}</p>
         </div>
         <div className="relative w-full md:max-w-xs">

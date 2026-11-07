@@ -12,7 +12,7 @@ import { CardRecordStatus } from '@prisma/client';
 import { decimalToString } from '../../order/entities/order.mapper';
 import { canAdminViewPin, maskPinDisplay, maskPinPartial } from './card-pin.util';
 
-export type AdminDeliveryType = 'CARD' | 'TOPUP' | 'DATA';
+export type AdminDeliveryType = 'CARD' | 'TOPUP' | 'DATA' | 'ESIM';
 
 export interface AdminDeliveryItemView {
   id: string;
@@ -108,6 +108,7 @@ function resolveDeliveryType(orderItems: OrderItemRow[], topups: TopupTransactio
     return 'TOPUP';
   }
   const firstType = orderItems[0]?.variant?.type;
+  if (firstType === ProductVariantType.ESIM) return 'ESIM';
   if (firstType === ProductVariantType.DATA) return 'DATA';
   if (firstType === ProductVariantType.TOPUP) return 'TOPUP';
   return 'CARD';
@@ -166,6 +167,17 @@ export function mapAdminOrderDelivery(params: {
         primary?.quantity ||
         null,
       items,
+    };
+  }
+
+  if (type === 'ESIM') {
+    const primary = order.orderItems[0];
+    return {
+      type,
+      productName: primary?.variant?.name ?? null,
+      faceValue: primary ? itemFaceValueSnapshot(primary) : null,
+      quantity: primary?.quantity ?? null,
+      items: [],
     };
   }
 

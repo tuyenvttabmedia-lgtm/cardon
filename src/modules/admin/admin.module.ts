@@ -26,21 +26,28 @@ import { AdminDashboardService } from './services/admin-dashboard.service';
 import { AdminOrderDetailService } from './services/admin-order-detail.service';
 import { CardAccessLogRepository } from './repositories/card-access-log.repository';
 import { AdminOrderService } from './services/admin-order.service';
+import { RefundRequestService } from './services/refund-request.service';
+import { RefundRequestRepository } from './repositories/refund-request.repository';
 import { AdminPaymentService } from './services/admin-payment.service';
 import { AdminProviderService } from './services/admin-provider.service';
 import { AdminSearchService } from './services/admin-search.service';
 import { AdminStaffService } from './services/admin-staff.service';
 import { SettingsAdminService } from './services/settings-admin.service';
+import { FxRateService } from '../fx/fx-rate.service';
 import { AdminNotificationService } from './services/admin-notification.service';
+import { EsimModule } from '../esim/esim.module';
+import { EsimOpsAdminController } from './controllers/esim-ops.controller';
 
 @Module({
-  imports: [SettingsModule, AuthModule, RbacModule, ProductModule, OrderModule, OrderEventModule, PaymentModule, ProviderModule, AgentModule, NotificationModule, QueueModule, SystemHealthModule],
-  controllers: [AdminController, AdminMeController, AdminOperationController, SettingsAdminController, SystemHealthController],
+  imports: [SettingsModule, AuthModule, RbacModule, ProductModule, OrderModule, OrderEventModule, PaymentModule, ProviderModule, AgentModule, NotificationModule, QueueModule, SystemHealthModule, EsimModule],
+  controllers: [AdminController, AdminMeController, AdminOperationController, SettingsAdminController, SystemHealthController, EsimOpsAdminController],
   providers: [
     AdminRepository,
     AdminAuditService,
     AdminDashboardService,
     AdminOrderService,
+    RefundRequestRepository,
+    RefundRequestService,
     AdminOrderDetailService,
     CardAccessLogRepository,
     AdminPaymentService,
@@ -52,6 +59,7 @@ import { AdminNotificationService } from './services/admin-notification.service'
     AdminStaffService,
     AdminAgentInviteService,
     SettingsAdminService,
+    FxRateService,
     AdminNotificationService,
   ],
   exports: [AdminAuditService, SettingsAdminService, AdminOrderService],

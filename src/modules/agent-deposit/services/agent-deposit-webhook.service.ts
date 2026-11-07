@@ -43,6 +43,10 @@ export class AgentDepositWebhookService {
     headers: Record<string, string>,
     ipAddress?: string,
   ): Promise<AgentDepositWebhookResult> {
+    const upper = gatewayParam.toUpperCase();
+    if (upper !== 'MEGAPAY' && upper !== 'SEPAY') {
+      return { handled: false };
+    }
     const gateway = normalizeGatewayParam(gatewayParam);
     const provider = this.providerRegistry.get(gateway);
     const verification = await provider.verifyWebhook(payload, headers);

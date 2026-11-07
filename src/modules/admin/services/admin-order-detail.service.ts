@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Optional } from '@nestjs/common';
 
 import { AuditTargetType, CardAccessAction, UserRole } from '@prisma/client';
 
@@ -19,6 +19,7 @@ import { CardAccessLogRepository } from '../repositories/card-access-log.reposit
 import { AdminRepository } from '../repositories/admin.repository';
 
 import { AdminAuditService } from './admin-audit.service';
+import { EsimAdminService } from '../../esim/esim-admin.service';
 
 
 
@@ -35,6 +36,8 @@ export class AdminOrderDetailService {
     private readonly cardAccessLogRepository: CardAccessLogRepository,
 
     private readonly adminAudit: AdminAuditService,
+
+    @Optional() private readonly esimAdmin?: EsimAdminService,
 
   ) {}
 
@@ -102,6 +105,10 @@ export class AdminOrderDetailService {
 
 
 
+    const esimDelivery = this.esimAdmin
+      ? await this.esimAdmin.getOrderOps(orderId, { canReveal: canViewPin })
+      : undefined;
+
     if (options.gatewayTransaction) {
 
       const term = options.gatewayTransaction.toLowerCase();
@@ -128,7 +135,7 @@ export class AdminOrderDetailService {
 
 
 
-    return detail;
+    return esimDelivery ? { ...detail, esimDelivery } : detail;
 
   }
 

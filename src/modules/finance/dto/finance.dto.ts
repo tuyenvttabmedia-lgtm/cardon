@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -310,4 +311,62 @@ export class VatRetailOutputQueryDto extends VatDailyQueryDto {
   @Type(() => Number)
   @IsIn([8, 10])
   vatRatePct!: 8 | 10;
+}
+
+const ESIM_FINANCE_ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** F1 eSIM revenue — dateFrom/dateTo map to Ops dashboard from/to (same SUCCESS rules). */
+export class EsimFinanceRevenueQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(ESIM_FINANCE_ISO_DATE)
+  dateFrom?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(ESIM_FINANCE_ISO_DATE)
+  dateTo?: string;
+
+  @IsOptional()
+  @IsIn(['today', '7d', '30d'])
+  preset?: 'today' | '7d' | '30d';
+
+  @IsOptional()
+  @IsIn(['VN', 'INTL'])
+  market?: 'VN' | 'INTL';
+
+  @IsOptional()
+  @IsIn(['VND', 'USD'])
+  currency?: 'VND' | 'USD';
+
+  @IsOptional()
+  @IsIn(['PAYPAL', 'SEPAY'])
+  gateway?: 'PAYPAL' | 'SEPAY';
+}
+
+export class PaypalFeeMatchResolveDto {
+  @IsUUID()
+  paymentId!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  note?: string;
+}
+
+export class PaypalFeeMatchListQueryDto {
+  @IsOptional()
+  @IsUUID()
+  importId?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @Type(() => Number)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  take?: number;
 }

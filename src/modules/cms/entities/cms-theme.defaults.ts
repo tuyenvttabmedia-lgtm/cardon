@@ -1,5 +1,7 @@
 export interface CmsMobileNavItem {
   label: string;
+  labelEn?: string;
+  navKey?: string;
   icon: string;
   url: string;
   sortOrder: number;

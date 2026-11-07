@@ -6,7 +6,7 @@ import { MarketingNav } from '@/components/marketing/MarketingNav';
 import { MediaLibraryPicker } from '@/components/marketing/MediaLibraryPicker';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { ErrorMessage } from '@/components/ui/Display';
-import { Button } from '@/components/ui/Form';
+import { Button, Input, Label, Textarea } from '@/components/ui/Form';
 import { slugifyVi } from '@/lib/slugify-vi';
 import { vi } from '@/lib/i18n/vi';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
@@ -37,6 +37,14 @@ import {
   setLastAutosaveAt,
   setScheduledPublish,
 } from '@/lib/cms-revisions';
+import {
+  englishDraftFromPage,
+  englishPagePayload,
+  emptyEnglishPageDraft,
+  translationStatusLabel,
+  type CmsEditorLocale,
+  type EnglishPageDraft,
+} from '@/lib/cms-translation';
 import { ProfessionalEditor } from './ProfessionalEditor';
 import { EditorMetaSidebar } from './EditorMetaSidebar';
 import { EditorRightPanel } from './EditorRightPanel';
@@ -61,6 +69,8 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CmsEditorFormState>(emptyCmsForm());
+  const [editorLocale, setEditorLocale] = useState<CmsEditorLocale>('vi');
+  const [english, setEnglish] = useState<EnglishPageDraft>(emptyEnglishPageDraft());
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -75,6 +85,10 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [authorLabel, setAuthorLabel] = useState('CardOn');
   const formRef = useRef(form);
+  const editorLocaleRef = useRef(editorLocale);
+  const englishRef = useRef(english);
+  editorLocaleRef.current = editorLocale;
+  englishRef.current = english;
   formRef.current = form;
   const savingRef = useRef(false);
   savingRef.current = saving;
@@ -153,6 +167,8 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       : `/${form.slug || '...'}`;
 
   function openEditor(page?: CmsPage) {
+    setEditorLocale('vi');
+    setEnglish(englishDraftFromPage(page));
     if (page) {
       setEditingId(page.id);
       setForm(pageToEditorForm(page, getScheduledPublish(page.id) ?? ''));
@@ -194,6 +210,8 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     }[slug];
 
     setEditingId(null);
+    setEditorLocale('vi');
+    setEnglish(emptyEnglishPageDraft());
     setForm({
       ...emptyCmsForm(),
       title: presets.title,
@@ -213,6 +231,8 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   }
 
   function closeEditor() {
+    setEditorLocale('vi');
+    setEnglish(emptyEnglishPageDraft());
     setView('list');
     setEditingId(null);
     setForm(emptyCmsForm());
@@ -383,6 +403,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   useEffect(() => {
     if (view !== 'editor') return;
     const timer = setInterval(() => {
+      if (editorLocaleRef.current === 'en') return;
       const f = formRef.current;
       if (!f.title.trim() || savingRef.current) return;
       const status = f.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT';
@@ -394,6 +415,10 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const contentChangeRef = useRef<(html: string) => void>(() => undefined);
   contentChangeRef.current = (html: string) => {
     clearSaveErrorIfNeeded();
+    if (editorLocaleRef.current === 'en') {
+      setEnglish((prev) => ({ ...prev, content: html }));
+      return;
+    }
     setForm((p) => ({ ...p, content: html }));
   };
   const stableContentChange = useCallback((html: string) => contentChangeRef.current(html), []);
@@ -476,6 +501,35 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     void load();
   }
 
+  async function persistEnglish(status: 'DRAFT' | 'PUBLISHED') {
+    if (!editingId) {
+      setSaveStatus('error');
+      setSaveError('Lưu tiếng Việt trước khi thêm bản tiếng Anh.');
+      return;
+    }
+    const draft = englishRef.current;
+    if (!draft.title.trim() || !draft.content.trim()) {
+      setSaveStatus('error');
+      setSaveError('Bản tiếng Anh cần tiêu đề và nội dung.');
+      return;
+    }
+    setSaving(true);
+    setSaveStatus('saving');
+    setSaveError(null);
+    try {
+      const saved = await cmsAdminApi.savePageTranslation(editingId, 'en', englishPagePayload(draft, status));
+      setEnglish(englishDraftFromPage(saved));
+      setSaveStatus('saved');
+      setLastSavedAt(new Date().toISOString());
+    } catch (err) {
+      const message = err instanceof ApiClientError ? err.message : vi.app.requestFailed;
+      setSaveStatus('error');
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <RequirePermission permission="cms.manage">
       <div className={view === 'editor' ? 'fixed inset-0 z-40 flex flex-col bg-white' : 'space-y-6'}>
@@ -513,17 +567,47 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
         ) : (
           <>
             <EditorHeader
-              title={form.title}
-              onTitleChange={updateTitle}
+              title={editorLocale === 'en' ? english.title : form.title}
+              onTitleChange={
+                editorLocale === 'en'
+                  ? (value) => setEnglish((prev) => ({ ...prev, title: value }))
+                  : updateTitle
+              }
               onBack={closeEditor}
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
               saveError={saveError}
               onPreview={() => setPreviewOpen(true)}
-              onSaveDraft={() => void persist('DRAFT')}
-              onPublish={() => void persist('PUBLISHED')}
+              onSaveDraft={() => void (editorLocale === 'en' ? persistEnglish('DRAFT') : persist('DRAFT'))}
+              onPublish={() => void (editorLocale === 'en' ? persistEnglish('PUBLISHED') : persist('PUBLISHED'))}
               saving={saving}
             />
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-2">
+              <button
+                type="button"
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${editorLocale === 'vi' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => setEditorLocale('vi')}
+              >
+                Tiếng Việt
+              </button>
+              <button
+                type="button"
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium ${editorLocale === 'en' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-700'}`}
+                onClick={() => setEditorLocale('en')}
+              >
+                English
+              </button>
+              <span className="text-xs text-slate-500">
+                VI: {translationStatusLabel(form.status)}
+                {' · '}
+                EN: {translationStatusLabel(english.status)}
+              </span>
+              {editorLocale === 'en' && english.status == null ? (
+                <span className="rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                  Chưa có bản dịch tiếng Anh. Nội dung tiếng Việt không bị sao chép sang đây.
+                </span>
+              ) : null}
+            </div>
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
               <EditorMetaSidebar
@@ -536,12 +620,41 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                 categoryCounts={categoryCounts}
                 onPickFeaturedImage={pickFeaturedImage}
                 onCreateTag={handleCreateTag}
+                locked={editorLocale === 'en'}
               />
 
               <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 {error && <div className="px-4 pt-2"><ErrorMessage message={error} /></div>}
+                {editorLocale === 'en' ? (
+                  <div className="grid shrink-0 gap-3 border-b border-slate-200 p-4 md:grid-cols-2">
+                    <div>
+                      <Label>Excerpt</Label>
+                      <Textarea className="mt-1" rows={2} value={english.excerpt} onChange={(e) => setEnglish((prev) => ({ ...prev, excerpt: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>SEO Title</Label>
+                      <Input className="mt-1" value={english.metaTitle} onChange={(e) => setEnglish((prev) => ({ ...prev, metaTitle: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>SEO Description</Label>
+                      <Input className="mt-1" value={english.metaDescription} onChange={(e) => setEnglish((prev) => ({ ...prev, metaDescription: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>SEO Keywords</Label>
+                      <Input className="mt-1" value={english.metaKeywords} onChange={(e) => setEnglish((prev) => ({ ...prev, metaKeywords: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>OG Title</Label>
+                      <Input className="mt-1" value={english.ogTitle} onChange={(e) => setEnglish((prev) => ({ ...prev, ogTitle: e.target.value }))} />
+                    </div>
+                    <div>
+                      <Label>OG Description</Label>
+                      <Input className="mt-1" value={english.ogDescription} onChange={(e) => setEnglish((prev) => ({ ...prev, ogDescription: e.target.value }))} />
+                    </div>
+                  </div>
+                ) : null}
                 <ProfessionalEditor
-                  value={form.content}
+                  value={editorLocale === 'en' ? english.content : form.content}
                   onChange={stableContentChange}
                   onPickImage={pickImageUrl}
                   linkTargets={linkTargets}
@@ -549,7 +662,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                 />
               </main>
 
-              <EditorRightPanel
+              {editorLocale === 'vi' ? <EditorRightPanel
                 form={form}
                 setForm={setForm}
                 previewPath={previewPath}
@@ -561,7 +674,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                 onPublish={() => void persist('PUBLISHED')}
                 onSchedule={() => void persist('DRAFT')}
                 saving={saving}
-              />
+              /> : null}
             </div>
           </>
         )}

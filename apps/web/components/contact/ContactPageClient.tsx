@@ -7,10 +7,13 @@ import { SafeCmsHtml } from '@/components/SafeCmsHtml';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
-import { contactApi, ApiClientError } from '@/services/api-client';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import { contactApi } from '@/services/api-client';
 import { FaqSection } from '@/components/faq/FaqSection';
 import {
   CONTACT_CHANNEL_META,
+  resolveContactChannelLabel,
   type ContactChannel,
   type ContactChannelKey,
 } from '@/lib/contact-channels';
@@ -20,13 +23,17 @@ interface ContactPageClientProps {
   title?: string;
   subtitle?: string;
   introHtml?: string;
+  contentFallback?: boolean;
 }
 
 export function ContactPageClient({
-  title = 'Liên hệ CardOn',
-  subtitle = 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.',
+  title,
+  subtitle,
   introHtml,
+  contentFallback = false,
 }: ContactPageClientProps) {
+  const t = useT();
+  const { locale } = useLocale();
   const { contactChannels, companyInfo } = useThemeSettings();
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +53,10 @@ export function ContactPageClient({
 
   return (
     <PageContainer>
-      <PageHero title={title} subtitle={subtitle} />
+      <PageHero title={title ?? t('contact.title')} subtitle={subtitle ?? t('contact.subtitle')} />
+      {locale === 'en' && contentFallback ? (
+        <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+      ) : null}
       {introHtml ? (
         <div className="mt-6 rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-6">
           <SafeCmsHtml html={introHtml} className="cms-prose" />
@@ -55,7 +65,7 @@ export function ContactPageClient({
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2 lg:items-stretch">
         <aside className="flex h-full flex-col rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-6">
-          <h2 className="text-lg font-bold text-cardon-navy">Thông tin liên hệ</h2>
+          <h2 className="text-lg font-bold text-cardon-navy">{t('contact.info')}</h2>
           <ul className="mt-5 space-y-5">
             {visibleChannels.map((item) => (
               <ContactChannelItem key={item.key} channel={item} />
@@ -66,7 +76,11 @@ export function ContactPageClient({
                   🕒
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-cardon-navy">Thời gian làm việc</p>
+                  <p className="text-sm font-semibold text-cardon-navy">
+                    {locale === 'en' && companyInfo.hoursLabelEn?.trim()
+                      ? companyInfo.hoursLabelEn.trim()
+                      : t('contact.hours')}
+                  </p>
                   <p className="text-sm text-cardon-gray">{workingHours}</p>
                 </div>
               </li>
@@ -84,7 +98,11 @@ export function ContactPageClient({
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-cardon-border bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-cardon-navy transition hover:border-cardon-blue hover:bg-blue-50 hover:text-cardon-blue"
                 >
                   <span aria-hidden>{CONTACT_CHANNEL_META[channel.key].icon}</span>
-                  {quickActionLabel(channel.key)}
+                  {channel.key === 'hotline'
+                    ? t('contact.call')
+                    : channel.key === 'email'
+                      ? t('contact.email')
+                      : quickActionLabel(channel.key, t)}
                 </a>
               ))}
             </div>
@@ -92,35 +110,30 @@ export function ContactPageClient({
 
           <div className="mt-auto space-y-3 pt-6">
             <div className="rounded-xl bg-gradient-to-br from-cardon-navy to-cardon-blue p-4 text-white">
-              <p className="text-sm font-semibold">Phản hồi nhanh</p>
-              <p className="mt-1 text-xs leading-relaxed text-white/85">
-                Tin nhắn trong giờ làm việc thường được xử lý trong vài giờ. Ngoài giờ, vui lòng để lại
-                email hoặc Zalo — chúng tôi sẽ liên hệ lại sớm nhất có thể.
-              </p>
+              <p className="text-sm font-semibold">{t('contact.quickTitle')}</p>
+              <p className="mt-1 text-xs leading-relaxed text-white/85">{t('contact.quickBody')}</p>
             </div>
             <div className="rounded-xl border border-dashed border-cardon-border bg-zinc-50/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-cardon-navy/70">
-                Khi liên hệ nên kèm
+                {t('contact.includeTitle')}
               </p>
               <ul className="mt-2 space-y-1.5 text-sm text-cardon-gray">
-                <li>• Mã đơn hàng (nếu có)</li>
-                <li>• Số điện thoại / email đã dùng thanh toán</li>
-                <li>• Mô tả ngắn vấn đề cần hỗ trợ</li>
+                <li>• {t('contact.includeOrder')}</li>
+                <li>• {t('contact.includeContact')}</li>
+                <li>• {t('contact.includeIssue')}</li>
               </ul>
             </div>
           </div>
         </aside>
 
         <div className="flex h-full flex-col rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-6">
-          <h2 className="text-lg font-bold text-cardon-navy">Gửi tin nhắn</h2>
+          <h2 className="text-lg font-bold text-cardon-navy">{t('contact.formTitle')}</h2>
           {submitted ? (
-            <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-cardon-green">
-              Cảm ơn bạn! Chúng tôi sẽ phản hồi trong thời gian sớm nhất.
-            </p>
+            <p className="mt-4 rounded-xl bg-emerald-50 p-4 text-sm text-cardon-green">{t('contact.thanks')}</p>
           ) : (
             <form className="mt-4 flex flex-1 flex-col space-y-4" onSubmit={handleSubmit}>
               <div>
-                <label className="text-sm font-medium">Họ và tên</label>
+                <label className="text-sm font-medium">{t('contact.name')}</label>
                 <Input
                   required
                   className="mt-1"
@@ -140,7 +153,7 @@ export function ContactPageClient({
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Số điện thoại</label>
+                  <label className="text-sm font-medium">{t('contact.phone')}</label>
                   <Input
                     type="tel"
                     className="mt-1"
@@ -150,7 +163,7 @@ export function ContactPageClient({
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium">Chủ đề</label>
+                <label className="text-sm font-medium">{t('contact.subject')}</label>
                 <Input
                   required
                   className="mt-1"
@@ -159,7 +172,7 @@ export function ContactPageClient({
                 />
               </div>
               <div className="flex flex-1 flex-col">
-                <label className="text-sm font-medium">Nội dung</label>
+                <label className="text-sm font-medium">{t('contact.body')}</label>
                 <textarea
                   required
                   rows={6}
@@ -170,7 +183,7 @@ export function ContactPageClient({
               </div>
               <div className="pt-1">
                 <Button type="submit" disabled={submitting}>
-                  {submitting ? 'Đang gửi...' : 'Gửi liên hệ'}
+                  {submitting ? t('contact.sending') : t('contact.send')}
                 </Button>
                 {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
               </div>
@@ -182,14 +195,14 @@ export function ContactPageClient({
       {mapEmbedUrl ? (
         <section className="mt-8 overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-card">
           <div className="border-b border-cardon-border px-5 py-4 md:px-6">
-            <h2 className="text-lg font-bold text-cardon-navy">Bản đồ</h2>
+            <h2 className="text-lg font-bold text-cardon-navy">{t('contact.mapTitle')}</h2>
             {companyInfo.address?.trim() ? (
               <p className="mt-1 text-sm text-cardon-gray">{companyInfo.address.trim()}</p>
             ) : null}
           </div>
           <div className="relative aspect-[16/10] w-full bg-zinc-100 md:aspect-[21/9]">
             <iframe
-              title="Bản đồ trụ sở CardOn"
+              title={t('contact.map')}
               src={mapEmbedUrl}
               className="absolute inset-0 h-full w-full border-0"
               loading="lazy"
@@ -218,30 +231,36 @@ export function ContactPageClient({
       await contactApi.submit(form);
       setSubmitted(true);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Gửi liên hệ thất bại');
+      setError(customerFacingError(locale, err));
     } finally {
       setSubmitting(false);
     }
   }
 }
 
-function quickActionLabel(key: ContactChannelKey): string {
+function quickActionLabel(key: ContactChannelKey, t: ReturnType<typeof useT>): string {
   switch (key) {
     case 'hotline':
-      return 'Gọi ngay';
+      return t('contact.call');
     case 'zalo':
-      return 'Chat Zalo';
+      return 'Zalo';
     case 'fanpage':
       return 'Fanpage';
     case 'email':
-      return 'Gửi email';
+      return t('contact.email');
+    case 'address':
+      return t('contact.address');
     default:
-      return CONTACT_CHANNEL_META[key].label;
+      return key;
   }
 }
 
 function ContactChannelItem({ channel }: { channel: ContactChannel }) {
+  const t = useT();
+  const { locale } = useLocale();
   const meta = CONTACT_CHANNEL_META[channel.key];
+  const fallback = channel.key === 'address' ? t('contact.address') : meta.label;
+  const label = resolveContactChannelLabel(channel, locale, fallback);
 
   return (
     <li className="flex gap-3">
@@ -249,7 +268,7 @@ function ContactChannelItem({ channel }: { channel: ContactChannel }) {
         {meta.icon}
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-semibold text-cardon-navy">{meta.label}</p>
+        <p className="text-sm font-semibold text-cardon-navy">{label}</p>
         {channel.href ? (
           <a
             href={channel.href}

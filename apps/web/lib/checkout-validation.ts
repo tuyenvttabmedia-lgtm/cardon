@@ -1,4 +1,5 @@
 import type { HomeCategory } from '@/lib/home-catalog';
+import type { MessageKey } from '@/lib/i18n/messages';
 import type { Product, ProductVariant } from '@/types/api';
 
 const VN_PHONE_RE = /^(0|\+84)(3|5|7|8|9)[0-9]{8}$/;
@@ -23,34 +24,34 @@ export interface CheckoutValidationInput {
   isAuthenticated: boolean;
 }
 
-export function validateCheckout(input: CheckoutValidationInput): string | null {
+export function validateCheckout(input: CheckoutValidationInput): MessageKey | null {
   if (!input.isAuthenticated) {
-    return 'Vui lòng đăng nhập để tiếp tục thanh toán';
+    return 'checkout.loginRequired';
   }
   if (!input.product) {
-    return 'Vui lòng chọn loại thẻ / nhà cung cấp';
+    return 'checkout.pickProduct';
   }
   if (!input.variant) {
-    return 'Vui lòng chọn mệnh giá';
+    return 'checkout.pickDenom';
   }
   if (!Number.isFinite(input.quantity) || input.quantity < 1) {
-    return 'Số lượng phải từ 1 trở lên';
+    return 'checkout.qtyMin';
   }
 
   const isTopup = input.category === 'topup' || input.variant.type === 'TOPUP';
   const isData = input.category === 'data' || input.variant.type === 'DATA';
   if (isTopup || isData) {
     if (!input.phone.trim()) {
-      return 'Vui lòng nhập số điện thoại cần nạp';
+      return 'checkout.phoneRequired';
     }
     if (!isValidVnPhone(input.phone)) {
-      return 'Số điện thoại không hợp lệ (VD: 0912345678)';
+      return 'checkout.phoneInvalid';
     }
   }
 
   if (input.category === 'game' || input.category === 'phone' || input.variant.type === 'CARD') {
     if (!input.isAuthenticated) {
-      return 'Mua thẻ yêu cầu đăng nhập tài khoản';
+      return 'checkout.cardLogin';
     }
   }
 

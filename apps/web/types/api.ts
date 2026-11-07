@@ -14,7 +14,7 @@ export type FulfillmentStatus =
   | 'FAILED'
   | 'WAITING_ADMIN_RETRY';
 
-export type PaymentGatewayCode = 'MEGAPAY' | 'SEPAY';
+export type PaymentGatewayCode = 'MEGAPAY' | 'SEPAY' | 'PAYPAL';
 
 export type PaymentRecordStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED';
 
@@ -79,6 +79,9 @@ export interface Product {
     homeService?: HomeServiceType | null;
   };
   homeService?: HomeServiceType | null;
+  retailMarket?: 'VN' | 'INTL';
+  marketSupported?: boolean;
+  marketNotice?: string | null;
   variants?: ProductVariant[];
 }
 
@@ -115,8 +118,8 @@ export interface Order {
   paymentFeeFixed: string;
   paymentFeeAmount: string;
   customerPaid: string;
-  providerCost: string;
-  profit: string;
+  providerCost?: string;
+  profit?: string;
   paymentStatus: OrderPaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
   customerStatus?: string;
@@ -180,12 +183,51 @@ export interface OrderTimelineStep {
   at: string | null;
 }
 
+export type EsimDeliveryKind = 'none' | 'waiting' | 'ready' | 'stuck';
+
+export interface EsimPackageSpec {
+  title: string | null;
+  dataAllowanceLabel: string | null;
+  validityLabel: string | null;
+  activationLabel: string | null;
+  fupClear: boolean | null;
+  fairUsagePolicy: string | null;
+  catalogueLifecycle: string | null;
+  specSource: 'catalogue_current';
+  notice: string;
+}
+
+export interface EsimDelivery {
+  kind: EsimDeliveryKind;
+  destination: string;
+  packageName: string | null;
+  testData: boolean;
+  sandboxAccount?: boolean;
+  notice: string | null;
+  installSecret: string | null;
+  qrSvg: string | null;
+  appleSetupUrl: string | null;
+  canRevealInstallSecret?: boolean;
+  packageSpec?: EsimPackageSpec | null;
+  id?: string | null;
+  orderId?: string;
+  orderCode?: string;
+  createdAt?: string;
+}
+
+export interface EsimInstallReveal {
+  installSecret: string;
+  qrSvg: string | null;
+  appleSetupUrl: string | null;
+}
+
 export interface OrderDeliveryResponse {
   order: Order;
   timeline: OrderTimelineStep[];
   delivery: {
     cards: CardSummary[];
     hasCards: boolean;
+    esim?: EsimDelivery;
   };
 }
 
@@ -228,18 +270,29 @@ export interface AuthResult {
   user: AuthUser;
 }
 
+export interface RegisterPendingResult {
+  requiresEmailVerification: true;
+  email: string;
+  message: string;
+}
+
 export interface CreateOrderPayload {
   items: Array<{ variantId: string; quantity: number }>;
   guestEmail?: string;
   guestPhone?: string;
   customerNote?: string;
   paymentMethodCode?: string;
+  /** eSIM only: VN = SePay VND, INTL = PayPal USD */
+  market?: 'VN' | 'INTL';
+  locale?: 'vi' | 'en';
   clientDeviceInfo?: Record<string, unknown>;
 }
 
 export interface CreatePaymentPayload {
   orderId: string;
   gateway: PaymentGatewayCode;
+  /** Required when paying a guest order. */
+  guestEmail?: string;
 }
 
 export interface AccountProfile {

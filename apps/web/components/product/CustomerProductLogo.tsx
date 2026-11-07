@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 export type CustomerProductKind = 'card' | 'topup' | 'data';
 
 const LOGO_IMG_CLASS = 'max-h-[85%] max-w-[85%] object-contain';
+const ROOMY_LOGO_CLASS = 'h-14 max-h-14 w-auto max-w-[92%] object-contain';
 export function topupFallbackLabel(name: string): string {
   const carriers = ['Viettel', 'Mobifone', 'Vinaphone', 'Vietnamobile'];
   const lower = name.toLowerCase();
@@ -29,15 +30,19 @@ export function CustomerProductLogo({
   logoUrl,
   kind = 'card',
   fallbackLabel,
+  roomy = false,
 }: {
   name: string;
   slug: string;
   logoUrl?: string | null;
   kind?: CustomerProductKind;
   fallbackLabel?: string;
+  /** Larger mark for the homepage logo row. Other pages keep the compact mark. */
+  roomy?: boolean;
 }) {
   const resolved = resolveAssetUrl(logoUrl);
   const optimized = optimizerImageSrc(logoUrl);
+  const imgClass = roomy ? ROOMY_LOGO_CLASS : LOGO_IMG_CLASS;
 
   if (resolved && optimized && isOptimizableImageSrc(optimized)) {
     return (
@@ -45,12 +50,12 @@ export function CustomerProductLogo({
         src={optimized}
         alt=""
         aria-hidden
-        width={128}
+        width={160}
         height={64}
         quality={60}
-        sizes="96px"
-        className={LOGO_IMG_CLASS}
-        style={{ width: 'auto', height: 'auto' }}
+        sizes={roomy ? '140px' : '96px'}
+        className={imgClass}
+        style={roomy ? { width: 'auto', height: '3.5rem' } : { width: 'auto', height: 'auto' }}
       />
     );
   }
@@ -64,7 +69,7 @@ export function CustomerProductLogo({
         aria-hidden
         loading="lazy"
         decoding="async"
-        className={LOGO_IMG_CLASS}
+        className={imgClass}
       />
     );
   }

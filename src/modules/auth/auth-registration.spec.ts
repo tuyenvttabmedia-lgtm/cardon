@@ -66,6 +66,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
       create: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -109,8 +110,14 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
         create: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
-      $transaction: jest.fn((ops) => Promise.all(ops)),
+      $transaction: jest.fn(async (arg: unknown) => {
+        if (typeof arg === 'function') {
+          return (arg as (tx: typeof prisma) => Promise<unknown>)(prisma);
+        }
+        return Promise.all(arg as Promise<unknown>[]);
+      }),
     };
 
     tokenService = {
@@ -152,17 +159,16 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     );
   });
 
-  it('stores profile fields and encrypts identity number', async () => {
+  it('stores profile fields and encrypts identity number without session', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue(activeUser);
     prisma.emailVerificationToken.create.mockResolvedValue({});
-    prisma.refreshToken.create.mockResolvedValue({});
 
     const dto = validRegisterDto();
     const result = await authService.register(dto);
 
-    expect(result.user.username).toBe('customer01');
-    expect(result.user.fullName).toBe('Nguyen Van A');
+    expect(result.requiresEmailVerification).toBe(true);
+    expect(result.email).toBe('customer@cardon.vn');
     expect(settingsEncryption.encrypt).toHaveBeenCalledWith('123456789012');
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -175,11 +181,10 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
         }),
       }),
     );
-    expect(result.user).not.toHaveProperty('identityNumber');
-    expect(result.user).not.toHaveProperty('identityNumberEnc');
+    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
 
-  it('rejects duplicate username', async () => {
+  it('rejects duplicate username with generic conflict', async () => {
     prisma.user.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) => {
       if (where.email) return Promise.resolve(null);
       if (where.username) return Promise.resolve({ id: 'other-user' });

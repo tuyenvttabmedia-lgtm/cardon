@@ -33,6 +33,13 @@ export class VariantRepository {
     });
   }
 
+  findActiveBySku(sku: string) {
+    return this.prisma.productVariant.findFirst({
+      where: { sku, ...ACTIVE_VARIANT_WHERE },
+      include: { product: true },
+    });
+  }
+
   findByProductId(productId: string) {
     return this.prisma.productVariant.findMany({
       where: { productId },

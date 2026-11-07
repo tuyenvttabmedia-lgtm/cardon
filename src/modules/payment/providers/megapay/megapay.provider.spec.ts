@@ -232,6 +232,35 @@ describe('MegaPayProvider (DepositCode VA)', () => {
       expect(result.valid).toBe(false);
     });
 
+    it('rejects DepositCode notify for a different merchant even with a valid signature', async () => {
+      const payload = {
+        MerchantCode: 'OTHER',
+        RequestId: 'VAP001REQ1',
+        RequestTime: '2024-10-15 14:52:58',
+        VaAcc: '902000225341',
+        VaName: 'VAP001 NGUYEN VAN A',
+        MapId: 'PAY-REF-001',
+        ReferenceId: 'VAP001REF1',
+        Amount: 100000,
+        Fee: 0,
+        BankCode: 'WOORIBANK',
+        BankName: 'WOORI',
+      };
+      const Signature = signNotify({
+        RequestId: payload.RequestId,
+        ReferenceId: payload.ReferenceId,
+        RequestTime: payload.RequestTime,
+        Amount: payload.Amount,
+        Fee: payload.Fee,
+        VaAcc: payload.VaAcc,
+        MapId: payload.MapId,
+      });
+
+      const result = await provider.verifyWebhook({ ...payload, Signature }, {});
+      expect(result.valid).toBe(false);
+      expect(result.status).toBe('PENDING');
+    });
+
     it('accepts valid MegaPay PG IPN merchantToken', async () => {
       const { buildMegapayPgIpnToken } = await import('./megapay-pg');
       const payload = {

@@ -2,6 +2,8 @@ import { Module, forwardRef } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
 
+import { EsimModule } from '../esim/esim.module';
+
 import { ProviderModule } from '../provider/provider.module';
 
 import { FinanceController } from './controllers/finance.controller';
@@ -26,6 +28,8 @@ import { PaymentReconcileService } from './services/payment-reconcile.service';
 
 import { PaymentSettlementService } from './services/payment-settlement.service';
 
+import { PaypalFeeReconcileService } from './services/paypal-fee-reconcile.service';
+
 import { ProfitService } from './services/profit.service';
 
 import { ProviderDailyReconciliationService } from './services/provider-daily-reconciliation.service';
@@ -38,13 +42,14 @@ import { ReconcileReportService } from './services/reconcile-report.service';
 import { VatDailyService } from './services/vat-daily.service';
 
 @Module({
-  imports: [AuthModule, forwardRef(() => ProviderModule)],
+  imports: [AuthModule, forwardRef(() => ProviderModule), EsimModule],
   controllers: [FinanceController],
   providers: [
     FinanceRepository,
     ProviderOperationsRepository,
     FinanceAuditService,
     PaymentReconcileService,
+    PaypalFeeReconcileService,
     ProviderReconcileService,
     ProviderDailyReconciliationService,
     ProviderOperationsService,

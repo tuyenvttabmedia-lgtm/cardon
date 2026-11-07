@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'qr.sepay.vn' },
       { protocol: 'https', hostname: '**.sepay.vn' },
+      { protocol: 'https', hostname: 'cdn-revamp.airalo.com' },
+      { protocol: 'https', hostname: 'flagcdn.com' },
       { protocol: 'https', hostname: 'cardon.vn', pathname: '/uploads/**' },
       { protocol: 'https', hostname: 'www.cardon.vn', pathname: '/uploads/**' },
     ],

@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PageContainer } from '@/components/layout/PageContainer';
+import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
 import {
   clearPendingMegapayPayment,
@@ -14,7 +17,6 @@ import {
   readPendingMegapayPayment,
   type PendingMegapayPayment,
 } from '@/lib/pending-megapay-payment';
-import { formatVnd } from '@/lib/utils';
 import { orderApi } from '@/services/api-client';
 
 const POLL_MS = 5000;
@@ -29,8 +31,11 @@ export default function CheckoutResultClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const t = useT();
+  const money = useMoney();
+  const { locale } = useLocale();
   const [status, setStatus] = useState<ResultStatus>('loading');
-  const [message, setMessage] = useState('Đang xử lý kết quả thanh toán…');
+  const [message, setMessage] = useState('');
   const [pending, setPending] = useState<PendingMegapayPayment | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
 
@@ -57,16 +62,16 @@ export default function CheckoutResultClient() {
 
     if (isMegapaySuccessResult(resultCd)) {
       setStatus('success');
-      setMessage('Thanh toán thành công. Đang chuyển tới trang đơn hàng…');
+      setMessage(t('result.okRedirect'));
       clearPendingMegapayPayment();
       if (stored?.orderCode) {
         const q = new URLSearchParams({ orderCode: stored.orderCode });
         if (stored.email) q.set('email', stored.email);
-        router.replace(`/checkout/success?${q.toString()}`);
+        router.replace(withLocalePrefix(`/checkout/success?${q.toString()}`, locale));
         return;
       }
       setMessage(
-        'Thanh toán thành công. Vui lòng tra cứu đơn hàng bằng mã đơn và email đã dùng khi mua.',
+        t('result.okLookup'),
       );
       return;
     }
@@ -75,7 +80,7 @@ export default function CheckoutResultClient() {
     if (isMegapayAwaitingTransferResult(resultCd)) {
       setStatus('awaiting_transfer');
       setMessage(
-        'Đã tạo mã nộp tiền cho đơn hàng. Vui lòng chuyển khoản đúng số tiền và nội dung bên dưới — thẻ sẽ được giao ngay khi ngân hàng báo có.',
+        t('result.pending'),
       );
       return;
     }
@@ -86,7 +91,7 @@ export default function CheckoutResultClient() {
     if (!resultCd && !resultMsg) {
       setStatus('cancel');
       setMessage(
-        'Thanh toán chưa hoàn tất. Đơn hàng chưa bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
+        t('result.incomplete'),
       );
       return;
     }
@@ -94,24 +99,25 @@ export default function CheckoutResultClient() {
     if (isMegapayCancelResult(resultCd, resultMsg)) {
       setStatus('cancel');
       setMessage(
-        'Bạn đã hủy giao dịch nên đơn hàng chưa được thanh toán. Bạn không bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
+        t('result.cancelled'),
       );
       return;
     }
 
     setStatus('failed');
     setMessage(
-      `Thanh toán không thành công${resultMsg?.trim() ? `: ${resultMsg.trim()}` : ''}. Bạn không bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.`,
+      t('result.failed'),
     );
-  }, [resultCd, resultMsg, router]);
+    if (resultMsg?.trim()) console.error('Gateway result message', resultMsg.trim());
+  }, [resultCd, resultMsg, router, t, locale]);
 
   const goToSuccess = useCallback(() => {
     if (!pending?.orderCode) return;
     const q = new URLSearchParams({ orderCode: pending.orderCode });
     if (pending.email) q.set('email', pending.email);
     clearPendingMegapayPayment();
-    router.replace(`/checkout/success?${q.toString()}`);
-  }, [pending, router]);
+    router.replace(withLocalePrefix(`/checkout/success?${q.toString()}`, locale));
+  }, [pending, router, locale]);
 
   const goToSuccessRef = useRef(goToSuccess);
   goToSuccessRef.current = goToSuccess;
@@ -135,7 +141,7 @@ export default function CheckoutResultClient() {
         setPollError(null);
 
         if (paymentStatus === 'PAID') {
-          setMessage('Đã nhận được tiền. Đang chuyển tới trang đơn hàng…');
+          setMessage(t('result.paidRedirect'));
           goToSuccessRef.current();
           return;
         }
@@ -144,14 +150,14 @@ export default function CheckoutResultClient() {
           setStatus('failed');
           setMessage(
             paymentStatus === 'EXPIRED'
-              ? 'Đơn hàng đã hết hạn thanh toán. Nếu bạn đã chuyển khoản, vui lòng liên hệ hỗ trợ kèm mã đơn để được xử lý.'
-              : 'Thanh toán không thành công. Nếu bạn đã chuyển khoản, vui lòng liên hệ hỗ trợ kèm mã đơn.',
+              ? t('result.orderExpired')
+              : t('result.failedPaid'),
           );
         }
       } catch (err) {
         if (!active) return;
         setPollError(
-          err instanceof Error ? err.message : 'Không kiểm tra được trạng thái đơn',
+          customerFacingError(locale, err),
         );
       }
     }
@@ -162,24 +168,24 @@ export default function CheckoutResultClient() {
       active = false;
       clearInterval(timer);
     };
-  }, [status, authLoading, isAuthenticated, pending?.orderId, pending?.orderCode, pending?.email]);
+  }, [status, authLoading, isAuthenticated, locale, pending?.orderId, pending?.orderCode, pending?.email, t]);
 
   const amountLabel = useMemo(() => {
     const raw = vaInfo.amount ?? pending?.amount;
     const value = Number(raw);
-    return raw && Number.isFinite(value) ? formatVnd(value) : null;
-  }, [vaInfo.amount, pending?.amount]);
+    return raw && Number.isFinite(value) ? money(value) : null;
+  }, [vaInfo.amount, pending?.amount, money]);
 
   const heading =
     status === 'success'
-      ? 'Thanh toán thành công'
+      ? t('result.success')
       : status === 'awaiting_transfer'
-        ? 'Chờ nhận chuyển khoản'
+        ? t('result.awaiting')
         : status === 'cancel'
-          ? 'Đã hủy thanh toán'
+          ? t('result.cancelledTitle')
           : status === 'failed'
-            ? 'Thanh toán thất bại'
-            : 'Kết quả thanh toán';
+            ? t('result.failedTitle')
+            : t('result.title');
 
   return (
     <PageContainer className="page-footer-gap">
@@ -189,7 +195,7 @@ export default function CheckoutResultClient() {
 
         {pending?.orderCode && status !== 'success' && (
           <p className="mt-2 text-sm text-cardon-gray">
-            {status === 'awaiting_transfer' ? 'Mã đơn hàng' : 'Đơn chưa thanh toán'}:{' '}
+            {status === 'awaiting_transfer' ? t('result.orderCode') : t('result.unpaid')}:{' '}
             <span className="font-semibold text-cardon-navy">{pending.orderCode}</span>
           </p>
         )}
@@ -199,49 +205,51 @@ export default function CheckoutResultClient() {
             <dl className="mt-5 space-y-3 rounded-xl border border-cardon-border bg-cardon-light p-4 text-sm">
               {amountLabel && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">Số tiền</dt>
+                  <dt className="text-cardon-gray">{t('result.amount')}</dt>
                   <dd className="text-lg font-bold text-cardon-danger">{amountLabel}</dd>
                 </div>
               )}
               {vaInfo.accountNumber && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">Số tài khoản</dt>
+                  <dt className="text-cardon-gray">{t('result.accountNo')}</dt>
                   <dd className="font-semibold text-cardon-navy">{vaInfo.accountNumber}</dd>
                 </div>
               )}
               {vaInfo.accountName && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">Chủ tài khoản</dt>
+                  <dt className="text-cardon-gray">{t('result.holder')}</dt>
                   <dd className="font-semibold text-cardon-navy">{vaInfo.accountName}</dd>
                 </div>
               )}
               {vaInfo.bankName && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">Ngân hàng</dt>
+                  <dt className="text-cardon-gray">{t('result.bank')}</dt>
                   <dd className="font-semibold text-cardon-navy">{vaInfo.bankName}</dd>
                 </div>
               )}
               {vaInfo.content && (
                 <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">Nội dung</dt>
+                  <dt className="text-cardon-gray">{t('result.note')}</dt>
                   <dd className="font-semibold text-cardon-navy">{vaInfo.content}</dd>
                 </div>
               )}
             </dl>
             <p className="mt-3 text-xs leading-relaxed text-cardon-gray sm:text-sm">
-              Trang này tự cập nhật khi ngân hàng báo có. Chuyển khoản đúng số tiền để đơn được
-              xử lý tự động; sai số tiền hoặc quá hạn sẽ phải chờ CSKH đối soát thủ công.
+              {t('result.auto')}
             </p>
             {pollError && <p className="mt-2 text-sm text-red-600">{pollError}</p>}
             {pending?.orderCode && (
               <div className="mt-6">
                 <Link
-                  href={`/checkout/success?orderCode=${encodeURIComponent(pending.orderCode)}${
-                    pending.email ? `&email=${encodeURIComponent(pending.email)}` : ''
-                  }`}
+                  href={withLocalePrefix(
+                    `/checkout/success?orderCode=${encodeURIComponent(pending.orderCode)}${
+                      pending.email ? `&email=${encodeURIComponent(pending.email)}` : ''
+                    }`,
+                    locale,
+                  )}
                   className="text-sm font-semibold text-cardon-blue hover:underline"
                 >
-                  Xem trạng thái đơn hàng
+                  {t('result.viewOrder')}
                 </Link>
               </div>
             )}
@@ -251,7 +259,7 @@ export default function CheckoutResultClient() {
         {(status === 'cancel' || status === 'failed') && (
           <div className="mt-6">
             <Link href={defaultMegapayResumeHref()} className="btn-checkout !w-auto px-5">
-              Đặt lại đơn mới
+              {t('result.newOrder')}
             </Link>
           </div>
         )}

@@ -34,9 +34,15 @@ const PROVIDER_QUEUE_JOB_OPTIONS = {
   },
 };
 
+const ESIM_QUEUE_JOB_OPTIONS = {
+  ...DEFAULT_JOB_OPTIONS,
+  attempts: 1,
+};
+
 function queueJobOptions(name: (typeof QUEUE_NAMES)[number]) {
   if (name === 'provider_queue') return PROVIDER_QUEUE_JOB_OPTIONS;
   if (name === 'webhook_delivery_queue') return WEBHOOK_DELIVERY_QUEUE_JOB_OPTIONS;
+  if (name === 'esim_queue') return ESIM_QUEUE_JOB_OPTIONS;
   return DEFAULT_JOB_OPTIONS;
 }
 

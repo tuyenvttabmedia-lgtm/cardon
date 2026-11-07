@@ -101,11 +101,31 @@ export class AgentDepositRepository {
     return this.prisma.agentDeposit.update({ where: { id }, data });
   }
 
-  claimStatus(id: string, from: AgentDepositStatus[], to: AgentDepositStatus) {
-    return this.prisma.agentDeposit.updateMany({
+  claimStatus(
+    id: string,
+    from: AgentDepositStatus[],
+    to: AgentDepositStatus,
+    tx?: Prisma.TransactionClient,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.agentDeposit.updateMany({
       where: { id, status: { in: from }, deletedAt: null },
       data: { status: to },
     });
+  }
+
+  findByIdOnlyInTransaction(id: string, tx: Prisma.TransactionClient) {
+    return tx.agentDeposit.findFirst({
+      where: { id, deletedAt: null },
+    });
+  }
+
+  updateInTransaction(
+    id: string,
+    data: Prisma.AgentDepositUpdateInput,
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.agentDeposit.update({ where: { id }, data });
   }
 }
 

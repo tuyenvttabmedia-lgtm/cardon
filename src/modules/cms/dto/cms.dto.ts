@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -403,6 +404,58 @@ export class UpsertCmsTagDto {
   isHidden?: boolean;
 }
 
+export class CmsHomeBackgroundsDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  homeHeroBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  homeCategoryGameBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  homeCategoryPhoneCardBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  homeCategoryTopupBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  homeCategoryEsimBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  hubHeroGameBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  hubHeroPhoneBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  hubHeroTopupBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  hubHeroEsimBg?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  siteFooterBg?: string;
+}
+
 export class UpdateCmsThemeDto {
   @IsOptional()
   @IsString()
@@ -425,10 +478,16 @@ export class UpdateCmsThemeDto {
   ogDefaultImage?: string;
 
   @IsOptional()
-  headerMenu?: Array<{ label: string; href: string; sortOrder?: number }>;
+  headerMenu?: Array<{ label: string; href: string; sortOrder?: number; labelEn?: string; navKey?: string }>;
 
   @IsOptional()
-  footerColumns?: Array<{ title: string; links: Array<{ label: string; href: string }> }>;
+  footerColumns?: Array<{
+    title: string;
+    titleEn?: string;
+    description?: string;
+    descriptionEn?: string;
+    links: Array<{ label: string; href: string; labelEn?: string; navKey?: string }>;
+  }>;
 
   @IsOptional()
   companyInfo?: {
@@ -438,6 +497,13 @@ export class UpdateCmsThemeDto {
     hotline?: string;
     email?: string;
     workingHours?: string;
+    description?: string;
+    descriptionEn?: string;
+    taxLabelEn?: string;
+    addressLabelEn?: string;
+    emailLabelEn?: string;
+    hotlineLabelEn?: string;
+    hoursLabelEn?: string;
     boCongThuongEnabled?: boolean;
     boCongThuongImageUrl?: string;
     boCongThuongLinkUrl?: string;
@@ -451,20 +517,116 @@ export class UpdateCmsThemeDto {
     enabled?: boolean;
     value?: string;
     href?: string;
+    label?: string;
+    labelEn?: string;
   }>;
 
   @IsOptional()
   mobileNav?: Array<{
     label: string;
+    labelEn?: string;
+    navKey?: string;
     icon: string;
     url: string;
     sortOrder?: number;
     requireLogin?: boolean;
     active?: boolean;
   }>;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CmsHomeBackgroundsDto)
+  homeBackgrounds?: CmsHomeBackgroundsDto;
 }
 
-export class ListBlogQueryDto {
+export class CmsTranslationSeoDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  metaTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  metaDescription?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  metaKeywords?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  ogTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  ogDescription?: string;
+}
+
+export class UpsertCmsPageTranslationDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(255)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  excerpt?: string;
+
+  @IsString()
+  @MinLength(1)
+  content!: string;
+
+  @IsOptional()
+  @IsEnum(CmsPageStatus)
+  status?: CmsPageStatus;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CmsTranslationSeoDto)
+  seo?: CmsTranslationSeoDto;
+}
+
+export class UpsertCmsCategoryTranslationDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  description?: string;
+}
+
+export class UpsertCmsTagTranslationDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  metaTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(256)
+  metaDescription?: string;
+}
+
+export class CmsLocaleQueryDto {
+  @IsOptional()
+  @IsIn(['vi', 'en'])
+  locale?: 'vi' | 'en';
+}
+
+export class ListBlogQueryDto extends CmsLocaleQueryDto {
   @IsOptional()
   @IsString()
   category?: string;

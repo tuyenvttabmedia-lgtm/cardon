@@ -30,6 +30,9 @@ function eventAt(events: OrderEventRow[], type: OrderEventType): string | null {
 }
 
 function resolvePrimaryVariantType(types: ProductVariantType[]): ProductVariantType {
+  if (types.includes(ProductVariantType.ESIM)) {
+    return ProductVariantType.ESIM;
+  }
   if (types.includes(ProductVariantType.CARD)) {
     return ProductVariantType.CARD;
   }
@@ -70,6 +73,37 @@ export function buildOrderTimeline(input: {
   const delivered =
     input.fulfillmentStatus === FulfillmentStatus.COMPLETED ||
     hasEvent(events, OrderEventType.ORDER_DELIVERED);
+
+  if (variantType === ProductVariantType.ESIM) {
+    return [
+      {
+        key: 'payment',
+        label: paid ? 'Thanh toán thành công' : 'Chờ thanh toán',
+        state: paid ? 'completed' : customerStatus === 'WAITING_PAYMENT' ? 'active' : 'pending',
+        at: eventAt(events, OrderEventType.PAYMENT_SUCCESS),
+      },
+      {
+        key: 'fetch_esim',
+        label: 'Đang lấy mã cài eSIM',
+        state: delivered ? 'completed' : paid ? 'active' : 'pending',
+        at: eventAt(events, OrderEventType.PROVIDER_REQUEST),
+      },
+      {
+        key: 'esim_ready',
+        label: 'Đã có mã cài',
+        state: delivered ? 'completed' : 'pending',
+        at:
+          eventAt(events, OrderEventType.PROVIDER_SUCCESS) ??
+          eventAt(events, OrderEventType.ORDER_DELIVERED),
+      },
+      {
+        key: 'completed',
+        label: 'Hoàn thành',
+        state: delivered ? (emailSent ? 'completed' : 'active') : 'pending',
+        at: eventAt(events, OrderEventType.EMAIL_SENT) ?? eventAt(events, OrderEventType.ORDER_DELIVERED),
+      },
+    ];
+  }
 
   if (variantType === ProductVariantType.CARD) {
     const steps: OrderTimelineStep[] = [

@@ -5,6 +5,7 @@ export const ACCOUNT_PATHS = {
   profile: `${ACCOUNT_BASE}`,
   orders: `${ACCOUNT_BASE}/lich-su-giao-dich`,
   cards: `${ACCOUNT_BASE}/the-da-mua`,
+  esim: `${ACCOUNT_BASE}/esim`,
   topups: `${ACCOUNT_BASE}/nap-cuoc`,
   data: `${ACCOUNT_BASE}/nap-data`,
   support: `${ACCOUNT_BASE}/ho-tro`,

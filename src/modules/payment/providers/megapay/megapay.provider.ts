@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { timingSafeEqual } from 'crypto';
 import { PaymentGatewayCode } from '@prisma/client';
 import {
   CreateProviderPaymentParams,
@@ -127,6 +128,16 @@ export class MegaPayProvider implements PaymentProviderInterface {
         paymentReference: notify.mapId,
         status: 'PENDING',
         rawPayload: { ...notify, gateway: this.gateway },
+      };
+    }
+
+    // MerchantCode is not in the signed payload — bind it to our configured merchant.
+    if (!merchantCodesMatch(config.merchantId, notify.merchantCode)) {
+      return {
+        valid: false,
+        paymentReference: notify.mapId,
+        status: 'PENDING',
+        rawPayload: { ...notify, gateway: this.gateway, rejectReason: 'MERCHANT_MISMATCH' },
       };
     }
 
@@ -311,6 +322,13 @@ export class MegaPayProvider implements PaymentProviderInterface {
       message: result.resultMsg ?? (success ? 'Cancelled' : `Cancel failed (${cd || 'unknown'})`),
     };
   }
+}
+
+function merchantCodesMatch(expected: string, provided: string): boolean {
+  const left = Buffer.from(expected.trim());
+  const right = Buffer.from(provided.trim());
+  if (!left.length || left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }
 
 function normalizePayload(payload: unknown): Record<string, unknown> {

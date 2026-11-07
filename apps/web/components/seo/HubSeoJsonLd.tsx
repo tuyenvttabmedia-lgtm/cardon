@@ -3,8 +3,9 @@ import type { HubSeoCopy } from '@/lib/hub-seo-copy';
 import { getSiteUrl } from '@/lib/utils';
 
 /**
- * SEO-only markers for hub/home pages (no layout impact on checkout).
- * H1 is sr-only so CMS hero art stays clean; WebPage JSON-LD carries rich copy.
+ * SEO-only markers for hub pages (no layout impact on checkout).
+ * Purchase hubs keep a screen-reader H1 because StorefrontHero uses a visual title only.
+ * The homepage renders its own visible H1 in CardonHomePage.
  */
 export function HubSeoJsonLd({ seo }: { seo: HubSeoCopy }) {
   const url = `${getSiteUrl()}${seo.path === '/' ? '' : seo.path}`;
@@ -33,7 +34,7 @@ export function HubSeoJsonLd({ seo }: { seo: HubSeoCopy }) {
 
   return (
     <>
-      <h1 className="sr-only">{seo.title}</h1>
+      {seo.path === '/' ? null : <h1 className="sr-only">{seo.title}</h1>}
       {crumbs ? <BreadcrumbJsonLd items={crumbs} /> : null}
       <script
         type="application/ld+json"

@@ -32,6 +32,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
       refreshToken: {
         findFirst: jest.Mock;
         update: jest.Mock;
+        updateMany: jest.Mock;
         create: jest.Mock;
       };
       user: { update: jest.Mock };
@@ -59,6 +60,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         refreshToken: {
           findFirst: jest.fn(),
           update: jest.fn(),
+          updateMany: jest.fn(),
           create: jest.fn(),
         },
         user: { update: jest.fn() },
@@ -100,13 +102,13 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         id: 'rt-1',
         user: activeUser,
       });
-      prisma.refreshToken.update.mockResolvedValue({});
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
       prisma.refreshToken.create.mockResolvedValue({});
 
       await authService.refresh(oldToken);
 
-      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 'rt-1' },
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'rt-1', revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
 
@@ -117,32 +119,15 @@ describe('Phase 2B.1 Auth Security Audit', () => {
       );
     });
 
-    it('rejects refresh token after logout', async () => {
-      const refreshToken =
-        'logged-out-refresh-token-abc12345678901234567890123456789012';
+    it('revokes all refresh sessions on logout', async () => {
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
 
-      prisma.refreshToken.findFirst
-        .mockResolvedValueOnce({ id: 'rt-logout' })
-        .mockResolvedValueOnce(null);
-      prisma.refreshToken.update.mockResolvedValue({});
+      await authService.logout(activeUser.id);
 
-      await authService.logout(activeUser.id, refreshToken);
-
-      expect(prisma.refreshToken.findFirst).toHaveBeenCalledWith({
-        where: {
-          userId: activeUser.id,
-          tokenHash: tokenService.hashToken(refreshToken),
-          revokedAt: null,
-        },
-      });
-      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 'rt-logout' },
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: activeUser.id, revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
-
-      await expect(authService.refresh(refreshToken)).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
     });
   });
 
@@ -158,7 +143,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
       passwordHash: '',
       role: UserRole.CUSTOMER,
       status: UserStatus.ACTIVE,
-      emailVerifiedAt: null,
+      emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
       deletedAt: null,
     };
 
@@ -425,6 +410,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         create: jest.Mock;
         findFirst: jest.Mock;
         update: jest.Mock;
+        updateMany: jest.Mock;
       };
       user: { findFirst: jest.Mock; update: jest.Mock };
       refreshToken: { updateMany: jest.Mock };
@@ -445,6 +431,13 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         ),
       };
 
+      const tx = {
+        user: { update: jest.fn() },
+        passwordResetToken: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        refreshToken: { updateMany: jest.fn() },
+      };
       prisma = {
         user: {
           findFirst: jest.fn().mockResolvedValue({
@@ -458,10 +451,18 @@ describe('Phase 2B.1 Auth Security Audit', () => {
           create: jest.fn(),
           findFirst: jest.fn(),
           update: jest.fn(),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
-        refreshToken: { updateMany: jest.fn() },
-        $transaction: jest.fn((ops) => Promise.all(ops)),
+        refreshToken: { updateMany: tx.refreshToken.updateMany },
+        $transaction: jest.fn(async (arg: unknown) => {
+          if (typeof arg === 'function') {
+            return (arg as (client: typeof tx) => Promise<unknown>)(tx);
+          }
+          return Promise.all(arg as Promise<unknown>[]);
+        }),
       };
+      // Interactive reset claims use the tx.updateMany mock.
+      prisma.passwordResetToken.updateMany = tx.passwordResetToken.updateMany;
 
       authService = new AuthService(
         prisma as never,
@@ -508,8 +509,12 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         newPassword: 'newpassword123',
       });
 
-      expect(prisma.passwordResetToken.update).toHaveBeenCalledWith({
-        where: { id: 'prt-1' },
+      expect(prisma.passwordResetToken.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'prt-1',
+          usedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
         data: { usedAt: expect.any(Date) },
       });
       expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
@@ -530,6 +535,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
       passwordHash: '',
       role: UserRole.CUSTOMER,
       status: UserStatus.ACTIVE,
+      emailVerifiedAt: new Date('2026-01-01T00:00:00.000Z'),
       deletedAt: null,
     };
 
@@ -548,7 +554,10 @@ describe('Phase 2B.1 Auth Security Audit', () => {
           update: jest.fn(),
           updateMany: jest.fn(),
         },
-        passwordResetToken: { create: jest.fn() },
+        passwordResetToken: {
+          create: jest.fn(),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
       };
 
       authService = new AuthService(
@@ -648,6 +657,23 @@ describe('Phase 2B.1 Auth Security Audit', () => {
       );
       expect(refreshBlock).toContain('@Throttle({ default: AUTH_REFRESH_THROTTLE })');
     });
+
+    it('applies @Throttle on register and reset-password endpoints', () => {
+      const { readFileSync } = require('fs') as typeof import('fs');
+      const { join } = require('path') as typeof import('path');
+      const source = readFileSync(join(__dirname, 'auth.controller.ts'), 'utf8');
+
+      const registerBlock = source.slice(
+        source.indexOf("@Post('register')") - 120,
+        source.indexOf("@Post('register')") + 80,
+      );
+      const resetBlock = source.slice(
+        source.indexOf("@Post('reset-password')") - 120,
+        source.indexOf("@Post('reset-password')") + 80,
+      );
+      expect(registerBlock).toContain('@Throttle({ default: AUTH_REGISTER_THROTTLE })');
+      expect(resetBlock).toContain('@Throttle({ default: AUTH_RESET_PASSWORD_THROTTLE })');
+    });
   });
 
   describe('CHECK L-02: Password reset token logging', () => {
@@ -673,7 +699,10 @@ describe('Phase 2B.1 Auth Security Audit', () => {
             deletedAt: null,
           }),
         },
-        passwordResetToken: { create: jest.fn() },
+        passwordResetToken: {
+          create: jest.fn(),
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
       };
       const tokenService = {
         generateRefreshTokenValue: jest.fn().mockReturnValue('secret-reset-token'),

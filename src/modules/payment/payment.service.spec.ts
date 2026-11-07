@@ -154,6 +154,53 @@ describe('PaymentService', () => {
     expect(paymentAuditService.recordPaymentCreated).toHaveBeenCalled();
   });
 
+  it('rejects payment create when the JWT owner does not match the order', async () => {
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-other',
+        { id: 'other-user', email: 'o@test.com', role: 'CUSTOMER' },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects anonymous payment create for an account-owned order', async () => {
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-anon',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects guest payment create without matching guestEmail', async () => {
+    prisma.order.findFirst.mockResolvedValue({
+      ...waitingOrder,
+      userId: null,
+      isGuestOrder: true,
+      guestEmail: 'buyer@example.com',
+    });
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-guest-miss',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.createPayment(
+        {
+          orderId: 'order-1',
+          gateway: PaymentGatewayCode.MEGAPAY,
+          guestEmail: 'other@example.com',
+        },
+        'idem-key-guest-wrong',
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('returns same payment for duplicate idempotency key', async () => {
     paymentRepository.findByIdempotencyKey.mockResolvedValue({
       id: 'pay-existing',
@@ -171,10 +218,34 @@ describe('PaymentService', () => {
     const result = await service.createPayment(
       { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
       'idem-key-dup',
+      { id: 'user-1', email: 'u@test.com', role: 'CUSTOMER' },
     );
 
     expect(result.paymentReference).toBe('PAY-EXISTING');
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects idempotency replay when the orderId does not match', async () => {
+    paymentRepository.findByIdempotencyKey.mockResolvedValue({
+      id: 'pay-existing',
+      orderId: 'order-other',
+      gateway: PaymentGatewayCode.MEGAPAY,
+      paymentReference: 'PAY-EXISTING',
+      amount: new Decimal(100000),
+      status: PaymentRecordStatus.PENDING,
+      expiresAt: new Date(),
+      paidAt: null,
+      createdAt: new Date(),
+      gatewayResponse: { paymentUrl: 'https://mock.example/existing' },
+    });
+
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-cross',
+        { id: 'user-1', email: 'u@test.com', role: 'CUSTOMER' },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('processes webhook success and marks order paid atomically', async () => {
@@ -347,7 +418,33 @@ describe('PaymentService', () => {
 
     expect(result.manualReview).toBe(true);
     expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
-    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalled();
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: '100000.00' }),
+      }),
+    );
+  });
+
+  it('rejects late SUCCESS underpay instead of opening approvable manual review', async () => {
+    paymentRepository.findByReference.mockResolvedValue({
+      ...pendingPayment,
+      status: PaymentRecordStatus.EXPIRED,
+      expiresAt: new Date('2020-01-01'),
+      order: { paymentStatus: OrderPaymentStatus.EXPIRED },
+    });
+
+    const payload = {
+      paymentReference: 'PAY-REF-001',
+      status: 'SUCCESS',
+      amount: '1000.00',
+    };
+    const signature = computeMockWebhookSignature(payload);
+
+    await expect(
+      service.handleWebhook('megapay', payload, { 'x-webhook-signature': signature }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(paymentRepository.recordLateWebhookManualReview).not.toHaveBeenCalled();
   });
 
   it('requires Idempotency-Key header', async () => {

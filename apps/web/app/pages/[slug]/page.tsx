@@ -1,4 +1,6 @@
 import { permanentRedirect } from 'next/navigation';
+import { withLocalePrefix } from '@/lib/i18n/locale';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 
 export async function generateMetadata({
   params,
@@ -15,5 +17,6 @@ export default async function LegacyCmsPageRedirect({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  permanentRedirect(`/${slug}`);
+  const locale = await readRequestLocale();
+  permanentRedirect(withLocalePrefix(`/${slug}`, locale));
 }

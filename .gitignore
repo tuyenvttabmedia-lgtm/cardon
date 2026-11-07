@@ -11,6 +11,8 @@ secrets/
 dist/
 *.log
 .tools/
+test-results/
+playwright-report/
 
 # TLS private keys — never commit
 infra/nginx/ssl/*.key

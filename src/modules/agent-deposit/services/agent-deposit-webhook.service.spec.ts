@@ -37,6 +37,16 @@ describe('AgentDepositWebhookService.tryHandle routing', () => {
     return { service, depositRepository, depositService, webhookLogRepository };
   }
 
+  it('leaves PayPal webhooks to the payment handler', async () => {
+    const { service, depositRepository } = buildService({
+      paymentReference: null,
+      deposit: null,
+    });
+
+    await expect(service.tryHandle('paypal', {}, {})).resolves.toEqual({ handled: false });
+    expect(depositRepository.findByReference).not.toHaveBeenCalled();
+  });
+
   it('returns handled:false when DH code is not an agent deposit (B2C order)', async () => {
     const { service, depositRepository, depositService } = buildService({
       paymentReference: 'DH12345678',

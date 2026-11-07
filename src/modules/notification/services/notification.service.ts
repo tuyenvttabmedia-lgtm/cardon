@@ -73,6 +73,51 @@ export class NotificationService {
     );
   }
 
+  async notifyEsimReady(
+    orderId: string,
+    options?: { testData?: boolean; sandboxAccount?: boolean },
+  ) {
+    const order = await this.repository.findOrderForEmail(orderId);
+    if (!order) {
+      return;
+    }
+    const email = this.resolveOrderEmail(order);
+    const testData = options?.testData === true;
+    const sandboxAccount = options?.sandboxAccount === true && !testData;
+    if (email) {
+      await this.producer.enqueueEsimReady(orderId, email, { testData, sandboxAccount });
+    }
+    if (order.user?.id) {
+      await this.notifyCustomerInApp({
+        userId: order.user.id,
+        type: CUSTOMER_NOTIFICATION_TYPE.ESIM_READY,
+        title: testData
+          ? 'eSIM mô phỏng đã lưu'
+          : sandboxAccount
+            ? '[TEST] Mã cài eSIM đã sẵn sàng'
+            : 'Mã cài eSIM đã sẵn sàng',
+        body: testData
+          ? `Đơn ${order.orderCode} đã lưu hồ sơ mô phỏng. Xem trong tài khoản — không cài lên máy thật.`
+          : sandboxAccount
+            ? `Đơn ${order.orderCode} đã lưu mã Airalo Sandbox. Luồng giống Production; không cài máy thật.`
+            : `Mã cài eSIM cho đơn ${order.orderCode} đã sẵn sàng trong tài khoản.`,
+        metadata: { orderId, orderCode: order.orderCode },
+        jobId: `user-esim-ready-${orderId}`,
+      });
+      await this.notifyCustomerOrderDelivered(order.user.id, orderId, order.orderCode);
+    }
+    await this.orderEvents.record(
+      orderId,
+      OrderEventType.EMAIL_SENT,
+      testData
+        ? 'Email eSIM mô phỏng đã được gửi'
+        : sandboxAccount
+          ? 'Email eSIM Sandbox TEST đã được gửi'
+          : 'Email eSIM đã sẵn sàng đã được gửi',
+      { email, testData, sandboxAccount },
+    );
+  }
+
   async notifyCardDelivery(orderId: string) {
     const order = await this.repository.findOrderForEmail(orderId);
     if (!order) {

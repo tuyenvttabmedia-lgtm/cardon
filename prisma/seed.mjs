@@ -8,6 +8,10 @@ const PERMISSIONS = [
   { code: 'orders.read', description: 'View orders' },
   { code: 'orders.manage', description: 'Manage orders (status, notes)' },
   { code: 'orders.retry', description: 'Retry failed fulfillment' },
+  { code: 'refund.request', description: 'Create or cancel a B2C refund request' },
+  { code: 'refund.approve', description: 'Approve a B2C refund request' },
+  { code: 'refund.execute', description: 'Record a manual B2C refund payout attempt' },
+  { code: 'refund.reconcile', description: 'Verify or reject a B2C refund payout against the bank statement' },
   { code: 'payments.view', description: 'View payment records' },
   { code: 'ledger.view', description: 'View agent ledger' },
   { code: 'agents.kyc.review', description: 'Approve or reject agent KYC' },
@@ -57,7 +61,7 @@ const PERMISSIONS = [
 const ROLE_PERMISSION_MATRIX = {
   CUSTOMER: [],
   AGENT: [],
-  SUPPORT: ['users.read', 'customers.read', 'customers.manage', 'orders.read', 'orders.retry', 'payments.view', 'agents.kyc.review', 'support.manage', 'notification.read', 'queue.read', 'webhook.read', 'reconciliation.read', 'monitoring.server.read'],
+  SUPPORT: ['users.read', 'customers.read', 'customers.manage', 'orders.read', 'orders.retry', 'refund.request', 'payments.view', 'agents.kyc.review', 'support.manage', 'notification.read', 'queue.read', 'webhook.read', 'reconciliation.read', 'monitoring.server.read'],
   MARKETING: ['cms.manage', 'notification.read'],
   ACCOUNTANT: [
     'users.read',
@@ -73,6 +77,10 @@ const ROLE_PERMISSION_MATRIX = {
     'reconciliation.manage',
     'invoice.read',
     'notification.read',
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
+    'refund.reconcile',
   ],
   ADMIN: [
     'users.read',
@@ -116,6 +124,9 @@ const ROLE_PERMISSION_MATRIX = {
     'cards.reveal',
     'card.pin.view',
     'support.manage',
+    'refund.request',
+    'refund.approve',
+    'refund.execute',
   ],
   SUPER_ADMIN: PERMISSIONS.map((p) => p.code),
 };

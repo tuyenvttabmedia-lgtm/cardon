@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -21,6 +22,7 @@ import {
   startOfVietnamMonth,
   startOfVietnamToday,
 } from '../../../common/utils/vietnam-time.util';
+import { PrismaService } from '../../../database/prisma.service';
 import { ActivityEventDispatcher } from '../../activity-event/activity-event-dispatcher.service';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { LedgerService } from '../../agent/services/ledger.service';
@@ -69,6 +71,7 @@ export class AgentDepositService {
     private readonly settingsStore: SettingsStoreService,
     private readonly notificationService: NotificationService,
     private readonly activityDispatcher: ActivityEventDispatcher,
+    private readonly prisma: PrismaService,
   ) {}
 
   listAvailableGateways() {
@@ -255,13 +258,27 @@ export class AgentDepositService {
       return { duplicate: true, deposit };
     }
 
-    if (verification.amount) {
+    // Never credit on missing or mismatched paid amount — underpay must not top up the full request.
+    if (!verification.amount?.trim()) {
+      this.logger.warn(
+        `Deposit amount missing ref=${verification.paymentReference} expected=${deposit.amount}`,
+      );
+      throw new BadRequestException('Deposit webhook amount is required');
+    }
+    try {
       const paid = new Decimal(verification.amount);
-      if (!paid.eq(deposit.amount)) {
+      if (!paid.isFinite() || !paid.eq(deposit.amount)) {
         this.logger.warn(
           `Deposit amount mismatch ref=${verification.paymentReference} expected=${deposit.amount} got=${verification.amount}`,
         );
+        throw new BadRequestException('Deposit amount mismatch');
       }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.warn(
+        `Deposit amount invalid ref=${verification.paymentReference} got=${verification.amount}`,
+      );
+      throw new BadRequestException('Deposit amount mismatch');
     }
 
     const now = new Date();
@@ -272,14 +289,26 @@ export class AgentDepositService {
     );
     if (paidClaim.count === 0) {
       const fresh = await this.depositRepository.findByIdOnly(deposit.id);
-      const progressed: AgentDepositStatus[] = [
-        AgentDepositStatus.PAID,
-        AgentDepositStatus.RECORDED,
-        AgentDepositStatus.CREDITED,
-      ];
-      if (fresh && progressed.includes(fresh.status)) {
-        return { duplicate: fresh.status === AgentDepositStatus.CREDITED, deposit: fresh };
+      if (!fresh) {
+        throw new NotFoundException('Deposit not found');
       }
+      if (fresh.status === AgentDepositStatus.CREDITED) {
+        return { duplicate: true, deposit: fresh };
+      }
+      // Resume only mid-settlement states. Never credit from FAILED/EXPIRED fall-through —
+      // ledger TOPUP has no unique(reference) so a silent retry would double-top-up.
+      if (
+        fresh.status === AgentDepositStatus.PAID ||
+        fresh.status === AgentDepositStatus.RECORDED
+      ) {
+        return this.finishDepositCredit(fresh, verification, now);
+      }
+      // Late SUCCESS after FAILED/EXPIRED must not auto-credit (no unique TOPUP ref).
+      // Return handled no-op so the gateway IPN does not retry-storm on 409.
+      this.logger.warn(
+        `Deposit webhook ignored status=${fresh.status} ref=${verification.paymentReference}`,
+      );
+      return { duplicate: true, deposit: fresh };
     }
 
     await this.depositRepository.update(deposit.id, {
@@ -287,23 +316,120 @@ export class AgentDepositService {
       gatewayTransactionId: verification.providerTransactionId ?? undefined,
     });
 
-    await this.depositRepository.claimStatus(deposit.id, [AgentDepositStatus.PAID], AgentDepositStatus.RECORDED);
-
-    const ledgerEntry = await this.ledgerService.credit(
-      deposit.agentId,
-      deposit.netAmount,
-      LedgerReferenceType.TOPUP,
-      deposit.id,
-      undefined,
-      `Gateway deposit via ${deposit.gateway} (${deposit.paymentReference})`,
+    return this.finishDepositCredit(
+      { ...deposit, status: AgentDepositStatus.PAID },
+      verification,
+      now,
     );
+  }
 
-    const credited = await this.depositRepository.update(deposit.id, {
-      status: AgentDepositStatus.CREDITED,
-      creditedAt: now,
-      ledgerEntry: { connect: { id: ledgerEntry.id } },
+  /**
+   * Advisory lock + ledger lookup before credit so concurrent webhooks cannot double-top-up.
+   */
+  private async finishDepositCredit(
+    deposit: {
+      id: string;
+      agentId: string;
+      paymentReference: string;
+      netAmount: Decimal;
+      gateway: PaymentGatewayCode;
+      status: AgentDepositStatus;
+    },
+    verification: {
+      paymentReference: string;
+      providerTransactionId?: string;
+    },
+    now: Date,
+  ) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`deposit-credit:${deposit.id}`}))`;
+
+      const fresh = await this.depositRepository.findByIdOnlyInTransaction(deposit.id, tx);
+      if (!fresh) {
+        throw new NotFoundException('Deposit not found');
+      }
+      if (fresh.status === AgentDepositStatus.CREDITED) {
+        return { duplicate: true as const, deposit: fresh, notify: false };
+      }
+      if (
+        fresh.status !== AgentDepositStatus.PAID &&
+        fresh.status !== AgentDepositStatus.RECORDED
+      ) {
+        throw new ConflictException(
+          `Deposit cannot be credited from status ${fresh.status}`,
+        );
+      }
+
+      if (fresh.status === AgentDepositStatus.PAID) {
+        const recordedClaim = await this.depositRepository.claimStatus(
+          deposit.id,
+          [AgentDepositStatus.PAID],
+          AgentDepositStatus.RECORDED,
+          tx,
+        );
+        if (recordedClaim.count !== 1) {
+          const again = await this.depositRepository.findByIdOnlyInTransaction(deposit.id, tx);
+          if (again?.status === AgentDepositStatus.CREDITED) {
+            return { duplicate: true as const, deposit: again, notify: false };
+          }
+          if (again?.status !== AgentDepositStatus.RECORDED) {
+            throw new ConflictException('Deposit settlement race');
+          }
+        }
+      }
+
+      const existingCredit = await this.ledgerService.findEntryByReference(
+        LedgerReferenceType.TOPUP,
+        deposit.id,
+        tx,
+      );
+      let ledgerEntryId = existingCredit?.id;
+      let createdCredit = false;
+      if (!ledgerEntryId) {
+        const ledgerEntry = await this.ledgerService.creditInTransaction(
+          tx,
+          deposit.agentId,
+          deposit.netAmount,
+          LedgerReferenceType.TOPUP,
+          deposit.id,
+          undefined,
+          `Gateway deposit via ${deposit.gateway} (${deposit.paymentReference})`,
+        );
+        ledgerEntryId = ledgerEntry.id;
+        createdCredit = true;
+      }
+
+      const credited = await this.depositRepository.updateInTransaction(
+        deposit.id,
+        {
+          status: AgentDepositStatus.CREDITED,
+          creditedAt: now,
+          gatewayTransactionId: verification.providerTransactionId ?? undefined,
+          ledgerEntry: { connect: { id: ledgerEntryId } },
+        },
+        tx,
+      );
+
+      return {
+        duplicate: !createdCredit,
+        deposit: credited,
+        notify: createdCredit,
+      };
     });
 
+    if (result.notify) {
+      await this.notifyDepositCredited(result.deposit);
+    }
+    return { duplicate: result.duplicate, deposit: result.deposit };
+  }
+
+  private async notifyDepositCredited(deposit: {
+    id: string;
+    agentId: string;
+    paymentReference: string;
+    netAmount: Decimal;
+    gateway: PaymentGatewayCode;
+  }) {
     const agent = await this.agentRepository.findById(deposit.agentId);
     if (agent?.userId) {
       await this.notificationService.notifyAgentDepositCredited(
@@ -329,8 +455,6 @@ export class AgentDepositService {
         gateway: deposit.gateway,
       },
     });
-
-    return { duplicate: false, deposit: credited };
   }
 
   async markDepositFailed(depositId: string, reason: string) {

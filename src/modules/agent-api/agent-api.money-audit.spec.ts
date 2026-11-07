@@ -174,7 +174,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
         { $transaction: jest.fn() } as never,
         repository as never,
         { lockForUpdate: jest.fn() } as never,
-        { findBySku: jest.fn() } as never,
+        { findActiveBySku: jest.fn() } as never,
         { getAgentPrice: jest.fn(), resolveAgentPrice: jest.fn().mockResolvedValue({ sellingPrice: '100000', providerCost: '0' }) } as never,
         ledgerService as never,
         providerService as never,
@@ -244,6 +244,7 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
           .mockResolvedValueOnce(settledOrder),
         findLatestProviderFailureCode: jest.fn().mockResolvedValue(undefined),
         updateFinancialTransactionStatus: jest.fn(),
+        claimFinancialTransactionStatus: jest.fn().mockResolvedValue({ count: 1 }),
       };
 
       const ledgerService = {
@@ -277,8 +278,9 @@ describe('Phase 3B.1 Agent Money Safety Audit', () => {
       );
 
       expect(ledgerService.debitFromHoldInTransaction).toHaveBeenCalled();
-      expect(repository.updateFinancialTransactionStatus).toHaveBeenCalledWith(
+      expect(repository.claimFinancialTransactionStatus).toHaveBeenCalledWith(
         'fin-hold',
+        FinancialTransactionStatus.HOLD,
         FinancialTransactionStatus.COMPLETED,
         expect.anything(),
       );
@@ -576,6 +578,7 @@ function buildBuyServiceForFailure(failureCode: string) {
     createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'fin-1' }),
     createAgentOrderWithHold: jest.fn().mockResolvedValue(pendingOrder),
     updateFinancialTransactionStatus: jest.fn(),
+    claimFinancialTransactionStatus: jest.fn().mockResolvedValue({ count: 1 }),
     markOrderFailed: jest.fn(),
     isCardVariant: jest.fn().mockReturnValue(true),
   };
@@ -597,7 +600,7 @@ function buildBuyServiceForFailure(failureCode: string) {
     } as never,
     repository as never,
     { lockForUpdate: jest.fn() } as never,
-    { findBySku: jest.fn().mockResolvedValue(variant) } as never,
+    { findActiveBySku: jest.fn().mockResolvedValue(variant) } as never,
     { getAgentPrice: jest.fn().mockResolvedValue('100000.00'), resolveAgentPrice: jest.fn().mockResolvedValue({ sellingPrice: '100000.00', providerCost: '90000.00' }) } as never,
     ledger as never,
     {

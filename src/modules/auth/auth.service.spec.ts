@@ -26,11 +26,12 @@ describe('AuthService', () => {
       update: jest.Mock;
       updateMany: jest.Mock;
     };
-    emailVerificationToken: { create: jest.Mock };
+    emailVerificationToken: { create: jest.Mock; updateMany: jest.Mock };
     passwordResetToken: {
       create: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      updateMany: jest.Mock;
     };
     auditLog: { create: jest.Mock };
     $transaction: jest.Mock;
@@ -71,14 +72,23 @@ describe('AuthService', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
-      emailVerificationToken: { create: jest.fn() },
+      emailVerificationToken: {
+        create: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
       passwordResetToken: {
         create: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       auditLog: { create: jest.fn() },
-      $transaction: jest.fn((ops) => Promise.all(ops)),
+      $transaction: jest.fn(async (arg: unknown) => {
+        if (typeof arg === 'function') {
+          return (arg as (tx: typeof prisma) => Promise<unknown>)(prisma);
+        }
+        return Promise.all(arg as Promise<unknown>[]);
+      }),
     };
 
     tokenService = {
@@ -124,17 +134,16 @@ describe('AuthService', () => {
       acceptTerms: true,
     };
 
-    it('registers a new customer', async () => {
+    it('registers a new customer without issuing a session', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(activeUser);
       prisma.emailVerificationToken.create.mockResolvedValue({});
-      prisma.refreshToken.create.mockResolvedValue({});
 
       const result = await authService.register(registerDto);
 
-      expect(result.accessToken).toBe('access-token');
-      expect(result.refreshToken).toBe('refresh-token-value');
-      expect(result.user.role).toBe(UserRole.CUSTOMER);
+      expect(result.requiresEmailVerification).toBe(true);
+      expect(result.email).toBe('test@cardon.vn');
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
@@ -145,7 +154,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('rejects duplicate email', async () => {
+    it('rejects duplicate registration details with a generic conflict', async () => {
       prisma.user.findFirst.mockResolvedValueOnce(activeUser);
 
       await expect(authService.register(registerDto)).rejects.toBeInstanceOf(
@@ -156,7 +165,10 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('logs in with email identifier', async () => {
-      prisma.user.findFirst.mockResolvedValue(activeUser);
+      prisma.user.findFirst.mockResolvedValue({
+        ...activeUser,
+        emailVerifiedAt: new Date(),
+      });
       prisma.user.update.mockResolvedValue(activeUser);
       prisma.refreshToken.create.mockResolvedValue({});
 
@@ -181,7 +193,10 @@ describe('AuthService', () => {
     });
 
     it('logs in with username identifier', async () => {
-      prisma.user.findFirst.mockResolvedValue(activeUser);
+      prisma.user.findFirst.mockResolvedValue({
+        ...activeUser,
+        emailVerifiedAt: new Date(),
+      });
       prisma.user.update.mockResolvedValue(activeUser);
       prisma.refreshToken.create.mockResolvedValue({});
 
@@ -210,9 +225,10 @@ describe('AuthService', () => {
       ).rejects.toThrow('Invalid email or password');
     });
 
-    it('denies suspended users', async () => {
+    it('denies suspended users after password check', async () => {
       prisma.user.findFirst.mockResolvedValue({
         ...activeUser,
+        emailVerifiedAt: new Date(),
         status: UserStatus.SUSPENDED,
       });
 
@@ -223,6 +239,22 @@ describe('AuthService', () => {
         }),
       ).rejects.toMatchObject({
         code: ErrorCode.ACCOUNT_SUSPENDED,
+      });
+    });
+
+    it('rejects unverified customer login', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...activeUser,
+        emailVerifiedAt: null,
+      });
+
+      await expect(
+        authService.login({
+          identifier: 'test@cardon.vn',
+          password: 'password123',
+        }),
+      ).rejects.toMatchObject({
+        code: ErrorCode.EMAIL_NOT_VERIFIED,
       });
     });
 
@@ -244,13 +276,28 @@ describe('AuthService', () => {
         id: 'rt-1',
         user: activeUser,
       });
-      prisma.refreshToken.update.mockResolvedValue({});
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
       prisma.refreshToken.create.mockResolvedValue({});
 
       const result = await authService.refresh('refresh-token-value');
 
       expect(result.accessToken).toBe('access-token');
-      expect(prisma.refreshToken.update).toHaveBeenCalled();
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'rt-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('rejects concurrent refresh that lost the revoke race', async () => {
+      prisma.refreshToken.findFirst.mockResolvedValue({
+        id: 'rt-race',
+        user: activeUser,
+      });
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(authService.refresh('refresh-token-value')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
     });
 
     it('rejects invalid refresh token', async () => {
@@ -263,32 +310,15 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('revokes refresh token and blocks reuse after logout', async () => {
-      const refreshToken =
-        'logout-refresh-token-abc12345678901234567890123456789012';
+    it('revokes all refresh sessions on logout even without token body', async () => {
+      prisma.refreshToken.updateMany.mockResolvedValue({ count: 2 });
 
-      prisma.refreshToken.findFirst
-        .mockResolvedValueOnce({ id: 'rt-logout-1' })
-        .mockResolvedValueOnce(null);
-      prisma.refreshToken.update.mockResolvedValue({});
+      await authService.logout(activeUser.id);
 
-      await authService.logout(activeUser.id, refreshToken);
-
-      expect(prisma.refreshToken.findFirst).toHaveBeenCalledWith({
-        where: {
-          userId: activeUser.id,
-          tokenHash: tokenService.hashToken(refreshToken),
-          revokedAt: null,
-        },
-      });
-      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 'rt-logout-1' },
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: activeUser.id, revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
-
-      await expect(authService.refresh(refreshToken)).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
     });
   });
 });

@@ -46,5 +46,5 @@ export function isPaymentExpired(params: {
     return false;
   }
   const now = params.now ?? new Date();
-  return params.paymentExpiresAt.getTime() < now.getTime();
+  return params.paymentExpiresAt.getTime() <= now.getTime();
 }

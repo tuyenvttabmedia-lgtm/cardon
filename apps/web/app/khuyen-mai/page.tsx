@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { BlogListClient } from '@/components/blog/BlogListClient';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { listBlogPosts } from '@/lib/cms-api';
 import { buildMetadata } from '@/lib/seo';
 
@@ -11,7 +12,8 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default async function KhuyenMaiPage() {
-  const posts = (await listBlogPosts({ category: 'promotion', take: 100 })) ?? [];
+  const locale = await readRequestLocale();
+  const posts = (await listBlogPosts({ category: 'promotion', take: 100, locale })) ?? [];
 
   return (
     <Suspense fallback={<p className="page-shell text-center text-cardon-gray">Đang tải...</p>}>
@@ -22,6 +24,7 @@ export default async function KhuyenMaiPage() {
         breadcrumbLabel="Khuyến mãi"
         lockedCategory="promotion"
         listBasePath="/khuyen-mai"
+        contentFallback={locale === 'en' && posts.some((post) => post.fallback !== false)}
       />
     </Suspense>
   );

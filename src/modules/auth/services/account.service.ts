@@ -99,7 +99,7 @@ export class AccountService {
   listOrders(
     userId: string,
     tab: 'all' | 'processing' | 'completed' = 'all',
-    type?: 'CARD' | 'TOPUP' | 'DATA',
+    type?: 'CARD' | 'TOPUP' | 'DATA' | 'ESIM',
     skip = 0,
     take = 15,
   ) {

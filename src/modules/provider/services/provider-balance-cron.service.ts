@@ -4,6 +4,7 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
+import { ESIM_AIRALO_PROVIDER_CODE, ESIM_GO_PROVIDER_CODE } from '../../esim/esim.constants';
 import { ProviderHealthService } from './provider-health.service';
 import { ProviderBalanceRepository } from '../repositories/provider-balance.repository';
 import { ProviderRepository } from '../repositories/provider.repository';
@@ -36,6 +37,9 @@ export class ProviderBalanceCronService implements OnModuleInit, OnModuleDestroy
   async syncAll(): Promise<void> {
     const providers = await this.providerRepository.listActiveProviders();
     for (const provider of providers) {
+      if (provider.code === ESIM_GO_PROVIDER_CODE || provider.code === ESIM_AIRALO_PROVIDER_CODE) {
+        continue;
+      }
       try {
         await this.balanceRepository.ensureForProvider(provider.id);
         await this.healthService.syncProviderBalance(provider.id);

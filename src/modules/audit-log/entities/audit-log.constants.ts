@@ -9,7 +9,12 @@ export enum AuditSnapshotKey {
   PAYMENT_RUNTIME = 'payment_runtime',
   PAYMENT_STRATEGY = 'payment_strategy',
   PAYMENT_GATEWAY_RUNTIME = 'payment_gateway_runtime',
+  /** eSIM international only — not MegaPay/SePay. */
+  PAYMENT_PAYPAL = 'payment_paypal',
   PROVIDER_ESALE = 'provider_esale',
+  /** @deprecated eSIM Go retired — prefer PROVIDER_AIRALO */
+  PROVIDER_ESIM_GO = 'provider_esim_go',
+  PROVIDER_AIRALO = 'provider_airalo',
   SMTP = 'smtp',
   SYSTEM = 'system',
   ORDER = 'order',
@@ -35,6 +40,10 @@ export const SECRET_FIELD_PATTERNS = [
   'secretkey',
   'webhooksecret',
   'bottoken',
+  'installsecret',
+  'activationcode',
+  'matchingid',
+  'qrsvg',
 ] as const;
 
 export const MAX_AUDIT_JSON_BYTES = 50 * 1024;

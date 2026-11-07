@@ -23,6 +23,7 @@ export const PRODUCT_GROUP_LABELS: Record<HomeServiceType, string> = {
   PHONE_CARD: 'Thẻ Điện thoại',
   TOPUP: 'Topup',
   DATA: 'Data',
+  ESIM: 'eSIM du lịch',
 };
 
 /** @deprecated Use PRODUCT_GROUP_LABELS */
@@ -36,6 +37,7 @@ export const DEFAULT_AGENT_MARGIN_CONFIG: AgentMarginConfig = {
     PHONE_CARD: { marginType: 'PERCENT', value: 0.5 },
     TOPUP: { marginType: 'PERCENT', value: 0.3 },
     DATA: { marginType: 'PERCENT', value: 0.3 },
+    ESIM: { marginType: 'PERCENT', value: 0 },
   },
 };
 

@@ -10,13 +10,17 @@ import { Input } from '@/components/ui/Input';
 import { Toast } from '@/components/ui/Toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { RegisterPayload } from '@/types/api';
-import { ApiClientError } from '@/services/api-client';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import { safeInternalPath } from '@/lib/safe-redirect';
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/';
+  const redirectTo = safeInternalPath(searchParams.get('redirect'), '/');
   const { register } = useAuth();
+  const t = useT();
+  const { locale } = useLocale();
   const [form, setForm] = useState<RegisterPayload>({
     username: '',
     fullName: '',
@@ -34,11 +38,11 @@ function RegisterForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.acceptTerms) {
-      setError('Bạn cần đồng ý với Điều khoản sử dụng');
+      setError(t('auth.needTerms'));
       return;
     }
     if (form.password !== form.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError(t('auth.passwordMismatch'));
       return;
     }
     setLoading(true);
@@ -48,10 +52,16 @@ function RegisterForm() {
         ...form,
         identityNumber: form.identityNumber?.trim() || undefined,
       });
-      setToast('Đăng ký thành công! Đang chuyển...');
-      setTimeout(() => router.push(redirectTo), 800);
+      setToast(t('auth.registerVerifyEmail'));
+      setTimeout(
+        () =>
+          router.push(
+            `/login?registered=1&redirect=${encodeURIComponent(redirectTo)}`,
+          ),
+        1200,
+      );
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Đăng ký thất bại');
+      setError(customerFacingError(locale, err));
     } finally {
       setLoading(false);
     }
@@ -61,16 +71,16 @@ function RegisterForm() {
     <>
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
       <AuthLayout
-        title="Đăng ký tài khoản"
-        subtitle="Tạo tài khoản CardOn để mua thẻ và theo dõi đơn hàng"
+        title={t('auth.registerTitle')}
+        subtitle={t('auth.registerSubtitle')}
         footer={
           <p className="text-center text-sm text-cardon-gray">
-            Đã có tài khoản?{' '}
+            {t('auth.hasAccount')}{' '}
             <Link
               href={`/login?redirect=${encodeURIComponent(redirectTo)}`}
               className="font-semibold text-cardon-blue hover:underline"
             >
-              Đăng nhập
+              {t('nav.login')}
             </Link>
           </p>
         }
@@ -78,7 +88,7 @@ function RegisterForm() {
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-cardon-navy">Tên đăng nhập</label>
+              <label className="text-sm font-medium text-cardon-navy">{t('auth.username')}</label>
               <Input
                 className="mt-1"
                 value={form.username}
@@ -89,7 +99,7 @@ function RegisterForm() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-cardon-navy">Họ và tên</label>
+              <label className="text-sm font-medium text-cardon-navy">{t('auth.fullName')}</label>
               <Input
                 className="mt-1"
                 value={form.fullName}
@@ -100,7 +110,7 @@ function RegisterForm() {
             </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">Email</label>
+            <label className="text-sm font-medium text-cardon-navy">{t('auth.email')}</label>
             <Input
               className="mt-1"
               type="email"
@@ -111,7 +121,7 @@ function RegisterForm() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">Số điện thoại</label>
+            <label className="text-sm font-medium text-cardon-navy">{t('auth.phone')}</label>
             <Input
               className="mt-1"
               type="tel"
@@ -123,7 +133,7 @@ function RegisterForm() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">CMND/CCCD (tùy chọn)</label>
+            <label className="text-sm font-medium text-cardon-navy">{t('auth.identity')}</label>
             <Input
               className="mt-1"
               inputMode="numeric"
@@ -134,7 +144,7 @@ function RegisterForm() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-cardon-navy">Mật khẩu</label>
+              <label className="text-sm font-medium text-cardon-navy">{t('auth.password')}</label>
               <Input
                 className="mt-1"
                 type="password"
@@ -146,7 +156,7 @@ function RegisterForm() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-cardon-navy">Xác nhận mật khẩu</label>
+              <label className="text-sm font-medium text-cardon-navy">{t('auth.confirmPassword')}</label>
               <Input
                 className="mt-1"
                 type="password"
@@ -167,19 +177,19 @@ function RegisterForm() {
               required
             />
             <span>
-              Tôi đồng ý với{' '}
+              {t('auth.accept')}{' '}
               <Link href="/dieu-khoan-su-dung" className="text-cardon-blue hover:underline" target="_blank">
-                Điều khoản sử dụng
+                {t('auth.terms')}
               </Link>{' '}
-              và{' '}
+              {t('auth.and')}{' '}
               <Link href="/chinh-sach-bao-mat" className="text-cardon-blue hover:underline" target="_blank">
-                Chính sách bảo mật
+                {t('auth.privacy')}
               </Link>
             </span>
           </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button className="w-full" type="submit" disabled={loading}>
-            {loading ? 'Đang đăng ký...' : 'Đăng ký'}
+            {loading ? t('auth.registering') : t('auth.register')}
           </Button>
         </form>
       </AuthLayout>
@@ -189,7 +199,7 @@ function RegisterForm() {
 
 export default function RegisterPageClient() {
   return (
-    <Suspense fallback={<p className="page-shell text-center text-cardon-gray">Đang tải...</p>}>
+    <Suspense fallback={<p className="page-shell text-center text-cardon-gray">…</p>}>
       <RegisterForm />
     </Suspense>
   );

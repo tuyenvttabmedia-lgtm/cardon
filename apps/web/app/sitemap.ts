@@ -3,12 +3,14 @@ import {
   getGlobalSeoSettings,
   listBlogCategories,
   listBlogPosts,
+  listEnglishSitemap,
   listFaqSitemap,
   listStaticNavPages,
   type PublicBlogPost,
 } from '@/lib/cms-api';
 import { listActiveProducts } from '@/lib/product-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
+import { APP_LOCALIZED_PATHS, applyPublishedEnglishAlternates } from '@/lib/sitemap-locales';
 import { STATIC_CMS_PAGES } from '@/lib/static-pages';
 import { getSiteUrl } from '@/lib/utils';
 
@@ -99,5 +101,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticPages, ...categoryPages, ...blogPages, ...productPages, ...faqPages];
+  const englishIndex = (await listEnglishSitemap()) ?? { pages: [], categories: [] };
+  const productPaths = products.map((product) => `/product/${product.slug}`);
+
+  return applyPublishedEnglishAlternates(
+    [...staticPages, ...categoryPages, ...blogPages, ...productPages, ...faqPages],
+    {
+      base,
+      appLocalizedPaths: [...APP_LOCALIZED_PATHS, ...productPaths],
+      englishPages: englishIndex.pages,
+      englishCategories: englishIndex.categories,
+      now,
+    },
+  );
 }

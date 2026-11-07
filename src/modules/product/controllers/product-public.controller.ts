@@ -1,5 +1,8 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { Public } from '../../../common/decorators/public.decorator';
+import { extractClientCountryCode } from '../../../common/utils/request-client.util';
+import { resolveRetailMarket } from '../entities/retail-market';
 import { CategoryService } from '../services/category.service';
 import { ProductService } from '../services/product.service';
 
@@ -17,20 +20,30 @@ export class ProductPublicController {
   }
 
   @Public()
+  @Get('market')
+  retailMarket(@Req() req: Request) {
+    const market = resolveRetailMarket(extractClientCountryCode(req));
+    return { market };
+  }
+
+  @Public()
   @Get()
-  listProducts() {
-    return this.productService.listActiveProducts();
+  listProducts(@Req() req: Request) {
+    return this.productService.listActiveProducts(resolveRetailMarket(extractClientCountryCode(req)));
   }
 
   @Public()
   @Get('by-slug/:slug')
-  getProductBySlug(@Param('slug') slug: string) {
-    return this.productService.getActiveProductBySlug(slug);
+  getProductBySlug(@Param('slug') slug: string, @Req() req: Request) {
+    return this.productService.getActiveProductBySlug(
+      slug,
+      resolveRetailMarket(extractClientCountryCode(req)),
+    );
   }
 
   @Public()
   @Get(':id')
-  getProduct(@Param('id', ParseUUIDPipe) id: string) {
-    return this.productService.getActiveProduct(id);
+  getProduct(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    return this.productService.getActiveProduct(id, resolveRetailMarket(extractClientCountryCode(req)));
   }
 }

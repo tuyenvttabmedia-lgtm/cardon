@@ -12,6 +12,11 @@ import {
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../../../database/prisma.service';
 import { ACTIVE_ORDER_WHERE } from '../../order/entities/order.constants';
+import {
+  EXCLUDE_ADMIN_TEST_ORDERS,
+  EXCLUDE_ADMIN_TEST_PAYMENTS,
+} from '../../order/entities/commercial-order.where';
+import { isPersistedAdminTest } from '../../esim/esim-admin-test.rules';
 import { ACTIVE_PAYMENT_WHERE } from '../../payment/entities/payment.constants';
 import { resolveAdminPagination } from '../utils/admin-pagination.util';
 import { AdminOrderQueryDto } from '../dto/admin.dto';
@@ -39,19 +44,21 @@ export class AdminRepository {
       agentStats,
     ] = await Promise.all([
       this.prisma.order.count({
-        where: { ...ACTIVE_ORDER_WHERE, createdAt: { gte: today } },
+        where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS, createdAt: { gte: today } },
       }),
       this.prisma.order.findMany({
         where: {
           ...ACTIVE_ORDER_WHERE,
+          ...EXCLUDE_ADMIN_TEST_ORDERS,
           paymentStatus: OrderPaymentStatus.PAID,
           createdAt: { gte: today },
         },
-        select: { totalAmount: true },
+        select: { totalAmount: true, clientTrace: true },
       }),
       this.prisma.payment.count({
         where: {
           ...ACTIVE_PAYMENT_WHERE,
+          ...EXCLUDE_ADMIN_TEST_PAYMENTS,
           status: PaymentRecordStatus.SUCCESS,
           paidAt: { gte: today },
         },
@@ -88,10 +95,10 @@ export class AdminRepository {
       }),
     ]);
 
-    const todayRevenue = todayPaidOrders.reduce(
-      (sum, row) => sum.add(row.totalAmount),
-      new Decimal(0),
-    );
+    const todayRevenue = todayPaidOrders.reduce((sum, row) => {
+      if (isPersistedAdminTest(row.clientTrace)) return sum;
+      return sum.add(row.totalAmount);
+    }, new Decimal(0));
 
     const agentsByStatus = Object.fromEntries(
       agentStats.map((row) => [row.status, row._count.id]),
@@ -144,6 +151,7 @@ export class AdminRepository {
   async aggregateOrdersAdmin(query: AdminOrderQueryDto) {
     const where: Prisma.OrderWhereInput = {
       ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
       ...buildAdminOrderWhere(query),
     };
 
@@ -532,6 +540,7 @@ export class AdminRepository {
         deletedAt: null,
         paymentStatus: 'PAID',
         ...ACTIVE_ORDER_WHERE,
+        ...EXCLUDE_ADMIN_TEST_ORDERS,
       },
       _sum: { totalAmount: true },
     });

@@ -216,6 +216,25 @@ describe('Phase 4C Notification', () => {
       expect(sanitized.to).toBe('user@cardon.vn');
     });
 
+    it('redacts eSIM install secrets from log context by key and LPA shape', () => {
+      const secret = 'TEST-ESIM-NOT-REAL:req:TEST-LPA:1$test.invalid$MOCK';
+      const sanitized = sanitizeNotificationLogContext({
+        to: 'buyer@cardon.vn',
+        installSecret: secret,
+        activationCode: 'LPA:1$lpa.airalo.com$MATCH',
+        note: secret,
+        orderCode: 'CO1',
+      });
+
+      expect(sanitized.installSecret).toBe('[REDACTED]');
+      expect(sanitized.activationCode).toBe('[REDACTED]');
+      expect(sanitized.note).toBe('[REDACTED]');
+      expect(sanitized.orderCode).toBe('CO1');
+      expect(sanitized.to).toBe('buyer@cardon.vn');
+      expect(JSON.stringify(sanitized)).not.toContain('TEST-LPA');
+      expect(JSON.stringify(sanitized)).not.toContain('LPA:1$');
+    });
+
     it('detects sensitive email content and uses safe metadata only', () => {
       const body = 'Card 1: serial=ABC pin=5678';
       expect(containsSensitiveContent(body)).toBe(true);
