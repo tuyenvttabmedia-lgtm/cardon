@@ -50,6 +50,8 @@ export class EsimFulfillmentService {
     orderId: string,
     options?: { simulateTimeout?: boolean },
   ): Promise<EsimFulfillmentResult> {
+    const skipped = await this.skippedAdminTest(orderId);
+    if (skipped) return skipped;
     await this.settings?.reload();
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
@@ -138,6 +140,8 @@ export class EsimFulfillmentService {
    * Admin recovery: GET a stored CREATE or mark review. Never POST /v2/orders.
    */
   async recoverExistingInstall(orderId: string): Promise<EsimFulfillmentResult> {
+    const skipped = await this.skippedAdminTest(orderId);
+    if (skipped) return skipped;
     await this.settings?.reload();
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
@@ -164,6 +168,8 @@ export class EsimFulfillmentService {
    * Never POST /v2/orders. Transient GET failure keeps the CREATE guard.
    */
   async queryOpenCreateRecovery(orderId: string): Promise<EsimFulfillmentResult> {
+    const skipped = await this.skippedAdminTest(orderId);
+    if (skipped) return skipped;
     await this.settings?.reload();
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
@@ -420,6 +426,8 @@ export class EsimFulfillmentService {
    * A provider status string is recorded raw and is not delivery success.
    */
   async query(orderId: string): Promise<EsimFulfillmentResult> {
+    const skipped = await this.skippedAdminTest(orderId);
+    if (skipped) return skipped;
     await this.settings?.reload();
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
@@ -485,6 +493,23 @@ export class EsimFulfillmentService {
       throw new Error('QUERY claim could not be closed');
     }
     return review;
+  }
+
+  /** Persisted clientTrace.adminTest only. A replayed job still stops here. */
+  private async skippedAdminTest(orderId: string): Promise<EsimFulfillmentResult | null> {
+    const skip = this.repository.skipAdminTestFulfillment;
+    if (typeof skip !== 'function') return null;
+    const skipped = await skip.call(this.repository, orderId);
+    if (!skipped) return null;
+    this.logger.log(`admin test order ${orderId} fulfillment skipped`);
+    return {
+      orderId,
+      fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+      created: false,
+      queried: false,
+      hasOpenCreate: false,
+      hasReference: false,
+    };
   }
 
   private async fulfillLive(orderId: string, quote: EsimQuoteRow): Promise<EsimFulfillmentResult> {

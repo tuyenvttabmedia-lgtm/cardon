@@ -11,7 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
-    include: ['**/*.test.tsx'],
+    include: ['**/*.test.ts', '**/*.test.tsx'],
     restoreMocks: true,
     unstubEnvs: true,
     unstubGlobals: true,

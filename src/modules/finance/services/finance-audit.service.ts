@@ -48,4 +48,32 @@ export class FinanceAuditService {
       metadata,
     });
   }
+
+  recordEsimRevenueExported(
+    adminId: string,
+    metadata: Record<string, unknown>,
+  ) {
+    return this.auditService.recordEvent({
+      actorId: adminId,
+      action: FINANCE_AUDIT_ACTIONS.ESIM_REVENUE_EXPORTED,
+      targetType: AuditTargetType.PAYMENT,
+      targetId: adminId,
+      metadata,
+    });
+  }
+
+  recordPaypalEvent(
+    adminId: string,
+    action: string,
+    targetId: string,
+    metadata: Record<string, unknown>,
+  ) {
+    return this.auditService.recordEvent({
+      actorId: adminId,
+      action,
+      targetType: AuditTargetType.PAYMENT,
+      targetId,
+      metadata,
+    });
+  }
 }

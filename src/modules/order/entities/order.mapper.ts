@@ -52,8 +52,9 @@ export interface OrderView {
   paymentFeeFixed: string;
   paymentFeeAmount: string;
   customerPaid: string;
-  providerCost: string;
-  profit: string;
+  /** Internal economics — only present for admin mappers. */
+  providerCost?: string;
+  profit?: string;
   paymentStatus: OrderPaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
   customerStatus: string;
@@ -89,7 +90,10 @@ type OrderWithItems = Order & {
   })[];
 };
 
-export function mapOrder(order: OrderWithItems): OrderView {
+export function mapOrder(
+  order: OrderWithItems,
+  options?: { includeInternalEconomics?: boolean },
+): OrderView {
   const customerStatus = resolveCustomerOrderStatus(
     order.paymentStatus,
     order.fulfillmentStatus,
@@ -117,8 +121,12 @@ export function mapOrder(order: OrderWithItems): OrderView {
     paymentFeeFixed: decimalToString(order.paymentFeeFixed),
     paymentFeeAmount: decimalToString(order.paymentFeeAmount),
     customerPaid: decimalToString(order.customerPaid),
-    providerCost: decimalToString(order.providerCost),
-    profit: decimalToString(order.profit),
+    ...(options?.includeInternalEconomics
+      ? {
+          providerCost: decimalToString(order.providerCost),
+          profit: decimalToString(order.profit),
+        }
+      : {}),
     paymentStatus: order.paymentStatus,
     fulfillmentStatus: order.fulfillmentStatus,
     customerStatus,

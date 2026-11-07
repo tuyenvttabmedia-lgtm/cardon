@@ -46,7 +46,37 @@ export class LedgerService {
     return this.toSnapshot(agent.balance, agent.heldBalance);
   }
 
+  findEntryByReference(
+    referenceType: LedgerReferenceType,
+    referenceId: string,
+    tx?: Prisma.TransactionClient,
+  ) {
+    return this.ledgerRepository.findByReference(referenceType, referenceId, tx);
+  }
+
   async credit(
+    agentId: string,
+    amount: Decimal,
+    referenceType: LedgerReferenceType,
+    referenceId: string,
+    createdById?: string,
+    description?: string,
+  ) {
+    return this.prisma.$transaction(async (tx) =>
+      this.creditInTransaction(
+        tx,
+        agentId,
+        amount,
+        referenceType,
+        referenceId,
+        createdById,
+        description,
+      ),
+    );
+  }
+
+  async creditInTransaction(
+    tx: Prisma.TransactionClient,
     agentId: string,
     amount: Decimal,
     referenceType: LedgerReferenceType,
@@ -56,39 +86,37 @@ export class LedgerService {
   ) {
     this.assertPositive(amount, 'Credit amount must be positive');
 
-    return this.prisma.$transaction(async (tx) => {
-      await this.agentRepository.lockForUpdate(agentId, tx);
-      const agent = await this.agentRepository.findByIdInTransaction(agentId, tx);
-      if (!agent) {
-        throw new NotFoundException('Agent not found');
-      }
+    await this.agentRepository.lockForUpdate(agentId, tx);
+    const agent = await this.agentRepository.findByIdInTransaction(agentId, tx);
+    if (!agent) {
+      throw new NotFoundException('Agent not found');
+    }
 
-      const afterBalance = agent.balance.add(amount);
-      const afterHeld = agent.heldBalance;
+    const afterBalance = agent.balance.add(amount);
+    const afterHeld = agent.heldBalance;
 
-      await this.agentRepository.updateBalancesInTransaction(
+    await this.agentRepository.updateBalancesInTransaction(
+      agentId,
+      { balance: afterBalance, heldBalance: afterHeld },
+      tx,
+    );
+
+    return this.ledgerRepository.createEntry(
+      {
         agentId,
-        { balance: afterBalance, heldBalance: afterHeld },
-        tx,
-      );
-
-      return this.ledgerRepository.createEntry(
-        {
-          agentId,
-          type: LedgerEntryType.CREDIT,
-          beforeBalance: agent.balance,
-          beforeHeld: agent.heldBalance,
-          amount,
-          afterBalance,
-          afterHeld,
-          referenceType,
-          referenceId,
-          description,
-          createdById,
-        },
-        tx,
-      );
-    });
+        type: LedgerEntryType.CREDIT,
+        beforeBalance: agent.balance,
+        beforeHeld: agent.heldBalance,
+        amount,
+        afterBalance,
+        afterHeld,
+        referenceType,
+        referenceId,
+        description,
+        createdById,
+      },
+      tx,
+    );
   }
 
   async debitFromAvailable(

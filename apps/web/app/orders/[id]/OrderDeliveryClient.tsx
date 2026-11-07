@@ -7,14 +7,17 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { accountReturnPath } from '@/lib/account-routes';
 import { resolveOrderGuestEmail, storeOrderGuestEmail } from '@/lib/order-guest-email';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { useAuth } from '@/hooks/useAuth';
-import { orderApi } from '@/services/api-client';
+import { orderApi, paymentApi } from '@/services/api-client';
 import type { OrderDeliveryResponse } from '@/types/api';
 
 function OrderDeliveryLoading() {
+  const t = useT();
   return (
     <div className="page-shell page-footer-gap">
-      <p className="text-center text-cardon-gray">Đang tải đơn hàng...</p>
+      <p className="text-center text-cardon-gray">{t('order.loading')}</p>
     </div>
   );
 }
@@ -23,11 +26,13 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
   const searchParams = useSearchParams();
   const paymentStatus = searchParams.get('payment');
   const { isAuthenticated, loading: authLoading } = useAuth();
+  const { locale } = useLocale();
   const [emailInput, setEmailInput] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [delivery, setDelivery] = useState<OrderDeliveryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncingPayment, setSyncingPayment] = useState(false);
 
   useEffect(() => {
     if (authLoading || isAuthenticated) return;
@@ -56,7 +61,7 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
         }
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Không tải được đơn hàng');
+          setError(customerFacingError(locale, err));
         }
       } finally {
         if (active) setLoading(false);
@@ -70,6 +75,34 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
       clearInterval(timer);
     };
   }, [orderId, isAuthenticated, guestEmail, authLoading]);
+
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    if (paymentStatus !== 'success') return;
+    let active = true;
+    setSyncingPayment(true);
+    void paymentApi
+      .syncFromGateway(orderId)
+      .then(async () => {
+        if (!active) return;
+        try {
+          const data = await orderApi.getDelivery(orderId);
+          if (active) {
+            setDelivery(data);
+            setError(null);
+          }
+        } catch {
+          /* delivery poll continues */
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setSyncingPayment(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [orderId, isAuthenticated, authLoading, paymentStatus]);
 
   if (authLoading) {
     return <OrderDeliveryLoading />;
@@ -138,6 +171,7 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
       guestEmail={undefined}
       isAuthenticated={isAuthenticated}
       from={searchParams.get('from')}
+      syncingPayment={syncingPayment}
     />
   );
 }
@@ -151,6 +185,7 @@ function GuestOrderDelivery({
   guestEmail: string;
   paymentStatus: string | null;
 }) {
+  const { locale } = useLocale();
   const [delivery, setDelivery] = useState<OrderDeliveryResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -167,7 +202,7 @@ function GuestOrderDelivery({
         }
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Không tải được đơn hàng');
+          setError(customerFacingError(locale, err));
         }
       } finally {
         if (active) setLoading(false);
@@ -206,6 +241,7 @@ function GuestOrderDelivery({
       guestEmail={guestEmail}
       isAuthenticated={false}
       from={null}
+      syncingPayment={false}
     />
   );
 }
@@ -217,6 +253,7 @@ function OrderDeliveryView({
   guestEmail,
   isAuthenticated,
   from,
+  syncingPayment,
 }: {
   delivery: OrderDeliveryResponse;
   orderId: string;
@@ -224,6 +261,7 @@ function OrderDeliveryView({
   guestEmail?: string;
   isAuthenticated: boolean;
   from: string | null;
+  syncingPayment?: boolean;
 }) {
   return (
     <div className="page-shell page-footer-gap">
@@ -233,6 +271,7 @@ function OrderDeliveryView({
         paymentStatus={paymentStatus}
         guestEmail={guestEmail}
         backHref={isAuthenticated ? accountReturnPath(from) : '/tra-cuu-don-hang'}
+        syncingPayment={syncingPayment}
       />
     </div>
   );

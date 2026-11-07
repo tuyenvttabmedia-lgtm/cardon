@@ -38,6 +38,12 @@ export function evaluatePaypalEsimLimits(input: PaypalEsimLimitInput): PaypalEsi
   const config = { ...DEFAULT_PAYPAL_ESIM_LIMITS, ...input.config };
   const quantity = Number(input.quantity);
   const amount = Number(input.amountUsd);
+  // Absolute hard cap 80 USD — Admin/config cannot raise the overall ceiling above this.
+  const rawOverall = Number(config.maxUsdPerOrder);
+  const maxUsdPerOrder =
+    Number.isFinite(rawOverall) && rawOverall > 0
+      ? Math.min(rawOverall, DEFAULT_PAYPAL_ESIM_LIMITS.maxUsdPerOrder)
+      : DEFAULT_PAYPAL_ESIM_LIMITS.maxUsdPerOrder;
 
   if (!Number.isFinite(quantity) || quantity < 1) {
     return { ok: false, reason: 'INVALID_QUANTITY' };
@@ -51,9 +57,18 @@ export function evaluatePaypalEsimLimits(input: PaypalEsimLimitInput): PaypalEsi
 
   const isNew =
     input.accountAgeHours == null || input.accountAgeHours < config.newAccountMaxAgeHours;
-  const orderCap = isNew ? config.newAccountMaxUsdPerOrder : config.maxUsdPerOrder;
+  // Effective per-order USD cap = lowest active ceiling (overall hard-capped + new-account when applicable).
+  const caps = [maxUsdPerOrder];
+  if (isNew && config.newAccountMaxUsdPerOrder > 0) {
+    caps.push(config.newAccountMaxUsdPerOrder);
+  }
+  const orderCap = Math.min(...caps);
   if (amount > orderCap) {
-    return { ok: false, reason: isNew ? 'NEW_ACCOUNT_ORDER_CAP' : 'ORDER_CAP' };
+    const hitNewOnly =
+      isNew &&
+      orderCap === config.newAccountMaxUsdPerOrder &&
+      config.newAccountMaxUsdPerOrder <= maxUsdPerOrder;
+    return { ok: false, reason: hitNewOnly ? 'NEW_ACCOUNT_ORDER_CAP' : 'ORDER_CAP' };
   }
   if (input.ordersPaidToday + 1 > config.maxOrdersPerAccountPerDay) {
     return { ok: false, reason: 'DAILY_ORDER_COUNT' };

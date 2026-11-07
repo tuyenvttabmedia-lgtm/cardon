@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { BlogListClient } from '@/components/blog/BlogListClient';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { getBlogCategory, getBlogPost, listBlogPosts } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
-import { buildMetadata, titleAlreadyBranded } from '@/lib/seo';
+import { buildMetadata, isPublishedEnglishDocument, titleAlreadyBranded } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +14,7 @@ function resolveCategoryPath(slug: string, canonicalUrl?: string | null): string
   const fallback = blogCategoryPath(slug);
   if (!canonicalUrl?.trim()) return fallback;
   const site = getSiteUrl();
-  const raw = canonicalUrl.trim();
+  const raw = canonicalUrl.trim().split(/[?#]/)[0] ?? '';
   if (raw.startsWith(site)) {
     const stripped = raw.slice(site.length).trim() || fallback;
     return stripped.startsWith('/') ? stripped : `/${stripped}`;
@@ -28,11 +29,17 @@ export async function generateMetadata({
   params: Promise<{ category: string }>;
 }): Promise<Metadata> {
   const { category } = await params;
-  const data = await getBlogCategory(category);
+  const locale = await readRequestLocale();
+  const [data, english] = await Promise.all([
+    getBlogCategory(category, locale),
+    locale === 'en' ? Promise.resolve(null) : getBlogCategory(category, 'en'),
+  ]);
   if (!data) {
     return buildMetadata({
       title: 'Không tìm thấy danh mục',
       path: blogCategoryPath(category),
+      locale,
+      includeEnglishAlternate: false,
       robots: 'noindex,follow',
     });
   }
@@ -44,12 +51,17 @@ export async function generateMetadata({
     data.description?.trim() ||
     data.intro?.trim() ||
     `Tin tức ${data.name} trên CardOn.vn`;
+  const englishDoc = locale === 'en' ? data : english;
 
   const meta = buildMetadata({
     title,
     description,
     path,
     ogImage: data.ogImageUrl ?? undefined,
+    ogTitle: data.metaTitle ?? undefined,
+    ogDescription: data.metaDescription ?? undefined,
+    locale,
+    includeEnglishAlternate: isPublishedEnglishDocument(englishDoc),
   });
 
   if (titleAlreadyBranded(title) || data.metaTitle?.trim()) {
@@ -64,17 +76,18 @@ export default async function TinTucCategoryPage({
   params: Promise<{ category: string }>;
 }) {
   const { category } = await params;
-  const categoryData = await getBlogCategory(category);
+  const locale = await readRequestLocale();
+  const categoryData = await getBlogCategory(category, locale);
 
   if (!categoryData) {
-    const legacyPost = await getBlogPost(category);
+    const legacyPost = await getBlogPost(category, locale);
     if (legacyPost?.post) {
       permanentRedirect(blogPostPath(legacyPost.post.categorySlug, legacyPost.post.slug));
     }
     notFound();
   }
 
-  const posts = (await listBlogPosts({ category, take: 100 })) ?? [];
+  const posts = (await listBlogPosts({ category, take: 100, locale })) ?? [];
 
   return (
     <Suspense fallback={<p className="page-shell text-center text-cardon-gray">Đang tải...</p>}>
@@ -87,6 +100,7 @@ export default async function TinTucCategoryPage({
         categoryIntro={categoryData.intro ?? categoryData.description}
         postBasePath={BLOG_BASE_PATH}
         listBasePath={blogCategoryPath(category)}
+        contentFallback={locale === 'en' && (categoryData.fallback === true || posts.some((post) => post.fallback !== false))}
       />
     </Suspense>
   );

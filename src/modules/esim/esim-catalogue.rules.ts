@@ -246,6 +246,72 @@ export const COUNTRY_NAMES_VI: Record<string, string> = {
   europe: 'Châu Âu',
 };
 
+/** Display names for locale=en. Same keys as the Vietnamese map. Not official plan titles. */
+export const COUNTRY_NAMES_EN: Record<string, string> = {
+  jp: 'Japan',
+  JP: 'Japan',
+  KR: 'South Korea',
+  TH: 'Thailand',
+  CN: 'China',
+  TW: 'Taiwan',
+  SG: 'Singapore',
+  MY: 'Malaysia',
+  ID: 'Indonesia',
+  PH: 'Philippines',
+  HK: 'Hong Kong',
+  AU: 'Australia',
+  US: 'United States',
+  IN: 'India',
+  KH: 'Cambodia',
+  GB: 'United Kingdom',
+  FR: 'France',
+  DE: 'Germany',
+  IT: 'Italy',
+  ES: 'Spain',
+  CA: 'Canada',
+  NZ: 'New Zealand',
+  AE: 'UAE',
+  ae: 'UAE',
+  TR: 'Turkey',
+  tr: 'Turkey',
+  LA: 'Laos',
+  la: 'Laos',
+  MO: 'Macao',
+  mo: 'Macao',
+  NL: 'Netherlands',
+  nl: 'Netherlands',
+  CH: 'Switzerland',
+  ch: 'Switzerland',
+  AT: 'Austria',
+  at: 'Austria',
+  PT: 'Portugal',
+  pt: 'Portugal',
+  GR: 'Greece',
+  gr: 'Greece',
+  MV: 'Maldives',
+  mv: 'Maldives',
+  EG: 'Egypt',
+  eg: 'Egypt',
+  MX: 'Mexico',
+  mx: 'Mexico',
+  BE: 'Belgium',
+  be: 'Belgium',
+  IE: 'Ireland',
+  ie: 'Ireland',
+  CZ: 'Czechia',
+  cz: 'Czechia',
+  QA: 'Qatar',
+  qa: 'Qatar',
+  asia: 'Asia',
+  europe: 'Europe',
+};
+
+export type StorefrontLocale = 'vi' | 'en';
+
+export function storefrontLocale(value: unknown): StorefrontLocale {
+  return value === 'en' ? 'en' : 'vi';
+}
+
 const ASIA_ISOS = new Set([
   'JP',
   'KR',
@@ -389,6 +455,152 @@ export function activationLabelVi(policy: string): string {
     return 'Bắt đầu tính ngày ngay khi cài eSIM lên máy';
   }
   return policy.trim();
+}
+
+export function activationLabelFor(policy: string, locale: StorefrontLocale = 'vi'): string {
+  if (locale !== 'en') return activationLabelVi(policy);
+  const value = policy.trim().toLowerCase();
+  if (!value) return 'Follow the steps that come with the install code';
+  if (/first[-_ ]?us|on[-_ ]?usage|network|arriv|connect/.test(value)) {
+    return 'The plan starts when the eSIM first connects at the destination';
+  }
+  if (/install/.test(value)) {
+    return 'The plan starts as soon as the eSIM is installed';
+  }
+  return policy.trim();
+}
+
+export function formatStorefrontDataLabel(
+  amountMb: number,
+  unlimited: boolean,
+  locale: StorefrontLocale,
+): string {
+  if (unlimited || amountMb < 0) return locale === 'en' ? 'Unlimited' : 'Không giới hạn';
+  if (amountMb >= 1024 && amountMb % 1024 === 0) return `${amountMb / 1024} GB`;
+  if (amountMb >= 1000 && amountMb % 1000 === 0) return `${amountMb / 1000} GB`;
+  return `${amountMb} MB`;
+}
+
+export function formatStorefrontDurationLabel(
+  duration: number,
+  unit: string | undefined,
+  locale: StorefrontLocale,
+): string {
+  if (unit === 'day') return locale === 'en' ? `${duration} days` : `${duration} ngày`;
+  return `${duration} ${unit ?? ''}`.trim();
+}
+
+export function resolveCountryName(
+  destinationKey: string,
+  countryIso: string,
+  storedName: string | undefined,
+  locale: StorefrontLocale,
+): string {
+  if (locale !== 'en') {
+    return COUNTRY_NAMES_VI[destinationKey] ?? COUNTRY_NAMES_VI[countryIso] ?? storedName ?? countryIso;
+  }
+  return (
+    COUNTRY_NAMES_EN[destinationKey] ??
+    COUNTRY_NAMES_EN[destinationKey.toLowerCase()] ??
+    COUNTRY_NAMES_EN[countryIso] ??
+    COUNTRY_NAMES_EN[countryIso.toUpperCase()] ??
+    COUNTRY_NAMES_EN[countryIso.toLowerCase()] ??
+    countryIso
+  );
+}
+
+const VI_COUNTRY_LABELS = [...new Set(Object.values(COUNTRY_NAMES_VI))].sort((a, b) => b.length - a.length);
+
+/** Replaces a generated Vietnamese country label inside a stored title. Plan codes stay as stored. */
+export function localizeStoredTitle(title: string, locale: StorefrontLocale): string {
+  if (locale !== 'en' || !title) return title;
+  let next = title;
+  for (const viName of VI_COUNTRY_LABELS) {
+    const sampleKey = Object.keys(COUNTRY_NAMES_VI).find((key) => COUNTRY_NAMES_VI[key] === viName);
+    if (!sampleKey) continue;
+    const enName =
+      COUNTRY_NAMES_EN[sampleKey] ??
+      COUNTRY_NAMES_EN[sampleKey.toUpperCase()] ??
+      COUNTRY_NAMES_EN[sampleKey.toLowerCase()];
+    if (!enName || enName === viName) continue;
+    next = next.split(viName).join(enName);
+  }
+  next = next.replace(/Không giới hạn/g, 'Unlimited');
+  next = next.replace(/(\d+)\s*ngày/g, '$1 days');
+  return next;
+}
+
+const VIETNAMESE_MARK = /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i;
+
+/**
+ * Localizes generated labels such as "7 ngày".
+ * A provider sentence that is still Vietnamese after that is omitted in English.
+ */
+export function displayProviderText(value: string, locale: StorefrontLocale): string {
+  const text = value.trim();
+  if (!text) return '';
+  if (locale !== 'en') return text;
+  const localized = localizeStoredTitle(text, 'en');
+  return VIETNAMESE_MARK.test(localized) ? '' : localized;
+}
+
+export function presentStorefrontOfferText(input: {
+  locale: StorefrontLocale;
+  destinationKey: string;
+  countryIso: string;
+  storedCountryName?: string;
+  dataAmountMb: number;
+  unlimited: boolean;
+  duration: number;
+  durationUnit?: string;
+  speedLabel: string;
+  operators: string[];
+  activationPolicy: string;
+  storedActivationLabel?: string;
+  title: string;
+  productName: string;
+  providerDescription: string;
+}): {
+  countryName: string;
+  dataLabel: string;
+  durationLabel: string;
+  activationLabel: string;
+  summary: string;
+  title: string;
+  productName: string;
+} {
+  const countryName = resolveCountryName(
+    input.destinationKey,
+    input.countryIso,
+    input.storedCountryName,
+    input.locale,
+  );
+  const dataLabel = formatStorefrontDataLabel(input.dataAmountMb, input.unlimited, input.locale);
+  const durationLabel = formatStorefrontDurationLabel(input.duration, input.durationUnit, input.locale);
+  const activationLabel =
+    input.locale === 'en'
+      ? activationLabelFor(input.activationPolicy, 'en')
+      : input.storedActivationLabel || activationLabelVi(input.activationPolicy);
+  const parts = [`${dataLabel}, ${durationLabel}, ${countryName}.`];
+  if (input.speedLabel) {
+    parts.push(input.locale === 'en' ? `Speed: ${input.speedLabel}.` : `Tốc độ: ${input.speedLabel}.`);
+  }
+  if (input.operators.length > 0) {
+    const networks = input.operators.join(', ');
+    parts.push(input.locale === 'en' ? `Network: ${networks}.` : `Nhà mạng: ${networks}.`);
+  }
+  if (activationLabel) parts.push(activationLabel);
+  const providerDescription = displayProviderText(input.providerDescription, input.locale);
+  if (providerDescription) parts.push(providerDescription);
+  return {
+    countryName,
+    dataLabel,
+    durationLabel,
+    activationLabel,
+    summary: parts.join(' '),
+    title: localizeStoredTitle(input.title, input.locale),
+    productName: localizeStoredTitle(input.productName, input.locale),
+  };
 }
 
 export function inferDestinationKey(input: {

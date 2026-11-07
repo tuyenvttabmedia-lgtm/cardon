@@ -6,7 +6,7 @@ import {
 } from '@/components/checkout/PaymentPanel';
 import { CustomerPriceBreakdown } from '@/components/checkout/CustomerPriceBreakdown';
 import { OrderAmountLimitAlert } from '@/components/checkout/OrderAmountLimitAlert';
-import { formatVnd } from '@/lib/utils';
+import { useMoney, useT } from '@/components/i18n/LocaleProvider';
 import type { OrderAmountLimitDetails } from '@/lib/order-limit';
 import type { CustomerPriceView } from '@/lib/customer-price';
 import type { PublicPaymentMethod } from '@/lib/payment-methods';
@@ -45,18 +45,20 @@ export function CardOrderSummaryPanel({
   disabled: boolean;
   isOverOrderLimit?: boolean;
 }) {
+  const t = useT();
+  const money = useMoney();
   return (
     <div className="sticky top-[88px] rounded-2xl border border-gray-200 bg-white p-5 shadow-card">
-      <h3 className="text-lg font-bold text-cardon-navy">Tóm tắt đơn hàng</h3>
+      <h3 className="text-lg font-bold text-cardon-navy">{t('checkout.summary')}</h3>
       <div className="mt-4">
         <div className="mb-3 flex justify-between text-sm">
-          <span className="text-cardon-gray">Loại thẻ</span>
+          <span className="text-cardon-gray">{t('checkout.cardType')}</span>
           <span className="font-medium">{product?.name ?? '—'}</span>
         </div>
         <CustomerPriceBreakdown pricing={pricing} quantity={quantity} showQuantity />
       </div>
 
-      <p className="mt-5 text-sm font-semibold text-cardon-navy">Phương thức thanh toán</p>
+      <p className="mt-5 text-sm font-semibold text-cardon-navy">{t('product.payMethod')}</p>
       <div className="mt-2">
         {hasPaymentMethods && paymentMethodCode ? (
           <PaymentMethodPicker methods={paymentMethods} value={paymentMethodCode} onChange={onPaymentMethodChange} />
@@ -72,7 +74,7 @@ export function CardOrderSummaryPanel({
         onClick={() => void onPay()}
       >
         {payButtonLabel}
-        {!loading && pricing && !isOverOrderLimit ? ` ${formatVnd(pricing.totalPayment)}` : ''}
+        {!loading && pricing && !isOverOrderLimit ? ` ${money(pricing.totalPayment)}` : ''}
       </button>
       {orderLimitError ? (
         <div className="mt-2">
@@ -119,21 +121,23 @@ export function TelcoOrderSummaryPanel({
   packageLabel?: string;
   isOverOrderLimit?: boolean;
 }) {
+  const t = useT();
+  const money = useMoney();
   return (
     <div className="sticky top-[88px] rounded-2xl border border-cardon-border bg-white p-5 shadow-card">
-      <h3 className="text-lg font-bold text-cardon-navy">Thông tin giao dịch</h3>
+      <h3 className="text-lg font-bold text-cardon-navy">{t('checkout.txInfo')}</h3>
       <dl className="mt-4 space-y-2 text-sm">
         <div className="flex justify-between gap-4">
-          <dt className="text-cardon-gray">Nhà mạng</dt>
+          <dt className="text-cardon-gray">{t('checkout.carrier')}</dt>
           <dd className="text-right font-medium">{carrierName ?? '—'}</dd>
         </div>
         <div className="flex justify-between gap-4">
-          <dt className="text-cardon-gray">SĐT</dt>
+          <dt className="text-cardon-gray">{t('checkout.phoneShort')}</dt>
           <dd className="text-right font-medium">{phone || '—'}</dd>
         </div>
         {packageLabel && (
           <div className="flex justify-between gap-4">
-            <dt className="text-cardon-gray">Gói data</dt>
+            <dt className="text-cardon-gray">{t('checkout.dataPack')}</dt>
             <dd className="text-right font-medium">{packageLabel}</dd>
           </div>
         )}
@@ -142,7 +146,7 @@ export function TelcoOrderSummaryPanel({
         <CustomerPriceBreakdown pricing={pricing} />
       </div>
 
-      <p className="mt-5 text-sm font-semibold text-cardon-navy">Phương thức thanh toán</p>
+      <p className="mt-5 text-sm font-semibold text-cardon-navy">{t('product.payMethod')}</p>
       <div className="mt-2">
         {hasPaymentMethods && paymentMethodCode ? (
           <PaymentMethodPicker methods={paymentMethods} value={paymentMethodCode} onChange={onPaymentMethodChange} />
@@ -158,7 +162,7 @@ export function TelcoOrderSummaryPanel({
         onClick={() => void onPay()}
       >
         {payButtonLabel}
-        {!loading && pricing && !isOverOrderLimit ? ` ${formatVnd(pricing.totalPayment)}` : ''}
+        {!loading && pricing && !isOverOrderLimit ? ` ${money(pricing.totalPayment)}` : ''}
       </button>
       {orderLimitError ? (
         <div className="mt-2">

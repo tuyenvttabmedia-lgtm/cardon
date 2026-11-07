@@ -28,6 +28,8 @@ import {
   AUTH_FORGOT_PASSWORD_THROTTLE,
   AUTH_LOGIN_THROTTLE,
   AUTH_REFRESH_THROTTLE,
+  AUTH_REGISTER_THROTTLE,
+  AUTH_RESET_PASSWORD_THROTTLE,
 } from './auth-throttle.constants';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
@@ -44,24 +46,28 @@ export class AuthController {
   ) {}
 
   @Public()
+  @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Public()
+  @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('agent-register')
   agentRegister(@Body() dto: AgentRegisterDto) {
     return this.agentRegistrationService.registerPublic(dto);
   }
 
   @Public()
+  @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('verify-email')
   verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmail(dto);
   }
 
   @Public()
+  @Throttle({ default: AUTH_FORGOT_PASSWORD_THROTTLE })
   @Post('resend-verification')
   resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerification(dto);
@@ -114,6 +120,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: AUTH_RESET_PASSWORD_THROTTLE })
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);

@@ -7,7 +7,10 @@ import { CatalogSelectorGrid } from '@/components/catalog/CatalogSelectorGrid';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { findProductBySlug, getActiveVariants, useProducts } from '@/hooks/useProducts';
-import { formatVnd } from '@/lib/utils';
+import { useRetailMarket } from '@/hooks/useRetailMarket';
+import { VnOnlyMarketNotice } from '@/components/market/VnOnlyMarketNotice';
+import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import type { Product } from '@/types/api';
 
 export default function ProductPageClient({
@@ -18,9 +21,13 @@ export default function ProductPageClient({
   /** Server-fetched product so H1/description exist in SSR HTML for crawlers. */
   initialProduct?: Product | null;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const money = useMoney();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { products, loading, error } = useProducts();
+  const vnOnlyBlocked = useRetailMarket() === 'INTL';
   const fromCatalog = findProductBySlug(products, slug);
   const product = fromCatalog ?? initialProduct ?? null;
   const variants = product ? getActiveVariants(product) : [];
@@ -44,14 +51,14 @@ export default function ProductPageClient({
     ? parseFloat(selectedVariant.sellPrice) * quantity
     : 0;
 
-  if (loading && !product) return <p>Đang tải sản phẩm...</p>;
-  if (error && !product) return <p className="text-red-600">{error}</p>;
-  if (!product) return <p>Không tìm thấy sản phẩm.</p>;
+  if (loading && !product) return <p>{t('product.loading')}</p>;
+  if (error && !product) return <p className="text-red-600">{customerFacingError(locale, new Error(error))}</p>;
+  if (!product) return <p>{t('product.missing')}</p>;
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="rounded-3xl border border-gray-200 bg-white p-8">
-        <p className="text-sm text-brand-600">{product.category?.name ?? 'Sản phẩm'}</p>
+        <p className="text-sm text-brand-600">{product.category?.name ?? t('product.category')}</p>
         <h1 className="mt-2 text-3xl font-bold">{product.name}</h1>
         {product.description && (
           <p className="mt-4 text-gray-600">{product.description}</p>
@@ -59,13 +66,13 @@ export default function ProductPageClient({
       </div>
 
       <div className="rounded-3xl border border-gray-200 bg-white p-8">
-        <h2 className="text-lg font-semibold">Chọn mệnh giá</h2>
+        <h2 className="text-lg font-semibold">{t('product.denom')}</h2>
         <CatalogSelectorGrid className="mt-4">
           {variants.map((variant) => (
             <CatalogDenomCard
               key={variant.id}
               faceValueLabel={variant.name}
-              sellPriceLabel={formatVnd(variant.sellPrice)}
+              sellPriceLabel={money(variant.sellPrice)}
               selected={selectedVariant?.id === variant.id}
               onClick={() => setVariantId(variant.id)}
             />
@@ -73,7 +80,7 @@ export default function ProductPageClient({
         </CatalogSelectorGrid>
 
         <label className="mt-6 block text-sm font-medium text-gray-700">
-          Số lượng
+          {t('product.qty')}
           <Input
             className="mt-1"
             type="number"
@@ -85,16 +92,22 @@ export default function ProductPageClient({
         </label>
 
         <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-4">
-          <span className="text-gray-600">Tổng tạm tính</span>
-          <span className="text-2xl font-bold text-brand-600">{formatVnd(lineTotal)}</span>
+          <span className="text-gray-600">{t('product.subtotal')}</span>
+          <span className="text-2xl font-bold text-brand-600">{money(lineTotal)}</span>
         </div>
+
+        {vnOnlyBlocked ? (
+          <div className="mt-6">
+            <VnOnlyMarketNotice />
+          </div>
+        ) : null}
 
         <Button
           className="mt-6 w-full"
           size="lg"
-          disabled={!selectedVariant}
+          disabled={!selectedVariant || vnOnlyBlocked}
           onClick={() => {
-            if (!selectedVariant) return;
+            if (!selectedVariant || vnOnlyBlocked) return;
             const params = new URLSearchParams({
               variantId: selectedVariant.id,
               quantity: String(quantity),
@@ -103,7 +116,7 @@ export default function ProductPageClient({
             router.push(`/checkout?${params}`);
           }}
         >
-          Mua ngay
+          {t('product.buy')}
         </Button>
       </div>
     </div>

@@ -24,7 +24,7 @@ import { EsimAdminService } from '../../esim/esim-admin.service';
 import { EsimOrderService } from '../../esim/esim-order.service';
 import { canAdminViewPin } from '../entities/card-pin.util';
 import { ADMIN_AUDIT_ACTIONS } from '../entities/admin.constants';
-import { AdminEsimTestOrderDto, EsimOpsDashboardQueryDto, EsimOpsOrderQueryDto } from '../dto/esim-ops.dto';
+import { AdminEsimTestOrderDto, EsimOpsAttemptQueryDto, EsimOpsDashboardQueryDto, EsimOpsOrderQueryDto, EsimOpsPaymentQueryDto } from '../dto/esim-ops.dto';
 import { AdminAuditService } from '../services/admin-audit.service';
 import { AdminOrderService } from '../services/admin-order.service';
 
@@ -67,6 +67,7 @@ export class EsimOpsAdminController {
       },
       user,
       { ip: extractClientIp(req), userAgent: extractClientUserAgent(req) },
+      dto.testAmountUsd,
     );
     await this.adminAudit.record(
       user.id,
@@ -83,6 +84,24 @@ export class EsimOpsAdminController {
   @Permissions('orders.read')
   list(@Query() query: EsimOpsOrderQueryDto) {
     return this.esimAdmin.listOps(query);
+  }
+
+  @Get('orders/export')
+  @Permissions('orders.read')
+  exportOrders(@Query() query: EsimOpsOrderQueryDto) {
+    return this.esimAdmin.listOps({ ...query, skip: 0, take: 1000, export: true });
+  }
+
+  @Get('payments')
+  @Permissions('orders.read')
+  payments(@Query() query: EsimOpsPaymentQueryDto) {
+    return this.esimAdmin.listPayments(query);
+  }
+
+  @Get('attempts')
+  @Permissions('orders.read')
+  attempts(@Query() query: EsimOpsAttemptQueryDto) {
+    return this.esimAdmin.listAttempts(query);
   }
 
   @Get('orders/:id')

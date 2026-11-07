@@ -16,6 +16,7 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: route.id }),
+  usePathname: () => `/esim-ops/${route.id}`,
 }));
 
 vi.mock('@/hooks/useAuth', () => ({

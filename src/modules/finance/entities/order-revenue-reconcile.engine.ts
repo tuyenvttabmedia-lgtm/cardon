@@ -40,6 +40,8 @@ export interface OrderRevenueOrderInput {
   latestProviderStatus: ProviderTransactionStatus | string | null;
   latestProviderRequestId: string | null;
   isSandbox: boolean;
+  /** Boolean clientTrace.adminTest only. A string does not set this. */
+  isAdminTest?: boolean;
 }
 
 export interface OrderRevenuePaymentInput {
@@ -51,6 +53,7 @@ export interface OrderRevenuePaymentInput {
   orderCode: string;
   orderPaymentStatus: OrderPaymentStatus | string;
   isSandbox: boolean;
+  isAdminTest?: boolean;
 }
 
 export interface GatewayQueryLine {
@@ -67,7 +70,7 @@ export function detectOrderRevenueIssues(input: {
   const issues: OrderRevenueIssue[] = [];
 
   for (const order of input.orders) {
-    if (order.isSandbox) continue;
+    if (order.isSandbox || order.isAdminTest === true) continue;
 
     if (
       order.paymentStatus === OrderPaymentStatus.PAID &&
@@ -137,7 +140,7 @@ export function detectOrderRevenueIssues(input: {
   }
 
   for (const payment of input.payments) {
-    if (payment.isSandbox) continue;
+    if (payment.isSandbox || payment.isAdminTest === true) continue;
     if (
       payment.status === PaymentRecordStatus.SUCCESS &&
       payment.orderPaymentStatus !== OrderPaymentStatus.PAID
@@ -164,7 +167,7 @@ export function detectOrderRevenueIssues(input: {
     const payment = input.payments.find(
       (row) => row.paymentReference === gateway.paymentReference,
     );
-    if (!payment || payment.isSandbox) continue;
+    if (!payment || payment.isSandbox || payment.isAdminTest === true) continue;
     if (
       payment.status === PaymentRecordStatus.SUCCESS &&
       gateway.gatewayStatus !== 'SUCCESS' &&

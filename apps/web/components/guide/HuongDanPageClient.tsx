@@ -4,7 +4,13 @@ import { BlogListClient } from '@/components/blog/BlogListClient';
 import { GuideFaqBlock } from '@/components/faq/GuideFaqBlock';
 import type { PublicBlogPost } from '@/lib/cms-api';
 
-export function HuongDanPageClient({ posts }: { posts: PublicBlogPost[] }) {
+export function HuongDanPageClient({
+  posts,
+  contentFallback = false,
+}: {
+  posts: PublicBlogPost[];
+  contentFallback?: boolean;
+}) {
   return (
     <>
       <BlogListClient
@@ -14,6 +20,7 @@ export function HuongDanPageClient({ posts }: { posts: PublicBlogPost[] }) {
         breadcrumbLabel="Hướng dẫn"
         lockedCategory="guide"
         listBasePath="/huong-dan"
+        contentFallback={contentFallback}
       />
       <div className="page-shell">
         <GuideFaqBlock limit={15} />

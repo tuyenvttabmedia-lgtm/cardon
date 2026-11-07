@@ -453,6 +453,50 @@ enum ReconcileResolution {
   IGNORED
 }
 
+/// F3 PayPal Activity Download import (CSV-first). Additive — no payment mutation.
+enum PaypalReportImportSource {
+  CSV
+  API
+}
+
+enum PaypalReportFormat {
+  ACTIVITY_DOWNLOAD
+}
+
+enum PaypalReportImportStatus {
+  PARSED
+  MATCHED
+  FAILED
+}
+
+enum PaypalReportLineKind {
+  SALE_CAPTURE
+  REFUND
+  REVERSAL
+  CHARGEBACK
+  PAYOUT_OR_BALANCE
+  FX
+  NON_SETTLED
+  OTHER
+}
+
+enum PaypalFeeMatchStatus {
+  MATCHED
+  AMOUNT_MISMATCH
+  CURRENCY_MISMATCH
+  MISSING_LOCAL
+  MISSING_GATEWAY
+  DUPLICATE_CSV
+  NEEDS_REVIEW
+  MANUAL_MATCHED
+  NON_SALE
+}
+
+enum PaypalFeeMatchType {
+  AUTO
+  MANUAL
+}
+
 enum NotificationRecipientType {
   USER
   AGENT
@@ -1235,6 +1279,11 @@ model Payment {
   paymentReference     String                      @unique @map("payment_reference") @db.VarChar(128)
   idempotencyKey       String?                     @unique @map("idempotency_key") @db.VarChar(128)
   amount               Decimal                     @db.Decimal(18, 2)
+  /// Phase 1: nullable. Retail rows stay null. eSIM SePay writes VND.
+  currency             String?                     @db.Char(3)
+  /// Phase 1: nullable. Set only by a later eSIM payment path.
+  productLane          String?                     @map("product_lane") @db.VarChar(16)
+  fxRateId             String?                     @map("fx_rate_id") @db.Uuid
   status               PaymentRecordStatus         @default(PENDING)
   gatewayTransactionId String?                     @map("gateway_transaction_id") @db.VarChar(128)
   bankTransactionId    String?                     @map("bank_transaction_id") @db.VarChar(128)
@@ -1248,9 +1297,11 @@ model Payment {
   updatedAt            DateTime                    @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt            DateTime?                   @map("deleted_at") @db.Timestamptz(6)
 
-  order          Order           @relation("PaymentOrder", fields: [orderId], references: [id], onDelete: Restrict)
-  orderAsActive  Order?          @relation("OrderActivePayment")
-  refundRequests RefundRequest[]
+  order            Order            @relation("PaymentOrder", fields: [orderId], references: [id], onDelete: Restrict)
+  orderAsActive    Order?           @relation("OrderActivePayment")
+  fxRate           FxRate?          @relation(fields: [fxRateId], references: [id], onDelete: Restrict)
+  refundRequests   RefundRequest[]
+  paypalFeeMatches PaypalFeeMatch[]
 
   @@index([orderId])
   @@index([paymentReference])
@@ -1334,10 +1385,67 @@ model RefundAttempt {
   executedBy User?         @relation("RefundAttemptExecutedBy", fields: [executedById], references: [id], onDelete: Restrict)
   verifiedBy User?         @relation("RefundAttemptVerifiedBy", fields: [verifiedById], references: [id], onDelete: Restrict)
 
+  @@unique([bankTransactionReference])
   @@index([requestId, status])
   @@index([status])
   @@index([reconStatus])
   @@map("refund_attempts")
+}
+
+// =============================================================================
+// FX — empty until an admin publishes a manual rate. No default row.
+// =============================================================================
+
+enum FxRateSourceStatus {
+  PENDING_APPROVAL
+  APPROVED
+  DISABLED
+}
+
+enum FxRateStatus {
+  DRAFT
+  PENDING_REVIEW
+  EFFECTIVE
+  SUPERSEDED
+  REJECTED
+}
+
+/// Future automatic sources stay unapproved. Phase 1 inserts nothing.
+model FxRateSource {
+  code                 String             @id @db.VarChar(32)
+  status               FxRateSourceStatus @default(PENDING_APPROVAL)
+  baseCurrency         String             @map("base_currency") @db.Char(3)
+  quoteCurrency        String             @map("quote_currency") @db.Char(3)
+  maxStalenessSeconds  Int?               @map("max_staleness_seconds")
+  fetchIntervalSeconds Int?               @map("fetch_interval_seconds")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  rates FxRate[]
+
+  @@map("fx_rate_sources")
+}
+
+/// Append-only. rate = VND for 1 USD when base is USD and quote is VND.
+model FxRate {
+  id             String       @id @default(uuid()) @db.Uuid
+  sourceCode     String       @map("source_code") @db.VarChar(32)
+  rate           Decimal      @db.Decimal(18, 8)
+  effectiveFrom  DateTime     @map("effective_from") @db.Timestamptz(6)
+  effectiveTo    DateTime?    @map("effective_to") @db.Timestamptz(6)
+  observedAt     DateTime     @map("observed_at") @db.Timestamptz(6)
+  publishedById  String?      @map("published_by") @db.Uuid
+  status         FxRateStatus @default(DRAFT)
+  bandResult     String?      @map("band_result") @db.VarChar(32)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  source   FxRateSource    @relation(fields: [sourceCode], references: [code], onDelete: Restrict)
+  orders   Order[]
+  payments Payment[]
+  quotes   EsimOrderQuote[]
+
+  @@index([sourceCode, status])
+  @@map("fx_rates")
 }
 
 // =============================================================================
@@ -1393,6 +1501,18 @@ model Order {
   customerPaid      Decimal                @default(0) @map("customer_paid") @db.Decimal(18, 2)
   providerCost      Decimal                @default(0) @map("provider_cost") @db.Decimal(18, 2)
   profit            Decimal                @default(0) @db.Decimal(18, 2)
+  /// eSIM snapshot. Null on retail and on orders created before this column.
+  catalogCurrency   String?                @map("catalog_currency") @db.Char(3)
+  catalogAmount     Decimal?               @map("catalog_amount") @db.Decimal(18, 2)
+  chargeCurrency    String?                @map("charge_currency") @db.Char(3)
+  chargeAmount      Decimal?               @map("charge_amount") @db.Decimal(18, 2)
+  costCurrency      String?                @map("cost_currency") @db.Char(3)
+  costAmount        Decimal?               @map("cost_amount") @db.Decimal(18, 4)
+  fxRateId          String?                @map("fx_rate_id") @db.Uuid
+  fxRateValue       Decimal?               @map("fx_rate") @db.Decimal(18, 8)
+  fxAsOf            DateTime?              @map("fx_as_of") @db.Timestamptz(6)
+  esimMarket        String?                @map("esim_market") @db.VarChar(8)
+  pricingLockedAt   DateTime?              @map("pricing_locked_at") @db.Timestamptz(6)
   paymentStatus     OrderPaymentStatus     @default(WAITING_PAYMENT) @map("payment_status")
   fulfillmentStatus FulfillmentStatus      @default(PENDING) @map("fulfillment_status")
   paymentId         String?                @unique @map("payment_id") @db.Uuid
@@ -1402,6 +1522,7 @@ model Order {
   deletedAt         DateTime?              @map("deleted_at") @db.Timestamptz(6)
 
   financialTransaction FinancialTransaction? @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  fxRate               FxRate?               @relation(fields: [fxRateId], references: [id], onDelete: Restrict)
   user                 User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
   agent                Agent?                @relation(fields: [agentId], references: [id], onDelete: SetNull)
   activePayment        Payment?              @relation("OrderActivePayment", fields: [paymentId], references: [id], onDelete: Restrict)
@@ -1479,10 +1600,22 @@ model EsimOrderQuote {
   providerProductCode String           @map("provider_product_code") @db.VarChar(128)
   providerCost        Decimal          @map("provider_cost") @db.Decimal(18, 2)
   providerMode        EsimProviderMode @map("provider_mode")
+  catalogCurrency     String?          @map("catalog_currency") @db.Char(3)
+  catalogUnitAmount   Decimal?         @map("catalog_unit_amount") @db.Decimal(18, 2)
+  costCurrency        String?          @map("cost_currency") @db.Char(3)
+  costAmount          Decimal?         @map("cost_amount") @db.Decimal(18, 4)
+  chargeCurrency      String?          @map("charge_currency") @db.Char(3)
+  chargeAmount        Decimal?         @map("charge_amount") @db.Decimal(18, 2)
+  fxRateId            String?          @map("fx_rate_id") @db.Uuid
+  fxRateValue         Decimal?         @map("fx_rate") @db.Decimal(18, 8)
+  fxAsOf              DateTime?        @map("fx_as_of") @db.Timestamptz(6)
+  displayCurrency     String?          @map("display_currency") @db.Char(3)
+  snapshotAt          DateTime?        @map("snapshot_at") @db.Timestamptz(6)
   createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
   orderItem OrderItem             @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
   provider  Provider              @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  fxRate    FxRate?               @relation(fields: [fxRateId], references: [id], onDelete: Restrict)
   attempts  EsimProviderAttempt[]
 
   @@index([providerId])
@@ -1840,6 +1973,95 @@ model WebhookLog {
   @@map("webhook_logs")
 }
 
+/// F3: PayPal Activity Download CSV import batch (eSIM fee reconciliation).
+model PaypalReportImport {
+  id               String                   @id @default(uuid()) @db.Uuid
+  source           PaypalReportImportSource @default(CSV)
+  format           PaypalReportFormat       @default(ACTIVITY_DOWNLOAD)
+  periodFrom       DateTime?                @map("period_from") @db.Timestamptz(6)
+  periodTo         DateTime?                @map("period_to") @db.Timestamptz(6)
+  originalFilename String                   @map("original_filename") @db.VarChar(255)
+  fileHash         String                   @unique @map("file_hash") @db.VarChar(64)
+  fileContent      Bytes?                   @map("file_content")
+  rowCount         Int                      @default(0) @map("row_count")
+  saleCount        Int                      @default(0) @map("sale_count")
+  nonSaleCount     Int                      @default(0) @map("non_sale_count")
+  status           PaypalReportImportStatus @default(PARSED)
+  errorSummary     String?                  @map("error_summary") @db.VarChar(1024)
+  headerJson       Json                     @default("[]") @map("header_json")
+  headerProvisional Boolean                 @default(true) @map("header_provisional")
+  importedBy       String                   @map("imported_by") @db.Uuid
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  lines   PaypalReportLine[]
+  matches PaypalFeeMatch[]
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("paypal_report_imports")
+}
+
+model PaypalReportLine {
+  id                String               @id @default(uuid()) @db.Uuid
+  importId          String               @map("import_id") @db.Uuid
+  kind              PaypalReportLineKind
+  paypalTxnId       String               @map("paypal_txn_id") @db.VarChar(64)
+  paypalReferenceId String?              @map("paypal_reference_id") @db.VarChar(64)
+  customId          String?              @map("custom_id") @db.VarChar(256)
+  invoiceId         String?              @map("invoice_id") @db.VarChar(128)
+  gross             Decimal              @db.Decimal(18, 2)
+  fee               Decimal              @db.Decimal(18, 2)
+  net               Decimal              @db.Decimal(18, 2)
+  currency          String               @db.Char(3)
+  txnEventCode      String?              @map("txn_event_code") @db.VarChar(16)
+  statusRaw         String?              @map("status_raw") @db.VarChar(64)
+  typeRaw           String?              @map("type_raw") @db.VarChar(128)
+  balanceImpact     String?              @map("balance_impact") @db.VarChar(32)
+  bookedAt          DateTime?            @map("booked_at") @db.Timestamptz(6)
+  rawJson           Json                 @default("{}") @map("raw_json")
+  createdAt         DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  import  PaypalReportImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  matches PaypalFeeMatch[]
+
+  @@unique([importId, paypalTxnId, kind])
+  @@index([paypalTxnId])
+  @@index([customId])
+  @@index([kind])
+  @@map("paypal_report_lines")
+}
+
+model PaypalFeeMatch {
+  id           String               @id @default(uuid()) @db.Uuid
+  paymentId    String?              @map("payment_id") @db.Uuid
+  reportLineId String?              @map("report_line_id") @db.Uuid
+  importId     String               @map("import_id") @db.Uuid
+  matchStatus  PaypalFeeMatchStatus @map("match_status")
+  matchType    PaypalFeeMatchType   @default(AUTO) @map("match_type")
+  isActive     Boolean              @default(true) @map("is_active")
+  grossCardon  Decimal?             @map("gross_cardon") @db.Decimal(18, 2)
+  grossPaypal  Decimal?             @map("gross_paypal") @db.Decimal(18, 2)
+  feeEstimated Decimal?             @map("fee_estimated") @db.Decimal(18, 2)
+  feeActual    Decimal?             @map("fee_actual") @db.Decimal(18, 2)
+  netPaypal    Decimal?             @map("net_paypal") @db.Decimal(18, 2)
+  grossDelta   Decimal?             @map("gross_delta") @db.Decimal(18, 2)
+  feeDelta     Decimal?             @map("fee_delta") @db.Decimal(18, 2)
+  currency     String               @db.Char(3)
+  actorId      String?              @map("actor_id") @db.Uuid
+  note         String?              @db.VarChar(512)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payment    Payment?            @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  reportLine PaypalReportLine?   @relation(fields: [reportLineId], references: [id], onDelete: Restrict)
+  import     PaypalReportImport  @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId, isActive])
+  @@index([matchStatus])
+  @@index([importId])
+  @@map("paypal_fee_matches")
+}
+
 // =============================================================================
 // SYSTEM
 // =============================================================================
@@ -2146,10 +2368,12 @@ model CmsPage {
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  author      User         @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  categoryRel CmsCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  seo         CmsSeo?
-  pageTags    CmsPageTag[]
+  author          User                  @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  categoryRel     CmsCategory?          @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  seo             CmsSeo?
+  pageTags        CmsPageTag[]
+  translations    CmsPageTranslation[]
+  seoTranslations CmsSeoTranslation[]
 
   @@index([categoryId])
   @@index([status, scheduledPublishAt])
@@ -2170,7 +2394,8 @@ model CmsCategory {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  pages CmsPage[]
+  pages        CmsPage[]
+  translations CmsCategoryTranslation[]
 
   @@map("cms_categories")
 }
@@ -2184,7 +2409,8 @@ model CmsTag {
   isHidden        Boolean  @default(false) @map("is_hidden")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  pageTags CmsPageTag[]
+  pageTags     CmsPageTag[]
+  translations CmsTagTranslation[]
 
   @@map("cms_tags")
 }
@@ -2240,6 +2466,89 @@ model CmsSeo {
   page CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
 
   @@map("cms_seo")
+}
+
+enum CmsContentLocale {
+  vi
+  en
+}
+
+/// Locale copy of a CMS page. The row on cms_pages stays the rollback source.
+model CmsPageTranslation {
+  id        String           @id @default(uuid()) @db.Uuid
+  pageId    String           @map("page_id") @db.Uuid
+  locale    CmsContentLocale
+  title     String           @db.VarChar(255)
+  excerpt   String?          @db.VarChar(512)
+  content   String           @db.Text
+  status    CmsPageStatus    @default(DRAFT)
+  createdAt DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  page CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@index([pageId, locale, status])
+  @@map("cms_page_translations")
+}
+
+/// Text SEO fields per locale. Images, robots and structured data stay on cms_seo.
+model CmsSeoTranslation {
+  id              String           @id @default(uuid()) @db.Uuid
+  pageId          String           @map("page_id") @db.Uuid
+  locale          CmsContentLocale
+  metaTitle       String           @map("meta_title") @db.VarChar(128)
+  metaDescription String           @map("meta_description") @db.VarChar(256)
+  metaKeywords    String?          @map("meta_keywords") @db.VarChar(256)
+  focusKeyword    String?          @map("focus_keyword") @db.VarChar(128)
+  ogTitle         String?          @map("og_title") @db.VarChar(128)
+  ogDescription   String?          @map("og_description") @db.VarChar(256)
+  canonicalUrl    String?          @map("canonical_url") @db.VarChar(512)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  page CmsPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@index([pageId, locale])
+  @@map("cms_seo_translations")
+}
+
+model CmsCategoryTranslation {
+  id              String           @id @default(uuid()) @db.Uuid
+  categoryId      String           @map("category_id") @db.Uuid
+  locale          CmsContentLocale
+  name            String           @db.VarChar(128)
+  description     String?          @db.VarChar(512)
+  intro           String?          @db.Text
+  metaTitle       String?          @map("meta_title") @db.VarChar(128)
+  metaDescription String?          @map("meta_description") @db.VarChar(256)
+  canonicalUrl    String?          @map("canonical_url") @db.VarChar(512)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  category CmsCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@index([categoryId, locale])
+  @@map("cms_category_translations")
+}
+
+model CmsTagTranslation {
+  id              String           @id @default(uuid()) @db.Uuid
+  tagId           String           @map("tag_id") @db.Uuid
+  locale          CmsContentLocale
+  name            String           @db.VarChar(128)
+  metaTitle       String?          @map("meta_title") @db.VarChar(128)
+  metaDescription String?          @map("meta_description") @db.VarChar(256)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tag CmsTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, locale])
+  @@index([tagId, locale])
+  @@map("cms_tag_translations")
 }
 
 model CmsBanner {

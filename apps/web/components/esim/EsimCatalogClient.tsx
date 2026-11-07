@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -22,30 +23,34 @@ import {
   foldEsimText,
 } from '@/lib/esim-browse';
 import type { EsimPreviewOffer } from '@/lib/esim-offers';
-import { formatVnd } from '@/lib/utils';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { EsimShelfPrice } from '@/components/esim/EsimShelfPrice';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import type { MessageKey } from '@/lib/i18n/messages';
 
 const FEATURE_TABS = [
-  { id: 'popular', label: 'Phổ biến' },
-  { id: 'price', label: 'Giá tốt' },
-  { id: 'data', label: 'Dung lượng' },
-  { id: 'duration', label: 'Thời gian dài' },
-] as const;
+  { id: 'popular', label: 'common.popular' },
+  { id: 'price', label: 'esim.price' },
+  { id: 'data', label: 'esim.data' },
+  { id: 'duration', label: 'esim.long' },
+] as const satisfies ReadonlyArray<{ id: string; label: MessageKey }>;
 
-const HERO_POINTS = [
-  { title: 'Nhiều điểm đến', text: 'Chọn quốc gia cho chuyến đi', icon: <GlobeIcon /> },
-  { title: 'Dữ liệu khi đi nước ngoài', text: 'Kết nối ngay khi đến nơi', icon: <SignalIcon /> },
-  { title: 'Kích hoạt dễ dàng', text: 'Cài eSIM bằng mã QR', icon: <QrIcon /> },
-  { title: 'Hỗ trợ tiếng Việt', text: 'CardOn hỗ trợ bằng tiếng Việt', icon: <ChatIcon /> },
-] as const;
+const HERO_POINTS: Array<{ title: MessageKey; icon: ReactNode }> = [
+  { title: 'esim.manyDest', icon: <GlobeIcon /> },
+  { title: 'esim.dataAbroad', icon: <SignalIcon /> },
+  { title: 'esim.easy', icon: <QrIcon /> },
+  { title: 'hub.viSupport', icon: <ChatIcon /> },
+];
 
-const REASONS = [
-  { title: 'Kích hoạt dễ dàng', text: 'Thanh toán xong, mã cài nằm trong tài khoản. Quét mã là dùng, không cần ra quầy đổi SIM.', icon: <QrIcon /> },
-  { title: 'Giữ số Việt Nam', text: 'SIM chính vẫn nhận cuộc gọi và OTP. Gói eSIM chỉ dùng cho dữ liệu ở nước đến.', icon: <PhoneIcon /> },
-  { title: 'Chọn đúng chuyến đi', text: 'So sánh dung lượng, số ngày và giá trên cùng một màn trước khi thanh toán.', icon: <SignalIcon /> },
-  { title: 'Hỗ trợ tiếng Việt', text: 'Gọi hotline, gửi email hoặc mở ticket. CardOn làm việc 08:00–22:00, thứ Hai đến Chủ nhật.', icon: <ChatIcon /> },
-] as const;
+const REASONS: Array<{ title: MessageKey; text: MessageKey; icon: ReactNode }> = [
+  { title: 'esim.easy', text: 'esim.easyBody', icon: <QrIcon /> },
+  { title: 'esim.keepNumber', text: 'esim.keepNumberBody', icon: <PhoneIcon /> },
+  { title: 'esim.pickTrip', text: 'esim.pickTripBody', icon: <SignalIcon /> },
+  { title: 'hub.viSupport', text: 'esim.supportHours', icon: <ChatIcon /> },
+];
 
 export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { homeBackgrounds } = useThemeSettings();
@@ -85,20 +90,20 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
       <StorefrontHero
         variant="hub"
         backgroundUrl={homeBackgrounds.hubHeroEsimBg}
-        title="eSIM du lịch quốc tế"
-        subtitle="Kết nối mọi hành trình. Chọn quốc gia, rồi chọn gói dữ liệu."
+        title={t('esim.heroTitle')}
+        subtitle={t('esim.heroBody')}
         headingLevel="h1"
         search={{
           id: 'esim-hero-search',
           value: query,
-          placeholder: 'Bạn sắp đi đâu? Tìm quốc gia hoặc khu vực',
-          label: 'Tìm quốc gia hoặc khu vực',
+          placeholder: t('esim.searchPh'),
+          label: t('esim.searchLabel'),
           onChange: setQuery,
           onSubmit: onSearch,
         }}
         belowSearch={
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className="shrink-0 font-bold text-[#07142b]">Phổ biến:</span>
+            <span className="shrink-0 font-bold text-[#07142b]">{t('common.popular')}:</span>
             <div className="esim-chip-rail min-w-0 flex-1">
               {countries.map((country) => (
                 <Link
@@ -121,7 +126,7 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
               className="inline-flex w-full items-center gap-2 rounded-full border border-white bg-white px-3.5 py-2 text-sm font-semibold leading-none text-cardon-navy shadow-sm"
             >
               <span className="text-cardon-blue [&_svg]:h-[18px] [&_svg]:w-[18px]">{item.icon}</span>
-              {item.title}
+              {t(item.title)}
             </li>
           ))}
         </ul>
@@ -133,8 +138,8 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
 
         <section>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Điểm đến phổ biến</h2>
-            <Link href="/esim/diem-den" className="text-sm font-semibold text-cardon-blue hover:underline">Xem tất cả →</Link>
+            <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.popularDest')}</h2>
+            <Link href="/esim/diem-den" className="text-sm font-semibold text-cardon-blue hover:underline">{t('common.viewAll')} →</Link>
           </div>
           {/* Mobile: 2-col horizontal slide; desktop: full grid */}
           <div className="esim-slide esim-slide-2col mt-4 max-sm:flex sm:grid sm:grid-cols-3 sm:gap-2.5 sm:overflow-visible lg:grid-cols-5">
@@ -175,7 +180,7 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
         <ExploreDestinations countries={countries} offers={offers} />
 
         <section>
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Gói eSIM nổi bật</h2>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.featured')}</h2>
           <div className="esim-chip-rail mt-3">
             {FEATURE_TABS.map((item) => (
               <button
@@ -184,7 +189,7 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
                 onClick={() => setFeature(item.id)}
                 className={`h-10 rounded-full px-4 text-sm font-semibold transition-all duration-200 ${feature === item.id ? 'bg-cardon-blue text-white' : 'border border-gray-100 bg-white text-cardon-navy hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md'}`}
               >
-                {item.label}
+                {t(item.label)}
               </button>
             ))}
           </div>
@@ -198,21 +203,23 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
                   <span className="rounded-full bg-[#e7f0ff] px-2 py-0.5 text-[11px] font-semibold text-cardon-blue">eSIM</span>
                   <Link href={countryPlansHref(offer.countryIso)} className="inline-flex min-w-0 items-center gap-1 text-[11px] font-semibold text-cardon-blue">
                     <span className="[&_svg]:h-3.5 [&_svg]:w-3.5"><SignalIcon /></span>
-                    <span className="truncate">Phủ sóng</span>
+                    <span className="truncate">{t('esim.coverage')}</span>
                   </Link>
                 </div>
                 <h3 className="mt-3 text-sm font-bold leading-tight text-cardon-navy sm:text-base md:text-lg">
                   {offer.dataLabel} / {offer.durationLabel}
                 </h3>
                 <dl className="mt-3 grid grid-cols-1 gap-1 text-[11px] sm:grid-cols-3">
-                  <Spec label="Dung lượng" value={offer.dataLabel} />
-                  <Spec label="Thời hạn" value={offer.durationLabel} />
-                  <Spec label="Tốc độ" value={offer.speedLabel || 'Theo gói'} />
+                  <Spec label={t('esim.data')} value={offer.dataLabel} />
+                  <Spec label={t('esim.duration')} value={offer.durationLabel} />
+                  <Spec label={t('esim.speed')} value={offer.speedLabel || t('esim.speedFallback')} />
                 </dl>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="min-w-0 text-base font-bold leading-tight text-cardon-blue md:text-lg">{formatVnd(offer.sellPriceVnd)}</p>
+                  <p className="min-w-0 text-base font-bold leading-tight text-cardon-blue md:text-lg">
+                    <EsimShelfPrice sellPriceVnd={offer.sellPriceVnd} chargeCurrency={offer.chargeCurrency} chargeAmount={offer.chargeAmount} />
+                  </p>
                   <Link href={`/esim/${offer.id}`} className="inline-flex h-9 items-center justify-center rounded-lg bg-cardon-blue px-3 text-xs font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy">
-                    {result.ok && result.salesOpen ? 'Chọn gói' : 'Xem gói'}
+                    {result.ok && result.salesOpen ? t('esim.choose') : t('home.viewPlans')}
                   </Link>
                 </div>
               </article>
@@ -221,7 +228,7 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
         </section>
 
         <section>
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Vì sao chọn eSIM tại CardOn?</h2>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.why')}</h2>
           <ul className="esim-slide esim-slide-2col mt-4 max-sm:flex sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible lg:grid-cols-4">
             {REASONS.map((item) => (
               <li
@@ -230,31 +237,27 @@ export function EsimCatalogClient({ result }: { result: EsimOfferResult }) {
               >
                 <div className="flex items-center gap-2.5 sm:gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e7f0ff] text-cardon-blue sm:h-10 sm:w-10">{item.icon}</span>
-                  <h3 className="text-sm font-bold leading-snug text-cardon-navy sm:text-base">{item.title}</h3>
+                  <h3 className="text-sm font-bold leading-snug text-cardon-navy sm:text-base">{t(item.title)}</h3>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-cardon-gray sm:text-sm">{item.text}</p>
+                <p className="mt-2 text-xs leading-relaxed text-cardon-gray sm:text-sm">{t(item.text)}</p>
               </li>
             ))}
           </ul>
         </section>
 
         <section className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:rounded-3xl sm:p-5 md:p-6">
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">eSIM là gì?</h2>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.whatTitle')}</h2>
           <div className="mt-3 max-w-3xl space-y-3 text-sm leading-relaxed text-cardon-gray">
-            <p>
-              eSIM là SIM điện tử gắn sẵn trong điện thoại. Bạn không nhận thẻ nhựa và không cần tháo SIM đang dùng. Sau khi mua gói, máy nhận một mã cài, thường là mã QR. Quét mã, đặt tên cho đường truyền rồi bật dữ liệu di động là có Internet ở nước đến.
-            </p>
-            <p>
-              Khi đi du lịch quốc tế, eSIM giúp dùng bản đồ, mạng xã hội và ứng dụng gọi ngay khi hạ cánh. SIM Việt Nam vẫn có thể mở để nhận cuộc gọi và mã OTP ngân hàng.
-            </p>
-            <h3 className="pt-1 text-base font-bold text-cardon-navy">Cách mua eSIM du lịch trên CardOn</h3>
+            <p>{t('esim.what1')}</p>
+            <p>{t('esim.what2')}</p>
+            <h3 className="pt-1 text-base font-bold text-cardon-navy">{t('esim.howTitle')}</h3>
             <ol className="list-decimal space-y-1 pl-5">
-              <li>Tìm quốc gia hoặc chọn một điểm đến.</li>
-              <li>So sánh dung lượng, số ngày và giá, rồi chọn một gói.</li>
-              <li>Đăng nhập và thanh toán.</li>
-              <li>Vào tài khoản để lấy mã cài và làm theo hướng dẫn trên máy.</li>
+              <li>{t('esim.how1')}</li>
+              <li>{t('esim.how2')}</li>
+              <li>{t('esim.how3')}</li>
+              <li>{t('esim.how4')}</li>
             </ol>
-            <p>Máy cần hỗ trợ eSIM. Nên cài khi còn WiFi, trước giờ bay.</p>
+            <p>{t('esim.howNote')}</p>
           </div>
         </section>
       </div>
@@ -289,6 +292,7 @@ function ExploreDestinations({
   offers: EsimPreviewOffer[];
 }) {
   const router = useRouter();
+  const t = useT();
   const [tab, setTab] = useState<'popular' | EsimRegion>('popular');
   const [data, setData] = useState('');
   const [days, setDays] = useState('');
@@ -308,8 +312,13 @@ function ExploreDestinations({
     });
     if (rows.length === 0) return [];
     if (folded && !foldEsimText(`${country.name} ${country.iso}`).includes(folded)) return [];
-    const fromPrice = Math.min(...rows.map((offer) => offer.sellPriceVnd));
-    return [{ ...country, fromPrice }];
+    const cheapest = rows.reduce((best, offer) => (offer.sellPriceVnd < best.sellPriceVnd ? offer : best));
+    return [{
+      ...country,
+      fromPrice: cheapest.sellPriceVnd,
+      fromChargeCurrency: cheapest.chargeCurrency ?? null,
+      fromChargeAmount: cheapest.chargeAmount ?? null,
+    }];
   });
   const shown = tab === 'popular' && !folded && !data && !days && !type
     ? limitPopularExplore(matched)
@@ -319,18 +328,23 @@ function ExploreDestinations({
   return (
     <section>
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Khám phá điểm đến</h2>
+        <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.explore')}</h2>
         <div className="esim-chip-rail sm:grid sm:grid-cols-3 sm:gap-2 sm:overflow-visible">
-          <FilterSelect label="Dung lượng" value={data} onChange={setData} options={dataOptions} />
-          <FilterSelect label="Thời hạn" value={days} onChange={setDays} options={dayOptions} />
-          <FilterSelect label="Loại gói" value={type} onChange={setType} options={PLAN_GROUPS.map((item) => item.label)} values={PLAN_GROUPS.map((item) => item.id)} />
+          <FilterSelect label={t('esim.data')} value={data} onChange={setData} options={dataOptions} />
+          <FilterSelect label={t('esim.duration')} value={days} onChange={setDays} options={dayOptions} />
+          <FilterSelect label={t('esim.planType')} value={type} onChange={setType} options={PLAN_GROUPS.map((item) => (item.id === 'Standard Fixed' ? t('esim.groupFixed') : item.label))} values={PLAN_GROUPS.map((item) => item.id)} />
         </div>
       </div>
       <div className="mt-3 space-y-3">
         <div className="esim-chip-rail">
-          <FilterChip active={tab === 'popular'} onClick={() => setTab('popular')} label="Phổ biến" />
+          <FilterChip active={tab === 'popular'} onClick={() => setTab('popular')} label={t('common.popular')} />
           {ESIM_REGIONS.map((item) => (
-            <FilterChip key={item.id} active={tab === item.id} onClick={() => setTab(item.id)} label={item.label} />
+            <FilterChip
+              key={item.id}
+              active={tab === item.id}
+              onClick={() => setTab(item.id)}
+              label={t(`esim.region.${item.id}` as MessageKey)}
+            />
           ))}
         </div>
         <form
@@ -341,12 +355,12 @@ function ExploreDestinations({
             router.push(next ? `/esim/diem-den?q=${encodeURIComponent(next)}` : '/esim/diem-den');
           }}
         >
-          <label className="sr-only" htmlFor="esim-explore-search">Tìm quốc gia</label>
+          <label className="sr-only" htmlFor="esim-explore-search">{t('esim.findCountry')}</label>
           <input
             id="esim-explore-search"
             value={q}
             onChange={(event) => setQ(event.target.value)}
-            placeholder="Tìm quốc gia..."
+            placeholder={t('esim.findCountryPh')}
             className="h-10 min-w-0 flex-1 rounded-xl border border-cardon-border bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-cardon-blue"
           />
           <button type="button" onClick={() => router.push('/esim/diem-den')} className="h-10 shrink-0 rounded-xl border border-cardon-border bg-white px-3 text-xs font-bold text-cardon-navy">
@@ -356,7 +370,7 @@ function ExploreDestinations({
       </div>
       {shown.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
-          Chưa có điểm đến khớp bộ lọc.
+          {t('esim.noDest')}
         </p>
       ) : (
         <>
@@ -370,7 +384,7 @@ function ExploreDestinations({
                   <EsimFlag iso={country.iso} className="h-8 w-8 sm:h-9 sm:w-9" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold leading-tight text-cardon-navy sm:text-base md:text-lg">{country.name}</span>
-                    <span className="mt-0.5 block truncate text-xs font-bold leading-tight text-cardon-blue sm:text-sm">Từ {formatVnd(country.fromPrice)}</span>
+                    <span className="mt-0.5 block truncate text-xs font-bold leading-tight text-cardon-blue sm:text-sm">{t('esim.fromPrice')} <EsimShelfPrice sellPriceVnd={country.fromPrice} chargeCurrency={country.fromChargeCurrency} chargeAmount={country.fromChargeAmount} /></span>
                   </span>
                   <span aria-hidden className="hidden text-cardon-gray sm:inline">›</span>
                 </Link>
@@ -380,7 +394,7 @@ function ExploreDestinations({
           {hiddenCount > 0 ? (
             <div className="mt-3 text-right">
               <Link href="/esim/diem-den" className="text-sm font-semibold text-cardon-blue hover:underline">
-                Xem tất cả {matched.length} điểm đến →
+                {t('common.viewAll')} ({matched.length}) →
               </Link>
             </div>
           ) : null}
@@ -403,6 +417,7 @@ function FilterSelect({
   options: string[];
   values?: string[];
 }) {
+  const t = useT();
   return (
     <label className="block w-[7.5rem] shrink-0 text-[11px] font-semibold text-cardon-gray sm:min-w-[7.5rem] sm:w-auto">
       {label}
@@ -411,7 +426,7 @@ function FilterSelect({
         onChange={(event) => onChange(event.target.value)}
         className="mt-1 h-9 w-full rounded-xl border border-cardon-border bg-white px-2 text-xs font-semibold text-cardon-navy"
       >
-        <option value="">Tất cả</option>
+        <option value="">{t('common.all')}</option>
         {options.map((option, index) => (
           <option key={option} value={values?.[index] ?? option}>{option}</option>
         ))}
@@ -429,11 +444,13 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
 }
 
 function ErrorBox({ message }: { message: string }) {
+  const t = useT();
+  const { locale } = useLocale();
   return (
     <div className="rounded-2xl border border-red-200 bg-white p-4">
-      <p className="text-sm text-red-600">{message}</p>
+      <p className="text-sm text-red-600">{customerFacingError(locale, new Error(message))}</p>
       <button type="button" onClick={() => window.location.reload()} className="mt-3 h-11 rounded-xl bg-cardon-blue px-4 text-sm font-semibold text-white">
-        Thử lại
+        {t('esim.retry')}
       </button>
     </div>
   );

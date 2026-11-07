@@ -162,6 +162,19 @@ export class AgentApiRepository {
     });
   }
 
+  /** Atomic HOLD → next. count=0 means another worker already settled this hold. */
+  claimFinancialTransactionStatus(
+    id: string,
+    from: FinancialTransactionStatus,
+    to: FinancialTransactionStatus,
+    tx: Prisma.TransactionClient,
+  ) {
+    return tx.financialTransaction.updateMany({
+      where: { id, status: from, deletedAt: null },
+      data: { status: to },
+    });
+  }
+
   markOrderFailed(orderId: string, tx?: Prisma.TransactionClient) {
     const client = tx ?? this.prisma;
     return client.order.update({

@@ -20,7 +20,64 @@ export const CMS_THEME_SETTING_KEYS = {
   COMPANY_INFO: 'cms.theme.company_info',
   CONTACT_CHANNELS: 'cms.theme.contact_channels',
   MOBILE_NAV: 'cms.theme.mobile_nav',
+  HOME_BACKGROUNDS: 'cms.theme.home_backgrounds',
 } as const;
+
+/** Optional CMS overrides for decorative homepage/footer/hub heroes. Empty string = bundled default. */
+export interface CmsHomeBackgrounds {
+  homeHeroBg?: string;
+  homeCategoryGameBg?: string;
+  homeCategoryPhoneCardBg?: string;
+  homeCategoryTopupBg?: string;
+  homeCategoryEsimBg?: string;
+  hubHeroGameBg?: string;
+  hubHeroPhoneBg?: string;
+  hubHeroTopupBg?: string;
+  hubHeroEsimBg?: string;
+  siteFooterBg?: string;
+}
+
+export const CMS_HOME_BACKGROUND_KEYS = [
+  'homeHeroBg',
+  'homeCategoryGameBg',
+  'homeCategoryPhoneCardBg',
+  'homeCategoryTopupBg',
+  'homeCategoryEsimBg',
+  'hubHeroGameBg',
+  'hubHeroPhoneBg',
+  'hubHeroTopupBg',
+  'hubHeroEsimBg',
+  'siteFooterBg',
+] as const;
+
+export type CmsHomeBackgroundKey = (typeof CMS_HOME_BACKGROUND_KEYS)[number];
+
+/** Accept only same-origin media paths. Empty means “use the safe default”. */
+export function sanitizeHomeBackgrounds(
+  input: CmsHomeBackgrounds | undefined,
+): Record<CmsHomeBackgroundKey, string> {
+  const source = input ?? {};
+  const next = {} as Record<CmsHomeBackgroundKey, string>;
+  for (const key of CMS_HOME_BACKGROUND_KEYS) {
+    const raw = (source[key] ?? '').trim();
+    if (!raw) {
+      next[key] = '';
+      continue;
+    }
+    if (
+      raw.length > 512 ||
+      raw.includes('..') ||
+      raw.includes('\\') ||
+      raw.includes('?') ||
+      raw.includes('#') ||
+      !/^\/(uploads|images)\/[A-Za-z0-9._~/-]+$/.test(raw)
+    ) {
+      throw new Error(`INVALID_HOME_BACKGROUND:${key}`);
+    }
+    next[key] = raw;
+  }
+  return next;
+}
 
 export const CMS_BLOG_LIST_DEFAULT_TAKE = 20;
 export const CMS_BLOG_LIST_MAX_TAKE = 100;

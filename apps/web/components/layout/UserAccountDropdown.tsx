@@ -5,19 +5,22 @@ import { useEffect, useRef, useState } from 'react';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import { useAuth } from '@/hooks/useAuth';
 import { isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
+import { useT } from '@/components/i18n/LocaleProvider';
+import type { MessageKey } from '@/lib/i18n/messages';
 
-const MENU = [
-  { href: ACCOUNT_PATHS.profile, label: 'Thông tin tài khoản' },
-  { href: ACCOUNT_PATHS.orders, label: 'Lịch sử giao dịch' },
-  { href: ACCOUNT_PATHS.cards, label: 'Mã thẻ đã mua' },
-  { href: ACCOUNT_PATHS.esim, label: 'eSIM' },
-  { href: ACCOUNT_PATHS.topups, label: 'Nạp cước' },
-  { href: ACCOUNT_PATHS.data, label: 'Nạp Data', requiresData: true },
-  { href: ACCOUNT_PATHS.password, label: 'Bảo mật' },
+const MENU: Array<{ href: string; label: MessageKey; requiresData?: boolean }> = [
+  { href: ACCOUNT_PATHS.profile, label: 'account.profile' },
+  { href: ACCOUNT_PATHS.orders, label: 'account.orders' },
+  { href: ACCOUNT_PATHS.cards, label: 'account.cards' },
+  { href: ACCOUNT_PATHS.esim, label: 'account.esim' },
+  { href: ACCOUNT_PATHS.topups, label: 'account.topups' },
+  { href: ACCOUNT_PATHS.data, label: 'account.data', requiresData: true },
+  { href: ACCOUNT_PATHS.password, label: 'account.password' },
 ];
 
 export function UserAccountDropdown() {
   const { user, logout } = useAuth();
+  const t = useT();
   const siteConfig = useSiteConfig();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -64,7 +67,7 @@ export function UserAccountDropdown() {
               className="block px-4 py-2.5 text-sm text-cardon-navy hover:bg-cardon-light"
               onClick={() => setOpen(false)}
             >
-              {item.label}
+              {t(item.label)}
             </Link>
           ))}
           <button
@@ -75,7 +78,7 @@ export function UserAccountDropdown() {
               logout();
             }}
           >
-            Đăng xuất
+            {t('nav.logout')}
           </button>
         </div>
       )}

@@ -14,7 +14,7 @@ export type FulfillmentStatus =
   | 'FAILED'
   | 'WAITING_ADMIN_RETRY';
 
-export type PaymentGatewayCode = 'MEGAPAY' | 'SEPAY';
+export type PaymentGatewayCode = 'MEGAPAY' | 'SEPAY' | 'PAYPAL';
 
 export type PaymentRecordStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'EXPIRED';
 
@@ -79,6 +79,9 @@ export interface Product {
     homeService?: HomeServiceType | null;
   };
   homeService?: HomeServiceType | null;
+  retailMarket?: 'VN' | 'INTL';
+  marketSupported?: boolean;
+  marketNotice?: string | null;
   variants?: ProductVariant[];
 }
 
@@ -115,8 +118,8 @@ export interface Order {
   paymentFeeFixed: string;
   paymentFeeAmount: string;
   customerPaid: string;
-  providerCost: string;
-  profit: string;
+  providerCost?: string;
+  profit?: string;
   paymentStatus: OrderPaymentStatus;
   fulfillmentStatus: FulfillmentStatus;
   customerStatus?: string;
@@ -267,6 +270,12 @@ export interface AuthResult {
   user: AuthUser;
 }
 
+export interface RegisterPendingResult {
+  requiresEmailVerification: true;
+  email: string;
+  message: string;
+}
+
 export interface CreateOrderPayload {
   items: Array<{ variantId: string; quantity: number }>;
   guestEmail?: string;
@@ -275,12 +284,15 @@ export interface CreateOrderPayload {
   paymentMethodCode?: string;
   /** eSIM only: VN = SePay VND, INTL = PayPal USD */
   market?: 'VN' | 'INTL';
+  locale?: 'vi' | 'en';
   clientDeviceInfo?: Record<string, unknown>;
 }
 
 export interface CreatePaymentPayload {
   orderId: string;
   gateway: PaymentGatewayCode;
+  /** Required when paying a guest order. */
+  guestEmail?: string;
 }
 
 export interface AccountProfile {

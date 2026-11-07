@@ -96,9 +96,9 @@ export function renderHarnessHtml(): string {
         recoverBtn.hidden = !canRecover;
         recoverBtn.disabled = busy;
         recoverBtn.textContent = busy
-          ? 'Đang đọc Airalo…'
+          ? 'Đang đọc nhà cung cấp…'
           : hasAiralo
-            ? 'Đọc lại đơn Airalo'
+            ? 'Đọc lại đơn nhà cung cấp'
             : 'Chỉ đọc — không tạo eSIM mới';
         var revealBtn = document.getElementById('reveal');
         var secretEl = document.getElementById('secret-value');
@@ -108,7 +108,7 @@ export function renderHarnessHtml(): string {
           revealBtn.disabled = revealing;
           revealBtn.textContent = revealing ? 'Đang mở…' : revealed ? 'Ẩn mã' : 'Hiện mã cài';
         } else {
-          secretEl.textContent = hasAiralo ? 'Chưa có sims.qrcode' : 'Chưa có Airalo code';
+          secretEl.textContent = hasAiralo ? 'Chưa có mã cài' : 'Chưa có mã đơn NCC';
           revealBtn.hidden = true;
         }
       }
@@ -144,7 +144,7 @@ export function renderHarnessHtml(): string {
           busy = false;
           if (requested !== orderIdFromPath()) return;
           if (!result.ok || !result.payload || !result.payload.success) {
-            setText('error', readErrorMessage(result.payload) || 'Gọi lại Airalo thất bại', true);
+            setText('error', readErrorMessage(result.payload) || 'Đọc lại nhà cung cấp thất bại', true);
             render();
             return;
           }
@@ -152,8 +152,8 @@ export function renderHarnessHtml(): string {
           setText(
             'message',
             status === 'COMPLETED'
-              ? 'Đã lấy mã cài từ Airalo (GET /v2/orders/{code}?include=sims).'
-              : 'Đã đọc lại Airalo — ' + status + '. Không tạo eSIM mới. Chưa có LPA thì xem lỗi bên dưới.',
+              ? 'Đã lấy mã cài từ nhà cung cấp.'
+              : 'Đã đọc lại nhà cung cấp — ' + status + '. Không tạo eSIM mới. Chưa có mã cài thì xem lỗi bên dưới.',
             true,
           );
           return loadDetail();

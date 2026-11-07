@@ -46,8 +46,10 @@ import {
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
+  CreateFxRateDto,
 } from '../dto/settings.dto';
 import { SettingsAdminService } from '../services/settings-admin.service';
+import { FxRateService } from '../../fx/fx-rate.service';
 
 @Controller('admin/settings')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -57,7 +59,52 @@ export class SettingsAdminController {
     private readonly settingsAdminService: SettingsAdminService,
     private readonly activityDispatcher: ActivityEventDispatcher,
     private readonly settingsStore: SettingsStoreService,
+    private readonly fxRates: FxRateService,
   ) {}
+
+  @Get('fx-rates')
+  listFxRates() {
+    return this.fxRates.list();
+  }
+
+  @Post('fx-rates')
+  @Audit({ resource: SystemAuditResource.PRICING, action: SystemAuditAction.CREATE, resourceName: 'fx-rate' })
+  createFxRate(@Body() dto: CreateFxRateDto) {
+    return this.fxRates.createDraft(dto);
+  }
+
+  @Post('fx-rates/:id/publish')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  publishFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.publish(id, user.id);
+  }
+
+  @Post('fx-rates/:id/approve')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  approveFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.approve(id, user.id);
+  }
+
+  @Post('fx-rates/:id/reject')
+  @Audit({
+    resource: SystemAuditResource.PRICING,
+    action: SystemAuditAction.UPDATE,
+    resourceIdParam: 'id',
+    resourceName: 'fx-rate',
+  })
+  rejectFxRate(@CurrentUser() user: AuthenticatedUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.fxRates.reject(id, user.id);
+  }
 
   @Get('payment/megapay')
   getMegapay() {
@@ -280,6 +327,11 @@ export class SettingsAdminController {
     @Body() dto: UpdatePaymentPaypalDto,
   ) {
     return this.settingsAdminService.updatePaymentPaypal(user.id, dto);
+  }
+
+  @Post('payment/paypal/test-connection')
+  testPaypal(@CurrentUser() user: AuthenticatedUser) {
+    return this.settingsAdminService.testPaypalConnection(user.id);
   }
 
   @Post('provider/esale/test-connection')

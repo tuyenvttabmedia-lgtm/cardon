@@ -31,11 +31,17 @@ import {
 import { renderLpaQrSvg } from './esim-lpa-qr';
 import { ACTIVE_ORDER_WHERE } from '../order/entities/order.constants';
 import {
+  buildEsimFinanceRevenue,
+  exportEsimFinanceRevenueCsv,
+  type EsimFinanceRevenueReport,
+} from './esim-finance-revenue';
+import {
   buildEsimOpsDashboard,
   esimOpsLane,
   esimOpsRange,
   sanitizeEsimOpsAuditMetadata,
   type EsimOpsDashboardOrder,
+  type EsimOpsDashboardPayment,
 } from './esim-ops-dashboard';
 
 /** Manual QUERY claim close. Not a provider retry. */
@@ -282,17 +288,77 @@ export class EsimAdminService {
     };
   }
 
-  async getOpsDashboard(query: { preset?: string; from?: string; to?: string }) {
+  async getOpsDashboard(query: {
+    preset?: string;
+    from?: string;
+    to?: string;
+    market?: 'VN' | 'INTL';
+    currency?: 'VND' | 'USD';
+    gateway?: 'PAYPAL' | 'SEPAY';
+    paymentStatus?: OrderPaymentStatus;
+  }) {
+    const loaded = await this.loadEsimRevenueInputs(query);
+    return buildEsimOpsDashboard({
+      range: loaded.range,
+      ordersCreated: loaded.ordersCreated,
+      paymentOrders: loaded.paymentOrders,
+      successPayments: loaded.successPayments,
+      packages: loaded.packages,
+    });
+  }
+
+  /** F1 Finance lane — same SUCCESS revenue inputs as Ops dashboard. */
+  async getFinanceRevenue(query: {
+    preset?: string;
+    from?: string;
+    to?: string;
+    market?: 'VN' | 'INTL';
+    currency?: 'VND' | 'USD';
+    gateway?: 'PAYPAL' | 'SEPAY';
+  }): Promise<EsimFinanceRevenueReport> {
+    const loaded = await this.loadEsimRevenueInputs(query);
+    return buildEsimFinanceRevenue({
+      range: loaded.range,
+      orders: [...loaded.ordersCreated, ...loaded.paymentOrders],
+      successPayments: loaded.successPayments,
+    });
+  }
+
+  async exportFinanceRevenueCsv(query: {
+    preset?: string;
+    from?: string;
+    to?: string;
+    market?: 'VN' | 'INTL';
+    currency?: 'VND' | 'USD';
+    gateway?: 'PAYPAL' | 'SEPAY';
+  }): Promise<{ csv: string; report: EsimFinanceRevenueReport }> {
+    const report = await this.getFinanceRevenue(query);
+    return { csv: exportEsimFinanceRevenueCsv(report), report };
+  }
+
+  private async loadEsimRevenueInputs(query: {
+    preset?: string;
+    from?: string;
+    to?: string;
+    market?: 'VN' | 'INTL';
+    currency?: 'VND' | 'USD';
+    gateway?: 'PAYPAL' | 'SEPAY';
+    paymentStatus?: OrderPaymentStatus;
+  }) {
     let range: ReturnType<typeof esimOpsRange>;
     try {
       range = esimOpsRange(query);
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Invalid date range');
     }
-    const esimOrder = {
+    const esimOrder: Prisma.OrderWhereInput = {
       ...ACTIVE_ORDER_WHERE,
       channel: OrderChannel.B2C,
       orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+      ...(query.market ? { esimMarket: query.market } : {}),
+      ...(query.paymentStatus ? { paymentStatus: query.paymentStatus } : {}),
+      ...(query.gateway ? { paymentGateway: query.gateway } : {}),
+      ...(query.currency ? { chargeCurrency: query.currency } : {}),
     };
     const createdAt = { gte: range.from, lt: range.to };
     const paidAt = { gte: range.from, lt: range.to };
@@ -307,10 +373,13 @@ export class EsimAdminService {
           deletedAt: null,
           OR: [{ paidAt }, { paidAt: null, createdAt: paidAt }],
           order: esimOrder,
+          ...(query.gateway ? { gateway: query.gateway } : {}),
+          ...(query.currency ? { currency: query.currency } : {}),
         },
         select: {
           orderId: true,
           amount: true,
+          currency: true,
           gateway: true,
           paidAt: true,
           createdAt: true,
@@ -341,24 +410,26 @@ export class EsimAdminService {
           select: { providerPackageId: true, countryIso: true, title: true },
         })
       : [];
-    return buildEsimOpsDashboard({
+    const mappedPayments: EsimOpsDashboardPayment[] = successPayments.map((row) => ({
+      orderId: row.orderId,
+      amount: row.amount.toString(),
+      currency: row.currency,
+      gateway: String(row.gateway),
+      paidAt: row.paidAt,
+      createdAt: row.createdAt,
+    }));
+    return {
       range,
       ordersCreated: createdRows.map(toDashboardOrder),
       paymentOrders: paymentOrders.map(toDashboardOrder),
-      successPayments: successPayments.map((row) => ({
-        orderId: row.orderId,
-        amount: row.amount.toString(),
-        gateway: String(row.gateway),
-        paidAt: row.paidAt,
-        createdAt: row.createdAt,
-      })),
+      successPayments: mappedPayments,
       packages: new Map(
         packages.map((row) => [
           row.providerPackageId,
           { countryIso: row.countryIso, title: row.title },
         ]),
       ),
-    });
+    };
   }
 
   async listOps(query: {
@@ -369,9 +440,11 @@ export class EsimAdminService {
     from?: string;
     to?: string;
     lane?: 'commerce' | 'sandbox';
+    market?: 'VN' | 'INTL';
     paidUnfulfilled?: boolean;
     skip?: number;
     take?: number;
+    export?: boolean;
   }): Promise<{
     summary: {
       total: number;
@@ -395,19 +468,24 @@ export class EsimAdminService {
       fulfillmentStatus: string;
       paymentMethod: string | null;
       customerPaid: string;
+      esimMarket: string | null;
+      chargeCurrency: string | null;
+      chargeAmount: string | null;
+      countryIso: string | null;
       createdAt: string;
       lane: 'commerce' | 'sandbox';
       paidUnfulfilled: boolean;
       providerMode: string | null;
     }>;
   }> {
-    const take = Math.min(100, Math.max(1, query.take ?? 20));
+    const take = Math.min(query.export ? 1000 : 100, Math.max(1, query.take ?? 20));
     const skip = Math.max(0, query.skip ?? 0);
     const and: Prisma.OrderWhereInput[] = [];
     const createdAt = esimOpsCreatedAtFilter(query);
     if (createdAt) and.push({ createdAt });
     const laneWhere = esimOpsLaneWhere(query.lane);
     if (laneWhere) and.push(laneWhere);
+    if (query.market) and.push({ esimMarket: query.market });
     if (query.paidUnfulfilled) {
       and.push({
         paymentStatus: OrderPaymentStatus.PAID,
@@ -456,6 +534,9 @@ export class EsimAdminService {
           fulfillmentStatus: true,
           createdAt: true,
           customerPaid: true,
+          esimMarket: true,
+          chargeCurrency: true,
+          chargeAmount: true,
           methodDisplayName: true,
           paymentMethodCode: true,
           guestEmail: true,
@@ -512,6 +593,21 @@ export class EsimAdminService {
       }
     }
 
+    const packageCodes = [
+      ...new Set(
+        rows
+          .map((order) => order.orderItems[0]?.esimQuote?.providerProductCode)
+          .filter((code): code is string => Boolean(code)),
+      ),
+    ];
+    const packages = packageCodes.length
+      ? await this.prisma.esimAiraloPackage.findMany({
+          where: { providerPackageId: { in: packageCodes } },
+          select: { providerPackageId: true, countryIso: true },
+        })
+      : [];
+    const countryByCode = new Map(packages.map((row) => [row.providerPackageId, row.countryIso]));
+
     return {
       summary: { total, paidWaiting, needReview, completed, unpaid },
       page: { skip, take, total: filteredTotal },
@@ -540,6 +636,10 @@ export class EsimAdminService {
           fulfillmentStatus: order.fulfillmentStatus,
           paymentMethod: order.methodDisplayName ?? order.paymentMethodCode,
           customerPaid: order.customerPaid.toString(),
+          esimMarket: order.esimMarket,
+          chargeCurrency: order.chargeCurrency,
+          chargeAmount: order.chargeAmount?.toString() ?? null,
+          countryIso: countryByCode.get(item?.esimQuote?.providerProductCode ?? '') ?? null,
           createdAt: order.createdAt.toISOString(),
           lane,
           paidUnfulfilled:
@@ -563,6 +663,17 @@ export class EsimAdminService {
         customerPaid: true,
         sellAmount: true,
         providerCost: true,
+        esimMarket: true,
+        catalogCurrency: true,
+        catalogAmount: true,
+        chargeCurrency: true,
+        chargeAmount: true,
+        costCurrency: true,
+        costAmount: true,
+        fxRateId: true,
+        fxRateValue: true,
+        fxAsOf: true,
+        pricingLockedAt: true,
         paymentFeeAmount: true,
         methodDisplayName: true,
         paymentMethodCode: true,
@@ -578,8 +689,11 @@ export class EsimAdminService {
             paymentReference: true,
             gateway: true,
             amount: true,
+            currency: true,
+            productLane: true,
             status: true,
             paidAt: true,
+            createdAt: true,
           },
         },
       },
@@ -630,12 +744,28 @@ export class EsimAdminService {
         paymentMethod: order.methodDisplayName ?? order.paymentMethodCode,
         paymentGateway: order.paymentGateway,
       },
+      snapshot: {
+        esimMarket: order.esimMarket,
+        catalogCurrency: order.catalogCurrency,
+        catalogAmount: order.catalogAmount?.toString() ?? null,
+        chargeCurrency: order.chargeCurrency,
+        chargeAmount: order.chargeAmount?.toString() ?? null,
+        costCurrency: order.costCurrency,
+        costAmount: order.costAmount?.toString() ?? null,
+        fxRateId: order.fxRateId,
+        fxRate: order.fxRateValue?.toString() ?? null,
+        fxAsOf: order.fxAsOf?.toISOString() ?? null,
+        pricingLockedAt: order.pricingLockedAt?.toISOString() ?? null,
+      },
       payments: order.payments.map((payment) => ({
         paymentReference: payment.paymentReference,
         gateway: payment.gateway,
         amount: payment.amount.toString(),
+        currency: payment.currency,
+        productLane: payment.productLane,
         status: payment.status,
         paidAt: payment.paidAt?.toISOString() ?? null,
+        createdAt: payment.createdAt.toISOString(),
       })),
       lastError,
       adminActions: adminActions.map((row) => ({
@@ -646,6 +776,154 @@ export class EsimAdminService {
         metadata: sanitizeEsimOpsAuditMetadata(row.metadata),
       })),
       ...ops,
+    };
+  }
+
+  async listPayments(query: {
+    q?: string;
+    gateway?: 'PAYPAL' | 'SEPAY';
+    currency?: 'VND' | 'USD';
+    status?: PaymentRecordStatus;
+    preset?: string;
+    from?: string;
+    to?: string;
+    skip?: number;
+    take?: number;
+  }) {
+    const take = Math.min(100, Math.max(1, query.take ?? 20));
+    const skip = Math.max(0, query.skip ?? 0);
+    const createdAt = esimOpsCreatedAtFilter(query);
+    const search = query.q?.trim();
+    const where: Prisma.PaymentWhereInput = {
+      deletedAt: null,
+      order: {
+        ...ACTIVE_ORDER_WHERE,
+        orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+      },
+      ...(query.gateway ? { gateway: query.gateway } : {}),
+      ...(query.currency ? { currency: query.currency } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(createdAt ? { createdAt } : {}),
+      ...(search
+        ? {
+            OR: [
+              { paymentReference: { contains: search, mode: 'insensitive' } },
+              { order: { orderCode: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.payment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        select: {
+          id: true,
+          paymentReference: true,
+          gateway: true,
+          amount: true,
+          currency: true,
+          productLane: true,
+          status: true,
+          fxRateId: true,
+          paidAt: true,
+          createdAt: true,
+          order: { select: { id: true, orderCode: true, esimMarket: true, chargeCurrency: true, chargeAmount: true } },
+        },
+      }),
+      this.prisma.payment.count({ where }),
+    ]);
+    return {
+      page: { skip, take, total },
+      items: rows.map((row) => ({
+        id: row.id,
+        paymentReference: row.paymentReference,
+        orderId: row.order.id,
+        orderCode: row.order.orderCode,
+        esimMarket: row.order.esimMarket,
+        gateway: row.gateway,
+        amount: row.amount.toString(),
+        currency: row.currency,
+        productLane: row.productLane,
+        status: row.status,
+        fxRateId: row.fxRateId,
+        chargeCurrency: row.order.chargeCurrency,
+        chargeAmount: row.order.chargeAmount?.toString() ?? null,
+        paidAt: row.paidAt?.toISOString() ?? null,
+        createdAt: row.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  async listAttempts(query: {
+    q?: string;
+    outcome?: string;
+    provider?: string;
+    skip?: number;
+    take?: number;
+  }) {
+    const take = Math.min(100, Math.max(1, query.take ?? 20));
+    const skip = Math.max(0, query.skip ?? 0);
+    const search = query.q?.trim();
+    const where: Prisma.EsimProviderAttemptWhereInput = {
+      ...(query.outcome ? { outcome: query.outcome as never } : {}),
+      ...(query.provider
+        ? { quote: { provider: { code: query.provider.trim().toUpperCase() } } }
+        : {}),
+      ...(search
+        ? { orderItem: { order: { orderCode: { contains: search, mode: 'insensitive' } } } }
+        : {}),
+    };
+    const [rows, total] = await Promise.all([
+      this.prisma.esimProviderAttempt.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take,
+        select: {
+          id: true,
+          operation: true,
+          outcome: true,
+          providerReference: true,
+          errorCode: true,
+          errorMessage: true,
+          safeRequestMeta: true,
+          safeResponseMeta: true,
+          createdAt: true,
+          completedAt: true,
+          orderItem: {
+            select: {
+              order: { select: { id: true, orderCode: true, paymentStatus: true, fulfillmentStatus: true } },
+            },
+          },
+          quote: { select: { provider: { select: { code: true, name: true } }, providerProductCode: true } },
+        },
+      }),
+      this.prisma.esimProviderAttempt.count({ where }),
+    ]);
+    return {
+      page: { skip, take, total },
+      items: rows.map((row) => ({
+        id: row.id,
+        orderId: row.orderItem.order.id,
+        orderCode: row.orderItem.order.orderCode,
+        paymentStatus: row.orderItem.order.paymentStatus,
+        fulfillmentStatus: row.orderItem.order.fulfillmentStatus,
+        providerCode: row.quote.provider.code,
+        providerName: row.quote.provider.name,
+        providerProductCode: row.quote.providerProductCode,
+        operation: row.operation,
+        outcome: row.outcome,
+        providerReference: row.providerReference,
+        errorCode: row.errorCode,
+        errorMessage: row.errorMessage,
+        requestMeta: sanitizeEsimOpsAuditMetadata(row.safeRequestMeta),
+        responseMeta: sanitizeEsimOpsAuditMetadata(row.safeResponseMeta),
+        createdAt: row.createdAt.toISOString(),
+        completedAt: row.completedAt?.toISOString() ?? null,
+      })),
     };
   }
 
@@ -755,6 +1033,11 @@ const esimDashboardOrderSelect = {
   clientTrace: true,
   providerCost: true,
   paymentFeeAmount: true,
+  esimMarket: true,
+  chargeCurrency: true,
+  chargeAmount: true,
+  costCurrency: true,
+  costAmount: true,
   orderItems: {
     where: { variant: { type: ProductVariantType.ESIM } },
     take: 1,
@@ -771,6 +1054,11 @@ function toDashboardOrder(row: {
   clientTrace: unknown;
   providerCost: { toString(): string };
   paymentFeeAmount: { toString(): string };
+  esimMarket: string | null;
+  chargeCurrency: string | null;
+  chargeAmount: { toString(): string } | null;
+  costCurrency: string | null;
+  costAmount: { toString(): string } | null;
   orderItems: Array<{
     esimQuote: { providerProductCode: string; providerMode: string } | null;
   }>;
@@ -785,6 +1073,11 @@ function toDashboardOrder(row: {
     clientTrace: row.clientTrace,
     providerCost: row.providerCost.toString(),
     paymentFeeAmount: row.paymentFeeAmount.toString(),
+    esimMarket: row.esimMarket,
+    chargeCurrency: row.chargeCurrency,
+    chargeAmount: row.chargeAmount?.toString() ?? null,
+    costCurrency: row.costCurrency,
+    costAmount: row.costAmount?.toString() ?? null,
   };
 }
 

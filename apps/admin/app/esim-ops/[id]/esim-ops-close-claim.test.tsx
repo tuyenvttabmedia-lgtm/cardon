@@ -18,6 +18,7 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: route.id }),
+  usePathname: () => `/esim-ops/${route.id}`,
 }));
 
 vi.mock('@/hooks/useAuth', () => ({
@@ -114,10 +115,10 @@ describe('Admin eSIM ops close QUERY claim UI', () => {
   it('does not send the close request until the admin confirms with a reason', async () => {
     const user = userEvent.setup();
     render(<EsimOpsDetailPage />);
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Đóng QUERY claim' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Đóng claim truy vấn' })).toBeTruthy());
     expect(closeClaim).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: 'Đóng QUERY claim' }));
+    await user.click(screen.getByRole('button', { name: 'Đóng claim truy vấn' }));
     expect((screen.getByRole('button', { name: 'Xác nhận đóng claim' }) as HTMLButtonElement).disabled).toBe(true);
     expect(closeClaim).not.toHaveBeenCalled();
 
@@ -125,15 +126,15 @@ describe('Admin eSIM ops close QUERY claim UI', () => {
     expect(closeClaim).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Xác nhận đóng claim' })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'Đóng QUERY claim' }));
-    await user.type(screen.getByPlaceholderText(/job QUERY_OPEN/), 'job QUERY_OPEN đã rời active');
+    await user.click(screen.getByRole('button', { name: 'Đóng claim truy vấn' }));
+    await user.type(screen.getByPlaceholderText(/job truy vấn/), 'job truy vấn đã rời hàng đợi');
     await user.click(screen.getByRole('button', { name: 'Xác nhận đóng claim' }));
 
     await waitFor(() => expect(closeClaim).toHaveBeenCalledTimes(1));
     expect(closeClaim).toHaveBeenCalledWith('order-lock', {
       queryAttemptId: 'query-1',
       createAttemptId: 'create-1',
-      reason: 'job QUERY_OPEN đã rời active',
+      reason: 'job truy vấn đã rời hàng đợi',
     });
   });
 
@@ -141,7 +142,7 @@ describe('Admin eSIM ops close QUERY claim UI', () => {
     auth.can = () => false;
     render(<EsimOpsDetailPage />);
     await waitFor(() => expect(getDetail).toHaveBeenCalled());
-    expect(screen.queryByRole('button', { name: 'Đóng QUERY claim' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Đóng claim truy vấn' })).toBeNull();
     expect(closeClaim).not.toHaveBeenCalled();
   });
 });

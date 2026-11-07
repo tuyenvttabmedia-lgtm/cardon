@@ -16,6 +16,10 @@ export default function TagsPage() {
   const [items, setItems] = useState<CmsTag[]>([]);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [locale, setLocale] = useState<'vi' | 'en'>('vi');
+  const [english, setEnglish] = useState({ name: '', metaTitle: '', metaDescription: '' });
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -30,6 +34,32 @@ export default function TagsPage() {
     void load();
   }, []);
 
+  async function saveEnglish() {
+    if (!editingId) {
+      setError('Lưu tag tiếng Việt trước khi thêm bản tiếng Anh.');
+      return;
+    }
+    if (!english.name.trim()) {
+      setError('Bản tiếng Anh cần tên tag.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await cmsAdminApi.saveTagTranslation(editingId, 'en', {
+        name: english.name.trim(),
+        metaTitle: english.metaTitle.trim() || undefined,
+        metaDescription: english.metaDescription.trim() || undefined,
+      });
+      setNotice('Đã lưu bản tiếng Anh.');
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function save() {
     const body = {
       name: form.name,
@@ -42,7 +72,10 @@ export default function TagsPage() {
       if (editingId) await cmsAdminApi.updateTag(editingId, body);
       else await cmsAdminApi.createTag(body);
       setForm(empty);
+      setEnglish({ name: '', metaTitle: '', metaDescription: '' });
+      setLocale('vi');
       setEditingId(null);
+      setNotice('Đã lưu tiếng Việt.');
       await load();
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
@@ -80,9 +113,38 @@ export default function TagsPage() {
         <h1 className="admin-page-title">Thẻ bài viết</h1>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}
+        {notice && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{notice}</p>}
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="space-y-3">
-            <h2 className="font-semibold">{editingId ? vi.app.edit : vi.app.create}</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold">{editingId ? vi.app.edit : vi.app.create}</h2>
+              <div className="flex gap-2">
+                <Button size="sm" variant={locale === 'vi' ? 'primary' : 'secondary'} onClick={() => setLocale('vi')}>Tiếng Việt</Button>
+                <Button size="sm" variant={locale === 'en' ? 'primary' : 'secondary'} onClick={() => setLocale('en')}>English</Button>
+              </div>
+            </div>
+            {locale === 'en' ? (
+              <>
+                {english.name ? null : (
+                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Chưa có bản dịch tiếng Anh.</p>
+                )}
+                <div>
+                  <Label>Tên tiếng Anh</Label>
+                  <Input className="mt-1" value={english.name} onChange={(e) => setEnglish((p) => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>SEO Title</Label>
+                  <Input className="mt-1" value={english.metaTitle} onChange={(e) => setEnglish((p) => ({ ...p, metaTitle: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>SEO Description</Label>
+                  <Input className="mt-1" value={english.metaDescription} onChange={(e) => setEnglish((p) => ({ ...p, metaDescription: e.target.value }))} />
+                </div>
+                <p className="text-xs text-slate-500">Slug dùng chung. Tag không có cột mô tả riêng và không có trạng thái nháp.</p>
+                <Button disabled={saving} onClick={() => void saveEnglish()}>{saving ? vi.app.loading : 'Lưu tiếng Anh'}</Button>
+              </>
+            ) : (
+            <>
             <div>
               <Label>Tên</Label>
               <Input
@@ -114,6 +176,8 @@ export default function TagsPage() {
               <Input className="mt-1" value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />
             </div>
             <Button onClick={() => void save()}>{vi.app.save}</Button>
+            </>
+            )}
           </Card>
           <Card>
             <h2 className="font-semibold">Danh sách</h2>
@@ -139,6 +203,13 @@ export default function TagsPage() {
                       variant="secondary"
                       onClick={() => {
                         setEditingId(t.id);
+                        setLocale('vi');
+                        const en = t.translations?.find((item) => item.locale === 'en');
+                        setEnglish({
+                          name: en?.name ?? '',
+                          metaTitle: en?.metaTitle ?? '',
+                          metaDescription: en?.metaDescription ?? '',
+                        });
                         setForm({
                           name: t.name,
                           slug: t.slug,

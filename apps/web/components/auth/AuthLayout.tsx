@@ -4,15 +4,18 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { isOptimizableImageSrc, optimizerImageSrc } from '@/lib/assets';
+import { useT } from '@/components/i18n/LocaleProvider';
+import type { MessageKey } from '@/lib/i18n/messages';
 
-const FEATURES = [
-  { icon: '⚡', title: 'Nhận mã thẻ tức thì', desc: 'Giao tự động sau thanh toán' },
-  { icon: '🔒', title: 'Thanh toán QR an toàn', desc: 'Chuyển khoản & QR bảo mật' },
-  { icon: '📋', title: 'Quản lý lịch sử giao dịch', desc: 'Tra cứu đơn hàng mọi lúc' },
+const FEATURES: Array<{ icon: string; title: MessageKey; desc: MessageKey }> = [
+  { icon: '⚡', title: 'auth.feature1Title', desc: 'auth.feature1Body' },
+  { icon: '🔒', title: 'auth.feature2Title', desc: 'auth.feature2Body' },
+  { icon: '📋', title: 'auth.feature3Title', desc: 'auth.feature3Body' },
 ];
 
 function AuthBrandPanel() {
   const { logoDesktop, logoMobile } = useThemeSettings();
+  const t = useT();
   const logoSrc = optimizerImageSrc(logoMobile || logoDesktop || '/images/cardon-icon.png') ?? '/images/cardon-icon.png';
 
   return (
@@ -29,15 +32,11 @@ function AuthBrandPanel() {
           quality={60}
           sizes="180px"
           className="h-11 w-auto max-w-[180px] object-contain object-left"
-          style={{ width: 'auto', height: 'auto' }}
+          style={{ width: 'auto' }}
           unoptimized={!isOptimizableImageSrc(logoSrc)}
         />
-        <h2 className="mt-8 text-2xl font-bold leading-snug">
-          Mua thẻ & nạp cước online nhanh chóng
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-white/80">
-          Hệ thống phân phối mã thẻ tự động, an toàn 24/7
-        </p>
+        <h2 className="mt-8 text-2xl font-bold leading-snug">{t('auth.heroTitle')}</h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/80">{t('auth.heroBody')}</p>
       </div>
 
       <ul className="relative z-10 mt-8 space-y-3">
@@ -50,8 +49,8 @@ function AuthBrandPanel() {
               {f.icon}
             </span>
             <div>
-              <p className="text-sm font-semibold">{f.title}</p>
-              <p className="text-xs text-white/70">{f.desc}</p>
+              <p className="text-sm font-semibold">{t(f.title)}</p>
+              <p className="text-xs text-white/70">{t(f.desc)}</p>
             </div>
           </li>
         ))}
@@ -67,7 +66,7 @@ function AuthBrandPanel() {
             <div className="h-2 w-full rounded-full bg-white/20" />
             <div className="h-2 w-3/4 rounded-full bg-white/15" />
           </div>
-          <p className="mt-3 text-[10px] text-white/60">Giao mã tức thì sau thanh toán</p>
+          <p className="mt-3 text-[10px] text-white/60">{t('auth.feature1Body')}</p>
           <span className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-cardon-orange text-sm shadow-lg">
             ✓
           </span>
@@ -111,7 +110,7 @@ export function AuthLayout({
                     quality={60}
                     sizes="140px"
                     className="h-9 w-auto max-w-[140px] object-contain"
-                    style={{ width: 'auto', height: 'auto' }}
+                    style={{ width: 'auto' }}
                     unoptimized={!isOptimizableImageSrc(logoSrc)}
                   />
                 </Link>

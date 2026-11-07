@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>eSIM dest gallery audit</title>
+  <style>
+    body { font-family: sans-serif; background:#111; color:#eee; margin:16px; }
+    h1 { font-size:18px; }
+    section { margin-bottom:28px; }
+    h2 { font-size:16px; margin:0 0 8px; }
+    .grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+    figure { margin:0; background:#222; }
+    img { width:100%; height:160px; object-fit:cover; display:block; }
+    figcaption { font-size:12px; padding:4px 6px; }
+  </style>
+</head>
+<body>
+  <h1>Audit gallery danh lam (localhost)</h1>
+  <div id="root"></div>
+  <script>
+    const KEYS = {
+      JP: ['jp','jp-2','jp-3','jp-4'],
+      KR: ['kr','kr-2','kr-3','kr-4'],
+      TH: ['th','th-2','th-3','th-4'],
+      CN: ['cn','cn-2','cn-3','cn-4'],
+      TW: ['tw','tw-2','tw-3','tw-4'],
+      SG: ['sg','sg-2','sg-3','sg-4'],
+      MY: ['my','my-2','my-3','my-4'],
+      ID: ['id','id-2','id-3','id-5'],
+      PH: ['ph','ph-2','ph-3','ph-4'],
+      HK: ['hk','hk-2','hk-3','hk-4'],
+      IN: ['in','in-2','in-3','in-6'],
+      KH: ['kh','kh-2','kh-3','kh-4'],
+      US: ['us','us-2','us-3','us-4'],
+      CA: ['ca','ca-2','ca-3','ca-4'],
+      GB: ['gb','gb-2','gb-3','gb-4'],
+      FR: ['fr','fr-2','fr-3','fr-4'],
+      DE: ['de','de-2','de-3','de-4'],
+      IT: ['it','it-2','it-3','it-4'],
+      ES: ['es','es-2','es-3','es-4'],
+      AU: ['au','au-2','au-4','au-3'],
+      NZ: ['nz','nz-2','nz-4','nz-5'],
+      AE: ['ae','ae-3','ae-4','ae-5'],
+      TR: ['tr','tr-2','tr-3','tr-4'],
+      NL: ['nl','nl-2','nl-3','nl-4'],
+      CH: ['ch','ch-2','ch-3','ch-4'],
+      AT: ['at','at-2','at-3','at-4'],
+      PT: ['pt','pt-2','pt-3','pt-4'],
+      GR: ['gr','gr-2','gr-3','gr-5'],
+      MV: ['mv','mv-2','mv-3','mv-4'],
+      EG: ['eg','eg-2','eg-4','eg-5'],
+      MX: ['mx','mx-3','mx-4','mx-6'],
+      LA: ['la','la-5','la-3','la-6'],
+      MO: ['mo','mo-2','mo-3','mo-4'],
+      BE: ['be','be-2','be-3','be-4'],
+      IE: ['ie','ie-2','ie-3','ie-5'],
+      CZ: ['cz','cz-2','cz-3','cz-4'],
+      QA: ['qa','qa-2','qa-3','qa-4'],
+      ASIA: ['asia','jp','th','sg'],
+      EUROPE: ['europe','gb','fr','it'],
+    };
+    const root = document.getElementById('root');
+    for (const [iso, keys] of Object.entries(KEYS)) {
+      const sec = document.createElement('section');
+      sec.innerHTML = `<h2 id="${iso}">${iso}</h2>`;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      for (const key of keys) {
+        const fig = document.createElement('figure');
+        fig.innerHTML = `<img src="images/esim/dest/${key}.jpg" alt="${key}"><figcaption>${key}</figcaption>`;
+        grid.appendChild(fig);
+      }
+      sec.appendChild(grid);
+      root.appendChild(sec);
+    }
+  </script>
+</body>
+</html>

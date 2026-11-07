@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { Button } from '@/components/ui/Button';
 import { ListPagination } from '@/components/ui/ListPagination';
+import { useDateTime, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { orderApi } from '@/services/api-client';
 import type { CardSummary } from '@/types/api';
 
@@ -23,6 +25,9 @@ export function CardDeliveryPanel({
   const [pins, setPins] = useState<Record<string, string>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const t = useT();
+  const { locale } = useLocale();
+  const formatWhen = useDateTime();
 
   const visibleCards = useMemo(
     () => cards.slice(skip, skip + take),
@@ -39,7 +44,7 @@ export function CardDeliveryPanel({
     } catch (err) {
       setErrors((prev) => ({
         ...prev,
-        [card.id]: err instanceof Error ? err.message : 'Không thể hiển thị mã',
+        [card.id]: customerFacingError(locale, err instanceof Error ? err : new Error(t('order.cannotShow'))),
       }));
     } finally {
       setLoadingId(null);
@@ -49,7 +54,7 @@ export function CardDeliveryPanel({
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-600">
-        Mã PIN được bảo vệ. Nhấn &quot;Xem mã&quot; để hiển thị — mọi lần xem đều được ghi nhận.
+        {t('order.pinProtected')}
       </p>
       {visibleCards.map((card) => {
         const pin = pins[card.id];
@@ -69,7 +74,7 @@ export function CardDeliveryPanel({
             </div>
             <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Mã thẻ</p>
+                <p className="text-xs uppercase tracking-wide text-gray-500">{t('order.card')}</p>
                 <p className="font-mono text-sm font-semibold">{pin ?? card.pinMasked}</p>
               </div>
               {!pin && (
@@ -79,7 +84,7 @@ export function CardDeliveryPanel({
                   onClick={() => void revealPin(card)}
                   disabled={loadingId === card.id}
                 >
-                  {loadingId === card.id ? 'Đang tải...' : 'Xem mã'}
+                  {loadingId === card.id ? t('common.loading') : t('order.viewCode')}
                 </Button>
               )}
               {pin && <CopyButton value={pin} label="Copy PIN" />}
@@ -89,7 +94,7 @@ export function CardDeliveryPanel({
             )}
             {revealed && card.pinFirstViewedAt && (
               <p className="mt-2 text-xs text-gray-500">
-                Lần xem đầu: {new Date(card.pinFirstViewedAt).toLocaleString('vi-VN')}
+                {t('order.firstView')}: {formatWhen(card.pinFirstViewedAt)}
               </p>
             )}
           </div>
@@ -102,7 +107,7 @@ export function CardDeliveryPanel({
         onPageChange={setSkip}
         onPageSizeChange={setTake}
         pageSizeOptions={CARD_PAGE_SIZES}
-        itemLabel="thẻ"
+        itemLabel={t('order.card')}
       />
     </div>
   );

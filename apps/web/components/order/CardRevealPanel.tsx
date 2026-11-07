@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { Button } from '@/components/ui/Button';
+import { useT } from '@/components/i18n/LocaleProvider';
 import type { DeliveredCard } from '@/types/api';
 
 export function CardRevealPanel({ cards }: { cards: DeliveredCard[] }) {
   const [visiblePins, setVisiblePins] = useState<Record<number, boolean>>({});
+  const t = useT();
 
   function togglePin(index: number) {
     setVisiblePins((prev) => ({ ...prev, [index]: !prev[index] }));
@@ -15,7 +17,7 @@ export function CardRevealPanel({ cards }: { cards: DeliveredCard[] }) {
   return (
     <div className="space-y-3">
       <p className="text-sm text-gray-600">
-        Mã PIN chỉ hiển thị sau khi thanh toán và giao thẻ thành công. Vui lòng bảo mật thông tin.
+        {t('order.pinAfterPay')}
       </p>
       {cards.map((card, index) => (
         <div
@@ -43,7 +45,7 @@ export function CardRevealPanel({ cards }: { cards: DeliveredCard[] }) {
                 size="sm"
                 onClick={() => togglePin(index)}
               >
-                {visiblePins[index] ? 'Ẩn PIN' : 'Hiện PIN'}
+                {visiblePins[index] ? t('order.hidePin') : t('order.showPin')}
               </Button>
               {card.pin && visiblePins[index] && (
                 <CopyButton value={card.pin} label="Copy PIN" />

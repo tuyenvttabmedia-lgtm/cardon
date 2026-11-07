@@ -14,15 +14,16 @@ const PG_API_URLS: Record<SepayPgEnvironment, string> = {
   production: 'https://pgapi.sepay.vn',
 };
 
+/** Must match SePay docs + eSIM signer. Form POST body order must match too. */
 const SIGNED_FIELD_ORDER = [
-  'merchant',
-  'operation',
-  'payment_method',
   'order_amount',
+  'merchant',
   'currency',
-  'order_invoice_number',
+  'operation',
   'order_description',
+  'order_invoice_number',
   'customer_id',
+  'payment_method',
   'success_url',
   'error_url',
   'cancel_url',
@@ -93,14 +94,14 @@ export async function querySepayPgOrder(params: {
   }
   const body = (await response.json()) as { data?: unknown };
   const rows = Array.isArray(body.data) ? body.data : [];
-  const match =
-    rows.find(
-      (row) =>
-        row &&
-        typeof row === 'object' &&
-        String((row as { order_invoice_number?: unknown }).order_invoice_number ?? '') ===
-          invoice,
-    ) ?? rows[0];
+  // Exact invoice only. Never fall back to rows[0] — that can settle the wrong payment.
+  const match = rows.find(
+    (row) =>
+      row &&
+      typeof row === 'object' &&
+      String((row as { order_invoice_number?: unknown }).order_invoice_number ?? '') ===
+        invoice,
+  );
   if (!match || typeof match !== 'object') {
     return { status: 'PENDING', raw: body };
   }
@@ -119,16 +120,21 @@ export async function querySepayPgOrder(params: {
   };
 }
 
+function isSepaySignedValueIncluded(value: string | number | undefined | null): boolean {
+  if (value === undefined || value === null) return false;
+  const text = String(value).trim();
+  return text !== '' && text !== '0';
+}
+
 export function signSepayPgFields(
   fields: Record<string, string | number | undefined>,
   secretKey: string,
 ): string {
   const signed: string[] = [];
   for (const field of SIGNED_FIELD_ORDER) {
-    if (!(field in fields)) continue;
     const value = fields[field];
-    if (value === undefined || value === null) continue;
-    signed.push(`${field}=${String(value)}`);
+    if (!isSepaySignedValueIncluded(value)) continue;
+    signed.push(`${field}=${String(value).trim()}`);
   }
   return createHmac('sha256', secretKey)
     .update(signed.join(','))
@@ -139,13 +145,13 @@ export function buildSepayPgCheckoutFields(
   params: SepayPgCheckoutParams,
 ): Record<string, string> {
   const baseFields: Record<string, string | number> = {
-    merchant: params.merchantId,
-    operation: 'PURCHASE',
-    payment_method: params.paymentMethod,
     order_amount: Math.round(params.orderAmount),
+    merchant: params.merchantId,
     currency: 'VND',
-    order_invoice_number: params.orderInvoiceNumber,
+    operation: 'PURCHASE',
     order_description: params.orderDescription,
+    order_invoice_number: params.orderInvoiceNumber,
+    payment_method: params.paymentMethod,
     success_url: params.successUrl,
     error_url: params.errorUrl,
     cancel_url: params.cancelUrl,
@@ -156,8 +162,10 @@ export function buildSepayPgCheckoutFields(
 
   const signature = signSepayPgFields(baseFields, params.merchantSecretKey);
   const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(baseFields)) {
-    result[key] = String(value);
+  for (const field of SIGNED_FIELD_ORDER) {
+    const value = baseFields[field];
+    if (!isSepaySignedValueIncluded(value)) continue;
+    result[field] = String(value).trim();
   }
   result.signature = signature;
   return result;

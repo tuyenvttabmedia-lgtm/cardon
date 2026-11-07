@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EsimAttemptOutcome, EsimProviderMode, FulfillmentStatus, OrderEventType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
+import { persistAdminTestFulfillmentSkip } from './esim-admin-test.rules';
 import { randomUUID } from 'crypto';
 
 export interface EsimQuoteRow {
@@ -21,6 +22,10 @@ export class EsimFulfillmentRepository {
   private readonly logger = new Logger(EsimFulfillmentRepository.name);
 
   constructor(private readonly prisma: PrismaService) {}
+
+  skipAdminTestFulfillment(orderId: string): Promise<boolean> {
+    return persistAdminTestFulfillmentSkip(this.prisma as never, orderId);
+  }
 
   findQuoteByOrderId(orderId: string): Promise<EsimQuoteRow | null> {
     return this.prisma.esimOrderQuote

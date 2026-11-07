@@ -1,7 +1,7 @@
 import { FulfillmentStatus, OrderPaymentStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { EsimOrderService } from './esim-order.service';
-import { esimOrderCreateLockPair, isReusableEsimOrder } from './esim-order-idempotency';
+import { ESIM_REUSE_MIN_REMAINING_MS, esimOrderCreateLockPair, isReusableEsimOrder } from './esim-order-idempotency';
 
 describe('eSIM order reuse rules', () => {
   const now = new Date('2026-10-26T08:00:00.000Z');
@@ -32,7 +32,20 @@ describe('eSIM order reuse rules', () => {
     ).toBe(false);
   });
 
-  it('reuses a paid order that is still processing or unconfirmed', () => {
+  it('does not reuse an unpaid order with less than two minutes left', () => {
+    expect(
+      isReusableEsimOrder(
+        {
+          paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+          fulfillmentStatus: FulfillmentStatus.PENDING,
+          paymentExpiresAt: new Date(now.getTime() + ESIM_REUSE_MIN_REMAINING_MS - 1),
+        },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it('reuses a paid order only while fulfillment is actively running', () => {
     expect(
       isReusableEsimOrder({
         paymentStatus: OrderPaymentStatus.PAID,
@@ -42,12 +55,30 @@ describe('eSIM order reuse rules', () => {
     expect(
       isReusableEsimOrder({
         paymentStatus: OrderPaymentStatus.PAID,
-        fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+        fulfillmentStatus: FulfillmentStatus.PROCESSING,
       }),
     ).toBe(true);
   });
 
-  it('does not reuse a completed paid order so a later repurchase can start', () => {
+  it('does not reuse stuck or finished paid orders so repurchase can start', () => {
+    expect(
+      isReusableEsimOrder({
+        paymentStatus: OrderPaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+      }),
+    ).toBe(false);
+    expect(
+      isReusableEsimOrder({
+        paymentStatus: OrderPaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      }),
+    ).toBe(false);
+    expect(
+      isReusableEsimOrder({
+        paymentStatus: OrderPaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.FAILED,
+      }),
+    ).toBe(false);
     expect(
       isReusableEsimOrder({
         paymentStatus: OrderPaymentStatus.PAID,
@@ -213,12 +244,36 @@ describe('EsimOrderService create reuse', () => {
       paymentExpiresAt: new Date(Date.now() - 60_000),
     };
     const store = { current: expired };
-    const { service, createWithTransaction } = harness(store);
+    const { service, createWithTransaction, quoteCreate } = harness(store);
     const created = await service.create(
       { items: [{ variantId: 'variant-1', quantity: 1 }], paymentMethodCode: 'SEPAY' } as never,
       customer as never,
     );
     expect(createWithTransaction).toHaveBeenCalledTimes(1);
+    const saved = createWithTransaction.mock.calls[0][1] as {
+      totalAmount: { toFixed(digits: number): string };
+      catalogCurrency: string;
+      catalogAmount: { toFixed(digits: number): string };
+      chargeCurrency: string;
+      chargeAmount: { toFixed(digits: number): string };
+      esimMarket: string;
+    };
+    expect(saved.totalAmount.toFixed(0)).toBe('100000');
+    expect(saved.catalogCurrency).toBe('VND');
+    expect(saved.catalogAmount.toFixed(0)).toBe('100000');
+    expect(saved.chargeCurrency).toBe('VND');
+    expect(saved.chargeAmount.toFixed(0)).toBe('100000');
+    expect(saved.esimMarket).toBe('VN');
+    expect(quoteCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          catalogCurrency: 'VND',
+          chargeCurrency: 'VND',
+          catalogUnitAmount: expect.anything(),
+          chargeAmount: expect.anything(),
+        }),
+      }),
+    );
     expect(created.id).toBe('order-new');
   });
 

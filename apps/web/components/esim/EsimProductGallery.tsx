@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { useT } from '@/components/i18n/LocaleProvider';
 
 export function EsimProductGallery({
   images,
@@ -10,6 +11,7 @@ export function EsimProductGallery({
   images: string[];
   country: string;
 }) {
+  const t = useT();
   const gallery = images.filter(Boolean);
   const [index, setIndex] = useState(0);
   const safeIndex = gallery.length === 0 ? 0 : Math.min(index, gallery.length - 1);
@@ -48,7 +50,7 @@ export function EsimProductGallery({
           <>
             <button
               type="button"
-              aria-label="Ảnh trước"
+              aria-label={t('esim.photoPrev')}
               onClick={() => go(-1)}
               className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-cardon-navy shadow"
             >
@@ -56,7 +58,7 @@ export function EsimProductGallery({
             </button>
             <button
               type="button"
-              aria-label="Ảnh sau"
+              aria-label={t('esim.photoNext')}
               onClick={() => go(1)}
               className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-lg font-bold text-cardon-navy shadow"
             >

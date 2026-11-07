@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useT } from '@/components/i18n/LocaleProvider';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
 import { fetchFaqsClient, type PublicFaqItem } from '@/lib/cms-api';
 
@@ -22,8 +23,12 @@ export function FaqSection({
   title = 'Câu hỏi thường gặp',
   showViewAll = false,
   viewAllHref = '/tro-giup',
+  viewAllPlacement = 'below',
+  layout = 'stack',
+  emptyText,
   className,
   initialItems,
+  icon,
 }: {
   featured?: boolean;
   position?: string;
@@ -31,11 +36,17 @@ export function FaqSection({
   title?: string;
   showViewAll?: boolean;
   viewAllHref?: string;
+  viewAllPlacement?: 'below' | 'header';
+  layout?: 'stack' | 'split';
+  emptyText?: string;
   className?: string;
   /** Server payload. Omit to fetch in the browser. */
   initialItems?: PublicFaqItem[];
+  icon?: ReactNode;
 }) {
-  const [items, setItems] = useState<FaqItem[]>(() => (initialItems ?? []).map(mapItem));
+  const t = useT();
+  const heading = title === 'Câu hỏi thường gặp' ? t('home.faqTitle') : title;
+  const [items, setItems] = useState<FaqItem[]>(() => (initialItems ?? []).map(mapItem).slice(0, limit));
   const [loaded, setLoaded] = useState(initialItems != null);
 
   useEffect(() => {
@@ -46,21 +57,38 @@ export function FaqSection({
       .finally(() => setLoaded(true));
   }, [featured, position, limit, initialItems]);
 
-  if (!loaded || items.length === 0) return null;
+  if (!loaded) return null;
+  if (items.length === 0) {
+    if (!emptyText) return null;
+    return (
+      <section className={className}>
+        <h2 className="text-xl font-bold text-cardon-navy">{heading}</h2>
+        <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
+          {emptyText}
+        </p>
+      </section>
+    );
+  }
+
+  const viewAll = showViewAll ? (
+    <Link href={viewAllHref} className="shrink-0 text-sm font-semibold text-cardon-blue hover:underline">
+      {t('home.faqAll')} →
+    </Link>
+  ) : null;
 
   return (
     <div className={className}>
-      <FaqAccordion items={items} title={title} />
-      {showViewAll && (
-        <div className="mt-4 text-center">
-          <Link
-            href={viewAllHref}
-            className="text-sm font-semibold text-cardon-blue hover:underline"
-          >
-            Xem tất cả câu hỏi →
-          </Link>
+      {viewAllPlacement === 'header' ? (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="flex items-center gap-2.5 text-xl font-bold text-cardon-navy md:text-2xl">
+            {icon ? <span className="inline-flex shrink-0 text-cardon-blue">{icon}</span> : null}
+            {heading}
+          </h2>
+          {viewAll}
         </div>
-      )}
+      ) : null}
+      <FaqAccordion items={items} title={viewAllPlacement === 'header' ? '' : title} layout={layout} />
+      {viewAllPlacement === 'below' && viewAll ? <div className="mt-4 text-center">{viewAll}</div> : null}
     </div>
   );
 }

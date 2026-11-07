@@ -14,13 +14,27 @@ import Image from 'next/image';
 import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
 import { getBlogPost, listBlogPosts } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
-import { buildCmsMetadata } from '@/lib/seo';
+import { withLocalePrefix } from '@/lib/i18n/locale';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
+import { translate } from '@/lib/i18n/messages';
+import { buildCmsMetadata, isPublishedEnglishDocument } from '@/lib/seo';
 import { getSiteUrl } from '@/lib/utils';
 
 export async function buildBlogArticleMetadata(slug: string): Promise<Metadata> {
-  const data = await getBlogPost(slug);
+  const locale = await readRequestLocale();
+  const [data, english] = await Promise.all([
+    getBlogPost(slug, locale),
+    locale === 'en' ? Promise.resolve(null) : getBlogPost(slug, 'en'),
+  ]);
   if (!data) return { title: 'Không tìm thấy bài viết' };
-  return buildCmsMetadata(data.post, data.post.seo, blogPostPath(data.post.categorySlug, data.post.slug));
+  const englishDoc = locale === 'en' ? data.post : english?.post;
+  return buildCmsMetadata(
+    data.post,
+    data.post.seo,
+    blogPostPath(data.post.categorySlug, data.post.slug),
+    locale,
+    isPublishedEnglishDocument(englishDoc),
+  );
 }
 
 function ArticleHeroImage({ src, alt }: { src: string; alt: string }) {
@@ -48,18 +62,19 @@ function ArticleHeroImage({ src, alt }: { src: string; alt: string }) {
 }
 
 export async function BlogArticlePageView({ slug }: { slug: string }) {
-  const data = await getBlogPost(slug);
+  const locale = await readRequestLocale();
+  const data = await getBlogPost(slug, locale);
   if (!data) notFound();
   const { post, related: apiRelated } = data;
 
-  const allPosts = (await listBlogPosts({ take: 20 })) ?? [];
+  const allPosts = (await listBlogPosts({ take: 20, locale })) ?? [];
   const relatedPosts = pickRelatedPosts(post, apiRelated, allPosts, 4);
   const latest = allPosts.filter((p) => p.id !== post.id).slice(0, 5);
 
   const { html: articleHtml, headings } = prepareArticleHtml(post.content);
 
   const articlePath = blogPostPath(post.categorySlug, post.slug);
-  const articleUrl = `${getSiteUrl()}${articlePath}`;
+  const articleUrl = `${getSiteUrl()}${withLocalePrefix(articlePath, locale)}`;
   const postBasePath = BLOG_BASE_PATH;
 
   const schema = post.seo?.structuredData ?? {
@@ -94,7 +109,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
       <BreadcrumbJsonLd
         items={breadcrumbItems.map((item) => ({
           name: item.label,
-          url: 'href' in item ? item.href : undefined,
+          url: 'href' in item && item.href ? `${getSiteUrl()}${withLocalePrefix(item.href, locale)}` : undefined,
         }))}
       />
 
@@ -104,6 +119,11 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
         <div className="mx-auto w-full max-w-[760px] lg:max-w-none">
           <article className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-8">
             <header className="space-y-3">
+              {locale === 'en' && post.fallback ? (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  {translate(locale, 'common.untranslated')}
+                </p>
+              ) : null}
               {post.category && post.categorySlug && (
                 <Link
                   href={blogCategoryPath(post.categorySlug)}

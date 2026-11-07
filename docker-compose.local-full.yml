@@ -23,6 +23,19 @@ x-backend-env: &backend-env
   WEB_REVALIDATE_SECRET: ${WEB_REVALIDATE_SECRET:-local-full-revalidate-secret}
   ADMIN_INTERNAL_URL: http://admin:3003
   ESALE_USE_MOCK: "true"
+  ESIM_ENABLED: "true"
+  # localhost sandbox: HTTP to Airalo v2; portal must stay Sandbox
+  ESIM_PROVIDER_MODE: ${ESIM_PROVIDER_MODE:-live}
+  ESIM_LIVE_ARM: ${ESIM_LIVE_ARM:-true}
+  # Airalo Partner API (sandbox shares same base URL; leave empty until credentials exist)
+  AIRALO_BASE_URL: ${AIRALO_BASE_URL:-https://partners-api.airalo.com}
+  AIRALO_CLIENT_ID: ${AIRALO_CLIENT_ID:-}
+  AIRALO_CLIENT_SECRET: ${AIRALO_CLIENT_SECRET:-}
+  # PayPal eSIM international — default off on localhost
+  PAYPAL_ESIM_ENABLED: ${PAYPAL_ESIM_ENABLED:-false}
+  PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+  PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+  PAYPAL_MODE: ${PAYPAL_MODE:-sandbox}
   DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
   REDIS_URL: redis://redis:6379
   JWT_SECRET: ${JWT_SECRET}
@@ -79,7 +92,7 @@ services:
     container_name: cardon-local-full-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -266,6 +279,7 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+      - "127.0.0.1:8081:8081"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infra/nginx/conf.d.local:/etc/nginx/conf.d:ro

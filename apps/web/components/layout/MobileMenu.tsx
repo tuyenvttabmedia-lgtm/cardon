@@ -4,7 +4,8 @@
 
 import Link from 'next/link';
 
-import { usePathname } from 'next/navigation';
+import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
 
 
 
@@ -13,6 +14,10 @@ interface MenuItem {
   label: string;
 
   href: string;
+
+  labelEn?: string;
+
+  navKey?: string;
 
 }
 
@@ -44,7 +49,9 @@ export function MobileMenu({
 
 }) {
 
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const { locale } = useLocale();
+  const t = useT();
 
 
 
@@ -62,7 +69,7 @@ export function MobileMenu({
 
         className="fixed inset-0 z-[59] bg-black/40 lg:hidden"
 
-        aria-label="Đóng menu"
+        aria-label={t('nav.closeMenu')}
 
         onClick={onClose}
 
@@ -94,7 +101,7 @@ export function MobileMenu({
 
               >
 
-                {item.label}
+                {resolveMenuLabel(locale, item)}
 
               </Link>
 
@@ -120,7 +127,7 @@ export function MobileMenu({
 
                 >
 
-                  Tài khoản
+                  {t('nav.account')}
 
                 </Link>
 
@@ -134,7 +141,7 @@ export function MobileMenu({
 
                 >
 
-                  Đơn hàng
+                  {t('nav.orders')}
 
                 </Link>
 
@@ -154,7 +161,7 @@ export function MobileMenu({
 
                 >
 
-                  Đăng xuất
+                  {t('nav.logout')}
 
                 </button>
 
@@ -174,7 +181,7 @@ export function MobileMenu({
 
                 >
 
-                  Đăng nhập
+                  {t('nav.login')}
 
                 </Link>
 
@@ -188,7 +195,7 @@ export function MobileMenu({
 
                 >
 
-                  Đăng ký
+                  {t('nav.register')}
 
                 </Link>
 

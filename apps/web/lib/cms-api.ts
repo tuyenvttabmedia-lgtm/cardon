@@ -1,4 +1,11 @@
+import type { Locale } from '@/lib/i18n/locale';
 import { getApiBaseUrl } from '@/lib/utils';
+
+export interface CmsLocaleFields {
+  requestedLocale?: Locale;
+  contentLocale?: Locale;
+  fallback?: boolean;
+}
 
 export interface PublicCmsSeo {
   metaTitle: string;
@@ -13,7 +20,7 @@ export interface PublicCmsSeo {
   structuredData?: unknown;
 }
 
-export interface PublicCmsPage {
+export interface PublicCmsPage extends CmsLocaleFields {
   id: string;
   slug: string;
   title: string;
@@ -28,13 +35,13 @@ export interface PublicCmsPage {
   seo: PublicCmsSeo | null;
 }
 
-export interface PublicCmsNavItem {
+export interface PublicCmsNavItem extends CmsLocaleFields {
   slug: string;
   title: string;
   navSortOrder: number;
 }
 
-export interface PublicBlogPost {
+export interface PublicBlogPost extends CmsLocaleFields {
   id: string;
   slug: string;
   title: string;
@@ -68,26 +75,36 @@ async function cmsFetch<T>(path: string, revalidateSeconds = 60): Promise<T | nu
   }
 }
 
-export function listBlogPosts(params?: { category?: string; tag?: string; skip?: number; take?: number }) {
+export function listBlogPosts(params?: {
+  category?: string;
+  tag?: string;
+  skip?: number;
+  take?: number;
+  locale?: Locale;
+}) {
   const q = new URLSearchParams();
   if (params?.category) q.set('category', params.category);
   if (params?.tag) q.set('tag', params.tag);
   if (params?.skip != null) q.set('skip', String(params.skip));
   if (params?.take != null) q.set('take', String(params.take));
+  if (params?.locale) q.set('locale', params.locale);
   const qs = q.toString();
   return cmsFetch<PublicBlogPost[]>(`/cms/blog/posts${qs ? `?${qs}` : ''}`, 0);
 }
 
-export function getCmsPage(slug: string) {
-  return cmsFetch<PublicCmsPage>(`/cms/pages/${slug}`);
+export function getCmsPage(slug: string, locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicCmsPage>(`/cms/pages/${slug}${qs}`);
 }
 
-export function listStaticNavPages() {
-  return cmsFetch<PublicCmsNavItem[]>('/cms/pages/nav', 60);
+export function listStaticNavPages(locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicCmsNavItem[]>(`/cms/pages/nav${qs}`, 60);
 }
 
-export function getBlogPost(slug: string) {
-  return cmsFetch<{ post: PublicBlogPost; related: PublicBlogPost[] }>(`/cms/blog/posts/${slug}`);
+export function getBlogPost(slug: string, locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<{ post: PublicBlogPost; related: PublicBlogPost[] }>(`/cms/blog/posts/${slug}${qs}`);
 }
 
 /** Client-only: increment published blog view count (best-effort). */
@@ -104,7 +121,7 @@ export async function recordBlogPostView(slug: string): Promise<void> {
   }
 }
 
-export interface PublicBlogCategory {
+export interface PublicBlogCategory extends CmsLocaleFields {
   id: string;
   slug: string;
   name: string;
@@ -117,12 +134,14 @@ export interface PublicBlogCategory {
   sortOrder: number;
 }
 
-export function listBlogCategories() {
-  return cmsFetch<PublicBlogCategory[]>('/cms/blog/categories', 60);
+export function listBlogCategories(locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicBlogCategory[]>(`/cms/blog/categories${qs}`, 60);
 }
 
-export function getBlogCategory(slug: string) {
-  return cmsFetch<PublicBlogCategory>(`/cms/blog/categories/${slug}`, 60);
+export function getBlogCategory(slug: string, locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicBlogCategory>(`/cms/blog/categories/${slug}${qs}`, 60);
 }
 
 export interface PublicFaqCategory {
@@ -236,6 +255,21 @@ export async function fetchFaqDetailClient(
   }
 }
 
+export interface EnglishSitemapIndex {
+  pages: Array<{
+    slug: string;
+    type: 'PAGE' | 'PRODUCT_LANDING' | 'BLOG_POST';
+    categorySlug: string | null;
+    updatedAt: string;
+  }>;
+  categories: Array<{ slug: string; updatedAt: string }>;
+}
+
+/** Published English CMS documents only. Draft and fallback pages are absent. */
+export function listEnglishSitemap() {
+  return cmsFetch<EnglishSitemapIndex>('/cms/english-sitemap', 60);
+}
+
 export function listFaqSitemap() {
   return cmsFetch<Array<{ slug: string; updatedAt: string; category: { slug: string } }>>(
     '/cms/faqs/sitemap',
@@ -265,8 +299,15 @@ export interface CmsThemeSettings {
   logoMobile: string;
   favicon: string;
   ogDefaultImage: string;
-  headerMenu: Array<{ label: string; href: string; sortOrder?: number }>;
-  footerColumns: Array<{ title: string; links: Array<{ label: string; href: string }> }>;
+  headerMenu: Array<{ label: string; href: string; sortOrder?: number; labelEn?: string; navKey?: string }>;
+  footerColumns: Array<{
+    title: string;
+    titleEn?: string;
+    titleKey?: string;
+    description?: string;
+    descriptionEn?: string;
+    links: Array<{ label: string; href: string; labelEn?: string; navKey?: string }>;
+  }>;
   companyInfo?: {
     companyName?: string;
     taxCode?: string;
@@ -274,6 +315,13 @@ export interface CmsThemeSettings {
     hotline?: string;
     email?: string;
     workingHours?: string;
+    description?: string;
+    descriptionEn?: string;
+    taxLabelEn?: string;
+    addressLabelEn?: string;
+    emailLabelEn?: string;
+    hotlineLabelEn?: string;
+    hoursLabelEn?: string;
     boCongThuongEnabled?: boolean;
     boCongThuongImageUrl?: string;
     boCongThuongLinkUrl?: string;
@@ -285,15 +333,31 @@ export interface CmsThemeSettings {
     enabled?: boolean;
     value?: string;
     href?: string;
+    label?: string;
+    labelEn?: string;
   }>;
   mobileNav?: Array<{
     label: string;
+    labelEn?: string;
+    navKey?: string;
     icon: string;
     url: string;
     sortOrder?: number;
     requireLogin?: boolean;
     active?: boolean;
   }>;
+  homeBackgrounds?: {
+    homeHeroBg?: string;
+    homeCategoryGameBg?: string;
+    homeCategoryPhoneCardBg?: string;
+    homeCategoryTopupBg?: string;
+    homeCategoryEsimBg?: string;
+    hubHeroGameBg?: string;
+    hubHeroPhoneBg?: string;
+    hubHeroTopupBg?: string;
+    hubHeroEsimBg?: string;
+    siteFooterBg?: string;
+  };
 }
 
 export interface PublicSiteConfig {

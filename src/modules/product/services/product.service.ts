@@ -7,6 +7,7 @@ import {
 } from '../entities/catalog-availability';
 import { assertCategoryHasHomeService } from '../entities/home-service';
 import { mapAdminProduct, mapProduct } from '../entities/product.mapper';
+import { annotateRetailMarket, type RetailMarket } from '../entities/retail-market';
 import { CategoryRepository } from '../repositories/category.repository';
 import { ProductRepository } from '../repositories/product.repository';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
@@ -109,10 +110,12 @@ export class ProductService {
     return mapped;
   }
 
-  async listActiveProducts() {
+  async listActiveProducts(market: RetailMarket = 'VN') {
     const products = await this.productRepository.findManyActive();
     const dataEnabled = this.settingsStore.resolveSystemConfig().customerDataEnabled;
-    return filterPublicCatalogByHomeService(products, dataEnabled).map((row) => mapProduct(row));
+    return filterPublicCatalogByHomeService(products, dataEnabled).map((row) =>
+      annotateRetailMarket(mapProduct(row), market),
+    );
   }
 
   async listAdminProducts(statusFilter: 'active' | 'inactive' | 'all' = 'all') {
@@ -120,22 +123,22 @@ export class ProductService {
     return products.map((row) => mapAdminProduct(row));
   }
 
-  async getActiveProduct(id: string) {
+  async getActiveProduct(id: string, market: RetailMarket = 'VN') {
     const product = await this.productRepository.findActiveById(id);
     if (!product) {
       throw new NotFoundException('Product not found');
     }
     this.assertCustomerCatalogVisible(product.homeService);
-    return mapProduct(product);
+    return annotateRetailMarket(mapProduct(product), market);
   }
 
-  async getActiveProductBySlug(slug: string) {
+  async getActiveProductBySlug(slug: string, market: RetailMarket = 'VN') {
     const product = await this.productRepository.findActiveBySlug(slug);
     if (!product) {
       throw new NotFoundException('Product not found');
     }
     this.assertCustomerCatalogVisible(product.homeService);
-    return mapProduct(product);
+    return annotateRetailMarket(mapProduct(product), market);
   }
 
   private assertCustomerCatalogVisible(homeService: HomeServiceType) {

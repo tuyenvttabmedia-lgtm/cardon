@@ -1,3 +1,5 @@
+import { translate } from '@/lib/i18n/messages';
+import type { Locale } from '@/lib/i18n/locale';
 import { getApiBaseUrl } from '@/lib/utils';
 
 export interface EsimPreviewOffer {
@@ -16,6 +18,10 @@ export interface EsimPreviewOffer {
   operators: string[];
   groupLabel: string;
   sellPriceVnd: number;
+  market?: 'VN' | 'INTL';
+  chargeCurrency?: 'VND' | 'USD' | null;
+  chargeAmount?: string | null;
+  fxRate?: string | null;
   countryIso: string;
   countryName: string;
   testData: false;
@@ -56,18 +62,19 @@ function readStorefrontPayload(payload: unknown): { offers: EsimPreviewOffer[]; 
   return null;
 }
 
-export async function listEsimPreviewOffers(): Promise<EsimOfferResult> {
+export async function listEsimPreviewOffers(locale: Locale = 'vi'): Promise<EsimOfferResult> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/esim/offers`, { cache: 'no-store' });
+    const query = locale === 'en' ? '?locale=en' : '';
+    const response = await fetch(`${getApiBaseUrl()}/esim/offers${query}`, { cache: 'no-store' });
     if (!response.ok) {
-      return { ok: false, error: 'Không tải được danh sách gói eSIM.' };
+      return { ok: false, error: translate(locale, 'esim.loadFail') };
     }
     const parsed = readStorefrontPayload(await response.json());
     if (!parsed) {
-      return { ok: false, error: 'Phản hồi eSIM không đúng định dạng.' };
+      return { ok: false, error: translate(locale, 'esim.badPayload') };
     }
     return { ok: true, offers: parsed.offers, salesOpen: parsed.salesOpen };
   } catch {
-    return { ok: false, error: 'Không kết nối được máy chủ. Thử lại sau.' };
+    return { ok: false, error: translate(locale, 'error.offline') };
   }
 }

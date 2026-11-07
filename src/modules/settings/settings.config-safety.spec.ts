@@ -187,7 +187,7 @@ describe('Phase 5C.6 — Secret handling', () => {
       join(process.cwd(), 'src/modules/admin/services/settings-admin.service.ts'),
       'utf8',
     );
-    expect(source).toContain('{ settingKey: key, updatedFields }');
+    expect(source).toContain('{ settingKey: key, updatedFields, actorId: adminId, ...extra }');
     expect(source).not.toMatch(/metadata.*secretKey.*value/i);
   });
 
@@ -291,5 +291,75 @@ describe('Phase 5C.6 — Fallback safety', () => {
 
     expect(store.isEsaleConfigured()).toBe(false);
     expect(() => store.resolveEsaleConfig()).toThrow(/eSale is not configured/);
+  });
+});
+
+describe('SePay VietQR and eSIM secrets stay apart', () => {
+  const encryptionKey = 'test-encryption-key-32chars-min!!';
+
+  function storeWith(value: Record<string, unknown>) {
+    const encryption = new SettingsEncryptionService({
+      get: (key: string) => (key === 'encryption.key' ? encryptionKey : undefined),
+    } as ConfigService);
+    const repository = {
+      findAll: jest.fn().mockResolvedValue([
+        { key: SETTINGS_KEYS.PAYMENT_SEPAY, value },
+      ]),
+    } as unknown as SettingsRepository;
+    const configService = {
+      get: (key: string) => (key === 'encryption.key' ? encryptionKey : undefined),
+    } as ConfigService;
+    return new SettingsStoreService(repository, encryption, configService);
+  }
+
+  const encryption = new SettingsEncryptionService({
+    get: (key: string) => (key === 'encryption.key' ? encryptionKey : undefined),
+  } as ConfigService);
+
+  it('keeps the VietQR HMAC away from the eSIM IPN', async () => {
+    const store = storeWith({
+      enabled: true,
+      integrationMode: 'legacy_qr',
+      bankAccount: '123456',
+      bankCode: 'VCB',
+      accountName: 'CardOn',
+      webhookSecretEnc: encryption.encrypt('hmac-agent-secret'),
+      merchantId: 'SP-LIVE-1',
+      secretKeyEnc: encryption.encrypt('spsk_live_merchant'),
+      ipnSecretEnc: encryption.encrypt('ipn-esim-secret'),
+      environment: 'production',
+    });
+    await store.reload();
+
+    const viet = store.resolveSepayConfig();
+    const esim = store.resolveSepayPaymentGateway();
+    expect(viet.mode).toBe('legacy_qr');
+    expect(viet.webhookSecret).toBe('hmac-agent-secret');
+    expect(viet.ipnSecretKey).toBeUndefined();
+    expect(esim.ipnSecretKey).toBe('ipn-esim-secret');
+    expect(esim.merchantSecretKey).toBe('spsk_live_merchant');
+    expect(JSON.stringify(store.getSepayAdminView())).not.toContain('hmac-agent-secret');
+    expect(JSON.stringify(store.getSepayAdminView())).not.toContain('ipn-esim-secret');
+  });
+
+  it('reads an old Payment Gateway secret as the IPN', async () => {
+    const store = storeWith({
+      enabled: true,
+      integrationMode: 'payment_gateway',
+      bankAccount: '123456',
+      bankCode: 'VCB',
+      accountName: 'CardOn',
+      webhookSecretEnc: encryption.encrypt('old-ipn-secret'),
+      merchantId: 'SP-TEST-1',
+      secretKeyEnc: encryption.encrypt('spsk_test_merchant'),
+      environment: 'sandbox',
+    });
+    await store.reload();
+
+    expect(store.resolveSepayPaymentGateway().ipnSecretKey).toBe('old-ipn-secret');
+    expect(() => store.resolveSepayConfig()).toThrow(/SePay is not configured/);
+    const view = store.getSepayAdminView();
+    expect(view.ipnSecret).toMatch(/^\*{8}/);
+    expect(view.webhookSecret).toBeUndefined();
   });
 });

@@ -74,6 +74,8 @@ import type {
   AiraloImportSummary,
   EsimCatalogLifecycle,
   PaymentPaypalSettings,
+  FxRateView,
+  PaypalConnectionStatus,
   ProviderEsaleSettings,
   SmtpSettings,
   SystemSettings,
@@ -569,6 +571,70 @@ export const adminApi = {
     const qs = q.toString();
     return apiRequest<EsimOpsListResponse>(`/admin/esim-ops/orders${qs ? `?${qs}` : ''}`);
   },
+  listEsimOpsPayments(params: Record<string, string | number | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, String(v));
+    });
+    const qs = q.toString();
+    return apiRequest<{
+      page: { skip: number; take: number; total: number };
+      items: Array<{
+        id: string;
+        paymentReference: string;
+        orderId: string;
+        orderCode: string;
+        esimMarket: string | null;
+        gateway: string;
+        amount: string;
+        currency: string | null;
+        productLane: string | null;
+        status: string;
+        fxRateId: string | null;
+        chargeCurrency: string | null;
+        chargeAmount: string | null;
+        paidAt: string | null;
+        createdAt: string;
+      }>;
+    }>(`/admin/esim-ops/payments${qs ? `?${qs}` : ''}`);
+  },
+  listEsimOpsAttempts(params: Record<string, string | number | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, String(v));
+    });
+    const qs = q.toString();
+    return apiRequest<{
+      page: { skip: number; take: number; total: number };
+      items: Array<{
+        id: string;
+        orderId: string;
+        orderCode: string;
+        paymentStatus: string;
+        fulfillmentStatus: string;
+        providerCode: string;
+        providerName: string;
+        providerProductCode: string;
+        operation: string;
+        outcome: string;
+        providerReference: string | null;
+        errorCode: string | null;
+        errorMessage: string | null;
+        requestMeta: Record<string, unknown>;
+        responseMeta: Record<string, unknown>;
+        createdAt: string;
+        completedAt: string | null;
+      }>;
+    }>(`/admin/esim-ops/attempts${qs ? `?${qs}` : ''}`);
+  },
+  exportEsimOps(params: Record<string, string | number | boolean | undefined> = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== '') q.set(k, String(v));
+    });
+    const qs = q.toString();
+    return apiRequest<EsimOpsListResponse>(`/admin/esim-ops/orders/export${qs ? `?${qs}` : ''}`);
+  },
   getEsimOpsDetail(id: string) {
     return apiRequest<EsimOpsDetail>(`/admin/esim-ops/orders/${id}`);
   },
@@ -607,6 +673,17 @@ export const adminApi = {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
       body: { orderId, gateway: 'SEPAY' },
+    });
+  },
+  /**
+   * Existing retail `POST /payments` for a PayPal Sandbox admin-test order.
+   * The same Idempotency-Key returns the original payment instead of a second PayPal order.
+   */
+  createPaypalCheckout(orderId: string, idempotencyKey: string) {
+    return apiRequest<PaymentCheckoutView>('/payments', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: { orderId, gateway: 'PAYPAL' },
     });
   },
   getOrderDetail(id: string, gatewayTransaction?: string) {
@@ -863,6 +940,9 @@ export const cmsAdminApi = {
   publishPage(id: string) {
     return apiRequest<CmsPage>(`/admin/cms/pages/${id}/publish`, { method: 'POST' });
   },
+  savePageTranslation(id: string, locale: 'vi' | 'en', body: Record<string, unknown>) {
+    return apiRequest<CmsPage>(`/admin/cms/pages/${id}/translations/${locale}`, { method: 'PUT', body });
+  },
   listBanners() {
     return apiRequest<CmsBanner[]>('/admin/cms/banners');
   },
@@ -902,6 +982,12 @@ export const cmsAdminApi = {
   deleteCategory(id: string) {
     return apiRequest<void>(`/admin/cms/categories/${id}`, { method: 'DELETE' });
   },
+  saveCategoryTranslation(id: string, locale: 'vi' | 'en', body: { name: string; description?: string }) {
+    return apiRequest<CmsCategory>(`/admin/cms/categories/${id}/translations/${locale}`, {
+      method: 'PUT',
+      body,
+    });
+  },
   listTags() {
     return apiRequest<CmsTag[]>('/admin/cms/tags');
   },
@@ -910,6 +996,13 @@ export const cmsAdminApi = {
   },
   updateTag(id: string, body: Partial<CmsTag>) {
     return apiRequest<CmsTag>(`/admin/cms/tags/${id}`, { method: 'PATCH', body });
+  },
+  saveTagTranslation(
+    id: string,
+    locale: 'vi' | 'en',
+    body: { name: string; metaTitle?: string; metaDescription?: string },
+  ) {
+    return apiRequest<CmsTag>(`/admin/cms/tags/${id}/translations/${locale}`, { method: 'PUT', body });
   },
   deleteTag(id: string) {
     return apiRequest<void>(`/admin/cms/tags/${id}`, { method: 'DELETE' });
@@ -1229,19 +1322,45 @@ export const settingsAdminApi = {
       { method: 'POST' },
     );
   },
+  getFxRates() {
+    return apiRequest<{
+      current: FxRateView | null;
+      rates: FxRateView[];
+    }>('/admin/settings/fx-rates');
+  },
+  createFxRate(body: { rate: string; observedAt: string; maxStalenessSeconds: number }) {
+    return apiRequest<FxRateView>('/admin/settings/fx-rates', { method: 'POST', body });
+  },
+  publishFxRate(id: string) {
+    return apiRequest<FxRateView>(`/admin/settings/fx-rates/${id}/publish`, { method: 'POST' });
+  },
+  approveFxRate(id: string) {
+    return apiRequest<FxRateView>(`/admin/settings/fx-rates/${id}/approve`, { method: 'POST' });
+  },
+  rejectFxRate(id: string) {
+    return apiRequest<FxRateView>(`/admin/settings/fx-rates/${id}/reject`, { method: 'POST' });
+  },
   getPaypal() {
     return apiRequest<PaymentPaypalSettings>('/admin/settings/payment/paypal');
   },
   updatePaypal(body: {
-    esimEnabled?: boolean;
     mode?: 'sandbox' | 'live';
     clientId?: string;
     clientSecret?: string;
+    webhookId?: string;
   }) {
     return apiRequest<PaymentPaypalSettings>('/admin/settings/payment/paypal', {
       method: 'PUT',
       body,
     });
+  },
+  testPaypal() {
+    return apiRequest<{
+      connectionStatus: PaypalConnectionStatus;
+      reason?: string;
+      probed: boolean;
+      connected: false;
+    }>('/admin/settings/payment/paypal/test-connection', { method: 'POST' });
   },
   getEsale() {
     return apiRequest<ProviderEsaleSettings>('/admin/settings/provider/esale');
@@ -1601,6 +1720,101 @@ export const financeApi = {
   getVatSummary(dateFrom: string, dateTo: string) {
     const q = new URLSearchParams({ dateFrom, dateTo });
     return apiRequest<import('@/types/api').VatMonthlySummary>(`/admin/finance/vat/summary?${q}`);
+  },
+  getEsimRevenue(params: {
+    dateFrom?: string;
+    dateTo?: string;
+    preset?: string;
+    currency?: string;
+    gateway?: string;
+    market?: string;
+  } = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) q.set(key, value);
+    });
+    const qs = q.toString();
+    return apiRequest<import('@/types/api').EsimFinanceRevenueReport>(
+      `/admin/finance/esim/revenue${qs ? `?${qs}` : ''}`,
+    );
+  },
+  exportEsimRevenue(params: {
+    dateFrom?: string;
+    dateTo?: string;
+    preset?: string;
+    currency?: string;
+    gateway?: string;
+    market?: string;
+  } = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) q.set(key, value);
+    });
+    const qs = q.toString();
+    return apiRequest<string>(`/admin/finance/esim/revenue/export${qs ? `?${qs}` : ''}`);
+  },
+  async importPaypalActivityCsv(
+    file: File,
+    opts?: { periodFrom?: string; periodTo?: string },
+  ) {
+    const form = new FormData();
+    form.append('file', file);
+    if (opts?.periodFrom) form.append('periodFrom', opts.periodFrom);
+    if (opts?.periodTo) form.append('periodTo', opts.periodTo);
+    const headers: Record<string, string> = {};
+    const token = getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(`${getApiBaseUrl()}/admin/finance/esim/paypal/imports`, {
+      method: 'POST',
+      headers,
+      body: form,
+      cache: 'no-store',
+    });
+    return parseResponse<{
+      idempotent: boolean;
+      import: import('@/types/api').PaypalReportImportView & {
+        matches?: import('@/types/api').PaypalFeeMatchRow[];
+        summary?: Record<string, number>;
+      };
+    }>(response);
+  },
+  listPaypalImports() {
+    return apiRequest<import('@/types/api').PaypalReportImportView[]>(
+      '/admin/finance/esim/paypal/imports',
+    );
+  },
+  getPaypalImport(id: string) {
+    return apiRequest<
+      import('@/types/api').PaypalReportImportView & {
+        matches: import('@/types/api').PaypalFeeMatchRow[];
+        summary: Record<string, number>;
+      }
+    >(`/admin/finance/esim/paypal/imports/${id}`);
+  },
+  rematchPaypalImport(id: string) {
+    return apiRequest(
+      `/admin/finance/esim/paypal/imports/${id}/match`,
+      { method: 'POST' },
+    );
+  },
+  listPaypalMatches(params: { importId?: string; status?: string } = {}) {
+    const q = new URLSearchParams();
+    if (params.importId) q.set('importId', params.importId);
+    if (params.status) q.set('status', params.status);
+    const qs = q.toString();
+    return apiRequest<import('@/types/api').PaypalFeeMatchRow[]>(
+      `/admin/finance/esim/paypal/matches${qs ? `?${qs}` : ''}`,
+    );
+  },
+  resolvePaypalMatch(id: string, body: { paymentId: string; note?: string }) {
+    return apiRequest<import('@/types/api').PaypalFeeMatchRow>(
+      `/admin/finance/esim/paypal/matches/${id}/resolve`,
+      { method: 'POST', body },
+    );
+  },
+  exportPaypalMatches(importId?: string) {
+    const q = importId ? `?importId=${encodeURIComponent(importId)}` : '';
+    return apiRequest<string>(`/admin/finance/esim/paypal/export${q}`);
   },
 };
 

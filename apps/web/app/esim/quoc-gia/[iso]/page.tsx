@@ -3,15 +3,27 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { EsimPageSkeleton } from '@/components/esim/EsimCatalogClient';
 import { EsimCountryPlans } from '@/components/esim/EsimCountryPlans';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { listEsimPreviewOffers } from '@/lib/esim-offers';
 
-export const metadata: Metadata = {
-  title: 'Gói eSIM theo quốc gia',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ iso: string }>;
+}): Promise<Metadata> {
+  const { iso } = await params;
+  const { localizedMetadata } = await import('@/lib/seo');
+  return localizedMetadata({
+    title: 'Gói eSIM theo quốc gia',
+    path: `/esim/quoc-gia/${iso}`,
+    robots: { index: false, follow: false },
+    enTitle: `eSIM plans · ${iso.toUpperCase()}`,
+  });
+}
 
 async function PlansLoader({ iso }: { iso: string }) {
-  const result = await listEsimPreviewOffers();
+  const locale = await readRequestLocale();
+  const result = await listEsimPreviewOffers(locale);
   if (!result.ok) {
     return (
       <div className="site-container py-8">

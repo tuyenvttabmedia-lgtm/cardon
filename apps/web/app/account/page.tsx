@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { accountApi, ApiClientError } from '@/services/api-client';
+import { useDateTime, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import { accountApi } from '@/services/api-client';
 import type { AccountProfile } from '@/types/api';
 
 export default function AccountProfilePage() {
@@ -13,6 +15,9 @@ export default function AccountProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const t = useT();
+  const { locale } = useLocale();
+  const formatDate = useDateTime();
 
   useEffect(() => {
     void accountApi
@@ -23,7 +28,7 @@ export default function AccountProfilePage() {
         setPhone(p.phone ?? '');
       })
       .catch((err) => {
-        setError(err instanceof ApiClientError ? err.message : 'Không tải được thông tin tài khoản');
+        setError(customerFacingError(locale, err));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -35,59 +40,55 @@ export default function AccountProfilePage() {
     try {
       const updated = await accountApi.updateProfile({ fullName, phone });
       setProfile(updated);
-      setMessage('Đã cập nhật thông tin tài khoản');
+      setMessage(t('account.saved'));
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Lỗi cập nhật');
+      setError(customerFacingError(locale, err));
     }
   }
 
-  if (loading) return <p className="text-cardon-gray">Đang tải...</p>;
+  if (loading) return <p className="text-cardon-gray">{t('common.loading')}</p>;
 
   if (!profile) {
     return (
       <div>
-        <h2 className="text-lg font-bold text-cardon-navy">Thông tin tài khoản</h2>
-        <p className="mt-4 text-sm text-red-600">{error ?? 'Không tải được thông tin tài khoản'}</p>
+        <h2 className="text-lg font-bold text-cardon-navy">{t('account.profile')}</h2>
+        <p className="mt-4 text-sm text-red-600">{error ?? t('account.loadFail')}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-cardon-navy">Thông tin tài khoản</h2>
+      <h2 className="text-lg font-bold text-cardon-navy">{t('account.profile')}</h2>
       <form className="mt-4 max-w-lg space-y-4" onSubmit={(e) => void save(e)}>
         <div>
-          <label className="text-sm font-medium">Tên đăng nhập</label>
+          <label className="text-sm font-medium">{t('account.username')}</label>
           <Input value={profile.username ?? ''} disabled className="mt-1 bg-gray-50" />
-          <p className="mt-1 text-xs text-cardon-gray">Không thể thay đổi tên đăng nhập</p>
+          <p className="mt-1 text-xs text-cardon-gray">{t('account.usernameLocked')}</p>
         </div>
         <div>
           <label className="text-sm font-medium">Email</label>
           <Input value={profile.email} disabled className="mt-1 bg-gray-50" />
         </div>
         <div>
-          <label className="text-sm font-medium">Họ và tên</label>
+          <label className="text-sm font-medium">{t('account.fullName')}</label>
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="mt-1" />
         </div>
         <div>
-          <label className="text-sm font-medium">Số điện thoại</label>
+          <label className="text-sm font-medium">{t('account.phone')}</label>
           <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-1" type="tel" />
         </div>
         <div>
-          <label className="text-sm font-medium">Ngày tạo tài khoản</label>
+          <label className="text-sm font-medium">{t('account.created')}</label>
           <Input
-            value={new Date(profile.createdAt).toLocaleDateString('vi-VN', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
+            value={formatDate(profile.createdAt)}
             disabled
             className="mt-1 bg-gray-50"
           />
         </div>
         {message && <p className="text-sm text-cardon-green">{message}</p>}
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit">Lưu thay đổi</Button>
+        <Button type="submit">{t('account.save')}</Button>
       </form>
     </div>
   );

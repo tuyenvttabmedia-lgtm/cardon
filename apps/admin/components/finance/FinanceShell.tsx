@@ -8,6 +8,7 @@ import { vi } from '@/lib/i18n/vi';
 import { FinanceDateProvider, useFinanceDates } from './FinanceDateContext';
 
 const SECTIONS = [
+  { href: '/finance/esim', label: 'eSIM', exact: false },
   { href: '/finance/supplier', label: 'Đối soát NCC', exact: false },
   { href: '/finance/retail', label: 'HĐ đầu ra bán lẻ', exact: false },
   { href: '/finance/gateway-fee', label: 'Phí cổng TT', exact: false },
@@ -63,7 +64,7 @@ function FinanceNav() {
   const pathname = usePathname();
   return (
     <SectionNav
-      ariaLabel="Tài chính VAT"
+      ariaLabel="Tài chính"
       items={SECTIONS.map((s) => ({
         href: s.href,
         label: s.label,
@@ -74,12 +75,16 @@ function FinanceNav() {
 }
 
 function FinanceShellInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isEsim = pathname === '/finance/esim' || pathname.startsWith('/finance/esim/');
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{vi.finance.title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Hóa đơn GTGT theo ngày — NCC · bán lẻ (tách 10%/8%) · phí cổng · tổng hợp. Không gồm đại lý.
+          {isEsim
+            ? 'Lane eSIM — Doanh thu (F1) và đối soát PayPal fee CSV (F3). VND/USD tách. Không trộn VAT/Profit thẻ game.'
+            : 'Hóa đơn GTGT theo ngày — NCC · bán lẻ (tách 10%/8%) · phí cổng · tổng hợp. Không gồm đại lý / eSIM.'}
         </p>
       </div>
       <FinanceNav />

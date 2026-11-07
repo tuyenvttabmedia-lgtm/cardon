@@ -20,6 +20,10 @@ import {
   MODULE_AUDIT_RESOURCE,
 } from '../entities/configuration-center.constants';
 import { ConfigurationImportDto, ConfigurationTestTelegramDto } from '../dto/configuration-center.dto';
+import {
+  isProductionCardonHost,
+  resolveLocalWebhookTestUrl,
+} from '../entities/webhook-test-url';
 
 @Injectable()
 export class ConfigurationCenterService {
@@ -183,44 +187,45 @@ export class ConfigurationCenterService {
   }
 
   async testSepay() {
-    if (!this.settingsStore.isSepayConfigured()) {
-      throw new BadRequestException('SePay chưa được cấu hình đầy đủ');
-    }
-    const config = this.settingsStore.resolveSepayConfig();
-    if (config.mode === 'payment_gateway') {
+    const gateway = this.settingsStore.resolveSepayPaymentGateway();
+    if (gateway.merchantId && gateway.merchantSecretKey && gateway.ipnSecretKey) {
       const started = Date.now();
       const apiBase =
-        config.environment === 'sandbox'
+        gateway.environment === 'sandbox'
           ? 'https://pgapi-sandbox.sepay.vn'
           : 'https://pgapi.sepay.vn';
       const auth = Buffer.from(
-        `${config.merchantId}:${config.merchantSecretKey}`,
+        `${gateway.merchantId}:${gateway.merchantSecretKey}`,
       ).toString('base64');
       const res = await fetch(`${apiBase}/v1/orders?per_page=1`, {
         headers: { Authorization: `Basic ${auth}` },
         signal: AbortSignal.timeout(15_000),
       });
       const latencyMs = Date.now() - started;
-      const envLabel = config.environment === 'sandbox' ? 'sandbox' : 'production';
+      const envLabel = gateway.environment === 'sandbox' ? 'sandbox' : 'production';
       if (res.ok || res.status === 404) {
         return {
           ok: true,
-          message: `SePay Cổng thanh toán (${envLabel}): kết nối OK (HTTP ${res.status})`,
+          message: `SePay eSIM (${envLabel}): kết nối OK (HTTP ${res.status})`,
           latencyMs,
           httpStatus: res.status,
         };
       }
       return {
         ok: false,
-        message: `SePay Cổng thanh toán (${envLabel}): HTTP ${res.status} — kiểm tra merchantId / secret`,
+        message: `SePay eSIM (${envLabel}): HTTP ${res.status} — kiểm tra merchantId / secret`,
         latencyMs,
         httpStatus: res.status,
       };
     }
 
-    const hasBank = Boolean(config.bankAccount?.trim() && config.bankCode?.trim());
-    const hasHmac = Boolean(config.webhookSecret?.trim() || config.apiKey?.trim());
-    if (!hasBank || !hasHmac) {
+    let config: ReturnType<SettingsStoreService['resolveSepayConfig']> | null = null;
+    try {
+      config = this.settingsStore.resolveSepayConfig();
+    } catch {
+      config = null;
+    }
+    if (!config?.bankAccount || !config.bankCode || (!config.webhookSecret && !config.apiKey)) {
       throw new BadRequestException(
         'SePay VietQR thiếu STK/ngân hàng hoặc Webhook Secret (HMAC)',
       );
@@ -257,13 +262,32 @@ export class ConfigurationCenterService {
   async testWebhook() {
     const megapay = this.settingsStore.getMegapayAdminView() as { callbackUrl?: string; webhookUrl?: string };
     const sepay = this.settingsStore.getSepayAdminView() as { webhookUrl?: string };
-    const url = String(megapay.callbackUrl ?? megapay.webhookUrl ?? sepay.webhookUrl ?? '').trim();
+    const url = String(
+      sepay.webhookUrl ?? megapay.callbackUrl ?? megapay.webhookUrl ?? '',
+    ).trim();
     if (!url || !/^https?:\/\//i.test(url)) {
       throw new BadRequestException('Webhook/callback URL chưa cấu hình hoặc không hợp lệ');
     }
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new BadRequestException('Webhook/callback URL chưa cấu hình hoặc không hợp lệ');
+    }
+
+    const publicUrl = String(this.configService.get<string>('appPublicUrl') ?? '');
+    const runningLocal = /localhost|127\.0\.0\.1/i.test(publicUrl);
+    if (runningLocal && isProductionCardonHost(parsed.hostname)) {
+      throw new BadRequestException(
+        'Không gửi thử webhook lên cardon.vn từ localhost. Đổi Webhook URL thành http://localhost/api/v1/payments/webhook/sepay — SePay cloud không gọi được máy bạn, dùng giả lập IPN hoặc tunnel.',
+      );
+    }
+
+    const target = resolveLocalWebhookTestUrl(url);
     const started = Date.now();
     try {
-      const res = await fetch(url, {
+      const res = await fetch(target, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Cardon-Test': 'configuration-center' },
         body: JSON.stringify({ test: true, source: 'configuration-center' }),

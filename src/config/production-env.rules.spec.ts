@@ -95,5 +95,13 @@ describe('Production environment rules', () => {
         PAYPAL_ESIM_ENABLED: 'false',
       }),
     ).not.toThrow();
+
+    expect(() =>
+      assertProductionEnv({
+        ...base,
+        PAYPAL_ESIM_ENABLED: 'false',
+        PAYPAL_MODE: 'live',
+      }),
+    ).toThrow(/PAYPAL_MODE=live requires/);
   });
 });

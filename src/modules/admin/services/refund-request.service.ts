@@ -630,6 +630,9 @@ export class RefundRequestService {
         throw new BadRequestException('Complete currency must match the refund request currency');
       }
 
+      // Serialize completes that share a bank reference across attempts (no unique index race).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`refund-bank:${bankTransactionReference}`}))`;
+
       const duplicate = await this.repository.findAttemptByBankReference(
         bankTransactionReference,
         tx,
@@ -639,24 +642,35 @@ export class RefundRequestService {
         throw new ConflictException('bankTransactionReference already belongs to another attempt');
       }
 
-      const updatedAttempt = await this.repository.updateAttempt(
-        attempt.id,
-        {
-          status: RefundAttemptStatus.SUCCEEDED,
-          reconStatus: RefundReconStatus.PENDING_VERIFY,
-          bankTransactionReference,
-          destinationHint,
-          transferredAt,
-          completedAt: new Date(),
-          openGuard: null,
-          safeResponseMeta: {
-            kind: 'complete',
-            bankReferenceLength: bankTransactionReference.length,
-            destinationHintLength: destinationHint.length,
+      let updatedAttempt;
+      try {
+        updatedAttempt = await this.repository.updateAttempt(
+          attempt.id,
+          {
+            status: RefundAttemptStatus.SUCCEEDED,
+            reconStatus: RefundReconStatus.PENDING_VERIFY,
+            bankTransactionReference,
+            destinationHint,
+            transferredAt,
+            completedAt: new Date(),
+            openGuard: null,
+            safeResponseMeta: {
+              kind: 'complete',
+              bankReferenceLength: bankTransactionReference.length,
+              destinationHintLength: destinationHint.length,
+            },
           },
-        },
-        tx,
-      );
+          tx,
+        );
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          throw new ConflictException('bankTransactionReference already belongs to another attempt');
+        }
+        throw error;
+      }
 
       const refreshed = await this.repository.findRequestById(request.id, tx);
       if (!refreshed) {

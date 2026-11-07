@@ -19,14 +19,19 @@ import {
   hasAuthSession,
   setAuthSession,
 } from '@/lib/auth-storage';
-import type { AuthResult, AuthUser, RegisterPayload } from '@/types/api';
+import type {
+  AuthResult,
+  AuthUser,
+  RegisterPayload,
+  RegisterPendingResult,
+} from '@/types/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, password: string) => Promise<AuthResult>;
-  register: (payload: RegisterPayload) => Promise<AuthResult>;
+  register: (payload: RegisterPayload) => Promise<RegisterPendingResult>;
   logout: () => void;
   refreshUser: () => Promise<AuthUser | null>;
 }
@@ -100,26 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [router],
   );
 
-  const register = useCallback(
-    async (payload: RegisterPayload) => {
-      const result = await authApi.register(payload);
-      setAuthSession({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        user: result.user,
-      });
-      const me = await authApi.me();
-      setAuthSession({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        user: me,
-      });
-      setUser(me);
-      router.refresh();
-      return result;
-    },
-    [router],
-  );
+  const register = useCallback(async (payload: RegisterPayload) => {
+    // Server withholds session until email verification — do not auto-login.
+    return authApi.register(payload);
+  }, []);
 
   const logout = useCallback(() => {
     clearAuthSession();

@@ -1,7 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MegapayConfig } from '../../payment/providers/megapay/megapay.config';
+import { resolveEsimChargeLimitConfig } from '../../esim/esim-charge-limit.rules';
+import { evaluateEsimSale, esimSaleFlagsFromRuntime } from '../../esim/esim-policy';
+import { evaluatePaypalCheckoutReady, paypalCredentialStatus } from '../../payment/providers/paypal/paypal.rules';
 import { SepayConfig } from '../../payment/providers/sepay/sepay.config';
+import { splitStoredSepaySecrets } from '../../payment/providers/sepay/sepay-settings.split';
 import { EsaleConfig } from '../../provider/adapters/esale/esale.config';
 import {
   SETTINGS_KEYS,
@@ -284,82 +288,43 @@ export class SettingsStoreService implements OnModuleInit {
     };
   }
 
+  private readSepaySecrets(stored: StoredPaymentGateway | null) {
+    const split = splitStoredSepaySecrets({
+      integrationMode: stored?.integrationMode,
+      hmacSecret: stored?.webhookSecretEnc
+        ? this.decryptField(stored.webhookSecretEnc)
+        : undefined,
+      ipnSecret: stored?.ipnSecretEnc
+        ? this.decryptField(stored.ipnSecretEnc)
+        : undefined,
+    });
+    return {
+      apiKey:
+        (stored?.apiKeyEnc
+          ? this.decryptField(stored.apiKeyEnc)
+          : undefined) ?? this.configService.get<string>('sepay.apiKey'),
+      hmacSecret:
+        split.hmacSecret ??
+        this.configService.get<string>('sepay.hmacSecret') ??
+        this.configService.get<string>('sepay.webhookSecret'),
+      merchantSecret:
+        (stored?.secretKeyEnc
+          ? this.decryptField(stored.secretKeyEnc)
+          : undefined) ??
+        this.configService.get<string>('sepay.merchantSecretKey') ??
+        this.configService.get<string>('sepay.secretKey'),
+      ipnSecret:
+        split.ipnSecret ??
+        this.configService.get<string>('sepay.ipnSecretKey'),
+    };
+  }
+
+  /** Bank transfer QR for agent deposits and retail failover. Does not read the eSIM IPN secret. */
   resolveSepayConfig(): SepayConfig {
     const stored = this.getStored<StoredPaymentGateway>(
       SETTINGS_KEYS.PAYMENT_SEPAY,
     );
-    const publicUrl =
-      this.configService.get<string>('appPublicUrl') ??
-      this.getStored<{ publicUrl?: string }>(SETTINGS_KEYS.SYSTEM)?.publicUrl ??
-      'https://cardon.vn';
-
-    const explicitMode = stored?.integrationMode;
-    const merchantId =
-      stored?.merchantId ?? this.configService.get<string>('sepay.merchantId');
-    const merchantSecretKey =
-      (stored?.secretKeyEnc
-        ? this.decryptField(stored.secretKeyEnc)
-        : undefined) ??
-      this.configService.get<string>('sepay.merchantSecretKey') ??
-      this.configService.get<string>('sepay.secretKey');
-    const ipnSecretKey =
-      (stored?.webhookSecretEnc
-        ? this.decryptField(stored.webhookSecretEnc)
-        : undefined) ??
-      this.configService.get<string>('sepay.ipnSecretKey') ??
-      this.configService.get<string>('sepay.webhookSecret') ??
-      '';
-    const integrationMode =
-      explicitMode ??
-      (merchantId && merchantSecretKey ? 'payment_gateway' : 'legacy_qr');
-
-    if (integrationMode === 'payment_gateway') {
-      if (!merchantId || !merchantSecretKey || !ipnSecretKey) {
-        throw new Error(
-          'SePay Payment Gateway is not configured. Set merchantId, secretKey and IPN secret in Admin Settings.',
-        );
-      }
-      return {
-        mode: 'payment_gateway',
-        merchantId,
-        merchantSecretKey,
-        ipnSecretKey,
-        // Bank-transfer webhook HMAC (separate from PG IPN secret).
-        webhookSecret:
-          this.configService.get<string>('sepay.hmacSecret') || undefined,
-        apiKey: this.configService.get<string>('sepay.apiKey') || undefined,
-        environment:
-          stored?.environment === 'sandbox' ||
-          this.configService.get<string>('sepay.environment') === 'sandbox'
-            ? 'sandbox'
-            : 'production',
-        paymentMethod: stored?.paymentMethod ?? 'BANK_TRANSFER',
-        publicUrl: publicUrl.replace(/\/$/, ''),
-        bankAccount:
-          stored?.bankAccount ??
-          this.configService.get<string>('sepay.bankAccount'),
-        bankCode:
-          stored?.bankCode ?? this.configService.get<string>('sepay.bankCode'),
-        accountName:
-          stored?.accountName ??
-          this.configService.get<string>('sepay.accountName'),
-        qrTemplate:
-          stored?.qrTemplate ??
-          this.configService.get<string>('sepay.qrTemplate') ??
-          'compact',
-      };
-    }
-
-    const apiKey =
-      (stored?.apiKeyEnc
-        ? this.decryptField(stored.apiKeyEnc)
-        : undefined) ?? this.configService.get<string>('sepay.apiKey');
-    const webhookSecret =
-      (stored?.webhookSecretEnc
-        ? this.decryptField(stored.webhookSecretEnc)
-        : undefined) ??
-      this.configService.get<string>('sepay.webhookSecret') ??
-      '';
+    const secrets = this.readSepaySecrets(stored);
     const bankAccount =
       stored?.bankAccount ??
       this.configService.get<string>('sepay.bankAccount');
@@ -373,8 +338,12 @@ export class SettingsStoreService implements OnModuleInit {
       this.configService.get<string>('sepay.qrTemplate') ??
       'compact';
 
-    // HMAC-only webhooks do not need API Key; bank QR still needs account fields.
-    if ((!apiKey && !webhookSecret) || !bankAccount || !bankCode || !accountName) {
+    if (
+      (!secrets.apiKey && !secrets.hmacSecret) ||
+      !bankAccount ||
+      !bankCode ||
+      !accountName
+    ) {
       throw new Error(
         'SePay is not configured. Set bank account + HMAC webhook secret (or API key) in Admin / SEPAY_* env.',
       );
@@ -382,12 +351,46 @@ export class SettingsStoreService implements OnModuleInit {
 
     return {
       mode: 'legacy_qr',
-      apiKey: apiKey || undefined,
-      webhookSecret: webhookSecret || undefined,
+      apiKey: secrets.apiKey || undefined,
+      webhookSecret: secrets.hmacSecret || undefined,
       bankAccount,
       bankCode,
       accountName,
       qrTemplate,
+    };
+  }
+
+  /** Payment Gateway credentials for eSIM. Empty fields stay empty; this does not throw. */
+  resolveSepayPaymentGateway(): {
+    enabled: boolean;
+    merchantId?: string;
+    merchantSecretKey?: string;
+    ipnSecretKey?: string;
+    environment: 'sandbox' | 'production';
+    paymentMethod: 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER';
+    publicUrl: string;
+  } {
+    const stored = this.getStored<StoredPaymentGateway>(
+      SETTINGS_KEYS.PAYMENT_SEPAY,
+    );
+    const secrets = this.readSepaySecrets(stored);
+    const publicUrl =
+      this.configService.get<string>('appPublicUrl') ??
+      this.getStored<{ publicUrl?: string }>(SETTINGS_KEYS.SYSTEM)?.publicUrl ??
+      'https://cardon.vn';
+    return {
+      enabled: stored ? stored.enabled !== false : true,
+      merchantId:
+        stored?.merchantId ?? this.configService.get<string>('sepay.merchantId'),
+      merchantSecretKey: secrets.merchantSecret,
+      ipnSecretKey: secrets.ipnSecret,
+      environment:
+        stored?.environment === 'sandbox' ||
+        this.configService.get<string>('sepay.environment') === 'sandbox'
+          ? 'sandbox'
+          : 'production',
+      paymentMethod: stored?.paymentMethod ?? 'BANK_TRANSFER',
+      publicUrl: publicUrl.replace(/\/$/, ''),
     };
   }
 
@@ -438,7 +441,7 @@ export class SettingsStoreService implements OnModuleInit {
   }
 
   private resolvePublicPaymentMethods(): StoredPaymentMethod[] {
-    return this.mergePaymentMethodsConfig().filter((method) => {
+    const methods = this.mergePaymentMethodsConfig().filter((method) => {
       if (!method.enabled) return false;
       if (method.gatewayCode === 'SEPAY') {
         return this.isGatewayPubliclyEnabled(
@@ -454,6 +457,27 @@ export class SettingsStoreService implements OnModuleInit {
       }
       return false;
     });
+    const paypal = this.paypalPublicMethod();
+    if (paypal) methods.push(paypal);
+    return methods;
+  }
+
+  /** Shown only when PayPal eSIM checkout is explicitly armed. Default is hidden. */
+  private paypalPublicMethod(): StoredPaymentMethod | null {
+    const ready = evaluatePaypalCheckoutReady(this.resolvePaypalConfig());
+    if (!ready.ok) return null;
+    return {
+      gatewayCode: 'PAYPAL',
+      methodCode: 'PAYPAL',
+      displayName: 'PayPal',
+      description: 'USD',
+      iconUrl: null,
+      logoUrl: null,
+      settlementType: 'GATEWAY_SETTLEMENT',
+      enabled: true,
+      percentageFee: 0,
+      fixedFee: 0,
+    };
   }
 
   private mergePaymentMethodsConfig(): StoredPaymentMethod[] {
@@ -507,68 +531,45 @@ export class SettingsStoreService implements OnModuleInit {
     const stored = this.getStored<StoredPaymentGateway>(
       SETTINGS_KEYS.PAYMENT_SEPAY,
     );
-    let config: SepayConfig | null = null;
+    const secrets = this.readSepaySecrets(stored);
+    const gateway = this.resolveSepayPaymentGateway();
+    let vietQrReady = false;
     try {
-      config = this.resolveSepayConfig();
+      this.resolveSepayConfig();
+      vietQrReady = true;
     } catch {
-      config = null;
+      vietQrReady = false;
     }
+    const pgReady = Boolean(
+      gateway.merchantId && gateway.merchantSecretKey && gateway.ipnSecretKey,
+    );
 
     return {
       enabled: stored?.enabled ?? false,
-      environment: stored?.environment ?? 'production',
-      integrationMode:
-        stored?.integrationMode ??
-        (stored?.merchantId ? 'payment_gateway' : 'legacy_qr'),
-      merchantId: stored?.merchantId ?? '',
-      paymentMethod: stored?.paymentMethod ?? 'BANK_TRANSFER',
-      bankAccount: config?.bankAccount ?? stored?.bankAccount ?? '',
-      bankCode: config?.bankCode ?? stored?.bankCode ?? '',
-      accountName: config?.accountName ?? stored?.accountName ?? '',
-      qrTemplate: config?.qrTemplate ?? stored?.qrTemplate ?? 'compact',
+      environment: gateway.environment,
+      integrationMode: 'legacy_qr' as const,
+      merchantId: gateway.merchantId ?? '',
+      paymentMethod: gateway.paymentMethod,
+      bankAccount: stored?.bankAccount ?? this.configService.get<string>('sepay.bankAccount') ?? '',
+      bankCode: stored?.bankCode ?? this.configService.get<string>('sepay.bankCode') ?? '',
+      accountName: stored?.accountName ?? this.configService.get<string>('sepay.accountName') ?? '',
+      qrTemplate: stored?.qrTemplate ?? this.configService.get<string>('sepay.qrTemplate') ?? 'compact',
       webhookUrl: this.resolveSepayWebhookUrl(stored?.webhookUrl),
-      apiKey: this.encryption.maskSecret(config?.apiKey),
-      secretKey: this.encryption.maskSecret(config?.merchantSecretKey),
-      webhookSecret: this.encryption.maskSecret(
-        config?.mode === 'payment_gateway'
-          ? config?.ipnSecretKey
-          : config?.webhookSecret,
-      ),
-      configured: !!config,
+      apiKey: this.encryption.maskSecret(secrets.apiKey),
+      secretKey: this.encryption.maskSecret(secrets.merchantSecret),
+      webhookSecret: this.encryption.maskSecret(secrets.hmacSecret),
+      ipnSecret: this.encryption.maskSecret(secrets.ipnSecret),
+      configured: vietQrReady,
+      pgConfigured: pgReady,
       source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_SEPAY)
         ? 'database'
         : 'environment',
-      ...this.buildSepayRuntimeHint(stored, config),
-    };
-  }
-
-  private buildSepayRuntimeHint(
-    stored: StoredPaymentGateway | null | undefined,
-    config: SepayConfig | null,
-  ): { runtimeHint: string; effectiveCheckoutHost: string } {
-    const mode =
-      stored?.integrationMode ??
-      config?.mode ??
-      (stored?.merchantId ? 'payment_gateway' : 'legacy_qr');
-    const env =
-      stored?.environment === 'sandbox' || config?.environment === 'sandbox'
-        ? 'sandbox'
-        : 'production';
-
-    if (mode === 'legacy_qr') {
-      return {
-        effectiveCheckoutHost: 'qr.sepay.vn',
-        runtimeHint:
-          env === 'sandbox'
-            ? 'Đang bật Sandbox nhưng chế độ vẫn là VietQR/chuyển khoản — QR luôn gọi qr.sepay.vn (không có sandbox QR). Muốn test sandbox: chọn SePay Payment Gateway và dùng merchant/IPN sandbox.'
-            : 'Chế độ VietQR/chuyển khoản — QR tạo tại qr.sepay.vn, tiền về STK đã cấu hình.',
-      };
-    }
-
-    const host = env === 'sandbox' ? 'pay-sandbox.sepay.vn' : 'pay.sepay.vn';
-    return {
-      effectiveCheckoutHost: host,
-      runtimeHint: `Payment Gateway ${env} — checkout qua ${host}. Cần merchantId + secret + IPN secret đúng môi trường.`,
+      effectiveCheckoutHost:
+        gateway.environment === 'sandbox'
+          ? 'pay-sandbox.sepay.vn'
+          : 'pay.sepay.vn',
+      runtimeHint:
+        'VietQR dùng cho nạp đại lý và cổng dự phòng bán lẻ. Payment Gateway dùng cho eSIM.',
     };
   }
 
@@ -773,11 +774,13 @@ export class SettingsStoreService implements OnModuleInit {
     esimEnabled: boolean;
     clientId: string;
     clientSecret: string;
+    webhookId: string;
     mode: 'sandbox' | 'live';
   } {
     const stored = this.getStored<StoredPaymentPaypal>(SETTINGS_KEYS.PAYMENT_PAYPAL);
     let clientId = '';
     let clientSecret = '';
+    let webhookId = '';
     if (stored?.clientIdEnc) {
       try {
         clientId = this.decryptField(stored.clientIdEnc)?.trim() ?? '';
@@ -798,6 +801,16 @@ export class SettingsStoreService implements OnModuleInit {
     if (!clientSecret) {
       clientSecret = (this.configService.get<string>('paypal.clientSecret') ?? '').trim();
     }
+    if (stored?.webhookIdEnc) {
+      try {
+        webhookId = this.decryptField(stored.webhookIdEnc)?.trim() ?? '';
+      } catch {
+        webhookId = '';
+      }
+    }
+    if (!webhookId) {
+      webhookId = (this.configService.get<string>('paypal.webhookId') ?? '').trim();
+    }
     const modeFromStore = stored?.mode === 'live' ? 'live' : stored?.mode === 'sandbox' ? 'sandbox' : null;
     const modeFromEnv = this.configService.get<string>('paypal.mode') === 'live' ? 'live' : 'sandbox';
     const mode = modeFromStore ?? modeFromEnv;
@@ -805,20 +818,46 @@ export class SettingsStoreService implements OnModuleInit {
       typeof stored?.esimEnabled === 'boolean'
         ? stored.esimEnabled
         : this.configService.get<boolean>('paypal.esimEnabled') === true;
-    return { esimEnabled, clientId, clientSecret, mode };
+    return { esimEnabled, clientId, clientSecret, webhookId, mode };
   }
 
   getPaypalAdminView(): Record<string, unknown> {
     const config = this.resolvePaypalConfig();
+    const stored = this.getStored<StoredPaymentPaypal>(SETTINGS_KEYS.PAYMENT_PAYPAL);
+    const system = this.resolveSystemConfig();
+    const sale = evaluateEsimSale(
+      esimSaleFlagsFromRuntime(
+        (key) => this.configService.get(key),
+        system.customerEsimEnabled === true,
+      ),
+    );
+    const connectionStatus = paypalCredentialStatus({
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
+      webhookId: config.webhookId,
+      lastProbeOk: stored?.lastProbe ? stored.lastProbe.ok : null,
+    });
     return {
       gatewayCode: 'PAYPAL',
-      esimEnabled: config.esimEnabled,
+      esimEnabled: config.esimEnabled === true,
       mode: config.mode,
+      environmentLabel: config.mode === 'live' ? 'LIVE' : 'SANDBOX',
       clientId: this.encryption.maskSecret(config.clientId || undefined),
       clientSecret: this.encryption.maskSecret(config.clientSecret || undefined),
-      configured: config.clientId !== '' && config.clientSecret !== '',
+      webhookId: this.encryption.maskSecret(config.webhookId || undefined),
+      configured: connectionStatus === 'CONFIGURED',
+      connectionStatus,
+      liveReady:
+        config.mode === 'live' &&
+        config.clientId !== '' &&
+        config.clientSecret !== '' &&
+        config.webhookId !== '',
+      paypalEsimEnabled: config.esimEnabled === true,
+      customerEsimEnabled: system.customerEsimEnabled === true,
+      salesOpen: sale.ok === true,
+      flagChangeSupported: false,
       source: this.hasDbSetting(SETTINGS_KEYS.PAYMENT_PAYPAL) ? 'database' : 'environment',
-      note: 'Chỉ dùng cho eSIM quốc tế (USD). Không áp dụng thẻ game / nạp cước.',
+      note: 'Chỉ dùng cho eSIM quốc tế (USD). Không áp dụng thẻ game / nạp cước. Ba cờ bán không đổi từ trang này.',
     };
   }
 
@@ -897,6 +936,8 @@ export class SettingsStoreService implements OnModuleInit {
       customerTopupEnabled: stored?.customerTopupEnabled ?? false,
       customerDataEnabled: stored?.customerDataEnabled ?? false,
       customerEsimEnabled: stored?.customerEsimEnabled === true,
+      esimMaxChargeAmountVnd: stored?.esimMaxChargeAmountVnd,
+      esimMaxChargeAmountUsd: stored?.esimMaxChargeAmountUsd,
       auditLogRetentionDays:
         stored?.auditLogRetentionDays ?? AUDIT_LOG_RETENTION_DAYS_DEFAULT,
       agentDepositMinAmount:
@@ -927,10 +968,25 @@ export class SettingsStoreService implements OnModuleInit {
 
   getSystemAdminView(): Record<string, unknown> {
     const resolved = this.resolveSystemConfig();
+    const chargeLimits = this.resolveEsimChargeLimits();
     return {
       ...resolved,
+      esimMaxChargeAmountVnd: chargeLimits.maxVnd,
+      esimMaxChargeAmountUsd: chargeLimits.maxUsd,
       source: this.hasDbSetting(SETTINGS_KEYS.SYSTEM) ? 'database' : 'environment',
     };
+  }
+
+  /**
+   * Sanitized eSIM per-order charge ceilings. Invalid/missing → defaults (never silent 0).
+   * Explicit 0 remains 0 (limit off for that currency setting).
+   */
+  resolveEsimChargeLimits(): { maxVnd: number; maxUsd: number } {
+    const system = this.resolveSystemConfig();
+    return resolveEsimChargeLimitConfig({
+      esimMaxChargeAmountVnd: system.esimMaxChargeAmountVnd,
+      esimMaxChargeAmountUsd: system.esimMaxChargeAmountUsd,
+    });
   }
 
   resolveOrderConfig(): StoredOrder {

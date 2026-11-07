@@ -1,12 +1,16 @@
 import type { Metadata } from 'next';
-import { buildMetadata } from '@/lib/seo';
+import { localizedMetadata } from '@/lib/seo';
+import { translate } from '@/lib/i18n/messages';
 import ForgotPasswordPageClient from './ForgotPasswordPageClient';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'Quên mật khẩu — CardOn.vn',
-  path: '/forgot-password',
-  robots: { index: false, follow: false },
-});
+export function generateMetadata(): Promise<Metadata> {
+  return localizedMetadata({
+    title: 'Quên mật khẩu — CardOn.vn',
+    path: '/forgot-password',
+    robots: { index: false, follow: false },
+    enTitle: translate('en', 'seo.forgotTitle'),
+  });
+}
 
 export default function ForgotPasswordPage() {
   return <ForgotPasswordPageClient />;

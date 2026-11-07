@@ -1,36 +1,56 @@
+'use client';
+
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { BlogCard } from '@/components/blog/BlogCard';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import type { PublicBlogPost } from '@/lib/cms-api';
 import { BLOG_BASE_PATH } from '@/lib/routes';
 
-export function NewsSection({ posts }: { posts: PublicBlogPost[] }) {
+export function NewsSection({ posts, icon }: { posts: PublicBlogPost[]; icon?: ReactNode }) {
+  const t = useT();
+  const { locale } = useLocale();
   const desktopItems = posts.slice(0, 8);
-  const mobileItems = posts.slice(0, 4);
 
-  if (!desktopItems.length) return null;
+  if (!desktopItems.length) {
+    return (
+      <section>
+        <h2 className="text-xl font-bold text-cardon-navy md:text-[1.75rem]">{t('news.title')}</h2>
+        <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
+          {t('news.empty')}
+        </p>
+      </section>
+    );
+  }
 
   return (
-    <section className="overflow-x-hidden pt-6 pb-8 md:pt-8">
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <h2 className="text-lg font-bold text-cardon-navy md:text-xl">Tin tức mới nhất</h2>
+    <section className="overflow-x-hidden">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2.5 text-xl font-bold text-cardon-navy md:text-2xl">
+          {icon ? <span className="inline-flex shrink-0 text-cardon-blue">{icon}</span> : null}
+          {t('news.title')}
+        </h2>
         <Link href={BLOG_BASE_PATH} className="shrink-0 text-sm font-semibold text-cardon-blue hover:underline">
-          Xem tất cả →
+          {t('common.viewAll')} →
         </Link>
       </div>
+      {locale === 'en' && posts.some((post) => post.fallback !== false) ? (
+        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+      ) : null}
 
-      <div className="flex flex-col gap-3 md:hidden">
-        {mobileItems.map((post) => (
-          <BlogCard key={post.id} post={post} variant="compact" compactContext="home" basePath={BLOG_BASE_PATH} />
+      {/* Mobile: compact rows (small thumb). md+: keep home grid cards. */}
+      <div className="flex flex-col gap-2.5 md:hidden">
+        {desktopItems.slice(0, 4).map((post) => (
+          <BlogCard
+            key={post.id}
+            post={post}
+            variant="compact"
+            compactContext="home"
+            basePath={BLOG_BASE_PATH}
+          />
         ))}
-        <Link
-          href={BLOG_BASE_PATH}
-          className="mt-1 flex w-full items-center justify-center rounded-xl border border-cardon-border bg-white py-3 text-sm font-semibold text-cardon-navy transition hover:border-cardon-blue hover:text-cardon-blue"
-        >
-          Xem tất cả tin tức
-        </Link>
       </div>
-
-      <div className="hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-4">
+      <div className="hidden gap-4 md:grid md:grid-cols-2 lg:grid-cols-4">
         {desktopItems.map((post) => (
           <BlogCard key={post.id} post={post} variant="homeGrid" basePath={BLOG_BASE_PATH} />
         ))}

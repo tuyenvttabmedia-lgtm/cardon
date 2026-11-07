@@ -234,7 +234,7 @@ export function mapAdminOrderDetail(params: {
     decryptSerial,
     decryptPin,
   } = params;
-  const base = mapOrder(order);
+  const base = mapOrder(order, { includeInternalEconomics: true });
 
   const customerEmail = order.user?.email ?? order.guestEmail;
   const customerPhone = order.user?.phone ?? order.guestPhone;

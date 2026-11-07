@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
@@ -12,6 +11,9 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { MobileMenu } from './MobileMenu';
 import { isOptimizableImageSrc, optimizerImageSrc } from '@/lib/assets';
 import { cn } from '@/lib/utils';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
+import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
 
 function isActivePath(pathname: string, href: string) {
   if (href === '/') return pathname === '/';
@@ -19,20 +21,22 @@ function isActivePath(pathname: string, href: string) {
 }
 
 export function Header() {
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const { locale } = useLocale();
   const { isAuthenticated, logout } = useAuth();
   const siteConfig = useSiteConfig();
   const { headerMenu, logoDesktop, theme } = useThemeSettings();
   const visibleMenu = filterHeaderMenuBySiteConfig(headerMenu, siteConfig);
   const [menuOpen, setMenuOpen] = useState(false);
+  const t = useT();
   const logoKey = `${logoDesktop}|${theme?.favicon ?? ''}`;
   const logoSrc = optimizerImageSrc(logoDesktop) ?? logoDesktop;
 
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-cardon-border bg-white/95 shadow-sm backdrop-blur">
-        <div className="site-container flex h-16 items-center gap-3 lg:grid lg:h-[72px] lg:grid-cols-[1fr_auto_1fr] lg:gap-2">
-          <Link href="/" className="flex min-w-0 shrink-0 items-center">
+        <div className="site-container relative flex h-14 items-center justify-between gap-3">
+          <Link href="/" className="relative z-10 flex h-9 shrink-0 items-center md:h-10">
             <Image
               key={`logo-${logoKey}`}
               src={logoSrc}
@@ -41,17 +45,14 @@ export function Header() {
               height={48}
               quality={60}
               sizes="140px"
-              className={cn(
-                'w-auto object-contain',
-                'h-9 max-w-[140px] md:h-10 md:max-w-none',
-              )}
-              style={{ width: 'auto', height: 'auto' }}
+              className="h-full w-auto object-contain"
+              style={{ width: 'auto' }}
               priority
               unoptimized={!isOptimizableImageSrc(logoSrc)}
             />
           </Link>
 
-          <nav className="hidden items-center justify-center gap-1 lg:flex">
+          <nav className="absolute left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1 lg:flex">
             {visibleMenu.map((item) => {
               const active = isActivePath(pathname, item.href);
               return (
@@ -59,19 +60,30 @@ export function Header() {
                   key={`${item.href}-${item.label}`}
                   href={item.href}
                   className={cn(
-                    'relative rounded-lg px-3 py-2 text-[15px] font-semibold uppercase tracking-wide transition',
+                    'relative rounded-lg px-3 py-1.5 text-[15px] font-semibold uppercase tracking-wide transition',
                     active
                       ? 'text-cardon-blue after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-cardon-blue'
                       : 'text-cardon-navy hover:bg-cardon-light hover:text-cardon-blue',
                   )}
                 >
-                  {item.label}
+                  {resolveMenuLabel(locale, item)}
                 </Link>
               );
             })}
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 lg:justify-end">
+          <div className="relative z-10 flex shrink-0 items-center gap-2">
+            <Link
+              href="/#home-search"
+              aria-label={t('nav.search')}
+              className="hidden h-10 w-10 items-center justify-center rounded-full text-cardon-navy hover:bg-cardon-light lg:inline-flex"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>
+                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="2" />
+                <path d="M16 16.5 20 20.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </Link>
+            <LanguageSwitcher compact />
             {isAuthenticated ? (
               <>
                 <NotificationBell className="hidden lg:block" />
@@ -79,17 +91,17 @@ export function Header() {
               </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="hidden rounded-lg px-3 py-2 text-[15px] font-semibold text-cardon-navy hover:text-cardon-blue sm:inline"
-                >
-                  Đăng nhập
-                </Link>
+            <Link
+              href="/login"
+              className="hidden rounded-lg px-3 py-2 text-[15px] font-semibold text-cardon-navy hover:text-cardon-blue sm:inline"
+            >
+              {t('nav.login')}
+            </Link>
                 <Link
                   href="/register"
                   className="hidden rounded-lg bg-cardon-blue px-4 py-2 text-[15px] font-semibold text-white hover:bg-cardon-navy sm:inline"
                 >
-                  Đăng ký
+                  {t('nav.register')}
                 </Link>
               </>
             )}
@@ -100,7 +112,7 @@ export function Header() {
                 <Link
                   href="/login"
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cardon-border text-lg"
-                  aria-label="Thông báo"
+                  aria-label={t('nav.account')}
                 >
                   🔔
                 </Link>
@@ -108,7 +120,7 @@ export function Header() {
               <button
                 type="button"
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-cardon-border"
-                aria-label="Mở menu"
+                aria-label={menuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
                 aria-expanded={menuOpen}
                 onClick={() => setMenuOpen((v) => !v)}
               >

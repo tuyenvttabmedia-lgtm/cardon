@@ -52,27 +52,6 @@ function SepayGatewayForm({
     setForm(settings);
   }, [settings]);
 
-  const sepayRuntime = useMemo(() => {
-    const mode = form.integrationMode ?? 'legacy_qr';
-    const env = form.environment ?? 'production';
-    if (mode === 'legacy_qr') {
-      return {
-        host: 'qr.sepay.vn',
-        hint:
-          env === 'sandbox'
-            ? 'Đang bật Sandbox nhưng chế độ vẫn là VietQR/chuyển khoản — QR luôn gọi qr.sepay.vn (không có sandbox QR). Muốn test sandbox: chọn SePay Payment Gateway và dùng merchant/IPN sandbox.'
-            : 'Chế độ VietQR/chuyển khoản — QR tạo tại qr.sepay.vn, tiền về STK đã cấu hình.',
-        warn: env === 'sandbox',
-      };
-    }
-    const host = env === 'sandbox' ? 'pay-sandbox.sepay.vn' : 'pay.sepay.vn';
-    return {
-      host,
-      hint: `Payment Gateway ${env} — checkout qua ${host}. Cần merchantId + secret + IPN secret đúng môi trường.`,
-      warn: false,
-    };
-  }, [form.environment, form.integrationMode]);
-
   async function save() {
     setSaving(true);
     setSaveError(null);
@@ -90,7 +69,9 @@ function SepayGatewayForm({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">Cổng dự phòng bán lẻ + nạp hạn mức đại lý.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            VietQR cho nạp đại lý và cổng dự phòng bán lẻ. Payment Gateway cho eSIM.
+          </p>
         </div>
         <SettingsRuntimeBadges
           source={settings.source}
@@ -108,110 +89,13 @@ function SepayGatewayForm({
             />
           </div>
         </div>
-        <div>
-          <Label>{vi.app.environment}</Label>
-          <Select
-            className="mt-1"
-            value={form.environment ?? 'production'}
-            onChange={(e) =>
-              setForm({ ...form, environment: e.target.value as 'sandbox' | 'production' })
-            }
-          >
-            <option value="sandbox">{vi.app.sandbox}</option>
-            <option value="production">{vi.app.production}</option>
-          </Select>
-          <p className="mt-1 text-xs text-slate-500">
-            Chỉ áp dụng khi chế độ = <strong>SePay Payment Gateway</strong>. VietQR không có endpoint
-            sandbox.
+        <div className="md:col-span-2 rounded-lg border border-slate-200 p-4">
+          <h3 className="font-medium">VietQR / chuyển khoản</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Nạp đại lý và cổng dự phòng bán lẻ. QR tại <code>qr.sepay.vn</code>, nội dung tiền tố <code>DH…</code>.
+            Webhook <code>/api/v1/payments/webhook/sepay</code>.
           </p>
-        </div>
-        <div
-          className={`md:col-span-2 rounded-lg border p-3 text-sm ${
-            sepayRuntime.warn
-              ? 'border-amber-300 bg-amber-50 text-amber-900'
-              : 'border-sky-200 bg-sky-50 text-sky-900'
-          }`}
-        >
-          <p className="font-medium">Runtime: {sepayRuntime.host}</p>
-          <p className="mt-1">{sepayRuntime.hint}</p>
-        </div>
-        <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
-          <strong>VietQR / CK:</strong> webhook HMAC (my.sepay.vn) → ô Webhook Secret. API Key chỉ khi
-          SePay dùng auth API Key. Nội dung CK tiền tố <code>DH…</code>.
-          <br />
-          <strong>Payment Gateway:</strong> checkout hosted + IPN — dùng merchant sandbox/production
-          riêng; môi trường Sandbox → <code>pay-sandbox.sepay.vn</code>.
-        </div>
-        <div>
-          <Label>Chế độ tích hợp</Label>
-          <Select
-            className="mt-1"
-            value={form.integrationMode ?? 'legacy_qr'}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                integrationMode: e.target.value as 'legacy_qr' | 'payment_gateway',
-              })
-            }
-          >
-            <option value="legacy_qr">VietQR / chuyển khoản (webhook HMAC)</option>
-            <option value="payment_gateway">SePay Payment Gateway (checkout + IPN)</option>
-          </Select>
-        </div>
-        {(form.integrationMode ?? 'legacy_qr') === 'payment_gateway' ? (
-          <>
-            <div>
-              <Label>Merchant ID (PG)</Label>
-              <Input
-                className="mt-1"
-                value={form.merchantId ?? ''}
-                onChange={(e) => setForm({ ...form, merchantId: e.target.value })}
-                placeholder="SP-TEST-…"
-              />
-            </div>
-            <div>
-              <Label>Merchant Secret Key (PG)</Label>
-              <Input
-                className="mt-1 font-mono"
-                type="password"
-                value={form.secretKey ?? ''}
-                onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-                placeholder="********"
-              />
-            </div>
-            <div>
-              <Label>IPN Secret Key</Label>
-              <Input
-                className="mt-1 font-mono"
-                type="password"
-                value={form.webhookSecret ?? ''}
-                onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
-                placeholder="IPN secret sandbox/production"
-              />
-            </div>
-            <div>
-              <Label>Payment method (PG)</Label>
-              <Select
-                className="mt-1"
-                value={
-                  form.paymentMethod === 'NAPAS_BANK_TRANSFER'
-                    ? 'NAPAS_BANK_TRANSFER'
-                    : 'BANK_TRANSFER'
-                }
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    paymentMethod: e.target.value as 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER',
-                  })
-                }
-              >
-                <option value="BANK_TRANSFER">BANK_TRANSFER</option>
-                <option value="NAPAS_BANK_TRANSFER">NAPAS_BANK_TRANSFER</option>
-              </Select>
-            </div>
-          </>
-        ) : (
-          <>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
               <Label>{vi.settings.apiKey} (tùy chọn — auth API Key)</Label>
               <Input
@@ -263,42 +147,108 @@ function SepayGatewayForm({
                 onChange={(e) => setForm({ ...form, qrTemplate: e.target.value })}
               />
             </div>
-          </>
-        )}
-        <div className="md:col-span-2">
-          <Label>{vi.settings.webhookUrl}</Label>
-          <Input
-            className="mt-1"
-            value={form.webhookUrl ?? ''}
-            onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
-          />
-          {isLocalhostWebhook(form.webhookUrl) ? (
-            <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-              SePay (kể cả sandbox) <strong>không gọi được</strong>{' '}
-              <code>http://localhost/…</code>. Endpoint CardOn trên máy bạn vẫn
-              chạy — chỉ máy bạn mới POST được.
-              <br />
-              Trên dashboard SePay đừng dán <code>https://cardon.vn/…</code> (IPN
-              sẽ vào production). Muốn test đủ vòng: dùng tunnel công khai, hoặc
-              sau khi thanh toán sandbox hãy giả lập IPN về localhost.
-            </p>
-          ) : null}
-          {isProductionWebhookOnLocal(form.webhookUrl) ? (
-            <p className="mt-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
-              Webhook đang trỏ <code>cardon.vn</code> trong khi bạn chạy
-              localhost — IPN sandbox sẽ báo về production, không về máy này.
-              Đổi thành <code>http://localhost/api/v1/payments/webhook/sepay</code>.
-            </p>
-          ) : null}
-          {(form.environment ?? 'production') === 'production' &&
-          /^SP-TEST/i.test(form.merchantId ?? '') ? (
-            <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-              Merchant <code>SP-TEST-…</code> là sandbox nhưng môi trường đang
-              là <strong>Production</strong> (checkout <code>pay.sepay.vn</code>
-              ). Đổi môi trường sang Sandbox để dùng{' '}
-              <code>pay-sandbox.sepay.vn</code>.
-            </p>
-          ) : null}
+            <div className="md:col-span-2">
+              <Label>{vi.settings.webhookUrl}</Label>
+              <Input
+                className="mt-1"
+                value={form.webhookUrl ?? ''}
+                onChange={(e) => setForm({ ...form, webhookUrl: e.target.value })}
+              />
+              {isLocalhostWebhook(form.webhookUrl) ? (
+                <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                  SePay không gọi được <code>http://localhost/…</code> để báo biến động số dư.
+                  Endpoint trên máy này vẫn chạy. Đừng dán URL production vào webhook đại lý của máy local.
+                </p>
+              ) : null}
+              {isProductionWebhookOnLocal(form.webhookUrl) ? (
+                <p className="mt-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+                  Webhook đại lý đang trỏ <code>cardon.vn</code> trong khi admin chạy localhost.
+                  Tiền nạp sandbox sẽ báo về production.
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </div>
+        <div className="md:col-span-2 rounded-lg border border-slate-200 p-4">
+          <h3 className="font-medium">Payment Gateway — eSIM</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Merchant, Merchant Secret và IPN Secret không dùng cho nạp đại lý.
+            IPN: <code>/api/v1/payments/ipn/esim/sepay</code>. Lên live không cần tunnel.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <Label>{vi.app.environment}</Label>
+              <Select
+                className="mt-1"
+                value={form.environment ?? 'production'}
+                onChange={(e) =>
+                  setForm({ ...form, environment: e.target.value as 'sandbox' | 'production' })
+                }
+              >
+                <option value="sandbox">{vi.app.sandbox}</option>
+                <option value="production">{vi.app.production}</option>
+              </Select>
+              <p className="mt-1 text-xs text-slate-500">
+                Sandbox gọi <code>pay-sandbox.sepay.vn</code>. Production gọi <code>pay.sepay.vn</code>.
+              </p>
+            </div>
+            <div>
+              <Label>Payment method (PG)</Label>
+              <Select
+                className="mt-1"
+                value={
+                  form.paymentMethod === 'NAPAS_BANK_TRANSFER'
+                    ? 'NAPAS_BANK_TRANSFER'
+                    : 'BANK_TRANSFER'
+                }
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    paymentMethod: e.target.value as 'BANK_TRANSFER' | 'NAPAS_BANK_TRANSFER',
+                  })
+                }
+              >
+                <option value="BANK_TRANSFER">BANK_TRANSFER</option>
+                <option value="NAPAS_BANK_TRANSFER">NAPAS_BANK_TRANSFER</option>
+              </Select>
+            </div>
+            <div>
+              <Label>Merchant ID (PG)</Label>
+              <Input
+                className="mt-1"
+                value={form.merchantId ?? ''}
+                onChange={(e) => setForm({ ...form, merchantId: e.target.value })}
+                placeholder="SP-TEST-…"
+              />
+            </div>
+            <div>
+              <Label>Merchant Secret Key (PG)</Label>
+              <Input
+                className="mt-1 font-mono"
+                type="password"
+                value={form.secretKey ?? ''}
+                onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
+                placeholder="********"
+              />
+            </div>
+            <div>
+              <Label>IPN Secret Key</Label>
+              <Input
+                className="mt-1 font-mono"
+                type="password"
+                value={form.ipnSecret ?? ''}
+                onChange={(e) => setForm({ ...form, ipnSecret: e.target.value })}
+                placeholder="IPN secret"
+              />
+            </div>
+            {(form.environment ?? 'production') === 'production' &&
+            /^SP-TEST/i.test(form.merchantId ?? '') ? (
+              <p className="md:col-span-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                Merchant <code>SP-TEST-…</code> là sandbox nhưng môi trường đang là Production.
+                Đổi môi trường sang Sandbox để checkout qua <code>pay-sandbox.sepay.vn</code>.
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">

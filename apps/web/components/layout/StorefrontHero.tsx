@@ -1,6 +1,7 @@
 'use client';
 
 import type { CSSProperties, FormEvent, ReactNode } from 'react';
+import { useT } from '@/components/i18n/LocaleProvider';
 import { resolveAssetUrl } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
@@ -47,8 +48,9 @@ export function StorefrontHero({
   className,
   children,
 }: StorefrontHeroProps) {
+  const t = useT();
   const heroSrc = resolveAssetUrl(backgroundUrl);
-  const badgeText = badge;
+  const badgeText = badge ?? t('home.badge');
   const TitleTag = headingLevel;
   const isHub = variant === 'hub';
 
@@ -99,7 +101,7 @@ export function StorefrontHero({
               />
               <button
                 type="submit"
-                aria-label="Tìm kiếm"
+                aria-label={t('nav.search')}
                 className="absolute top-1.5 right-1.5 flex h-11 w-11 items-center justify-center rounded-full bg-cardon-blue text-white hover:bg-cardon-navy focus-visible:ring-2 focus-visible:ring-cardon-blue"
               >
                 <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" aria-hidden>

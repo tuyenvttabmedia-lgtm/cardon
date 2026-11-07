@@ -1,6 +1,6 @@
 import { Controller, Get, Header, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { ListBlogQueryDto } from '../dto/cms.dto';
+import { CmsLocaleQueryDto, ListBlogQueryDto } from '../dto/cms.dto';
 import { CmsService } from '../services/cms.service';
 
 /** Public read-only CMS routes — content sanitized at response boundary. */
@@ -9,13 +9,13 @@ export class CmsPublicController {
   constructor(private readonly cmsService: CmsService) {}
 
   @Get('pages/nav')
-  listNavPages() {
-    return this.cmsService.listNavPagesForPublic();
+  listNavPages(@Query() query: CmsLocaleQueryDto) {
+    return this.cmsService.listNavPagesForPublic(query.locale);
   }
 
   @Get('pages/:slug')
-  async getPublishedPage(@Param('slug') slug: string) {
-    const page = await this.cmsService.getPublishedPageForPublic(slug);
+  async getPublishedPage(@Param('slug') slug: string, @Query() query: CmsLocaleQueryDto) {
+    const page = await this.cmsService.getPublishedPageForPublic(slug, query.locale);
     if (!page) throw new NotFoundException('Page not found');
     return page;
   }
@@ -26,8 +26,8 @@ export class CmsPublicController {
   }
 
   @Get('blog/posts/:slug')
-  async getBlogPost(@Param('slug') slug: string) {
-    const result = await this.cmsService.getBlogPost(slug);
+  async getBlogPost(@Param('slug') slug: string, @Query() query: CmsLocaleQueryDto) {
+    const result = await this.cmsService.getBlogPost(slug, query.locale);
     if (!result) throw new NotFoundException('Blog post not found');
     return result;
   }
@@ -40,15 +40,20 @@ export class CmsPublicController {
   }
 
   @Get('blog/categories')
-  listBlogCategories() {
-    return this.cmsService.listCategories();
+  listBlogCategories(@Query() query: CmsLocaleQueryDto) {
+    return this.cmsService.listCategories(query.locale);
   }
 
   @Get('blog/categories/:slug')
-  async getBlogCategory(@Param('slug') slug: string) {
-    const category = await this.cmsService.getCategoryForPublic(slug);
+  async getBlogCategory(@Param('slug') slug: string, @Query() query: CmsLocaleQueryDto) {
+    const category = await this.cmsService.getCategoryForPublic(slug, query.locale);
     if (!category) throw new NotFoundException('Category not found');
     return category;
+  }
+
+  @Get('english-sitemap')
+  listEnglishSitemap() {
+    return this.cmsService.listEnglishSitemap();
   }
 
   @Get('seo-settings')

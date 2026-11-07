@@ -7,6 +7,10 @@ export interface ContactChannel {
   enabled: boolean;
   value: string;
   href?: string;
+  /** Optional Vietnamese label. Empty keeps the built-in label. */
+  label?: string;
+  /** Optional English label. Empty keeps the built-in English label. */
+  labelEn?: string;
 }
 
 export const CONTACT_CHANNEL_META: Record<ContactChannelKey, { label: string; icon: string }> = {
@@ -43,13 +47,26 @@ export function normalizeContactChannels(
       key === 'address'
         ? undefined
         : (saved?.href ?? defaults.href)?.trim() || defaults.href;
+    const label = saved?.label?.trim();
+    const labelEn = saved?.labelEn?.trim();
     return {
       key,
       enabled: saved?.enabled !== false,
       value,
       href,
+      ...(label ? { label } : {}),
+      ...(labelEn ? { labelEn } : {}),
     };
   });
+}
+
+export function resolveContactChannelLabel(
+  channel: Pick<ContactChannel, 'label' | 'labelEn'>,
+  locale: 'vi' | 'en',
+  fallback: string,
+): string {
+  if (locale === 'en') return channel.labelEn?.trim() || fallback;
+  return channel.label?.trim() || fallback;
 }
 
 export type SpeedDialActionId = 'hotline' | 'zalo' | 'messenger';

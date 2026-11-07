@@ -46,7 +46,7 @@ export default function AccountEsimPage() {
     <section>
       <h1 className="text-lg font-bold text-cardon-navy md:text-xl">eSIM của tôi</h1>
       <p className="mt-1 text-sm text-cardon-gray">
-        Mã cài hiện sau khi thanh toán thành công. Giữ bí mật chuỗi LPA — chỉ mở trên thiết bị của bạn.
+        Mã cài hiện sau khi thanh toán thành công. Giữ bí mật mã cài — chỉ mở trên thiết bị của bạn.
       </p>
       {loading ? <p className="mt-6 text-sm text-cardon-gray">Đang tải…</p> : null}
       {error ? <p className="mt-6 text-sm text-red-600">{error}</p> : null}

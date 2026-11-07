@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { AdminTestOrderDialog, type AdminTestPaypalSnapshot } from '@/components/esim/AdminTestOrderDialog';
 import { EsimFlag } from '@/components/esim/EsimFlag';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { useAuth } from '@/hooks/useAuth';
+import { canUseAdminTest } from '@/lib/esim-admin-test-checkout';
 import { isEsimTestOrderVariant, publishedEsimVariantIds } from '@/lib/esim-admin-ops';
 import { MediaImageField } from '@/components/marketing/MediaImageField';
 import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
@@ -124,8 +126,7 @@ function MappingLabel({ product }: { product: Product }) {
 export default function EsimCatalogAdminPage() {
   const toast = useToast();
   const { user, can } = useAuth();
-  const canCreateTestOrder = user?.role === 'SUPER_ADMIN' && can('orders.manage');
-  const creatingTestRef = useRef(false);
+  const canCreateTestOrder = canUseAdminTest(user?.role, can);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -152,8 +153,8 @@ export default function EsimCatalogAdminPage() {
   const [confirm, setConfirm] = useState<{ title: string; action: () => Promise<unknown> } | null>(null);
   const [publishedVariantIds, setPublishedVariantIds] = useState<Set<string>>(new Set());
   const [testOrder, setTestOrder] = useState<OrderView | null>(null);
-  const [testOrderError, setTestOrderError] = useState<string | null>(null);
-  const [creatingTestOrder, setCreatingTestOrder] = useState(false);
+  const [paypalSnapshot, setPaypalSnapshot] = useState<AdminTestPaypalSnapshot | null>(null);
+  const [testBusy, setTestBusy] = useState(false);
   const [pendingTestVariant, setPendingTestVariant] = useState<ProductVariant | null>(null);
 
   const [newProduct, setNewProduct] = useState({
@@ -278,38 +279,6 @@ export default function EsimCatalogAdminPage() {
       .then((catalogue) => setPublishedVariantIds(publishedEsimVariantIds(catalogue.packages)))
       .catch(() => setPublishedVariantIds(new Set()));
   }, [canCreateTestOrder]);
-
-  async function createTestOrder(variant: ProductVariant) {
-    if (!canCreateTestOrder || creatingTestRef.current) return;
-    if (!isEsimTestOrderVariant(variant, publishedVariantIds)) {
-      setTestOrderError('Gói phải ACTIVE, PUBLISHED và có mapping Airalo.');
-      return;
-    }
-    creatingTestRef.current = true;
-    setCreatingTestOrder(true);
-    setTestOrderError(null);
-    setTestOrder(null);
-    try {
-      const order = await adminApi.createEsimTestOrder({
-        variantId: variant.id,
-        paymentMethodCode: 'VIETQR',
-        market: 'VN',
-      });
-      setTestOrder(order);
-      toast.success(`Đã tạo đơn kiểm thử ${order.orderCode}`);
-    } catch (err) {
-      const network = err instanceof TypeError || (err instanceof Error && /fetch|network|timeout/i.test(err.message));
-      setTestOrderError(
-        network
-          ? 'Không rõ đơn đã tạo hay chưa. Mở Đơn hàng eSIM và tìm theo SKU trước khi tạo lại. Không bấm lại ngay.'
-          : apiError(err, 'Không tạo được đơn kiểm thử'),
-      );
-    } finally {
-      creatingTestRef.current = false;
-      setCreatingTestOrder(false);
-      setPendingTestVariant(null);
-    }
-  }
 
   useEffect(() => {
     setPage(1);
@@ -598,11 +567,26 @@ export default function EsimCatalogAdminPage() {
         {error ? <ErrorMessage message={error} /> : null}
         {canCreateTestOrder ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            «Tạo đơn kiểm thử» chỉ dành cho SUPER_ADMIN, tạo đơn Sandbox gắn tài khoản admin.
+            «Tạo đơn kiểm thử» chỉ dành cho SUPER_ADMIN, tạo đơn thử gắn tài khoản admin.
             Không mở bán công khai và không phải eSIM thương mại cho khách.
           </p>
         ) : null}
-        {testOrderError ? <ErrorMessage message={testOrderError} /> : null}
+        {paypalSnapshot ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
+            <p className="font-medium">Đơn kiểm thử PayPal Sandbox {paypalSnapshot.orderCode}</p>
+            <p>Order ID: <span className="font-mono">{paypalSnapshot.orderId}</span></p>
+            <p>Gói: {paypalSnapshot.packageName}</p>
+            <p>Giá catalog: {paypalSnapshot.catalogVnd}</p>
+            <p>Số tiền thanh toán thử nghiệm: {paypalSnapshot.testAmountUsd} USD. Không tính vào doanh thu bán hàng.</p>
+            <p>Gateway: PayPal Sandbox</p>
+            <p>Trạng thái payment: {paypalSnapshot.paymentStatus}</p>
+            {paypalSnapshot.approvalUrl ? (
+              <a className="font-medium underline" href={paypalSnapshot.approvalUrl} target="_blank" rel="noopener noreferrer">
+                Mở PayPal Sandbox Checkout
+              </a>
+            ) : null}
+          </div>
+        ) : null}
         {testOrder ? (
           <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
             Đã tạo {testOrder.orderCode} · {testOrder.paymentStatus} / {testOrder.fulfillmentStatus}.{' '}
@@ -887,10 +871,10 @@ export default function EsimCatalogAdminPage() {
                                 <Button
                                   size="sm"
                                   variant="secondary"
-                                  disabled={creatingTestOrder}
+                                  disabled={testBusy}
                                   onClick={() => setPendingTestVariant(variant)}
                                 >
-                                  {creatingTestOrder ? 'Đang tạo…' : 'Tạo đơn kiểm thử'}
+                                  {testBusy ? 'Đang tạo…' : 'Tạo đơn kiểm thử'}
                                 </Button>
                               ) : null}
                               {variant.status === 'ACTIVE' ? (
@@ -981,7 +965,7 @@ export default function EsimCatalogAdminPage() {
                       ))}
                     </Select>
                     {esimProviders.length === 0 ? (
-                      <p className="text-xs text-amber-700 md:col-span-2">Chưa có nhà cung cấp Airalo. eSale không dùng cho eSIM.</p>
+                      <p className="text-xs text-amber-700 md:col-span-2">Chưa có nhà cung cấp eSIM. eSale không dùng cho eSIM.</p>
                     ) : null}
                     <Input value={newMapping.providerProductCode} placeholder="Mã gói nhà cung cấp" onChange={(event) => setNewMapping((prev) => ({ ...prev, providerProductCode: event.target.value }))} />
                     <Input value={newMapping.providerCost} placeholder="Giá vốn catalog" onChange={(event) => setNewMapping((prev) => ({ ...prev, providerCost: event.target.value }))} />
@@ -1028,31 +1012,14 @@ export default function EsimCatalogAdminPage() {
         </div>
       </Dialog>
 
-      <Dialog
-        open={Boolean(pendingTestVariant)}
-        onClose={() => { if (!creatingTestOrder) setPendingTestVariant(null); }}
-        title="Tạo đơn eSIM kiểm thử"
-        description="Đơn Sandbox gắn tài khoản SUPER_ADMIN. Không phải eSIM bán cho khách. Không mở bán công khai."
-        footer={(
-          <>
-            <Button size="sm" variant="ghost" disabled={creatingTestOrder} onClick={() => setPendingTestVariant(null)}>Hủy</Button>
-            <Button
-              size="sm"
-              disabled={creatingTestOrder || !pendingTestVariant}
-              onClick={() => { if (pendingTestVariant) void createTestOrder(pendingTestVariant); }}
-            >
-              {creatingTestOrder ? 'Đang tạo…' : 'Tạo một đơn VN / VietQR'}
-            </Button>
-          </>
-        )}
-      >
-        <p className="text-sm text-slate-700">
-          SKU: <span className="font-mono">{pendingTestVariant?.sku}</span>
-        </p>
-        <p className="mt-2 text-xs text-slate-500">
-          Nếu request timeout hoặc không rõ kết quả, mở Đơn hàng eSIM để tra cứu. Không bấm tạo lại ngay.
-        </p>
-      </Dialog>
+      <AdminTestOrderDialog
+        variant={pendingTestVariant}
+        allowed={canCreateTestOrder}
+        onClose={() => { setTestBusy(false); setPendingTestVariant(null); }}
+        onBusy={setTestBusy}
+        onVietQrCreated={(order) => { setTestOrder(order); setPaypalSnapshot(null); }}
+        onPaypalReady={(next) => { setPaypalSnapshot(next); setTestOrder(null); }}
+      />
 
       <Dialog
         open={Boolean(confirm)}

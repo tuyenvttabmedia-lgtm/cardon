@@ -81,6 +81,17 @@ export interface CreateOrderRecordInput {
   providerCost: Prisma.Decimal;
   profit: Prisma.Decimal;
   paymentExpiresAt: Date;
+  catalogCurrency?: string | null;
+  catalogAmount?: Prisma.Decimal | null;
+  chargeCurrency?: string | null;
+  chargeAmount?: Prisma.Decimal | null;
+  costCurrency?: string | null;
+  costAmount?: Prisma.Decimal | null;
+  fxRateId?: string | null;
+  fxRateValue?: Prisma.Decimal | null;
+  fxAsOf?: Date | null;
+  esimMarket?: string | null;
+  pricingLockedAt?: Date | null;
 }
 
 export interface CreateOrderItemRecordInput {
@@ -114,11 +125,11 @@ export class OrderRepository {
     return this.prisma.order.findFirst({
       where: {
         ...ACTIVE_ORDER_WHERE,
+        // Guest lookup must not open account-owned orders via user.email.
+        isGuestOrder: true,
+        userId: null,
         orderCode: { equals: orderCode.trim(), mode: 'insensitive' },
-        OR: [
-          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
-          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
-        ],
+        guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' },
       },
       include: ORDER_INCLUDE,
     });
@@ -128,11 +139,10 @@ export class OrderRepository {
     return this.prisma.order.findFirst({
       where: {
         ...ACTIVE_ORDER_WHERE,
+        isGuestOrder: true,
+        userId: null,
         orderCode: { equals: orderCode.trim(), mode: 'insensitive' },
-        OR: [
-          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
-          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
-        ],
+        guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' },
       },
       include: ORDER_INCLUDE_WITH_CARDS,
     });
@@ -158,10 +168,9 @@ export class OrderRepository {
       where: {
         id: orderId,
         ...ACTIVE_ORDER_WHERE,
-        OR: [
-          { guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' } },
-          { user: { email: { equals: guestEmail.trim(), mode: 'insensitive' } } },
-        ],
+        isGuestOrder: true,
+        userId: null,
+        guestEmail: { equals: guestEmail.trim(), mode: 'insensitive' },
       },
       include: ORDER_INCLUDE_WITH_CARDS,
     });
@@ -284,6 +293,17 @@ export class OrderRepository {
         customerPaid: input.customerPaid,
         providerCost: input.providerCost,
         profit: input.profit,
+        catalogCurrency: input.catalogCurrency,
+        catalogAmount: input.catalogAmount,
+        chargeCurrency: input.chargeCurrency,
+        chargeAmount: input.chargeAmount,
+        costCurrency: input.costCurrency,
+        costAmount: input.costAmount,
+        fxRateId: input.fxRateId,
+        fxRateValue: input.fxRateValue,
+        fxAsOf: input.fxAsOf,
+        esimMarket: input.esimMarket,
+        pricingLockedAt: input.pricingLockedAt,
         paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
         fulfillmentStatus: FulfillmentStatus.PENDING,
         paymentExpiresAt: input.paymentExpiresAt,

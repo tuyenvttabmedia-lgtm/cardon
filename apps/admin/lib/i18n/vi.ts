@@ -93,7 +93,7 @@ export const vi = {
     PROCESSING: 'Đang xử lý',
     COMPLETED: 'Hoàn tất',
     WAITING_ADMIN_RETRY: 'Chờ giao',
-    NEED_MANUAL_REVIEW: 'Cần review thủ công',
+    NEED_MANUAL_REVIEW: 'Cần hỗ trợ thủ công',
     ACTIVE: 'Đang hoạt động',
     INACTIVE: 'Ngừng hoạt động',
     APPROVED: 'Đã duyệt',
@@ -115,7 +115,7 @@ export const vi = {
     ISSUED: 'Đã phát hành',
     VOID: 'Đã hủy',
     MEGAPAY: 'MegaPay',
-    SEPAY: 'SePay',
+    SEPAY: 'Chuyển khoản (Viet QR)',
   },
   common: {
     close: 'Đóng',
@@ -174,8 +174,8 @@ export const vi = {
     coverRemaining: 'Còn được hoàn',
     remainingOnRequest: 'Còn trên request',
     warnings: {
-      CREATE_UNCLEAR: 'eSIM CREATE_UNCLEAR — cần rà trước khi hoàn.',
-      HAS_REFERENCE: 'eSIM HAS_REFERENCE — đơn đã có mã nhà cung cấp.',
+      CREATE_UNCLEAR: 'eSIM — chưa rõ đã tạo đơn NCC hay chưa; cần rà trước khi hoàn.',
+      HAS_REFERENCE: 'eSIM — đơn đã có mã nhà cung cấp.',
       ISSUED: 'eSIM ISSUED — eSIM có thể đã phát hành.',
       UNCONFIRMED: 'Attempt UNCONFIRMED — reservation vẫn giữ, không tạo attempt mới.',
       MANUAL_REVIEW: 'Request đang MANUAL_REVIEW.',
@@ -925,6 +925,9 @@ export const vi = {
     paypal: 'PayPal',
     paypalTitle: 'Thanh toán — PayPal (eSIM quốc tế)',
     paypalSubtitle: 'USD · chỉ eSIM INTL · không dùng cho thẻ/nạp',
+    fx: 'Tỷ giá',
+    fxTitle: 'Tỷ giá (FX Rates)',
+    fxSubtitle: '1 USD = X VND · nhập tay · công bố trước khi bán eSIM quốc tế',
     esimGo: 'eSIM Go (đã ngừng)',
     esimGoTitle: 'eSIM Go đã ngừng dùng',
     esimGoSubtitle: 'Chuyển sang cấu hình Airalo',
@@ -1151,7 +1154,20 @@ export const vi = {
     customerEsimTooltip:
       'Bật/tắt bán eSIM trên website khách hàng. Tắt không xóa đơn cũ và không cắt fulfillment.',
     customerEsimHint:
-      'Nếu tắt, khách thấy “Chưa mở bán” và không tạo được đơn eSIM mới. Đơn đã thanh toán vẫn được xử lý.',
+      'Nếu tắt, khách thấy “Tạm dừng bán eSIM” và không tạo được đơn eSIM mới. Đơn đã thanh toán vẫn được xử lý.',
+    esimOrderLimitTitle: 'Giới hạn đơn hàng eSIM',
+    esimOrderLimitDesc:
+      'Áp dụng riêng cho đơn hàng eSIM. Không ảnh hưởng giới hạn đơn thẻ game, thẻ điện thoại và nạp cước.',
+    esimMaxChargeVndLabel: 'Giới hạn tối đa mỗi đơn VND',
+    esimMaxChargeVndTooltip:
+      'Trần charge_amount mỗi đơn eSIM thanh toán SePay (VND). Không dùng chung với giới hạn thẻ/nạp.',
+    esimMaxChargeVndHint: 'Mặc định 2.000.000 VND. 0 = tắt giới hạn VND.',
+    esimMaxChargeUsdLabel: 'Giới hạn tối đa mỗi đơn USD',
+    esimMaxChargeUsdTooltip:
+      'Trần charge_amount mỗi đơn eSIM thanh toán PayPal (USD). Vẫn tôn trọng trần tài khoản mới thấp hơn nếu có.',
+    esimMaxChargeUsdHint:
+      'Mặc định 80 USD. Tối đa tuyệt đối 80 USD. 0 = tắt trần Admin (hard cap 80 USD vẫn áp dụng).',
+    esimMaxChargeInvalid: 'Giá trị không hợp lệ (không âm, hữu hạn).',
     auditLogRetentionLabel: 'Giữ nhật ký cấu hình / audit (ngày)',
     auditLogRetentionTooltip:
       'Tự xóa nhật ký thay đổi cấu hình và nhật ký thao tác admin cũ hơn số ngày này. Chạy mỗi ngày.',
@@ -1256,7 +1272,12 @@ export const vi = {
     addMenuItem: 'Thêm mục',
     footerColumns: 'Cột footer',
     addColumn: 'Thêm cột',
-    label: 'Nhãn',
+    label: 'Nhãn tiếng Việt',
+    labelEn: 'Nhãn tiếng Anh',
+    titleEn: 'Tiêu đề tiếng Anh',
+    description: 'Mô tả tiếng Việt',
+    descriptionEn: 'Mô tả tiếng Anh',
+    optionalEn: 'Để trống nếu chưa có bản tiếng Anh',
     url: 'URL',
     sortOrder: 'Thứ tự',
     addLink: 'Thêm link',

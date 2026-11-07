@@ -14,6 +14,8 @@ import {
   wrongRetailPortalMessage,
 } from '@/lib/retail-auth';
 import { safeInternalPath } from '@/lib/safe-redirect';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 
 function LoginForm() {
   const router = useRouter();
@@ -24,6 +26,8 @@ function LoginForm() {
     '/',
   );
   const { login, logout } = useAuth();
+  const t = useT();
+  const { locale } = useLocale();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +49,7 @@ function LoginForm() {
       }
       router.push(redirectTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đăng nhập thất bại');
+      setError(customerFacingError(locale, err));
     } finally {
       setLoading(false);
     }
@@ -53,26 +57,26 @@ function LoginForm() {
 
   return (
     <AuthLayout
-      title="Đăng nhập"
-      formHint="Đăng nhập để tiếp tục"
-      subtitle="Truy cập tài khoản CardOn để mua thẻ và theo dõi đơn hàng"
+      title={t('auth.loginTitle')}
+      formHint={t('auth.loginHint')}
+      subtitle={t('auth.loginSubtitle')}
       footer={
         <p className="text-center text-sm text-cardon-gray">
-          Chưa có tài khoản?{' '}
+          {t('auth.noAccount')}{' '}
           <Link href="/register" className="font-semibold text-cardon-blue hover:underline">
-            Đăng ký
+            {t('nav.register')}
           </Link>
         </p>
       }
     >
       {resetSuccess && (
         <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-          Mật khẩu đã được cập nhật. Vui lòng đăng nhập.
+          {t('auth.resetOk')}
         </p>
       )}
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="text-sm font-medium text-cardon-navy">Email hoặc tên đăng nhập</label>
+          <label className="text-sm font-medium text-cardon-navy">{t('auth.identifier')}</label>
           <Input
             className="mt-1"
             type="text"
@@ -84,9 +88,9 @@ function LoginForm() {
         </div>
         <div>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-cardon-navy">Mật khẩu</label>
+            <label className="text-sm font-medium text-cardon-navy">{t('auth.password')}</label>
             <Link href="/forgot-password" className="text-xs text-cardon-blue hover:underline">
-              Quên mật khẩu?
+              {t('auth.forgot')}
             </Link>
           </div>
           <Input
@@ -111,7 +115,7 @@ function LoginForm() {
           </div>
         )}
         <Button className="w-full" type="submit" disabled={loading}>
-          {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          {loading ? t('auth.loggingIn') : t('auth.submitLogin')}
         </Button>
       </form>
     </AuthLayout>

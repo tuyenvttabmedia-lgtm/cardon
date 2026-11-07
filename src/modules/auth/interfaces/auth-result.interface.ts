@@ -20,3 +20,10 @@ export interface AuthResult {
   expiresIn: number;
   user: AuthUserSummary;
 }
+
+/** Customer register never returns a session — email must be verified first (anti email-squat). */
+export interface RegisterPendingResult {
+  requiresEmailVerification: true;
+  email: string;
+  message: string;
+}

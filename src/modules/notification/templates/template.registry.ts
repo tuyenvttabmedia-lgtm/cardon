@@ -16,10 +16,102 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;');
 }
 
+function emailLocale(data: Record<string, unknown>): 'vi' | 'en' {
+  return data.locale === 'en' ? 'en' : 'vi';
+}
+
+function renderEnglishEmail(
+  template: EmailTemplateType,
+  data: Record<string, unknown>,
+): RenderedEmail | null {
+  switch (template) {
+    case 'USER_REGISTER':
+      return {
+        subject: 'Welcome to CardOn.vn',
+        html: `<p>Hello ${escapeHtml(String(data.fullName ?? 'there'))},</p><p>Thanks for creating a CardOn.vn account.</p><p><a href="${escapeHtml(String(data.verifyUrl ?? ''))}">Verify your email</a></p>`,
+        text: `Welcome to CardOn.vn. Verify your email: ${String(data.verifyUrl ?? '')}`,
+      };
+    case 'PASSWORD_RESET':
+      return {
+        subject: 'Reset your CardOn.vn password',
+        html: `<p>We received a password reset request.</p><p><a href="${escapeHtml(String(data.resetUrl ?? ''))}">Reset password</a></p><p>This link expires in 1 hour.</p>`,
+        text: `Reset your CardOn password: ${String(data.resetUrl ?? '')}\nThe link expires in 1 hour.`,
+      };
+    case 'PAYMENT_SUCCESS':
+      return {
+        subject: `Payment received — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Hello ${escapeHtml(String(data.customerName ?? 'there'))},</p><p>We received ${escapeHtml(String(data.amount ?? data.total ?? ''))} VND for order ${escapeHtml(String(data.orderCode ?? ''))}.</p>`,
+        text: `Payment received for order ${String(data.orderCode ?? '')}. Amount: ${String(data.total ?? data.amount ?? '')} VND`,
+      };
+    case 'ESIM_READY':
+      return {
+        subject: `Your eSIM is ready — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Your eSIM for order ${escapeHtml(String(data.orderCode ?? ''))} is ready.</p><p><a href="${escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'))}">Open install instructions</a></p><p>This email does not include the install code.</p>`,
+        text: `eSIM for order ${String(data.orderCode ?? '')} is ready. Open your account. This email does not include the install code.`,
+      };
+    case 'ORDER_SUCCESS':
+      return {
+        subject: `Order ${String(data.orderCode ?? '')} confirmed`,
+        html: `<p>Your order <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> has been confirmed.</p><p>Total: ${escapeHtml(String(data.totalAmount ?? ''))} VND</p>`,
+        text: `Order ${String(data.orderCode ?? '')} confirmed. Total: ${String(data.totalAmount ?? '')} VND`,
+      };
+    case 'CARD_DELIVERED':
+    case 'CARD_DELIVERY': {
+      const cards = Array.isArray(data.cards)
+        ? (data.cards as Array<{ serial?: string; pin?: string }>)
+        : [];
+      const blocks =
+        typeof data.cardsHtml === 'string' && typeof data.cardsText === 'string'
+          ? { cardsHtml: data.cardsHtml, cardsText: data.cardsText }
+          : formatCardDeliveryEmailBlocks(
+              cards.map((card) => ({
+                serial: String(card.serial ?? ''),
+                pin: String(card.pin ?? ''),
+              })),
+            );
+      return {
+        subject: `Your codes — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Hello ${escapeHtml(String(data.customerName ?? 'there'))},</p><p>Order <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> is complete.</p><p>Product: ${escapeHtml(String(data.items ?? ''))}</p>${blocks.cardsHtml}`,
+        text: `Hello ${String(data.customerName ?? 'there')},\nOrder ${String(data.orderCode ?? '')} is complete.\nProduct: ${String(data.items ?? '')}\n\n${blocks.cardsText}`,
+      };
+    }
+    case 'TOPUP_SUCCESS':
+      return {
+        subject: `Top-up completed — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Hello ${escapeHtml(String(data.customerName ?? 'there'))},</p><p>The carrier confirmed top-up order ${escapeHtml(String(data.orderCode ?? ''))}.</p>`,
+        text: `Top-up completed — order ${String(data.orderCode ?? '')}`,
+      };
+    case 'DATA_SUCCESS':
+      return {
+        subject: `Data pack completed — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Hello ${escapeHtml(String(data.customerName ?? 'there'))},</p><p>The carrier confirmed data order ${escapeHtml(String(data.orderCode ?? ''))}.</p>`,
+        text: `Data pack completed — order ${String(data.orderCode ?? '')}`,
+      };
+    case 'ESIM_TEST_READY':
+      return {
+        subject: `Simulated eSIM stored — order ${String(data.orderCode ?? '')}`,
+        html: `<p>The internal simulated eSIM for order ${escapeHtml(String(data.orderCode ?? ''))} was stored.</p><p>Do not install it on a real phone. This email has no install code.</p>`,
+        text: `Simulated eSIM for order ${String(data.orderCode ?? '')} was stored. Do not install it. No install code in this email.`,
+      };
+    case 'ESIM_SANDBOX_READY':
+      return {
+        subject: `[TEST] eSIM install code ready — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Hello ${escapeHtml(String(data.customerName ?? 'there'))},</p><p>The test eSIM for order <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> is ready in your CardOn account.</p><p>This is a test code, not a real eSIM. This email has no install code.</p>`,
+        text: `[TEST] eSIM for order ${String(data.orderCode ?? '')} is ready in your account. Test code only. No install code in this email.`,
+      };
+    default:
+      return null;
+  }
+}
+
 export function renderEmailTemplate(
   template: EmailTemplateType,
   data: Record<string, unknown>,
 ): RenderedEmail {
+  if (emailLocale(data) === 'en') {
+    const english = renderEnglishEmail(template, data);
+    if (english) return english;
+  }
   switch (template) {
     case 'USER_REGISTER': {
       const name = String(data.fullName ?? '').trim();

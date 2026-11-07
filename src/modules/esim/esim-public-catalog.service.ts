@@ -4,8 +4,16 @@ import { EsimCatalogLifecycle } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
 import { ESIM_AIRALO_PROVIDER_CODE } from './esim.constants';
-import { activationLabelVi, COUNTRY_NAMES_VI } from './esim-catalogue.rules';
+import {
+  displayProviderText,
+  presentStorefrontOfferText,
+  storefrontLocale,
+  type StorefrontLocale,
+} from './esim-catalogue.rules';
 import { evaluateEsimSale, esimSaleFlagsFromRuntime } from './esim-policy';
+import { displayChargeForOffer } from './esim-checkout-options';
+import { marketFromEsimPackage } from './esim-market.rules';
+import { MANUAL_USD_VND_SOURCE, selectCheckoutFx } from '../fx/fx-rate.rules';
 
 export const ESIM_JAPAN_PRODUCT_SLUG = 'esim-nhat-ban';
 export const ESIM_KOREA_PRODUCT_SLUG = 'esim-han-quoc';
@@ -26,6 +34,10 @@ export interface EsimPublicOffer {
   operators: string[];
   groupLabel: string;
   sellPriceVnd: number;
+  market: 'VN' | 'INTL';
+  chargeCurrency: 'VND' | 'USD' | null;
+  chargeAmount: string | null;
+  fxRate: string | null;
   countryIso: string;
   countryName: string;
   testData: false;
@@ -94,12 +106,14 @@ export class EsimPublicCatalogService {
     ).ok;
   }
 
-  async listStorefront(): Promise<EsimStorefrontCatalog> {
-    const offers = await this.listPublicOffers();
+  async listStorefront(locale?: string): Promise<EsimStorefrontCatalog> {
+    const offers = await this.listPublicOffers(locale);
     return { salesOpen: this.salesOpen(), offers };
   }
 
-  async listPublicOffers(): Promise<EsimPublicOffer[]> {
+  async listPublicOffers(locale?: string): Promise<EsimPublicOffer[]> {
+    const language = storefrontLocale(locale);
+    const fxRate = await this.currentCheckoutFxRate();
     const rows = await this.prisma.esimAiraloPackage.findMany({
       where: {
         lifecycle: EsimCatalogLifecycle.PUBLISHED,
@@ -129,71 +143,94 @@ export class EsimPublicCatalogService {
     return rows
       .map((row) =>
         row.variant
-          ? this.toOffer(row.variant.product, row.variant, {
-              countryIso: row.countryIso,
-              destinationKey: row.destinationKey,
-            })
+          ? this.toOffer(
+              row.variant.product,
+              row.variant,
+              {
+                countryIso: row.countryIso,
+                destinationKey: row.destinationKey,
+              },
+              language,
+              fxRate,
+            )
           : null,
       )
       .filter((offer): offer is EsimPublicOffer => offer !== null)
-      .sort((a, b) => a.countryIso.localeCompare(b.countryIso) || a.title.localeCompare(b.title, 'vi'));
+      .sort(
+        (a, b) =>
+          a.countryIso.localeCompare(b.countryIso) ||
+          a.title.localeCompare(b.title, language === 'en' ? 'en' : 'vi'),
+      );
   }
 
   private toOffer(
     product: { id: string; slug: string; name: string },
     variant: { id: string; sku: string; name: string; sellPrice: { toString(): string }; metadata: unknown },
     row: { countryIso: string; destinationKey: string },
+    locale: StorefrontLocale,
+    fxRate: string | null,
   ): EsimPublicOffer | null {
     const facts = readFacts(variant.metadata);
     if (!facts?.publicSlug) return null;
     const sellPriceVnd = Math.round(Number(variant.sellPrice.toString()));
     if (!Number.isFinite(sellPriceVnd) || sellPriceVnd <= 0) return null;
-    const dataLabel = facts.unlimited || (facts.dataAmountMb ?? 0) < 0
-      ? 'Không giới hạn'
-      : formatData(facts.dataAmountMb ?? 0);
-    const durationLabel = formatDuration(facts.duration ?? 0, facts.durationUnit);
+    const charge = displayChargeForOffer({
+      market: marketFromEsimPackage(row),
+      sellPriceVnd,
+      fxRate,
+    });
     const speedLabel = (facts.speed ?? []).join('/');
     const operators = hideSupplierTokens(facts.operators);
     const providerDescription = hideSupplierBrand(facts.shortInfo || facts.providerDescription || '');
     const countryIso = facts.countryIso ?? displayIso(row.destinationKey, row.countryIso);
-    const countryName =
-      COUNTRY_NAMES_VI[row.destinationKey] ??
-      COUNTRY_NAMES_VI[countryIso] ??
-      facts.countryName ??
-      countryIso;
-    const activationLabel = facts.activationLabel || activationLabelVi(facts.activationPolicy ?? '');
-    const summary = [
-      `${dataLabel}, ${durationLabel}, ${countryName}.`,
-      speedLabel ? `Tốc độ: ${speedLabel}.` : '',
-      operators.length > 0 ? `Nhà mạng: ${operators.join(', ')}.` : '',
-      activationLabel,
+    const copy = presentStorefrontOfferText({
+      locale,
+      destinationKey: row.destinationKey,
+      countryIso,
+      storedCountryName: facts.countryName,
+      dataAmountMb: facts.dataAmountMb ?? 0,
+      unlimited: facts.unlimited === true || (facts.dataAmountMb ?? 0) < 0,
+      duration: facts.duration ?? 0,
+      durationUnit: facts.durationUnit,
+      speedLabel,
+      operators,
+      activationPolicy: facts.activationPolicy ?? '',
+      storedActivationLabel: facts.activationLabel,
+      title: variant.name,
+      productName: product.name,
       providerDescription,
-    ].filter(Boolean).join(' ');
+    });
     return {
       id: facts.publicSlug,
       variantId: variant.id,
       productId: product.id,
       productSlug: product.slug,
-      productName: product.name,
+      productName: copy.productName,
       sku: variant.sku,
-      title: variant.name,
-      providerDescription,
-      summary,
-      dataLabel,
-      durationLabel,
+      title: copy.title,
+      providerDescription: displayProviderText(providerDescription, locale),
+      summary: copy.summary,
+      dataLabel: copy.dataLabel,
+      durationLabel: copy.durationLabel,
       speedLabel,
       operators,
       groupLabel: facts.group ?? '',
       sellPriceVnd,
+      market: charge.market,
+      chargeCurrency: charge.chargeCurrency,
+      chargeAmount: charge.chargeAmount,
+      fxRate: charge.fxRate,
       countryIso,
-      countryName,
+      countryName: copy.countryName,
       testData: false,
       photo: facts.countryImageUrl || null,
-      operatorInfo: hideSupplierTokens(facts.operatorInfo),
-      shortInfo: hideSupplierBrand(facts.shortInfo ?? ''),
-      otherInfo: hideSupplierBrand(facts.otherInfo ?? ''),
+      operatorInfo: hideSupplierTokens(facts.operatorInfo)
+        .map((item) => displayProviderText(item, locale))
+        .filter(Boolean),
+      shortInfo: displayProviderText(hideSupplierBrand(facts.shortInfo ?? ''), locale),
+      otherInfo: displayProviderText(hideSupplierBrand(facts.otherInfo ?? ''), locale),
       activationPolicy: facts.activationPolicy ?? '',
-      activationLabel,
+      activationLabel: copy.activationLabel,
       apnType: facts.apnType ?? '',
       apnValue: facts.apnValue ?? '',
       isRoaming: facts.isRoaming === true,
@@ -201,8 +238,31 @@ export class EsimPublicCatalogService {
       networks: hideSupplierTokens(facts.networks),
       countryImageUrl: facts.countryImageUrl ?? '',
       operatorImageUrl: facts.operatorImageUrl ?? '',
-      fairUsagePolicy: hideSupplierBrand(facts.fairUsagePolicy ?? ''),
+      fairUsagePolicy: displayProviderText(hideSupplierBrand(facts.fairUsagePolicy ?? ''), locale),
     };
+  }
+
+  /** Same EFFECTIVE rate quote() uses. The Airalo import rate is not a checkout rate. */
+  private async currentCheckoutFxRate(): Promise<string | null> {
+    const rows = await this.prisma.fxRate.findMany({
+      where: { sourceCode: MANUAL_USD_VND_SOURCE },
+      include: { source: true },
+    });
+    const selected = selectCheckoutFx(
+      rows.map((rate) => ({
+        id: rate.id,
+        status: rate.status,
+        rate: rate.rate,
+        observedAt: rate.observedAt,
+        effectiveFrom: rate.effectiveFrom,
+        effectiveTo: rate.effectiveTo,
+        maxStalenessSeconds: rate.source.maxStalenessSeconds,
+        baseCurrency: rate.source.baseCurrency,
+        quoteCurrency: rate.source.quoteCurrency,
+      })),
+      new Date(),
+    );
+    return selected.ok ? selected.rate.toString() : null;
   }
 }
 
@@ -229,13 +289,3 @@ function readFacts(metadata: unknown): CatalogueFacts | null {
   return catalogue as CatalogueFacts;
 }
 
-function formatData(amountMb: number): string {
-  if (amountMb >= 1024 && amountMb % 1024 === 0) return `${amountMb / 1024} GB`;
-  if (amountMb >= 1000 && amountMb % 1000 === 0) return `${amountMb / 1000} GB`;
-  return `${amountMb} MB`;
-}
-
-function formatDuration(duration: number, unit: string | undefined): string {
-  if (unit === 'day') return `${duration} ngày`;
-  return `${duration} ${unit ?? ''}`.trim();
-}

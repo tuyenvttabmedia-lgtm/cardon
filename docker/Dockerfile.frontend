@@ -83,6 +83,6 @@ USER nextjs
 EXPOSE ${APP_PORT}
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${APP_PORT}/ || exit 1
+  CMD wget -qO- http://127.0.0.1:${PORT}/ || exit 1
 
 CMD ["sh", "-c", "node apps/${APP_DIR}/server.js"]

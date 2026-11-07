@@ -165,7 +165,8 @@ describe('REFUND-04B RefundRequestService payout', () => {
 
     const repository = {
       runTransaction: jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
-        const run = queue.then(() => fn({}));
+        const tx = { $executeRaw: jest.fn().mockResolvedValue(undefined) };
+        const run = queue.then(() => fn(tx));
         queue = run.then(
           () => undefined,
           () => undefined,

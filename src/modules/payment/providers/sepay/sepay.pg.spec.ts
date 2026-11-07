@@ -82,4 +82,29 @@ describe('sepay.pg', () => {
     expect(result.amount).toBe('181000.00');
     expect(String(fetchImpl.mock.calls[0][0])).toContain('q=DH45479305');
   });
+
+  it('does not settle from a mismatched first row when the invoice is absent', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          {
+            order_id: 'OTHER',
+            order_invoice_number: 'DH-OTHER',
+            order_status: 'CAPTURED',
+            order_amount: '9.00',
+          },
+        ],
+      }),
+    });
+    const result = await querySepayPgOrder({
+      environment: 'sandbox',
+      merchantId: 'SP-TEST',
+      merchantSecretKey: 'secret',
+      invoiceNumber: 'DH45479305',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    expect(result.status).toBe('PENDING');
+    expect(result.amount).toBeUndefined();
+  });
 });

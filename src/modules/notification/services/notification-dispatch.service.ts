@@ -187,8 +187,14 @@ export class NotificationDispatchService {
 
     const publicUrl = this.configService.get<string>('appPublicUrl') ?? 'https://cardon.vn';
     const { installSecret: _omitSecret, ...safePayload } = payload;
+    const trace = order.clientTrace;
+    const storedLocale =
+      trace && typeof trace === 'object' && !Array.isArray(trace) && (trace as { locale?: unknown }).locale === 'en'
+        ? 'en'
+        : 'vi';
     const enriched: Record<string, unknown> = {
       ...safePayload,
+      locale: safePayload.locale === 'en' || safePayload.locale === 'vi' ? safePayload.locale : storedLocale,
       orderCode: order.orderCode,
       customerName,
       items,

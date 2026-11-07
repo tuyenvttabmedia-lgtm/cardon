@@ -138,6 +138,7 @@ export default () => ({
     esimEnabled: process.env.PAYPAL_ESIM_ENABLED === 'true',
     clientId: process.env.PAYPAL_CLIENT_ID ?? '',
     clientSecret: process.env.PAYPAL_CLIENT_SECRET ?? '',
+    webhookId: process.env.PAYPAL_WEBHOOK_ID ?? '',
     mode: process.env.PAYPAL_MODE === 'live' ? 'live' : 'sandbox',
   },
   esale: {

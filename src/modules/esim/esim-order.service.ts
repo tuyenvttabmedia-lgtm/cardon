@@ -1,13 +1,17 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { ErrorCode } from '../../common/constants/error-codes.constants';
+import { AppHttpException } from '../../common/exceptions/app-http.exception';
 import { PrismaService } from '../../database/prisma.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { calculateCustomerPaid, calculateProfit } from '../payment/entities/payment-fee.engine';
@@ -20,23 +24,38 @@ import { VariantRepository } from '../product/repositories/variant.repository';
 import { PricingService } from '../product/services/pricing.service';
 import { ProviderRegistryService } from '../provider/services/provider-registry.service';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
-import { evaluatePaypalEsimLimits } from '../payment/entities/paypal-limits.rules';
+import { evaluatePaypalCheckoutReady } from '../payment/providers/paypal/paypal.rules';
+import { buildEsimBuyerCheckoutOptions } from './esim-checkout-options';
+import { formatCatalogVnd, parseAdminTestAmountUsd, readAdminTestCharge, readAdminTestFulfillmentSkip } from './esim-admin-test.rules';
+import {
+  accountAgeHoursFromCreatedAt,
+  ESIM_ORDER_AMOUNT_LIMIT_MESSAGE,
+  evaluateEsimChargeLimit,
+  resolveEsimChargeLimitConfig,
+} from './esim-charge-limit.rules';
 import { ACTIVE_ORDER_WHERE } from '../order/entities/order.constants';
 import { evaluateEsimMarketPayment, type EsimMarket } from './esim-market.rules';
+import { resolveRetailMarket } from '../product/entities/retail-market';
+import { MANUAL_USD_VND_SOURCE, convertVndSellToUsd, selectCheckoutFx } from '../fx/fx-rate.rules';
 import {
   ESIM_ORDER_REUSE_PAYMENTS,
   esimOrderCreateLockPair,
   isReusableEsimOrder,
 } from './esim-order-idempotency';
 import { evaluateEsimSale, esimSaleFlagsFromRuntime } from './esim-policy';
+import { buildEsimVndPriceSnapshot } from './esim-order-snapshot';
 
 export type EsimCreateOptions = {
   /** Internal only. Public POST /orders must never set this. */
   adminTest?: boolean;
+  /** Internal only. Admin PayPal sandbox charge. Never a customer order field. */
+  testAmountUsd?: string;
 };
 
 @Injectable()
 export class EsimOrderService {
+  private readonly logger = new Logger(EsimOrderService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly orderRepository: OrderRepository,
@@ -50,18 +69,19 @@ export class EsimOrderService {
   async createAdminTest(
     dto: CreateOrderDto,
     user: AuthenticatedUser,
-    requestMeta?: { ip?: string | null; userAgent?: string | null },
+    requestMeta?: { ip?: string | null; userAgent?: string | null; countryCode?: string | null },
+    testAmountUsd?: string,
   ) {
     if (user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException('Insufficient role');
     }
-    return this.create(dto, user, requestMeta, { adminTest: true });
+    return this.create(dto, user, requestMeta, { adminTest: true, testAmountUsd });
   }
 
   async create(
     dto: CreateOrderDto,
     user: AuthenticatedUser | undefined,
-    requestMeta?: { ip?: string | null; userAgent?: string | null },
+    requestMeta?: { ip?: string | null; userAgent?: string | null; countryCode?: string | null },
     options?: EsimCreateOptions,
   ) {
     if (!user?.id) {
@@ -110,7 +130,10 @@ export class EsimOrderService {
     const sellAmount = unitPrice;
     const providerCost = new Decimal(selected.mapping.providerCost);
     const paymentMethod = this.resolvePaymentMethod(dto.paymentMethodCode);
-    const market = this.resolveEsimMarket(dto.market);
+    const market = this.marketForSelectedGateway(paymentMethod.gatewayCode, requestMeta?.countryCode);
+    if (dto.market && this.resolveEsimMarket(dto.market) !== market) {
+      throw new BadRequestException('eSIM market does not match the payment method');
+    }
     const marketCheck = evaluateEsimMarketPayment({
       market,
       currency: paymentMethod.gatewayCode === 'PAYPAL' ? 'USD' : 'VND',
@@ -120,17 +143,31 @@ export class EsimOrderService {
     if (!marketCheck.ok) {
       throw new BadRequestException(`eSIM payment route rejected: ${marketCheck.reason}`);
     }
-    if (marketCheck.gateway === 'PAYPAL') {
-      const limitCheck = evaluatePaypalEsimLimits({
-        quantity: 1,
-        amountUsd: Number(sellAmount.toFixed(2)),
-        ordersPaidToday: 0,
-        usdPaidToday: 0,
-        accountAgeHours: null,
-      });
-      if (!limitCheck.ok) {
-        throw new BadRequestException(`PayPal eSIM limit: ${limitCheck.reason}`);
+    let adminTestCharge: ReturnType<typeof readAdminTestCharge> = null;
+    if (adminTest && paymentMethod.gatewayCode === 'PAYPAL') {
+      const parsed = parseAdminTestAmountUsd(options?.testAmountUsd);
+      if (!parsed.ok) {
+        throw new BadRequestException(
+          'PayPal admin test amount must be from 0.01 to 80.00 USD with at most two decimal places',
+        );
       }
+      const paypalMode = this.settingsStore.resolvePaypalConfig().mode;
+      if (paypalMode !== 'sandbox') {
+        throw new BadRequestException('Admin test PayPal requires sandbox mode');
+      }
+      adminTestCharge = {
+        currency: 'USD',
+        amount: parsed.amount,
+        mode: 'sandbox',
+        catalogCurrency: 'VND',
+        catalogSellAmountVnd: formatCatalogVnd(sellAmount),
+      };
+    } else if (
+      adminTest &&
+      options?.testAmountUsd !== undefined &&
+      options.testAmountUsd !== ''
+    ) {
+      throw new BadRequestException('testAmountUsd is only valid for PayPal admin test orders');
     }
     const feeResult = calculateCustomerPaid(
       Number(sellAmount.toFixed(0)),
@@ -147,15 +184,71 @@ export class EsimOrderService {
       ),
     );
     const paymentExpiresAt = new Date(Date.now() + DEFAULT_PAYMENT_TIMEOUT_MINUTES * 60_000);
+    const pricingLockedAt = new Date();
+    const customerIntl = market === 'INTL' && !adminTest;
+    if (customerIntl && (!sellAmount.gt(0) || !customerPaid.gt(0) || !providerCost.gt(0))) {
+      throw new BadRequestException('eSIM price rejected: INVALID_PRICE');
+    }
+    const vndSnapshot = buildEsimVndPriceSnapshot({
+      sellAmount,
+      chargeAmount: customerPaid,
+      market,
+      lockedAt: pricingLockedAt,
+    });
     const orderCode = generateOrderCode();
     const txnCode = generateTransactionId();
+    // Customer PayPal: age from DB createdAt only (never JWT/FE). Admin-test skips new-account 30.
+    const accountAgeHours = adminTest
+      ? Number.POSITIVE_INFINITY
+      : await this.resolveCustomerAccountAgeHours(user.id);
 
     const order = await this.prisma.$transaction(async (tx) => {
       await this.lockEsimOrderCreate(tx, user.id, variant.id);
-      const reusable = await this.findReusableEsimOrder(tx, user.id, variant.id);
+      const reusable = await this.findReusableEsimOrder(
+        tx,
+        user.id,
+        variant.id,
+        market,
+        paymentMethod.gatewayCode,
+        customerIntl,
+        adminTestCharge
+          ? { gateway: 'PAYPAL', chargeAmountUsd: adminTestCharge.amount }
+          : undefined,
+      );
       if (reusable) {
         return reusable;
       }
+      const priceSnapshot = customerIntl
+        ? await this.lockIntlUsdPrice(tx, {
+            sellAmount,
+            customerPaid,
+            providerCost,
+            variantId: variant.id,
+            lockedAt: pricingLockedAt,
+          })
+        : {
+            ...vndSnapshot,
+            costCurrency: null,
+            costAmount: null,
+            fxRateId: null,
+            fxRateValue: null,
+            fxAsOf: null,
+          };
+      // Admin-test PayPal charges a sandbox USD amount; otherwise use server charge snapshot.
+      const limitChargeAmount = adminTestCharge
+        ? adminTestCharge.amount
+        : priceSnapshot.chargeAmount.toString();
+      const limitChargeCurrency = adminTestCharge
+        ? adminTestCharge.currency
+        : priceSnapshot.chargeCurrency;
+      this.assertEsimChargeWithinLimit({
+        userId: user.id,
+        market,
+        gateway: paymentMethod.gatewayCode,
+        chargeAmount: limitChargeAmount,
+        chargeCurrency: limitChargeCurrency,
+        accountAgeHours,
+      });
       const financial = await this.orderRepository.createFinancialTransaction(tx, {
         transactionId: txnCode,
         amount: customerPaid,
@@ -174,8 +267,10 @@ export class EsimOrderService {
           customerEmail: user.email,
           ipAddress: requestMeta?.ip ?? null,
           userAgent: requestMeta?.userAgent ?? null,
+          locale: dto.locale === 'en' ? 'en' : 'vi',
           capturedAt: new Date().toISOString(),
           ...(adminTest ? { adminTest: true } : {}),
+          ...(adminTestCharge ? { adminTestCharge } : {}),
         } as Prisma.InputJsonValue,
         totalAmount: customerPaid,
         faceValue,
@@ -192,6 +287,17 @@ export class EsimOrderService {
         providerCost,
         profit,
         paymentExpiresAt,
+        catalogCurrency: priceSnapshot.catalogCurrency,
+        catalogAmount: priceSnapshot.catalogAmount,
+        chargeCurrency: priceSnapshot.chargeCurrency,
+        chargeAmount: priceSnapshot.chargeAmount,
+        costCurrency: priceSnapshot.costCurrency,
+        costAmount: priceSnapshot.costAmount,
+        fxRateId: priceSnapshot.fxRateId,
+        fxRateValue: priceSnapshot.fxRateValue,
+        fxAsOf: priceSnapshot.fxAsOf,
+        esimMarket: priceSnapshot.esimMarket,
+        pricingLockedAt: priceSnapshot.pricingLockedAt,
       });
       const orderItem = await this.orderRepository.createOrderItem(tx, {
         orderId: created.id,
@@ -208,6 +314,16 @@ export class EsimOrderService {
           providerProductCode: selected.mapping.providerProductCode,
           providerCost,
           providerMode: mode === 'live' ? 'LIVE' : 'MOCK',
+          catalogCurrency: priceSnapshot.catalogCurrency,
+          catalogUnitAmount: priceSnapshot.catalogAmount,
+          chargeCurrency: priceSnapshot.chargeCurrency,
+          chargeAmount: priceSnapshot.chargeAmount,
+          costCurrency: priceSnapshot.costCurrency,
+          costAmount: priceSnapshot.costAmount,
+          fxRateId: priceSnapshot.fxRateId,
+          fxRateValue: priceSnapshot.fxRateValue,
+          fxAsOf: priceSnapshot.fxAsOf,
+          snapshotAt: priceSnapshot.pricingLockedAt,
         },
       });
       return tx.order.findFirst({
@@ -224,6 +340,94 @@ export class EsimOrderService {
     return mapOrder(order);
   }
 
+  /**
+   * Load account age from User.createdAt (DB). Fail-closed → null (treated as new / 30 USD).
+   */
+  private async resolveCustomerAccountAgeHours(userId: string): Promise<number | null> {
+    try {
+      const row = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { createdAt: true },
+      });
+      const age = accountAgeHoursFromCreatedAt(row?.createdAt ?? null);
+      if (age == null) {
+        this.logger.warn(
+          JSON.stringify({
+            event: 'ESIM_ACCOUNT_AGE_FALLBACK',
+            reason: row ? 'INVALID_CREATED_AT' : 'USER_NOT_FOUND',
+            userId,
+            at: new Date().toISOString(),
+          }),
+        );
+        return null;
+      }
+      return age;
+    } catch {
+      this.logger.warn(
+        JSON.stringify({
+          event: 'ESIM_ACCOUNT_AGE_FALLBACK',
+          reason: 'DB_LOOKUP_FAILED',
+          userId,
+          at: new Date().toISOString(),
+        }),
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Phase A — reject oversized eSIM charges before financial txn / order rows.
+   * Uses server charge snapshot (or admin-test sandbox USD), never client-declared amounts.
+   */
+  private assertEsimChargeWithinLimit(input: {
+    userId: string;
+    market: EsimMarket;
+    gateway: string;
+    chargeAmount: number | string;
+    chargeCurrency: string;
+    accountAgeHours: number | null;
+  }): void {
+    const system = this.settingsStore.resolveSystemConfig();
+    const limits = resolveEsimChargeLimitConfig({
+      esimMaxChargeAmountVnd: system.esimMaxChargeAmountVnd,
+      esimMaxChargeAmountUsd: system.esimMaxChargeAmountUsd,
+    });
+    const result = evaluateEsimChargeLimit({
+      chargeAmount: input.chargeAmount,
+      chargeCurrency: input.chargeCurrency,
+      maxVnd: limits.maxVnd,
+      maxUsd: limits.maxUsd,
+      accountAgeHours: input.accountAgeHours,
+      quantity: 1,
+    });
+    if (result.ok) {
+      return;
+    }
+    this.logger.warn(
+      JSON.stringify({
+        event: 'ESIM_ORDER_AMOUNT_LIMIT',
+        userId: input.userId,
+        market: input.market,
+        gateway: input.gateway,
+        chargeAmount: result.chargeAmount,
+        chargeCurrency: result.chargeCurrency,
+        configuredLimit: result.configuredLimit,
+        effectiveLimit: result.effectiveLimit,
+        reason: result.reason,
+        paypalReason: 'paypalReason' in result ? result.paypalReason : undefined,
+        at: new Date().toISOString(),
+      }),
+    );
+    if (result.reason === 'PAYPAL_ESIM_LIMIT') {
+      throw new BadRequestException(`PayPal eSIM limit: ${result.paypalReason}`);
+    }
+    throw new AppHttpException(
+      ErrorCode.ESIM_ORDER_AMOUNT_LIMIT,
+      ESIM_ORDER_AMOUNT_LIMIT_MESSAGE,
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+
   private async lockEsimOrderCreate(
     tx: Prisma.TransactionClient,
     userId: string,
@@ -237,7 +441,12 @@ export class EsimOrderService {
     tx: Prisma.TransactionClient,
     userId: string,
     variantId: string,
+    market: EsimMarket,
+    gatewayCode: string,
+    requireUsdSnapshot: boolean,
+    paypalCharge?: { gateway: 'PAYPAL'; chargeAmountUsd: string },
   ) {
+    const gateway = gatewayCode.trim().toUpperCase();
     const now = new Date();
     const rows = await tx.order.findMany({
       where: {
@@ -251,7 +460,174 @@ export class EsimOrderService {
         orderItems: { include: { variant: { select: { sku: true, name: true } } } },
       },
     });
-    return rows.find((row) => isReusableEsimOrder(row, now)) ?? null;
+    return (
+      rows.find((row) => {
+        if (!isReusableEsimOrder(row, now)) return false;
+        if (row.esimMarket && row.esimMarket !== market) return false;
+        if ((row.paymentGateway ?? '').toUpperCase() !== gateway) return false;
+        if (requireUsdSnapshot && (row.esimMarket !== 'INTL' || row.chargeCurrency !== 'USD')) {
+          return false;
+        }
+        if (!paypalCharge) return true;
+        if (row.paymentGateway !== paypalCharge.gateway) return false;
+        if (readAdminTestFulfillmentSkip(row.clientTrace)) return false;
+        return readAdminTestCharge(row.clientTrace)?.amount === paypalCharge.chargeAmountUsd;
+      }) ?? null
+    );
+  }
+
+  /** Gateway picks the snapshot. A confirmed foreign connection cannot open a Vietnam SePay charge. */
+  private marketForSelectedGateway(gatewayCode: string, countryCode?: string | null): EsimMarket {
+    const gateway = gatewayCode.trim().toUpperCase();
+    if (gateway === 'PAYPAL') return 'INTL';
+    if (gateway === 'SEPAY') {
+      if (resolveRetailMarket(countryCode) === 'INTL') {
+        throw new BadRequestException('eSIM SePay is only available for a Vietnam connection');
+      }
+      return 'VN';
+    }
+    throw new BadRequestException('eSIM payment route rejected: UNSUPPORTED_GATEWAY');
+  }
+
+  private async lockIntlUsdPrice(
+    tx: Prisma.TransactionClient | PrismaService,
+    input: {
+      sellAmount: Decimal;
+      customerPaid: Decimal;
+      providerCost: Decimal;
+      variantId: string;
+      lockedAt: Date;
+    },
+  ) {
+    const rows = await tx.fxRate.findMany({
+      where: { sourceCode: MANUAL_USD_VND_SOURCE },
+      include: { source: true },
+    });
+    const selected = selectCheckoutFx(
+      rows.map((row) => ({
+        id: row.id,
+        status: row.status,
+        rate: row.rate,
+        observedAt: row.observedAt,
+        effectiveFrom: row.effectiveFrom,
+        effectiveTo: row.effectiveTo,
+        maxStalenessSeconds: row.source.maxStalenessSeconds,
+        baseCurrency: row.source.baseCurrency,
+        quoteCurrency: row.source.quoteCurrency,
+      })),
+      new Date(),
+    );
+    if (!selected.ok) {
+      throw new BadRequestException(`eSIM price rejected: ${selected.reason}`);
+    }
+    const converted = convertVndSellToUsd(input.customerPaid, selected.rate);
+    if (!converted.ok) {
+      throw new BadRequestException(`eSIM price rejected: ${converted.reason}`);
+    }
+    const cost = await this.readPackageCost(input.variantId, input.providerCost);
+    return {
+      catalogCurrency: 'VND' as const,
+      catalogAmount: input.sellAmount,
+      chargeCurrency: 'USD' as const,
+      chargeAmount: converted.usd,
+      costCurrency: cost.currency,
+      costAmount: cost.amount,
+      fxRateId: selected.row.id,
+      fxRateValue: selected.rate,
+      fxAsOf: selected.row.observedAt,
+      esimMarket: 'INTL' as const,
+      pricingLockedAt: input.lockedAt,
+    };
+  }
+
+  private async readPackageCost(variantId: string, providerCost: Decimal) {
+    const packages = this.prisma.esimAiraloPackage;
+    if (packages?.findFirst) {
+      const row = await packages.findFirst({
+        where: { variantId, lifecycle: 'PUBLISHED' },
+        select: { costCurrency: true, costAmount: true },
+      });
+      if (row) {
+        const amount = new Decimal(row.costAmount.toString());
+        if (!amount.gt(0) || !row.costCurrency) {
+          throw new BadRequestException('eSIM price rejected: INVALID_COST');
+        }
+        return { currency: row.costCurrency, amount };
+      }
+    }
+    if (!providerCost.gt(0)) {
+      throw new BadRequestException('eSIM price rejected: INVALID_COST');
+    }
+    return { currency: 'VND', amount: providerCost };
+  }
+
+  async quote(variantId: string, buyerMarket: 'VN' | 'INTL' = 'VN') {
+    const variant = await this.variantRepository.findActiveById(variantId);
+    if (!variant || String(variant.type) !== 'ESIM') {
+      throw new NotFoundException('eSIM variant not found');
+    }
+    const selected = await this.selectAiraloMapping(variant.id);
+    const unitPrice = await this.pricingService.getCustomerPrice(variant.id);
+    const sellAmount = new Decimal(unitPrice);
+    const providerCost = new Decimal(selected.mapping.providerCost);
+    const referenceAmount = sellAmount.toFixed(0);
+    const vndCharge = new Decimal(Math.round(Number(sellAmount.toString()))).toFixed(0);
+    const sepayReady = this.sepayEsimReady();
+    const paypalReady = this.paypalEsimReady();
+    let usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null = null;
+    if (paypalReady) {
+      try {
+        const locked = await this.lockIntlUsdPrice(this.prisma, {
+          sellAmount,
+          customerPaid: new Decimal(vndCharge),
+          providerCost,
+          variantId: variant.id,
+          lockedAt: new Date(),
+        });
+        usd = {
+          amount: locked.chargeAmount.toFixed(2),
+          fxRate: locked.fxRateValue.toString(),
+          fxRateId: locked.fxRateId,
+          fxAsOf: locked.fxAsOf.toISOString(),
+        };
+      } catch (error) {
+        if (!(error instanceof BadRequestException)) throw error;
+        usd = null;
+      }
+    }
+    const options = buildEsimBuyerCheckoutOptions({
+      buyerMarket,
+      referenceAmountVnd: referenceAmount,
+      vndChargeAmount: vndCharge,
+      usd,
+      sepayReady,
+      paypalReady,
+    });
+    const selectedOption = options.paymentOptions[0] ?? null;
+    return {
+      // market = buyer location (cf-ipcountry). Charge currency stays on each option.
+      market: buyerMarket,
+      buyerMarket,
+      catalogCurrency: 'VND',
+      catalogAmount: referenceAmount,
+      chargeCurrency: selectedOption?.currency ?? null,
+      chargeAmount: selectedOption?.amount ?? null,
+      fxRateId: selectedOption?.fxRateId ?? null,
+      fxRate: selectedOption?.fxRate ?? null,
+      fxAsOf: selectedOption?.fxAsOf ?? null,
+      paymentOptions: options.paymentOptions,
+      unavailableReason: options.unavailableReason,
+    };
+  }
+
+  /** eSIM Payment Gateway, not the agent-wallet VietQR secret. */
+  private sepayEsimReady(): boolean {
+    const gateway = this.settingsStore.resolveSepayPaymentGateway();
+    return gateway.enabled === true && Boolean(gateway.merchantId?.trim()) && Boolean(gateway.merchantSecretKey?.trim());
+  }
+
+  private paypalEsimReady(): boolean {
+    return evaluatePaypalCheckoutReady(this.settingsStore.resolvePaypalConfig()).ok;
   }
 
   private resolveEsimMarket(raw?: string): EsimMarket {

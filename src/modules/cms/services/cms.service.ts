@@ -22,11 +22,13 @@ import {
   CMS_BLOG_LIST_MAX_TAKE,
   CMS_SEO_SETTING_KEYS,
   CMS_THEME_SETTING_KEYS,
+  sanitizeHomeBackgrounds,
 } from '../entities/cms.constants';
 import {
   DEFAULT_MOBILE_NAV,
   type CmsMobileNavItem,
 } from '../entities/cms-theme.defaults';
+import { normalizeFooterColumn, normalizeHeaderMenuItem, normalizeMobileNavLabel } from '../entities/theme-locale';
 import { normalizeContactChannels, type ContactChannel } from '../entities/contact-channels';
 import { SETTINGS_KEYS } from '../../settings/entities/settings.constants';
 import { normalizeSearchConsoleVerification } from '../utils/seo-settings.util';
@@ -36,6 +38,13 @@ import {
   mapCmsBlogPostForPublic,
   mapCmsBlogPostListItem,
 } from '../entities/cms-public.mapper';
+import {
+  hasEnglishCategoryName,
+  hasPublishedEnglishTranslation,
+  resolvePublicCategoryLocale,
+  resolvePublicPageLocale,
+  type CmsContentLocale,
+} from '../entities/cms-locale';
 import { CmsRepository } from '../repositories/cms.repository';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { MaintenanceAvailabilityService } from '../../maintenance-center/services/maintenance-availability.service';
@@ -68,14 +77,47 @@ export class CmsService {
     return this.repository.findPageBySlug(slug);
   }
 
-  async getPublishedPageForPublic(slug: string) {
-    const page = await this.repository.findPublishedPageBySlug(slug);
+  async getPublishedPageForPublic(slug: string, locale?: CmsContentLocale) {
+    const page = await this.repository.findPublishedPageBySlug(slug, Boolean(locale));
     if (!page) return null;
-    return mapCmsPageForPublic(page);
+    return this.presentPage(page, locale, mapCmsPageForPublic);
   }
 
-  listNavPagesForPublic() {
-    return this.repository.findNavPagesForPublic();
+  async listEnglishSitemap() {
+    const [pages, categories] = await Promise.all([
+      this.repository.findPublishedEnglishSitemap(),
+      this.repository.findCategoriesWithEnglishCopy(),
+    ]);
+    return {
+      pages: pages
+        .filter((page) => hasPublishedEnglishTranslation(page.translations))
+        .map((page) => ({
+          slug: page.slug,
+          type: page.type,
+          categorySlug: page.categoryRel?.slug ?? null,
+          updatedAt: page.updatedAt.toISOString(),
+        })),
+      categories: categories
+        .filter((category) => hasEnglishCategoryName(category.translations))
+        .map((category) => ({
+          slug: category.slug,
+          updatedAt: category.updatedAt.toISOString(),
+        })),
+    };
+  }
+
+  listNavPagesForPublic(locale?: CmsContentLocale) {
+    return this.repository.findNavPagesForPublic(Boolean(locale)).then((rows) =>
+      rows.map((row) => {
+        const resolved = resolvePublicPageLocale(row, locale);
+        const item = {
+          slug: row.slug,
+          title: resolved.page.title,
+          navSortOrder: row.navSortOrder,
+        };
+        return resolved.meta ? { ...item, ...resolved.meta } : item;
+      }),
+    );
   }
 
   async createPage(authorId: string, dto: CreateCmsPageDto) {
@@ -101,41 +143,30 @@ export class CmsService {
       status = CmsPageStatus.DRAFT;
     }
 
-    const page = await this.repository.createPage({
-      type: dto.type,
-      slug: dto.slug,
-      title: dto.title,
-      content: dto.content,
-      excerpt: dto.excerpt,
-      category: dto.category,
-      tags: dto.tags ?? [],
-      featuredImage: dto.featuredImage,
-      status,
-      pageLayout,
-      showInNav,
-      navSortOrder,
-      publishedAt: status === CmsPageStatus.PUBLISHED ? new Date() : undefined,
-      scheduledPublishAt: status === CmsPageStatus.PUBLISHED ? null : schedule,
-      author: { connect: { id: authorId } },
-      ...(dto.categoryId ? { categoryRel: { connect: { id: dto.categoryId } } } : {}),
-    });
+    const page = await this.repository.createPage(
+      {
+        type: dto.type,
+        slug: dto.slug,
+        title: dto.title,
+        content: dto.content,
+        excerpt: dto.excerpt,
+        category: dto.category,
+        tags: dto.tags ?? [],
+        featuredImage: dto.featuredImage,
+        status,
+        pageLayout,
+        showInNav,
+        navSortOrder,
+        publishedAt: status === CmsPageStatus.PUBLISHED ? new Date() : undefined,
+        scheduledPublishAt: status === CmsPageStatus.PUBLISHED ? null : schedule,
+        author: { connect: { id: authorId } },
+        ...(dto.categoryId ? { categoryRel: { connect: { id: dto.categoryId } } } : {}),
+      },
+      dto.seo ? this.pageSeoInput(dto.seo) : undefined,
+    );
 
     if (dto.tagIds?.length) {
       await this.repository.syncPageTags(page.id, dto.tagIds);
-    }
-
-    if (dto.seo) {
-      await this.repository.upsertPageSeo(page.id, {
-        metaTitle: dto.seo.metaTitle,
-        metaDescription: dto.seo.metaDescription,
-        metaKeywords: dto.seo.metaKeywords,
-        focusKeyword: dto.seo.focusKeyword,
-        ogTitle: dto.seo.ogTitle,
-        ogDescription: dto.seo.ogDescription,
-        ogImage: dto.seo.ogImage,
-        canonicalUrl: dto.seo.canonicalUrl,
-        robots: dto.seo.robots ?? 'index,follow',
-      });
     }
 
     const created = await this.getPage(page.id);
@@ -188,43 +219,33 @@ export class CmsService {
       { inNav: showInNav, content },
     );
 
-    const page = await this.repository.updatePage(id, {
-      slug: dto.slug,
-      title: dto.title,
-      content: dto.content,
-      excerpt: dto.excerpt,
-      category: dto.category,
-      tags: dto.tags,
-      featuredImage: dto.featuredImage,
-      ...(status !== undefined ? { status } : {}),
-      pageLayout,
-      ...(dto.showInNav !== undefined ? { showInNav } : {}),
-      ...(dto.showInNav !== undefined || dto.navSortOrder !== undefined ? { navSortOrder } : {}),
-      ...(publishedAt !== undefined ? { publishedAt } : {}),
-      ...(scheduledPublishAt !== undefined ? { scheduledPublishAt } : {}),
-      ...(dto.categoryId !== undefined
-        ? dto.categoryId
-          ? { categoryRel: { connect: { id: dto.categoryId } } }
-          : { categoryRel: { disconnect: true } }
-        : {}),
-    });
+    const page = await this.repository.updatePage(
+      id,
+      {
+        slug: dto.slug,
+        title: dto.title,
+        content: dto.content,
+        excerpt: dto.excerpt,
+        category: dto.category,
+        tags: dto.tags,
+        featuredImage: dto.featuredImage,
+        ...(status !== undefined ? { status } : {}),
+        pageLayout,
+        ...(dto.showInNav !== undefined ? { showInNav } : {}),
+        ...(dto.showInNav !== undefined || dto.navSortOrder !== undefined ? { navSortOrder } : {}),
+        ...(publishedAt !== undefined ? { publishedAt } : {}),
+        ...(scheduledPublishAt !== undefined ? { scheduledPublishAt } : {}),
+        ...(dto.categoryId !== undefined
+          ? dto.categoryId
+            ? { categoryRel: { connect: { id: dto.categoryId } } }
+            : { categoryRel: { disconnect: true } }
+          : {}),
+      },
+      dto.seo ? this.pageSeoInput(dto.seo) : undefined,
+    );
 
     if (dto.tagIds) {
       await this.repository.syncPageTags(id, dto.tagIds);
-    }
-
-    if (dto.seo) {
-      await this.repository.upsertPageSeo(id, {
-        metaTitle: dto.seo.metaTitle,
-        metaDescription: dto.seo.metaDescription,
-        metaKeywords: dto.seo.metaKeywords,
-        focusKeyword: dto.seo.focusKeyword,
-        ogTitle: dto.seo.ogTitle,
-        ogDescription: dto.seo.ogDescription,
-        ogImage: dto.seo.ogImage,
-        canonicalUrl: dto.seo.canonicalUrl,
-        robots: dto.seo.robots ?? 'index,follow',
-      });
     }
 
     const updated = await this.getPage(page.id);
@@ -395,26 +416,30 @@ export class CmsService {
 
   listBlogPosts(query: ListBlogQueryDto) {
     const take = Math.min(query.take ?? CMS_BLOG_LIST_DEFAULT_TAKE, CMS_BLOG_LIST_MAX_TAKE);
+    const locale = query.locale;
     return this.repository
       .findPublishedBlogPosts({
         categorySlug: query.category,
         tagSlug: query.tag,
         skip: query.skip,
         take,
+        withTranslations: Boolean(locale),
       })
-      .then((rows) => rows.map(mapCmsBlogPostListItem));
+      .then((rows) => rows.map((row) => this.presentPage(row, locale, mapCmsBlogPostListItem)));
   }
 
-  async getBlogPost(slug: string) {
-    const page = await this.repository.findPublishedPageBySlug(slug);
+  async getBlogPost(slug: string, locale?: CmsContentLocale) {
+    const page = await this.repository.findPublishedPageBySlug(slug, Boolean(locale));
     if (!page || page.type !== CmsPageType.BLOG_POST) return null;
     const related = await this.repository.findRelatedBlogPosts(
       page.id,
       page.categoryId,
+      4,
+      Boolean(locale),
     );
     return {
-      post: mapCmsBlogPostForPublic(page),
-      related: related.map(mapCmsBlogPostListItem),
+      post: this.presentPage(page, locale, mapCmsBlogPostForPublic),
+      related: related.map((row) => this.presentPage(row, locale, mapCmsBlogPostListItem)),
     };
   }
 
@@ -434,26 +459,22 @@ export class CmsService {
   }
 
   private normalizeTheme<T extends {
-    headerMenu?: Array<{ label?: string; href?: string; sortOrder?: number }>;
-    footerColumns?: Array<{ title?: string; links?: Array<{ label?: string; href?: string }> }>;
+    headerMenu?: Array<{ label?: string; href?: string; sortOrder?: number; labelEn?: string; navKey?: string }>;
+    footerColumns?: Array<{
+      title?: string;
+      titleEn?: string;
+      description?: string;
+      descriptionEn?: string;
+      links?: Array<{ label?: string; href?: string; labelEn?: string; navKey?: string }>;
+    }>;
     mobileNav?: Array<Partial<CmsMobileNavItem>>;
     contactChannels?: Array<Partial<ContactChannel>>;
   }>(theme: T): T {
     const mobileNav = this.normalizeMobileNav(theme.mobileNav);
     return {
       ...theme,
-      headerMenu: (theme.headerMenu ?? []).map((item, i) => ({
-        label: (item.label ?? '').trim() || (item.href ?? '').trim() || `Mục ${i + 1}`,
-        href: (item.href ?? '/').trim() || '/',
-        sortOrder: item.sortOrder ?? i,
-      })),
-      footerColumns: (theme.footerColumns ?? []).map((col, ci) => ({
-        title: (col.title ?? '').trim() || `Cột ${ci + 1}`,
-        links: (col.links ?? []).map((link, li) => ({
-          label: (link.label ?? '').trim() || (link.href ?? '').trim() || `Liên kết ${li + 1}`,
-          href: (link.href ?? '/').trim() || '/',
-        })),
-      })),
+      headerMenu: (theme.headerMenu ?? []).map((item, i) => normalizeHeaderMenuItem(item, i)),
+      footerColumns: (theme.footerColumns ?? []).map((col, ci) => normalizeFooterColumn(col, ci)),
       mobileNav,
       contactChannels: normalizeContactChannels(theme.contactChannels),
     };
@@ -462,8 +483,10 @@ export class CmsService {
   private normalizeMobileNav(items?: Array<Partial<CmsMobileNavItem>>): CmsMobileNavItem[] {
     const source = items && items.length > 0 ? items : DEFAULT_MOBILE_NAV;
     return source
-      .map((item, i) => ({
+      .map((item, i) => normalizeMobileNavLabel({
         label: (item.label ?? '').trim() || `Mục ${i + 1}`,
+        labelEn: item.labelEn,
+        navKey: item.navKey,
         icon: (item.icon ?? '📱').trim() || '📱',
         url: (item.url ?? '/').trim() || '/',
         sortOrder: item.sortOrder ?? i,
@@ -514,6 +537,22 @@ export class CmsService {
     }
     if (normalized.mobileNav !== undefined) {
       entries.push([CMS_THEME_SETTING_KEYS.MOBILE_NAV, normalized.mobileNav]);
+    }
+    if (normalized.homeBackgrounds !== undefined) {
+      try {
+        entries.push([
+          CMS_THEME_SETTING_KEYS.HOME_BACKGROUNDS,
+          sanitizeHomeBackgrounds(normalized.homeBackgrounds),
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const key = message.startsWith('INVALID_HOME_BACKGROUND:')
+          ? message.slice('INVALID_HOME_BACKGROUND:'.length)
+          : 'homeBackgrounds';
+        throw new BadRequestException(
+          `Ảnh nền ${key} không hợp lệ. Chỉ nhận đường dẫn ảnh đã tải lên trong /uploads hoặc /images.`,
+        );
+      }
     }
     for (const [key, value] of entries) {
       await this.repository.upsertThemeSetting(key, value, 'CMS theme settings');
@@ -586,8 +625,15 @@ export class CmsService {
     return this.maintenanceAvailability.getPublicStatus();
   }
 
-  listCategories() {
-    return this.repository.listCategories();
+  listCategoriesForAdmin() {
+    return this.repository.listCategories(true);
+  }
+
+  listCategories(locale?: CmsContentLocale) {
+    if (!locale) return this.repository.listCategories();
+    return this.repository.listCategories(true).then((rows) =>
+      rows.map((row) => this.presentCategory(row, locale)),
+    );
   }
 
   createCategory(dto: UpsertCmsCategoryDto) {
@@ -606,14 +652,164 @@ export class CmsService {
     return this.repository.findCategoryBySlug(slug);
   }
 
-  async getCategoryForPublic(slug: string) {
-    const category = await this.repository.findCategoryBySlug(slug);
+  async getCategoryForPublic(slug: string, locale?: CmsContentLocale) {
+    const category = await this.repository.findCategoryBySlug(slug, Boolean(locale));
     if (!category) return null;
-    return category;
+    return locale ? this.presentCategory(category, locale) : category;
+  }
+
+  private presentPage<T>(
+    page: Parameters<typeof resolvePublicPageLocale>[0],
+    locale: CmsContentLocale | undefined,
+    map: (page: never) => T,
+  ): T {
+    const resolved = resolvePublicPageLocale(page, locale);
+    const view = map(resolved.page as never);
+    return resolved.meta ? ({ ...view, ...resolved.meta } as T) : view;
+  }
+
+  private presentCategory<T extends Parameters<typeof resolvePublicCategoryLocale>[0]>(
+    category: T,
+    locale: CmsContentLocale,
+  ) {
+    const resolved = resolvePublicCategoryLocale(category, locale);
+    const { translations: _translations, ...rest } = resolved.category;
+    return { ...rest, ...resolved.meta };
   }
 
   listTags() {
     return this.repository.listTags();
+  }
+
+  async savePageTranslation(
+    id: string,
+    locale: string,
+    dto: {
+      title: string;
+      excerpt?: string;
+      content: string;
+      status?: CmsPageStatus;
+      seo?: {
+        metaTitle?: string;
+        metaDescription?: string;
+        metaKeywords?: string;
+        ogTitle?: string;
+        ogDescription?: string;
+      };
+    },
+  ) {
+    if (locale !== 'vi' && locale !== 'en') {
+      throw new BadRequestException('locale must be vi or en');
+    }
+    if (locale === 'vi') {
+      return this.updatePage(id, {
+        title: dto.title,
+        excerpt: dto.excerpt,
+        content: dto.content,
+        ...(dto.status ? { status: dto.status } : {}),
+        ...(dto.seo?.metaTitle && dto.seo.metaDescription
+          ? {
+              seo: {
+                metaTitle: dto.seo.metaTitle,
+                metaDescription: dto.seo.metaDescription,
+                metaKeywords: dto.seo.metaKeywords,
+                ogTitle: dto.seo.ogTitle,
+                ogDescription: dto.seo.ogDescription,
+              },
+            }
+          : {}),
+      });
+    }
+    const saved = await this.repository.upsertEnglishPageTranslation(id, {
+      title: dto.title,
+      excerpt: dto.excerpt,
+      content: dto.content,
+      status: dto.status,
+      seo: {
+        metaTitle: (dto.seo?.metaTitle || dto.title).slice(0, 128),
+        metaDescription: (dto.seo?.metaDescription || dto.excerpt || dto.title).slice(0, 256),
+        metaKeywords: dto.seo?.metaKeywords,
+        ogTitle: dto.seo?.ogTitle,
+        ogDescription: dto.seo?.ogDescription,
+      },
+    });
+    if (!saved) throw new NotFoundException('CMS page not found');
+    return saved;
+  }
+
+  async saveCategoryTranslation(
+    id: string,
+    locale: string,
+    dto: { name: string; description?: string },
+  ) {
+    if (locale !== 'vi' && locale !== 'en') {
+      throw new BadRequestException('locale must be vi or en');
+    }
+    if (locale === 'vi') {
+      const current = await this.repository.findCategoryById(id);
+      if (!current) throw new NotFoundException('Category not found');
+      return this.updateCategory(id, {
+        slug: current.slug,
+        name: dto.name,
+        description: dto.description ?? current.description ?? undefined,
+        intro: current.intro ?? undefined,
+        metaTitle: current.metaTitle ?? undefined,
+        metaDescription: current.metaDescription ?? undefined,
+        canonicalUrl: current.canonicalUrl ?? undefined,
+        ogImageUrl: current.ogImageUrl ?? undefined,
+        sortOrder: current.sortOrder,
+      });
+    }
+    const saved = await this.repository.upsertEnglishCategoryTranslation(id, dto);
+    if (!saved) throw new NotFoundException('Category not found');
+    return saved;
+  }
+
+  async saveTagTranslation(
+    id: string,
+    locale: string,
+    dto: { name: string; metaTitle?: string; metaDescription?: string },
+  ) {
+    if (locale !== 'vi' && locale !== 'en') {
+      throw new BadRequestException('locale must be vi or en');
+    }
+    if (locale === 'vi') {
+      const current = await this.repository.findTagById(id);
+      if (!current) throw new NotFoundException('Tag not found');
+      return this.updateTag(id, {
+        slug: current.slug,
+        name: dto.name,
+        metaTitle: dto.metaTitle ?? current.metaTitle ?? undefined,
+        metaDescription: dto.metaDescription ?? current.metaDescription ?? undefined,
+      });
+    }
+    const saved = await this.repository.upsertEnglishTagTranslation(id, dto);
+    if (!saved) throw new NotFoundException('Tag not found');
+    return saved;
+  }
+
+  private pageSeoInput(seo: {
+    metaTitle: string;
+    metaDescription: string;
+    metaKeywords?: string;
+    focusKeyword?: string;
+    ogTitle?: string;
+    ogDescription?: string;
+    ogImage?: string;
+    canonicalUrl?: string;
+    robots?: string;
+  }) {
+    return {
+      metaTitle: seo.metaTitle,
+      metaDescription: seo.metaDescription,
+      metaKeywords: seo.metaKeywords,
+      focusKeyword: seo.focusKeyword,
+      ogTitle: seo.ogTitle,
+      ogDescription: seo.ogDescription,
+      ogImage: seo.ogImage,
+      canonicalUrl: seo.canonicalUrl,
+      robots: seo.robots ?? 'index,follow',
+    };
   }
 
   async createTag(dto: UpsertCmsTagDto) {

@@ -116,11 +116,15 @@ describe('sandbox checkout host', () => {
     expect(
       sandboxCheckoutForm({
         checkoutUrl: 'https://pay-sandbox.sepay.vn/v1/checkout/init',
-        checkoutFormFields: { merchant: 'm', signature: 'sig' },
+        checkoutFormFields: { merchant: 'm', signature: 'sig', order_amount: '1000' },
       }),
     ).toEqual({
       action: 'https://pay-sandbox.sepay.vn/v1/checkout/init',
-      fields: { merchant: 'm', signature: 'sig' },
+      fields: [
+        ['order_amount', '1000'],
+        ['merchant', 'm'],
+        ['signature', 'sig'],
+      ],
     });
     expect(
       sandboxCheckoutForm({

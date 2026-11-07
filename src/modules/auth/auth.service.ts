@@ -5,7 +5,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { UserRole, UserStatus } from '@prisma/client';
+import { Prisma, UserRole, UserStatus } from '@prisma/client';
 import {
   SystemActivityEventCategory,
   SystemActivityEventType,
@@ -18,7 +18,7 @@ import { AppHttpException } from '../../common/exceptions/app-http.exception';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationService } from '../notification/services/notification.service';
 import { SettingsEncryptionService } from '../settings/services/settings-encryption.service';
-import { AUDIT_ACTIONS, BCRYPT_ROUNDS } from './auth.constants';
+import { AUDIT_ACTIONS, BCRYPT_ROUNDS, DUMMY_PASSWORD_HASH } from './auth.constants';
 import { AuditService } from './audit.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -29,7 +29,11 @@ import {
   ResendVerificationDto,
   VerifyEmailDto,
 } from './dto/agent-register.dto';
-import { AuthResult, AuthUserSummary } from './interfaces/auth-result.interface';
+import {
+  AuthResult,
+  AuthUserSummary,
+  RegisterPendingResult,
+} from './interfaces/auth-result.interface';
 import { TokenService } from './token.service';
 import { MaintenanceAvailabilityService } from '../maintenance-center/services/maintenance-availability.service';
 import { ActivityEventDispatcher } from '../activity-event/activity-event-dispatcher.service';
@@ -55,27 +59,27 @@ export class AuthService {
     private readonly maintenanceAvailability: MaintenanceAvailabilityService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResult> {
+  async register(dto: RegisterDto): Promise<RegisterPendingResult> {
     this.maintenanceAvailability.assertLoginAllowed(UserRole.CUSTOMER);
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
     const phone = dto.phone.trim();
 
-    const [existingEmail, existingUsername] = await Promise.all([
+    const [existingEmail, existingUsername, existingPhone] = await Promise.all([
       this.prisma.user.findFirst({
         where: { email, deletedAt: null },
       }),
       this.prisma.user.findFirst({
         where: { username, deletedAt: null },
       }),
+      this.prisma.user.findFirst({
+        where: { phone, deletedAt: null },
+      }),
     ]);
 
-    if (existingEmail) {
-      throw new ConflictException('Email already registered');
-    }
-
-    if (existingUsername) {
-      throw new ConflictException('Username already taken');
+    // Single conflict copy — do not reveal which field collided (enumeration).
+    if (existingEmail || existingUsername || existingPhone) {
+      throw new ConflictException('Unable to register with the provided details');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
@@ -84,19 +88,30 @@ export class AuthService {
       ? this.settingsEncryption.encrypt(dto.identityNumber.trim())
       : undefined;
 
-    const user = await this.prisma.user.create({
-      data: {
-        username,
-        fullName: dto.fullName.trim(),
-        email,
-        phone,
-        identityNumberEnc,
-        passwordHash,
-        role: UserRole.CUSTOMER,
-        status: UserStatus.ACTIVE,
-        acceptedTermsAt,
-      },
-    });
+    let user;
+    try {
+      user = await this.prisma.user.create({
+        data: {
+          username,
+          fullName: dto.fullName.trim(),
+          email,
+          phone,
+          identityNumberEnc,
+          passwordHash,
+          role: UserRole.CUSTOMER,
+          status: UserStatus.ACTIVE,
+          acceptedTermsAt,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Unable to register with the provided details');
+      }
+      throw error;
+    }
 
     const verifyToken = await this.createEmailVerificationToken(user.id);
     await this.notificationService.notifyUserRegister(
@@ -105,7 +120,13 @@ export class AuthService {
       dto.fullName.trim(),
     );
 
-    return this.issueAuthResult(user, undefined);
+    // No session until email is verified — blocks email-squat account use.
+    return {
+      requiresEmailVerification: true,
+      email,
+      message:
+        'Registration successful. Please check your email to verify your account before signing in.',
+    };
   }
 
   async login(dto: LoginDto, context?: ActivityRequestContext): Promise<AuthResult> {
@@ -119,7 +140,21 @@ export class AuthService {
     });
 
     if (!user) {
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
       this.dispatchLoginFailed(null, null, 'UNKNOWN_USER', context);
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // Password first — never reveal SUSPENDED/BANNED to callers who do not know the password.
+    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordValid) {
+      await this.auditService.recordSecurityEvent({
+        userId: user.id,
+        action: AUDIT_ACTIONS.LOGIN_FAILED,
+        ipAddress,
+        metadata: { reason: 'INVALID_PASSWORD' },
+      });
+      this.dispatchLoginFailed(user.id, user.email, 'INVALID_PASSWORD', context, user.role);
       throw new UnauthorizedException('Invalid email or password');
     }
 
@@ -153,16 +188,22 @@ export class AuthService {
       );
     }
 
-    const passwordValid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordValid) {
+    if (
+      (user.role === UserRole.CUSTOMER || user.role === UserRole.AGENT) &&
+      user.emailVerifiedAt == null
+    ) {
       await this.auditService.recordSecurityEvent({
         userId: user.id,
         action: AUDIT_ACTIONS.LOGIN_FAILED,
         ipAddress,
-        metadata: { reason: 'INVALID_PASSWORD' },
+        metadata: { reason: 'EMAIL_NOT_VERIFIED' },
       });
-      this.dispatchLoginFailed(user.id, user.email, 'INVALID_PASSWORD', context, user.role);
-      throw new UnauthorizedException('Invalid email or password');
+      this.dispatchLoginFailed(user.id, user.email, 'EMAIL_NOT_VERIFIED', context, user.role);
+      throw new AppHttpException(
+        ErrorCode.EMAIL_NOT_VERIFIED,
+        'Please verify your email before signing in',
+        403,
+      );
     }
 
     this.maintenanceAvailability.assertLoginAllowed(user.role);
@@ -218,6 +259,22 @@ export class AuthService {
     });
 
     if (!stored || stored.user.deletedAt) {
+      // Reuse of a rotated/revoked refresh token → kill every live session for that user.
+      const reused = await this.prisma.refreshToken.findFirst({
+        where: { tokenHash },
+        select: { userId: true, revokedAt: true },
+      });
+      if (reused?.revokedAt) {
+        await this.prisma.refreshToken.updateMany({
+          where: { userId: reused.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        await this.auditService.recordSecurityEvent({
+          userId: reused.userId,
+          action: AUDIT_ACTIONS.REFRESH_TOKEN_REUSE,
+          metadata: { reason: 'REVOKED_TOKEN_REPLAY' },
+        });
+      }
       throw new UnauthorizedException('Invalid refresh token');
     }
 
@@ -231,38 +288,31 @@ export class AuthService {
       );
     }
 
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
+    // Atomic claim — concurrent refresh with the same token must not mint two sessions.
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: stored.id, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    if (claimed.count !== 1) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
 
     return this.issueAuthResult(user);
   }
 
   async logout(
     userId: string,
-    refreshToken?: string,
+    _refreshToken?: string,
     context?: ActivityRequestContext,
     userSnapshot?: { email: string; role: UserRole },
   ): Promise<{ message: string }> {
     const ipAddress = context?.ipAddress;
-    if (refreshToken) {
-      const tokenHash = this.tokenService.hashToken(refreshToken);
-      const stored = await this.prisma.refreshToken.findFirst({
-        where: {
-          userId,
-          tokenHash,
-          revokedAt: null,
-        },
-      });
-
-      if (stored) {
-        await this.prisma.refreshToken.update({
-          where: { id: stored.id },
-          data: { revokedAt: new Date() },
-        });
-      }
-    }
+    // Always revoke every refresh session for this user. Omitting the body token must not
+    // leave stolen refresh tokens alive after logout (_refreshToken kept for API compat).
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
 
     await this.auditService.recordSecurityEvent({
       userId,
@@ -338,6 +388,12 @@ export class AuthService {
       const rawToken = this.tokenService.generateRefreshTokenValue();
       const tokenHash = this.tokenService.hashToken(rawToken);
 
+      // Invalidate prior unused reset links so only the latest email works.
+      await this.prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
       await this.prisma.passwordResetToken.create({
         data: {
           userId: user.id,
@@ -379,20 +435,28 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: {
+          id: resetToken.id,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new UnauthorizedException('Invalid or expired reset token');
+      }
+
+      await tx.user.update({
         where: { id: resetToken.userId },
         data: { passwordHash },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: resetToken.id },
-        data: { usedAt: new Date() },
-      }),
-      this.prisma.refreshToken.updateMany({
+      });
+      await tx.refreshToken.updateMany({
         where: { userId: resetToken.userId, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-    ]);
+      });
+    });
 
     return { message: 'Password reset successfully' };
   }
@@ -413,16 +477,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired verification token');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.emailVerificationToken.updateMany({
+        where: {
+          id: record.id,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { usedAt: new Date() },
+      });
+      if (claimed.count !== 1) {
+        throw new UnauthorizedException('Invalid or expired verification token');
+      }
+      await tx.user.update({
         where: { id: record.userId },
         data: { emailVerifiedAt: new Date() },
-      }),
-      this.prisma.emailVerificationToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+      });
+    });
 
     return { message: 'Email verified successfully', emailVerified: true };
   }

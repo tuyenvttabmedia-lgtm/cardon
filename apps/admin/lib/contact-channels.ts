@@ -7,6 +7,8 @@ export interface ContactChannel {
   enabled: boolean;
   value: string;
   href?: string;
+  label?: string;
+  labelEn?: string;
 }
 
 export const CONTACT_CHANNEL_META: Record<ContactChannelKey, { label: string; icon: string }> = {
@@ -43,11 +45,15 @@ export function normalizeContactChannels(
       key === 'address'
         ? undefined
         : (saved?.href ?? defaults.href)?.trim() || defaults.href;
+    const label = saved?.label?.trim();
+    const labelEn = saved?.labelEn?.trim();
     return {
       key,
       enabled: saved?.enabled !== false,
       value,
       href,
+      ...(label ? { label } : {}),
+      ...(labelEn ? { labelEn } : {}),
     };
   });
 }

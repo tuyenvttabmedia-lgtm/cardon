@@ -3,15 +3,27 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { EsimDetailClient, EsimDetailSkeleton, EsimLoadError } from '@/components/esim/EsimDetailClient';
 import { sanitizeEsimBack } from '@/lib/esim-browse';
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { listEsimPreviewOffers } from '@/lib/esim-offers';
 
-export const metadata: Metadata = {
-  title: 'eSIM du lịch',
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const { localizedMetadata } = await import('@/lib/seo');
+  return localizedMetadata({
+    title: 'eSIM du lịch',
+    path: `/esim/${slug}`,
+    robots: { index: false, follow: false },
+    enTitle: 'Travel eSIM',
+  });
+}
 
 async function EsimDetailLoader({ slug, plansHref }: { slug: string; plansHref: string | null }) {
-  const result = await listEsimPreviewOffers();
+  const locale = await readRequestLocale();
+  const result = await listEsimPreviewOffers(locale);
   if (!result.ok) {
     return <EsimLoadError message={result.error} />;
   }

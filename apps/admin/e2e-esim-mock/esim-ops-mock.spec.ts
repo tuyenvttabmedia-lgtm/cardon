@@ -19,7 +19,7 @@ import {
 const opsDetailSrc = readFileSync(resolve(__dirname, '../app/esim-ops/[id]/page.tsx'), 'utf8');
 
 test('real ops page still uses read-only recover labels', () => {
-  expect(opsDetailSrc).toContain('Đọc lại đơn Airalo');
+  expect(opsDetailSrc).toContain('Đọc lại đơn nhà cung cấp');
   expect(opsDetailSrc).toContain('Chỉ đọc — không tạo eSIM mới');
   expect(opsDetailSrc).not.toContain('Gọi Airalo tạo eSIM');
   expect(opsDetailSrc).toContain('recoverEsimOrder');
@@ -126,9 +126,9 @@ test('8. mock reveal error stays generic and does not show the response body', a
 
 test('9. recover calls mock query only and never CREATE', async ({ page }) => {
   await openOps(page, 'order-recover');
-  await expect(page.getByRole('button', { name: 'Đọc lại đơn Airalo' })).toBeVisible();
-  await page.getByRole('button', { name: 'Đọc lại đơn Airalo' }).click();
-  await expect(page.getByText(/Đã đọc lại Airalo — NEED_MANUAL_REVIEW/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Đọc lại đơn nhà cung cấp' })).toBeVisible();
+  await page.getByRole('button', { name: 'Đọc lại đơn nhà cung cấp' }).click();
+  await expect(page.getByText(/Đã đọc lại nhà cung cấp — NEED_MANUAL_REVIEW/)).toBeVisible();
   expect(countRequests(state, 'POST', '/recover')).toBe(1);
   expect(countRequests(state, 'POST', '/reveal')).toBe(0);
   expect(

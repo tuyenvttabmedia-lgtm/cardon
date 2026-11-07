@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
+import { LOCALE_HEADER, withLocalePrefix, type Locale } from '@/lib/i18n/locale';
 import type { PublicCmsSeo, PublicCmsSeoSettings } from '@/lib/cms-api';
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from '@/lib/utils';
 
@@ -57,6 +59,38 @@ export interface PageSeo {
   type?: 'website' | 'article';
   publishedTime?: string;
   robots?: Metadata['robots'];
+  locale?: Locale;
+  enTitle?: string;
+  enDescription?: string;
+  /**
+   * False when this document has no published English translation.
+   * App-localized routes omit the flag and keep the English alternate.
+   */
+  includeEnglishAlternate?: boolean;
+}
+
+/** Public English body: the API served locale=en with fallback false. A 200 fallback page does not count. */
+export function isPublishedEnglishDocument(
+  doc: { fallback?: boolean; contentLocale?: string | null } | null | undefined,
+): boolean {
+  return doc?.fallback === false && doc.contentLocale === 'en';
+}
+
+function pathWithoutQuery(path: string): string {
+  const cut = path.split(/[?#]/)[0] || '/';
+  if (!cut || cut === '/') return '/';
+  return cut.startsWith('/') ? cut : `/${cut}`;
+}
+
+export async function localizedMetadata(seo: PageSeo): Promise<Metadata> {
+  const headerList = await headers();
+  const locale: Locale = headerList.get(LOCALE_HEADER) === 'en' ? 'en' : 'vi';
+  return buildMetadata({
+    ...seo,
+    locale,
+    title: locale === 'en' && seo.enTitle ? seo.enTitle : seo.title,
+    description: locale === 'en' && seo.enDescription ? seo.enDescription : seo.description,
+  });
 }
 
 function resolveCmsPath(
@@ -65,13 +99,14 @@ function resolveCmsPath(
   canonicalUrl?: string | null,
 ): string {
   if (canonicalUrl?.trim()) {
-    const stripped = canonicalUrl.replace(getSiteUrl(), '').trim();
-    // Only trust same-site relative/absolute canonicals.
+    const withoutQuery = canonicalUrl.trim().split(/[?#]/)[0] ?? '';
+    const stripped = withoutQuery.replace(getSiteUrl(), '').trim();
+    // Only trust same-site relative/absolute canonicals. Query strings are not canonical.
     if (stripped.startsWith('/') && !stripped.startsWith('//')) {
-      return stripped || `/${pageSlug}`;
+      return pathWithoutQuery(stripped);
     }
-    if (canonicalUrl.startsWith(getSiteUrl())) {
-      return stripped || `/${pageSlug}`;
+    if (withoutQuery.startsWith(getSiteUrl())) {
+      return pathWithoutQuery(stripped || `/${pageSlug}`);
     }
     return `/${pageSlug}`;
   }
@@ -88,21 +123,36 @@ function resolveCmsPath(
 }
 
 export function buildMetadata(seo: PageSeo): Metadata {
-  const url = `${getSiteUrl()}${seo.path ?? ''}`;
+  const bare = pathWithoutQuery(seo.path ?? '/');
+  const locale = seo.locale ?? 'vi';
+  const canonicalPath = withLocalePrefix(bare, locale);
+  const url = `${getSiteUrl()}${canonicalPath}`;
+  const viUrl = `${getSiteUrl()}${withLocalePrefix(bare, 'vi')}`;
+  const enUrl = `${getSiteUrl()}${withLocalePrefix(bare, 'en')}`;
   const description = seo.description ?? SITE_DESCRIPTION;
   const ogTitle = seo.ogTitle?.trim() || seo.title;
   const ogDescription = seo.ogDescription?.trim() || description;
   const absoluteTitle = titleAlreadyBranded(seo.title);
   const ogImage = absolutePublicUrl(seo.ogImage);
+  const includeEnglish = seo.includeEnglishAlternate !== false;
+  const languages: Record<string, string> = {
+    vi: viUrl,
+    'x-default': viUrl,
+  };
+  if (includeEnglish) languages.en = enUrl;
+  const contentIsEnglish = locale === 'en' && includeEnglish;
 
   return {
     title: absoluteTitle ? { absolute: seo.title } : seo.title,
     description,
-    alternates: { canonical: url },
-    robots: seo.robots,
+    alternates: {
+      canonical: url,
+      languages,
+    },
+    robots: locale === 'en' && !includeEnglish ? 'noindex,follow' : seo.robots,
     openGraph: {
       type: seo.type ?? 'website',
-      locale: 'vi_VN',
+      locale: contentIsEnglish ? 'en_US' : 'vi_VN',
       url,
       siteName: SITE_NAME,
       title: ogTitle,
@@ -123,6 +173,8 @@ export function buildCmsMetadata(
   page: { title: string; excerpt?: string | null; slug: string; publishedAt?: string | null; featuredImage?: string | null },
   seo: PublicCmsSeo | null | undefined,
   pathPrefix: string,
+  locale: Locale = 'vi',
+  englishPublished = false,
 ): Metadata {
   const title = seo?.metaTitle ?? page.title;
   const description = seo?.metaDescription ?? page.excerpt ?? page.title;
@@ -143,6 +195,8 @@ export function buildCmsMetadata(
     type: isArticle ? 'article' : 'website',
     publishedTime: page.publishedAt ?? undefined,
     robots: seo?.robots,
+    locale,
+    includeEnglishAlternate: englishPublished,
   });
 
   if (seo?.metaTitle?.trim() || titleAlreadyBranded(title)) {
@@ -152,10 +206,19 @@ export function buildCmsMetadata(
   return meta;
 }
 
-export function buildGlobalMetadata(seo: PublicCmsSeoSettings | null | undefined): Metadata {
-  const brand = seo?.siteTitle?.trim() || SITE_NAME;
+export function buildGlobalMetadata(
+  seo: PublicCmsSeoSettings | null | undefined,
+  locale: Locale = 'vi',
+): Metadata {
+  const brand =
+    locale === 'en'
+      ? 'CardOn.vn — cards, top-up and travel eSIM'
+      : seo?.siteTitle?.trim() || SITE_NAME;
   const templateSuffix = seoTitleTemplateSuffix(brand);
-  const description = seo?.metaDescription?.trim() || SITE_DESCRIPTION;
+  const description =
+    locale === 'en'
+      ? 'Buy game cards, phone credit, data and travel eSIM on CardOn.vn.'
+      : seo?.metaDescription?.trim() || SITE_DESCRIPTION;
   const ogImage = seo?.ogImageUrl?.trim() || undefined;
   const verificationCode = seo?.searchConsoleVerification?.trim();
 
@@ -164,6 +227,7 @@ export function buildGlobalMetadata(seo: PublicCmsSeoSettings | null | undefined
     description,
     path: '/',
     ogImage,
+    locale,
   });
 
   return {

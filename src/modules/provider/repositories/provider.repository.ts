@@ -19,6 +19,7 @@ import {
   ProviderTransactionMetadata,
   RECOVERABLE_PROVIDER_STATUSES,
 } from '../entities/provider-transaction.metadata';
+import { persistAdminTestFulfillmentSkip } from '../../esim/esim-admin-test.rules';
 
 @Injectable()
 export class ProviderRepository {
@@ -171,6 +172,10 @@ export class ProviderOrderRepository {
         },
       },
     });
+  }
+
+  markAdminTestFulfillmentSkipped(orderId: string): Promise<boolean> {
+    return persistAdminTestFulfillmentSkip(this.prisma as never, orderId);
   }
 
   claimFulfillmentProcessing(orderId: string, tx: Prisma.TransactionClient) {

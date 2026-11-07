@@ -159,6 +159,56 @@ describe('ESIM-OPS-01 dashboard aggregates', () => {
     expect(JSON.stringify(built)).not.toMatch(/LPA:1\$|installSecret|qrSvg/i);
   });
 
+  it('reports profit only when the snapshot charge and cost share a currency', () => {
+    const built = buildEsimOpsDashboard({
+      range: esimOpsRange({ from: '2026-10-27', to: '2026-10-27' }),
+      ordersCreated: [
+        order({
+          id: 'vn',
+          esimMarket: 'VN',
+          chargeCurrency: 'VND',
+          chargeAmount: '100000',
+          costCurrency: 'VND',
+          costAmount: '80000',
+        }),
+        order({
+          id: 'intl',
+          esimMarket: 'INTL',
+          chargeCurrency: 'USD',
+          chargeAmount: '4.12',
+          costCurrency: 'VND',
+          costAmount: '69085',
+        }),
+      ],
+      successPayments: [
+        {
+          orderId: 'vn',
+          amount: '100000',
+          currency: 'VND',
+          gateway: 'SEPAY',
+          paidAt: new Date('2026-10-27T03:00:00.000Z'),
+          createdAt: new Date('2026-10-27T03:00:00.000Z'),
+        },
+        {
+          orderId: 'intl',
+          amount: '4.12',
+          currency: 'USD',
+          gateway: 'PAYPAL',
+          paidAt: new Date('2026-10-27T04:00:00.000Z'),
+          createdAt: new Date('2026-10-27T04:00:00.000Z'),
+        },
+      ],
+      packages: new Map(),
+    });
+    expect(built.snapshotEconomics.profitByCurrency).toEqual([
+      { currency: 'VND', amount: '20000.00', count: 1 },
+    ]);
+    expect(built.snapshotEconomics.unreconciledOrders).toBe(1);
+    expect(built.snapshotEconomics.missingSnapshot).toBe(0);
+    expect(built.revenue.commerce.find((row) => row.currency === 'USD')?.amount).toBe('4.12');
+    expect(built.checkoutCostSnapshot.available).toBe(false);
+  });
+
   it('admin ops dashboard API counts SUCCESS once and never invents profit', () => {
     const service = readFileSync(join(__dirname, 'esim-admin.service.ts'), 'utf8');
     const helper = readFileSync(join(__dirname, 'esim-ops-dashboard.ts'), 'utf8');

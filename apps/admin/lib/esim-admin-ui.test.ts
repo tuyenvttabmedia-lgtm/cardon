@@ -5,6 +5,8 @@ import { describe, expect, it } from 'vitest';
 
 const adminRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const catalogPage = readFileSync(resolve(adminRoot, 'app/products/esim/page.tsx'), 'utf8');
+const adminTestDialog = readFileSync(resolve(adminRoot, 'components/esim/AdminTestOrderDialog.tsx'), 'utf8');
+const adminTestCheckout = readFileSync(resolve(adminRoot, 'lib/esim-admin-test-checkout.ts'), 'utf8');
 const opsDetail = readFileSync(resolve(adminRoot, 'app/esim-ops/[id]/page.tsx'), 'utf8');
 const orderDetail = readFileSync(resolve(adminRoot, 'app/orders/[id]/page.tsx'), 'utf8');
 const opsList = readFileSync(resolve(adminRoot, 'app/esim-ops/page.tsx'), 'utf8');
@@ -14,30 +16,36 @@ const catalogFilter = readFileSync(resolve(adminRoot, 'types/esim-catalog-filter
 
 describe('catalog test-order UI', () => {
   it('is SUPER_ADMIN + orders.manage only and uses admin create wrapper', () => {
-    expect(catalogPage).toContain("user?.role === 'SUPER_ADMIN' && can('orders.manage')");
-    expect(catalogPage).toContain('adminApi.createEsimTestOrder');
+    expect(catalogPage).toContain('canUseAdminTest(user?.role, can)');
+    expect(adminTestCheckout).toContain("role === 'SUPER_ADMIN' && can('orders.manage')");
+    expect(catalogPage).toContain('AdminTestOrderDialog');
     expect(catalogPage).toContain('settingsAdminApi.getAiraloCatalogue');
-    expect(catalogPage).toContain("paymentMethodCode: 'VIETQR'");
-    expect(catalogPage).toContain("market: 'VN'");
-    expect(catalogPage).toContain('creatingTestRef.current');
+    expect(adminTestCheckout).toContain("paymentMethodCode: 'VIETQR'");
+    expect(adminTestCheckout).toContain("market: 'VN'");
+    expect(adminTestDialog).toContain('inflight.current');
     expect(catalogPage).toContain('setPendingTestVariant');
-    expect(catalogPage).not.toMatch(/createEsimTestOrder[\s\S]{0,200}\/orders['"]/);
+    expect(adminTestDialog).not.toMatch(/createEsimTestOrder[\s\S]{0,200}\/orders['"]/);
     expect(catalogPage).not.toContain("'/orders'");
     expect(catalogPage).not.toContain('localStorage');
     expect(catalogPage).not.toContain('sessionStorage');
     expect(catalogPage).not.toContain('console.log');
+    expect(adminTestDialog).not.toContain('clientSecret');
+    expect(adminTestDialog).not.toContain('client_id');
+    expect(adminTestDialog).not.toContain('webhook');
+    expect(adminTestDialog).not.toContain('paypal.com/checkout');
   });
 
-  it('does not retry create on timeout and asks operator to look up first', () => {
-    const handler = catalogPage.slice(
-      catalogPage.indexOf('async function createTestOrder'),
-      catalogPage.indexOf('useEffect(() => {\n    setPage(1)'),
+  it('does not retry create on timeout and reconciles before another order', () => {
+    const handler = adminTestDialog.slice(
+      adminTestDialog.indexOf('async function submit'),
+      adminTestDialog.indexOf('const statusLine'),
     );
-    expect(handler).toContain('creatingTestRef.current = true');
+    expect(handler).toContain('inflight.current = true');
+    expect(handler).toContain('lookupWaitingOrder');
     expect(handler).not.toContain('for (');
     expect(handler).not.toContain('while (');
     expect(handler).not.toContain('.retry');
-    expect(handler).toContain('Không bấm lại ngay');
+    expect(handler).toContain('không tạo đơn mới');
   });
 });
 
@@ -92,13 +100,13 @@ describe('ops checkout UI', () => {
 
   it('admin recover is read-only and does not offer a CREATE button', () => {
     expect(opsDetail).toContain('recoverEsimOrder');
-    expect(opsDetail).toContain('Đọc lại đơn Airalo');
+    expect(opsDetail).toContain('Đọc lại đơn nhà cung cấp');
     expect(opsDetail).toContain('Chỉ đọc — không tạo eSIM mới');
     expect(opsDetail).not.toContain('Gọi Airalo tạo eSIM');
   });
 
   it('does not treat EMAIL_SENT as delivered and does not show LPA on the list', () => {
-    expect(opsDetail).toContain('EMAIL_SENT lúc enqueue không phải bằng chứng đã gửi');
+    expect(opsDetail).toContain('Xác nhận thanh toán dựa trên đồng bộ cổng hoặc webhook');
     expect(opsList).not.toContain('installSecret');
     expect(opsList).not.toContain('LPA:1');
   });
@@ -109,7 +117,8 @@ describe('ops checkout UI', () => {
     expect(opsList).toContain('getEsimOpsDashboard');
     expect(opsList).toContain('Doanh thu thương mại (payment SUCCESS)');
     expect(opsList).toContain('Đã thu, chưa cấp eSIM');
-    expect(opsList).toContain('href="/operations"');
+    expect(opsList).toContain('Quản lý đơn hàng, thanh toán và quá trình cung cấp eSIM.');
+    expect(opsList).toContain('EsimOpsShell');
     expect(opsList).not.toContain('fakeRevenue');
     expect(opsList).not.toContain('LPA:1$');
     expect(opsDetail).toContain('Lịch sử thao tác quản trị');

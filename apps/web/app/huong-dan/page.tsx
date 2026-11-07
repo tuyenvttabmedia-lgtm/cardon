@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 
 import { HuongDanPageClient } from '@/components/guide/HuongDanPageClient';
 
+import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { listBlogPosts } from '@/lib/cms-api';
 
 import { buildMetadata } from '@/lib/seo';
@@ -24,7 +25,8 @@ export const metadata: Metadata = buildMetadata({
 
 export default async function HuongDanPage() {
 
-  const posts = (await listBlogPosts({ category: 'guide', take: 100 })) ?? [];
+  const locale = await readRequestLocale();
+  const posts = (await listBlogPosts({ category: 'guide', take: 100, locale })) ?? [];
 
 
 
@@ -32,7 +34,10 @@ export default async function HuongDanPage() {
 
     <Suspense fallback={<p className="page-shell text-center text-cardon-gray">Đang tải...</p>}>
 
-      <HuongDanPageClient posts={posts} />
+      <HuongDanPageClient
+        posts={posts}
+        contentFallback={locale === 'en' && posts.some((post) => post.fallback !== false)}
+      />
 
     </Suspense>
 

@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { useT } from '@/components/i18n/LocaleProvider';
 import { cn } from '@/lib/utils';
 import {
   formatPaymentFeeHint,
@@ -57,6 +58,7 @@ function CompactPaymentMethodCard({
   onSelect: () => void;
 }) {
   const feeHint = formatPaymentFeeHint(method.percentageFee, method.fixedFee);
+  const t = useT();
 
   return (
     <button
@@ -82,7 +84,7 @@ function CompactPaymentMethodCard({
         {feeHint ? (
           <p className="mt-1 text-xs leading-snug text-cardon-gray">{feeHint}</p>
         ) : (
-          <p className="mt-1 text-xs leading-snug text-emerald-700">Miễn phí giao dịch</p>
+          <p className="mt-1 text-xs leading-snug text-emerald-700">{t('pay.free')}</p>
         )}
       </span>
     </button>
@@ -98,12 +100,13 @@ export function PaymentMethodPicker({
   value: string | null;
   onChange: (methodCode: string) => void;
 }) {
+  const t = useT();
   const enabled = methods.filter((m) => m.enabled);
 
   if (!enabled.length) {
     return (
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Hiện chưa có phương thức thanh toán khả dụng
+        {t('checkout.noMethods')}
       </p>
     );
   }
@@ -135,19 +138,18 @@ export function SepayQrDisplay({
   } | null;
 }) {
   const [error, setError] = useState(false);
+  const t = useT();
 
   return (
     <div className="flex h-full w-full flex-col rounded-2xl border border-cardon-border bg-white p-4 text-center shadow-card sm:p-6 lg:p-8">
-      <p className="text-base font-semibold text-cardon-navy sm:text-lg">Quét mã QR để thanh toán</p>
-      <p className="mt-1 text-xs text-cardon-gray sm:text-sm">
-        Chuyển đúng số tiền. Nội dung / tài khoản VA đã gắn với đơn hàng.
-      </p>
+      <p className="text-base font-semibold text-cardon-navy sm:text-lg">{t('pay.scanTitle')}</p>
+      <p className="mt-1 text-xs text-cardon-gray sm:text-sm">{t('pay.scanHint')}</p>
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
         <div className="relative aspect-square w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px]">
           {!error ? (
             <Image
               src={paymentUrl}
-              alt="Mã QR chuyển khoản"
+              alt={t('pay.scanTitle')}
               fill
               className="object-contain"
               unoptimized
@@ -155,7 +157,7 @@ export function SepayQrDisplay({
             />
           ) : (
             <p className="flex h-full items-center justify-center text-sm text-red-600">
-              Không tải được QR.
+              {t('pay.qrMissing')}
             </p>
           )}
         </div>
@@ -164,21 +166,21 @@ export function SepayQrDisplay({
         <div className="mt-auto space-y-1.5 rounded-xl bg-cardon-light px-3.5 py-3 text-left text-sm sm:px-5 sm:py-4">
           {bankInfo.bankName || bankInfo.bankCode ? (
             <p>
-              <span className="text-cardon-gray">Ngân hàng: </span>
+              <span className="text-cardon-gray">{t('result.bank')}: </span>
               <span className="font-semibold text-cardon-navy">
                 {bankInfo.bankName || bankInfo.bankCode}
               </span>
             </p>
           ) : null}
           <p>
-            <span className="text-cardon-gray">Số TK VA: </span>
+            <span className="text-cardon-gray">{t('pay.va')}: </span>
             <span className="break-all font-semibold text-cardon-navy">
               {bankInfo.accountNumber}
             </span>
           </p>
           {bankInfo.accountName ? (
             <p>
-              <span className="text-cardon-gray">Chủ TK: </span>
+              <span className="text-cardon-gray">{t('result.holder')}: </span>
               <span className="font-semibold text-cardon-navy">{bankInfo.accountName}</span>
             </p>
           ) : null}
@@ -189,9 +191,10 @@ export function SepayQrDisplay({
 }
 
 export function PaymentMethodsEmpty() {
+  const t = useT();
   return (
     <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-      Hiện chưa có phương thức thanh toán khả dụng
+      {t('checkout.noMethods')}
     </p>
   );
 }

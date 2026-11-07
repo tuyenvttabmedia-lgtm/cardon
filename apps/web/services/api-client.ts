@@ -160,7 +160,11 @@ export const authApi = {
     });
   },
   register(payload: RegisterPayload) {
-    return apiRequest<AuthResult>('/auth/register', {
+    return apiRequest<{
+      requiresEmailVerification: true;
+      email: string;
+      message: string;
+    }>('/auth/register', {
       method: 'POST',
       body: payload,
       auth: false,
@@ -335,6 +339,9 @@ export const productApi = {
   },
   listProducts() {
     return apiRequest<Product[]>('/products', { auth: false });
+  },
+  retailMarket() {
+    return apiRequest<{ market: 'VN' | 'INTL' }>('/products/market', { auth: false });
   },
   getProduct(id: string) {
     return apiRequest<Product>(`/products/${id}`, { auth: false });

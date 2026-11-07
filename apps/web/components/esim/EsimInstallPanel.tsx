@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import {
   applyRevealForOrder,
@@ -23,14 +25,19 @@ export function EsimInstallPanel({
   showAccountLink?: boolean;
   guestEmail?: string;
 }) {
+  const t = useT();
   if (esim.kind === 'none') return null;
 
   if (esim.kind === 'waiting') {
     return (
       <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 sm:p-6">
-        <h2 className="text-base font-bold">Đang lấy mã cài eSIM</h2>
+        <h2 className="text-base font-bold">{t('esim.fetching')}</h2>
         <p className="mt-2 leading-relaxed">{esim.notice}</p>
-        {esim.orderCode ? <p className="mt-2 text-xs text-amber-800">Đơn {esim.orderCode}</p> : null}
+        {esim.orderCode ? (
+          <p className="mt-2 text-xs text-amber-800">
+            {t('esim.orderShort')} {esim.orderCode}
+          </p>
+        ) : null}
         <PackageSpecBlock spec={esim.packageSpec} />
       </section>
     );
@@ -39,12 +46,16 @@ export function EsimInstallPanel({
   if (esim.kind === 'stuck') {
     return (
       <section className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-950 sm:p-6">
-        <h2 className="text-base font-bold">Chưa có mã cài eSIM</h2>
+        <h2 className="text-base font-bold">{t('esim.noCode')}</h2>
         <p className="mt-2 leading-relaxed">{esim.notice}</p>
-        {esim.orderCode ? <p className="mt-2 font-semibold">Mã đơn: {esim.orderCode}</p> : null}
+        {esim.orderCode ? (
+          <p className="mt-2 font-semibold">
+            {t('esim.orderCode')}: {esim.orderCode}
+          </p>
+        ) : null}
         <PackageSpecBlock spec={esim.packageSpec} />
         <Link href={ACCOUNT_PATHS.support} className="mt-3 inline-block font-semibold underline">
-          Liên hệ hỗ trợ
+          {t('nav.help')}
         </Link>
       </section>
     );
@@ -54,16 +65,18 @@ export function EsimInstallPanel({
     <section className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="text-lg font-bold text-cardon-navy">Mã cài eSIM {esim.destination}</h2>
+          <h2 className="text-lg font-bold text-cardon-navy">
+            {t('esim.installTitle')} {esim.destination}
+          </h2>
           {esim.packageName ? <p className="mt-1 text-sm text-cardon-gray">{esim.packageName}</p> : null}
         </div>
         {esim.testData ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
-            Mô phỏng — không cài máy thật
+            {t('esim.mockBadge')}
           </span>
         ) : esim.sandboxAccount ? (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900">
-            Thử nghiệm
+            {t('esim.sandboxBadge')}
           </span>
         ) : null}
       </div>
@@ -83,7 +96,7 @@ export function EsimInstallPanel({
           href={ACCOUNT_PATHS.esim}
           className="mt-4 inline-block text-sm font-semibold text-cardon-blue hover:underline"
         >
-          Xem trong tài khoản eSIM
+          {t('esim.viewAccount')}
         </Link>
       ) : null}
     </section>
@@ -91,14 +104,27 @@ export function EsimInstallPanel({
 }
 
 function PackageSpecBlock({ spec }: { spec?: EsimPackageSpec | null }) {
+  const t = useT();
   if (!spec) return null;
   return (
     <div className="mt-3 rounded-xl bg-cardon-light p-3 text-sm text-cardon-navy">
-      <p className="font-semibold">{spec.title ?? 'Gói eSIM'}</p>
+      <p className="font-semibold">{spec.title ?? t('esim.package')}</p>
       <ul className="mt-1 space-y-0.5 text-cardon-gray">
-        {spec.dataAllowanceLabel ? <li>Dung lượng: {spec.dataAllowanceLabel}</li> : null}
-        {spec.validityLabel ? <li>Thời hạn: {spec.validityLabel}</li> : null}
-        {spec.activationLabel ? <li>Kích hoạt: {spec.activationLabel}</li> : null}
+        {spec.dataAllowanceLabel ? (
+          <li>
+            {t('esim.data')}: {spec.dataAllowanceLabel}
+          </li>
+        ) : null}
+        {spec.validityLabel ? (
+          <li>
+            {t('esim.duration')}: {spec.validityLabel}
+          </li>
+        ) : null}
+        {spec.activationLabel ? (
+          <li>
+            {t('esim.activate')}: {spec.activationLabel}
+          </li>
+        ) : null}
         {spec.fairUsagePolicy ? <li>{spec.fairUsagePolicy}</li> : null}
       </ul>
       <p className="mt-2 text-xs text-cardon-gray">{spec.notice}</p>
@@ -118,6 +144,8 @@ function ReadyActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const t = useT();
+  const { locale } = useLocale();
   const orderId = esim.orderId;
   const orderIdRef = useRef(orderId);
   orderIdRef.current = orderId;
@@ -152,7 +180,7 @@ function ReadyActions({
       if (next) setRevealed(next);
     } catch (err) {
       if (orderIdRef.current !== requested) return;
-      setError(err instanceof Error ? err.message : 'Không mở được mã cài');
+      setError(customerFacingError(locale, err instanceof Error ? err : new Error(t('esim.openFail'))));
     } finally {
       if (orderIdRef.current === requested) setBusy(false);
     }
@@ -186,7 +214,7 @@ function ReadyActions({
         />
       ) : (
         <div className="flex h-48 w-48 items-center justify-center rounded-xl bg-cardon-light text-sm text-cardon-gray">
-          QR hiện sau khi mở mã
+          {t('esim.qrAfter')}
         </div>
       )}
       <div>
@@ -201,21 +229,21 @@ function ReadyActions({
                 onClick={hide}
                 className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
               >
-                Ẩn mã
+                {t('esim.hideCode')}
               </button>
               <button
                 type="button"
                 onClick={() => void copy()}
                 className="rounded-lg bg-cardon-navy px-3 py-2 text-sm font-semibold text-white"
               >
-                {copied ? 'Đã sao chép' : 'Sao chép mã LPA'}
+                {copied ? t('esim.copied') : t('esim.copyLpa')}
               </button>
               {visibleReveal.appleSetupUrl ? (
                 <a
                   href={visibleReveal.appleSetupUrl}
                   className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
                 >
-                  Thêm eSIM trên iPhone
+                  {t('esim.addIphone')}
                 </a>
               ) : null}
             </>
@@ -226,17 +254,17 @@ function ReadyActions({
               disabled={!esim.canRevealInstallSecret || !orderId || busy}
               className="rounded-lg bg-cardon-navy px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {busy ? 'Đang mở mã…' : 'Hiện mã cài'}
+              {busy ? t('esim.opening') : t('esim.showCode')}
             </button>
           )}
         </div>
         {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
         <p className="mt-2 text-xs text-cardon-gray">
           {esim.testData
-            ? 'Chỉ để kiểm tra giao diện giao mã. Không cài lên máy thật.'
+            ? t('esim.mockOnly')
             : esim.sandboxAccount
-              ? 'Đây là mã thử nghiệm, không phải eSIM thật. Không cài hoặc kích hoạt trên máy.'
-              : 'iPhone: bấm liên kết hoặc quét QR. Android: Cài đặt → Mạng → SIM → Thêm eSIM, rồi quét QR hoặc dán mã.'}
+              ? t('esim.sandboxWarn')
+              : t('esim.installHint')}
         </p>
       </div>
     </div>

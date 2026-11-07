@@ -33,6 +33,7 @@ import { AdminProviderService } from './services/admin-provider.service';
 import { AdminSearchService } from './services/admin-search.service';
 import { AdminStaffService } from './services/admin-staff.service';
 import { SettingsAdminService } from './services/settings-admin.service';
+import { FxRateService } from '../fx/fx-rate.service';
 import { AdminNotificationService } from './services/admin-notification.service';
 import { EsimModule } from '../esim/esim.module';
 import { EsimOpsAdminController } from './controllers/esim-ops.controller';
@@ -58,6 +59,7 @@ import { EsimOpsAdminController } from './controllers/esim-ops.controller';
     AdminStaffService,
     AdminAgentInviteService,
     SettingsAdminService,
+    FxRateService,
     AdminNotificationService,
   ],
   exports: [AdminAuditService, SettingsAdminService, AdminOrderService],

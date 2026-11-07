@@ -17,6 +17,10 @@ import {
   summarizeOrderRevenueIssues,
 } from '../entities/order-revenue-reconcile.engine';
 import { FinanceRepository } from '../repositories/finance.repository';
+import {
+  EXCLUDE_ADMIN_TEST_ORDERS,
+  EXCLUDE_ADMIN_TEST_PAYMENTS,
+} from '../../order/entities/commercial-order.where';
 
 function vietnamDayBounds(reportDate: string): { start: Date; end: Date } {
   // reportDate is YYYY-MM-DD in Asia/Ho_Chi_Minh.
@@ -61,6 +65,7 @@ export class OrderRevenueReconcileService {
       this.prisma.order.findMany({
         where: {
           deletedAt: null,
+          ...EXCLUDE_ADMIN_TEST_ORDERS,
           createdAt: { gte: start, lt: end },
         },
         take: 2000,
@@ -91,6 +96,7 @@ export class OrderRevenueReconcileService {
       this.prisma.payment.findMany({
         where: {
           deletedAt: null,
+          ...EXCLUDE_ADMIN_TEST_PAYMENTS,
           OR: [
             { paidAt: { gte: start, lt: end } },
             {
@@ -120,7 +126,7 @@ export class OrderRevenueReconcileService {
         order.clientTrace &&
         typeof order.clientTrace === 'object' &&
         !Array.isArray(order.clientTrace)
-          ? (order.clientTrace as { sandbox?: boolean })
+          ? (order.clientTrace as { sandbox?: boolean; adminTest?: unknown })
           : {};
       return {
         id: order.id,
@@ -143,6 +149,7 @@ export class OrderRevenueReconcileService {
         latestProviderRequestId:
           order.providerTransactions[0]?.requestId ?? null,
         isSandbox: trace.sandbox === true,
+        isAdminTest: trace.adminTest === true,
       };
     });
 
@@ -151,7 +158,7 @@ export class OrderRevenueReconcileService {
         payment.order.clientTrace &&
         typeof payment.order.clientTrace === 'object' &&
         !Array.isArray(payment.order.clientTrace)
-          ? (payment.order.clientTrace as { sandbox?: boolean })
+          ? (payment.order.clientTrace as { sandbox?: boolean; adminTest?: unknown })
           : {};
       return {
         id: payment.id,
@@ -162,12 +169,14 @@ export class OrderRevenueReconcileService {
         orderCode: payment.order.orderCode,
         orderPaymentStatus: payment.order.paymentStatus,
         isSandbox: trace.sandbox === true,
+        isAdminTest: trace.adminTest === true,
         gateway: payment.gateway,
       };
     });
 
     const megapaySuccess = paymentInputs.filter(
       (payment) =>
+        payment.isAdminTest !== true &&
         payment.status === PaymentRecordStatus.SUCCESS &&
         payments.find((row) => row.id === payment.id)?.gateway ===
           PaymentGatewayCode.MEGAPAY,
@@ -182,7 +191,7 @@ export class OrderRevenueReconcileService {
         gatewayQueries.push({
           paymentReference: payment.paymentReference,
           gatewayStatus: queried.status,
-          amount: queried.amount,
+          amount: queried.amount ?? null,
         });
       } catch (error) {
         this.logger.warn(

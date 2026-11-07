@@ -307,6 +307,8 @@ export interface AdminEsimTestOrderBody {
   variantId: string;
   paymentMethodCode?: string;
   market?: 'VN' | 'INTL';
+  /** PayPal Sandbox charge. Backend builds the admin-test snapshot. Do not send adminTest. */
+  testAmountUsd?: string;
 }
 
 /** `POST /payments` view after interceptor unwrap. Matches backend `mapPayment`. */
@@ -371,6 +373,10 @@ export interface EsimOpsListItem {
   fulfillmentStatus: string;
   paymentMethod: string | null;
   customerPaid: string;
+  esimMarket?: string | null;
+  chargeCurrency?: string | null;
+  chargeAmount?: string | null;
+  countryIso?: string | null;
   createdAt: string;
   lane?: 'commerce' | 'sandbox';
   paidUnfulfilled?: boolean;
@@ -382,6 +388,92 @@ export interface EsimOpsMoneyBucket {
   gateway: string;
   amount: string;
   payments: number;
+}
+
+export interface EsimFinanceCurrencyTotal {
+  currency: string;
+  amount: string;
+  payments: number;
+}
+
+export interface EsimFinanceDayBucket {
+  date: string;
+  currency: string;
+  gateway: string;
+  amount: string;
+  payments: number;
+}
+
+export interface EsimFinanceLaneRevenue {
+  byCurrency: EsimFinanceCurrencyTotal[];
+  byGateway: EsimOpsMoneyBucket[];
+  byDay: EsimFinanceDayBucket[];
+  paymentCount: number;
+  estimatedFeeByCurrency: EsimFinanceCurrencyTotal[];
+}
+
+export interface PaypalReportImportView {
+  id: string;
+  originalFilename: string;
+  fileHash: string;
+  rowCount: number;
+  saleCount: number;
+  nonSaleCount: number;
+  status: string;
+  headerProvisional: boolean;
+  headers: unknown;
+  periodFrom: string | null;
+  periodTo: string | null;
+  errorSummary: string | null;
+  importedBy: string;
+  createdAt: string;
+  lineCount: number;
+  matchCount: number;
+  note: string | null;
+}
+
+export interface PaypalFeeMatchRow {
+  id: string;
+  paymentId: string | null;
+  reportLineId: string | null;
+  importId: string;
+  matchStatus: string;
+  matchType: string;
+  isActive: boolean;
+  grossCardon: string | null;
+  grossPaypal: string | null;
+  feeEstimated: string | null;
+  feeActual: string | null;
+  netPaypal: string | null;
+  grossDelta: string | null;
+  feeDelta: string | null;
+  currency: string;
+  note: string | null;
+  actorId: string | null;
+  createdAt: string;
+  paymentReference?: string | null;
+  paypalTxnId?: string | null;
+  customId?: string | null;
+  lineKind?: string | null;
+  typeRaw?: string | null;
+}
+
+export interface EsimFinanceRevenueReport {
+  range: { from: string; to: string; preset: string };
+  productLane: 'ESIM';
+  definitions: {
+    revenue: string;
+    sandbox: string;
+    estimatedFee: string;
+    gatewayActualFee: string;
+    byDay: string;
+    noFx: string;
+  };
+  commerce: EsimFinanceLaneRevenue;
+  sandbox: EsimFinanceLaneRevenue;
+  gatewayActualFees: { status: 'UNAVAILABLE'; note: string };
+  matchedSuccessPayments: number;
+  unmatchedSuccessPayments: number;
 }
 
 export interface EsimOpsDashboard {
@@ -409,6 +501,13 @@ export interface EsimOpsDashboard {
     reason: string;
     amounts: EsimOpsMoneyBucket[];
     costComplete: boolean;
+  };
+  snapshotEconomics?: {
+    costByCurrency: Array<{ currency: string; amount: string; count: number }>;
+    profitByCurrency: Array<{ currency: string; amount: string; count: number }>;
+    unreconciledOrders: number;
+    missingSnapshot: number;
+    note: string;
   };
   topPackages: Array<{
     code: string;
@@ -453,12 +552,28 @@ export interface EsimOpsDetail {
     paymentMethod: string | null;
     paymentGateway: string | null;
   };
+  snapshot?: {
+    esimMarket: string | null;
+    catalogCurrency: string | null;
+    catalogAmount: string | null;
+    chargeCurrency: string | null;
+    chargeAmount: string | null;
+    costCurrency: string | null;
+    costAmount: string | null;
+    fxRateId: string | null;
+    fxRate: string | null;
+    fxAsOf: string | null;
+    pricingLockedAt: string | null;
+  };
   payments: Array<{
     paymentReference: string;
     gateway: string;
     amount: string;
+    currency?: string | null;
+    productLane?: string | null;
     status: string;
     paidAt: string | null;
+    createdAt?: string;
   }>;
   lastError: string | null;
   present: boolean;
@@ -1732,6 +1847,32 @@ export interface CmsCategory {
   canonicalUrl?: string | null;
   ogImageUrl?: string | null;
   sortOrder: number;
+  translations?: CmsNamedTranslation[];
+}
+
+export interface CmsNamedTranslation {
+  locale: 'vi' | 'en';
+  name: string;
+  description?: string | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+}
+
+export interface CmsPageTranslation {
+  locale: 'vi' | 'en';
+  title: string;
+  excerpt?: string | null;
+  content: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+}
+
+export interface CmsSeoTranslation {
+  locale: 'vi' | 'en';
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
 }
 
 export interface CmsTag {
@@ -1742,6 +1883,7 @@ export interface CmsTag {
   metaDescription?: string | null;
   isHidden?: boolean;
   usageCount?: number;
+  translations?: CmsNamedTranslation[];
 }
 
 export interface CmsMedia {
@@ -1767,8 +1909,14 @@ export interface CmsThemeSettings {
   logoMobile: string;
   favicon: string;
   ogDefaultImage: string;
-  headerMenu: Array<{ label: string; href: string; sortOrder?: number }>;
-  footerColumns: Array<{ title: string; links: Array<{ label: string; href: string }> }>;
+  headerMenu: Array<{ label: string; href: string; sortOrder?: number; labelEn?: string; navKey?: string }>;
+  footerColumns: Array<{
+    title: string;
+    titleEn?: string;
+    description?: string;
+    descriptionEn?: string;
+    links: Array<{ label: string; href: string; labelEn?: string; navKey?: string }>;
+  }>;
   companyInfo?: {
     companyName?: string;
     taxCode?: string;
@@ -1776,6 +1924,13 @@ export interface CmsThemeSettings {
     hotline?: string;
     email?: string;
     workingHours?: string;
+    description?: string;
+    descriptionEn?: string;
+    taxLabelEn?: string;
+    addressLabelEn?: string;
+    emailLabelEn?: string;
+    hotlineLabelEn?: string;
+    hoursLabelEn?: string;
     boCongThuongEnabled?: boolean;
     boCongThuongImageUrl?: string;
     boCongThuongLinkUrl?: string;
@@ -1787,9 +1942,13 @@ export interface CmsThemeSettings {
     enabled?: boolean;
     value?: string;
     href?: string;
+    label?: string;
+    labelEn?: string;
   }>;
   mobileNav?: Array<{
     label: string;
+    labelEn?: string;
+    navKey?: string;
     icon: string;
     url: string;
     sortOrder?: number;
@@ -1933,6 +2092,8 @@ export interface CmsPage {
   updatedAt: string;
   author?: { id: string; email: string } | null;
   seo?: CmsSeo | null;
+  translations?: CmsPageTranslation[];
+  seoTranslations?: CmsSeoTranslation[];
 }
 
 export interface CmsBanner {
@@ -1974,6 +2135,9 @@ export interface PaymentGatewaySettings extends SettingsSourceView {
   webhookUrl?: string;
   secretKey?: string;
   webhookSecret?: string;
+  /** SePay Payment Gateway IPN secret. Separate from webhookSecret (VietQR HMAC). */
+  ipnSecret?: string;
+  pgConfigured?: boolean;
   apiKey?: string;
   bankAccount?: string;
   bankCode?: string;
@@ -2180,13 +2344,43 @@ export interface AiraloImportSummary {
   destinationsPublished: string[];
 }
 
+export type PaypalConnectionStatus =
+  | 'NOT_CONFIGURED'
+  | 'INCOMPLETE'
+  | 'CONFIGURED'
+  | 'CONNECTION_ERROR';
+
 export interface PaymentPaypalSettings extends SettingsSourceView {
   gatewayCode: 'PAYPAL';
   esimEnabled: boolean;
   mode: 'sandbox' | 'live';
+  environmentLabel?: 'SANDBOX' | 'LIVE';
   clientId?: string;
   clientSecret?: string;
+  webhookId?: string;
+  liveReady?: boolean;
+  connectionStatus?: PaypalConnectionStatus;
+  paypalEsimEnabled?: boolean;
+  customerEsimEnabled?: boolean;
+  salesOpen?: boolean;
+  flagChangeSupported?: boolean;
   note?: string;
+}
+
+export interface FxRateView {
+  id: string;
+  sourceCode: string;
+  rate: string;
+  status: 'DRAFT' | 'PENDING_REVIEW' | 'EFFECTIVE' | 'SUPERSEDED' | 'REJECTED';
+  bandResult: string | null;
+  observedAt: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  publishedById: string | null;
+  publishedByName: string | null;
+  maxStalenessSeconds: number | null;
+  createdAt: string;
+  usedByOrders: number;
 }
 
 export interface ProviderEsaleSettings extends SettingsSourceView {
@@ -2219,6 +2413,10 @@ export interface SystemSettings extends SettingsSourceView {
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
   customerEsimEnabled?: boolean;
+  /** Max eSIM charge VND per order. 0 = off. Default 2_000_000. */
+  esimMaxChargeAmountVnd?: number;
+  /** Max eSIM charge USD per order. 0 = admin off (hard cap 80 remains). Default/absolute max 80. */
+  esimMaxChargeAmountUsd?: number;
   /** Days to keep config/admin audit logs. Default 360. Range 30–3650. */
   auditLogRetentionDays?: number;
   /** Min VND per agent deposit (SePay QR). Default 5_000_000. */

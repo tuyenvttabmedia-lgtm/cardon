@@ -1,6 +1,9 @@
-export const ESIM_SALES_OFF_COPY = 'Chưa mở bán';
+'use client';
+
+import { useT } from '@/components/i18n/LocaleProvider';
 
 export function EsimSalesOffNotice({ compact = false }: { compact?: boolean }) {
+  const t = useT();
   return (
     <div
       role="status"
@@ -10,10 +13,8 @@ export function EsimSalesOffNotice({ compact = false }: { compact?: boolean }) {
           : 'rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950'
       }
     >
-      <p className="font-semibold">{ESIM_SALES_OFF_COPY}</p>
-      <p className="mt-1 leading-relaxed">
-        Bạn có thể xem điểm đến và gói. Chưa đặt mua hoặc thanh toán eSIM.
-      </p>
+      <p className="font-semibold">{t('esim.salesOffTitle')}</p>
+      <p className="mt-1 leading-relaxed">{t('esim.salesOffBody')}</p>
     </div>
   );
 }

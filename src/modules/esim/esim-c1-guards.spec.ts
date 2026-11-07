@@ -82,8 +82,12 @@ describe('C-1 eSIM guards', () => {
       expect(readFileSync(join(root, file), 'utf8')).not.toMatch(/Airalo/i);
     }
     const panel = readFileSync(join(root, 'apps/web/components/esim/EsimInstallPanel.tsx'), 'utf8');
-    expect(panel).toContain('Đây là mã thử nghiệm, không phải eSIM thật. Không cài hoặc kích hoạt trên máy.');
-    expect(panel).toContain('Thử nghiệm');
+    expect(panel).toContain("t('esim.sandboxWarn')");
+    expect(panel).toContain("t('esim.sandboxBadge')");
+    const viMessages = readFileSync(join(root, 'apps/web/lib/i18n/journey-messages.ts'), 'utf8');
+    expect(viMessages).toContain('Đây là mã thử, không phải eSIM thật');
+    const badgeMessages = readFileSync(join(root, 'apps/web/lib/i18n/final-messages.ts'), 'utf8');
+    expect(badgeMessages).toContain("'esim.sandboxBadge': 'Môi trường thử'");
     expect(readFileSync(join(root, 'apps/web/components/esim/EsimDetailClient.tsx'), 'utf8')).not.toContain(
       'EsimFlag',
     );

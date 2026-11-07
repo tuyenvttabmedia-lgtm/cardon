@@ -1,12 +1,16 @@
 import type { Metadata } from 'next';
-import { buildMetadata } from '@/lib/seo';
+import { localizedMetadata } from '@/lib/seo';
+import { translate } from '@/lib/i18n/messages';
 import ResetPasswordPageClient from './ResetPasswordPageClient';
 
-export const metadata: Metadata = buildMetadata({
-  title: 'Đặt lại mật khẩu — CardOn.vn',
-  path: '/reset-password',
-  robots: { index: false, follow: false },
-});
+export function generateMetadata(): Promise<Metadata> {
+  return localizedMetadata({
+    title: 'Đặt lại mật khẩu — CardOn.vn',
+    path: '/reset-password',
+    robots: { index: false, follow: false },
+    enTitle: translate('en', 'seo.resetTitle'),
+  });
+}
 
 export default function ResetPasswordPage() {
   return <ResetPasswordPageClient />;

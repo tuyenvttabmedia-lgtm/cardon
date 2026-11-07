@@ -57,4 +57,50 @@ describe('evaluatePaypalEsimLimits', () => {
       }),
     ).toEqual({ ok: false, reason: 'DAILY_ORDER_COUNT' });
   });
+
+  it('uses the lower overall USD cap when below the new-account ceiling', () => {
+    expect(
+      evaluatePaypalEsimLimits({
+        quantity: 1,
+        amountUsd: 20.01,
+        ordersPaidToday: 0,
+        usdPaidToday: 0,
+        accountAgeHours: 1,
+        config: { maxUsdPerOrder: 20 },
+      }),
+    ).toEqual({ ok: false, reason: 'ORDER_CAP' });
+    expect(
+      evaluatePaypalEsimLimits({
+        quantity: 1,
+        amountUsd: 20,
+        ordersPaidToday: 0,
+        usdPaidToday: 0,
+        accountAgeHours: 1,
+        config: { maxUsdPerOrder: 20 },
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it('never allows overall USD above the absolute hard cap of 80', () => {
+    expect(
+      evaluatePaypalEsimLimits({
+        quantity: 1,
+        amountUsd: 80.01,
+        ordersPaidToday: 0,
+        usdPaidToday: 0,
+        accountAgeHours: 100,
+        config: { maxUsdPerOrder: 100 },
+      }),
+    ).toEqual({ ok: false, reason: 'ORDER_CAP' });
+    expect(
+      evaluatePaypalEsimLimits({
+        quantity: 1,
+        amountUsd: 80,
+        ordersPaidToday: 0,
+        usdPaidToday: 0,
+        accountAgeHours: 100,
+        config: { maxUsdPerOrder: 100 },
+      }),
+    ).toEqual({ ok: true });
+  });
 });

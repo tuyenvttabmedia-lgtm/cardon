@@ -101,7 +101,7 @@ export class AdminOrderService {
 
     }
 
-    return mapOrder(order);
+    return mapOrder(order, { includeInternalEconomics: true });
 
   }
 

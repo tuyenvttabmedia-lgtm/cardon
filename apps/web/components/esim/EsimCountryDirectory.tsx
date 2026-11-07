@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { EsimFlag } from '@/components/esim/EsimFlag';
 import { EsimSalesOffNotice } from '@/components/esim/EsimSalesOffNotice';
+import { useT } from '@/components/i18n/LocaleProvider';
+import { EsimShelfPrice } from '@/components/esim/EsimShelfPrice';
 import type { EsimOfferResult } from '@/lib/esim-offers';
 import {
   DIRECTORY_PAGE_SIZE,
@@ -14,11 +16,12 @@ import {
   countryPlansHref,
   foldEsimText,
 } from '@/lib/esim-browse';
-import { formatVnd } from '@/lib/utils';
+import type { MessageKey } from '@/lib/i18n/messages';
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const q = searchParams.get('q') ?? '';
@@ -73,42 +76,42 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
   return (
     <div className="site-container py-6 md:py-8">
       <p className="text-sm text-cardon-gray">
-        <Link href="/esim" className="hover:text-cardon-blue">eSIM du lịch</Link>
+        <Link href="/esim" className="hover:text-cardon-blue">{t('nav.esim')}</Link>
         <span aria-hidden> / </span>
-        <span className="text-cardon-navy">Điểm đến</span>
+        <span className="text-cardon-navy">{t('esim.dest')}</span>
       </p>
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-cardon-navy md:text-2xl">Khám phá điểm đến eSIM</h1>
-          <p className="mt-1 text-sm text-cardon-gray">Chọn quốc gia, xem số gói và giá từ — rồi so sánh dung lượng, thời hạn trước khi mua.</p>
+          <h1 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.directory')}</h1>
+          <p className="mt-1 text-sm text-cardon-gray">{t('esim.directoryBody')}</p>
         </div>
-        <p className="text-sm font-semibold text-cardon-navy">{filtered.length} điểm đến</p>
+        <p className="text-sm font-semibold text-cardon-navy">{filtered.length} {t('esim.destinations')}</p>
       </div>
       {result.ok && !result.salesOpen ? <div className="mt-4"><EsimSalesOffNotice /></div> : null}
 
       <form onSubmit={onSearch} className="mt-4 flex gap-2">
-        <label className="sr-only" htmlFor="esim-country-search">Tìm quốc gia</label>
+        <label className="sr-only" htmlFor="esim-country-search">{t('esim.findCountry')}</label>
         <input
           id="esim-country-search"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
-          placeholder="Tìm quốc gia hoặc khu vực"
+          placeholder={t('esim.findCountryPh')}
           className="h-11 min-w-0 flex-1 rounded-full border border-cardon-border bg-white px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-cardon-blue sm:h-12 sm:text-base"
         />
         <button type="submit" className="h-11 shrink-0 rounded-full bg-cardon-blue px-4 text-sm font-semibold text-white sm:h-12 sm:px-5">
-          Tìm
+          {t('nav.search')}
         </button>
       </form>
 
       <div className="mt-4 hidden flex-wrap gap-2 md:flex">
-        <FilterChip active={!region} onClick={() => replaceParams({ region: '' })} label="Tất cả" />
+        <FilterChip active={!region} onClick={() => replaceParams({ region: '' })} label={t('common.all')} />
         {ESIM_REGIONS.map((item) => (
-          <FilterChip key={item.id} active={region === item.id} onClick={() => replaceParams({ region: item.id })} label={item.label} />
+          <FilterChip key={item.id} active={region === item.id} onClick={() => replaceParams({ region: item.id })} label={t(`esim.region.${item.id}` as MessageKey)} />
         ))}
       </div>
 
       <div className="mt-3 hidden flex-wrap gap-1 md:flex">
-        <button type="button" onClick={() => replaceParams({ letter: '' })} className={`h-9 min-w-9 rounded-lg px-2 text-xs font-bold ${!letter ? 'bg-cardon-blue text-white' : 'text-cardon-navy hover:bg-[#e7f0ff]'}`}>Tất cả</button>
+        <button type="button" onClick={() => replaceParams({ letter: '' })} className={`h-9 min-w-9 rounded-lg px-2 text-xs font-bold ${!letter ? 'bg-cardon-blue text-white' : 'text-cardon-navy hover:bg-[#e7f0ff]'}`}>{t('common.all')}</button>
         {LETTERS.map((item) => (
           <button key={item} type="button" onClick={() => replaceParams({ letter: item === letter ? '' : item })} className={`h-9 w-8 rounded-lg text-xs font-semibold ${letter === item ? 'bg-cardon-blue text-white' : 'text-cardon-gray hover:bg-[#e7f0ff]'}`}>
             {item}
@@ -118,18 +121,18 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <button type="button" onClick={() => setFiltersOpen(true)} className="h-11 rounded-full border border-cardon-border bg-white px-4 text-sm font-semibold text-cardon-navy md:hidden">
-          Bộ lọc
+          {t('esim.filters')}
         </button>
         <label className="ml-auto flex items-center gap-2 text-sm text-cardon-gray">
-          Sắp xếp
+          {t('esim.sort')}
           <select
             value={sort}
             onChange={(event) => replaceParams({ sort: event.target.value === 'name' ? '' : event.target.value })}
             className="h-11 rounded-xl border border-cardon-border bg-white px-3 text-sm font-semibold text-cardon-navy"
           >
-            <option value="name">Tên A-Z</option>
-            <option value="price-asc">Giá từ thấp</option>
-            <option value="price-desc">Giá từ cao</option>
+            <option value="name">{t('esim.nameAz')}</option>
+            <option value="price-asc">{t('esim.priceLow')}</option>
+            <option value="price-desc">{t('esim.priceHigh')}</option>
           </select>
         </label>
       </div>
@@ -138,7 +141,7 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
         <p className="mt-4 text-sm text-red-600">{result.error}</p>
       ) : visible.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
-          Không có điểm đến khớp bộ lọc. Thử từ khóa khác hoặc chọn Tất cả.
+          {t('esim.noFilter')}
         </p>
       ) : (
         <ul className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
@@ -151,7 +154,7 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
                 <EsimFlag iso={country.iso} className="h-11 w-11 text-xs sm:h-14 sm:w-14" />
                 <span className="min-w-0">
                   <span className="block truncate text-[11px] font-bold leading-tight text-cardon-navy sm:text-xs">{country.name}</span>
-                  <span className="mt-0.5 block truncate text-[10px] font-bold leading-tight text-cardon-blue sm:text-[11px]">Từ {formatVnd(country.fromPrice)}</span>
+                  <span className="mt-0.5 block truncate text-[10px] font-bold leading-tight text-cardon-blue sm:text-[11px]">{t('esim.fromPrice')} <EsimShelfPrice sellPriceVnd={country.fromPrice} chargeCurrency={country.fromChargeCurrency} chargeAmount={country.fromChargeAmount} /></span>
                 </span>
               </Link>
             </li>
@@ -161,24 +164,24 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
 
       {pageCount > 1 ? (
         <div className="mt-5 flex items-center justify-center gap-2">
-          <button type="button" disabled={currentPage <= 1} onClick={() => replaceParams({ page: String(currentPage - 1) })} className="h-10 rounded-lg border border-cardon-border px-3 text-sm disabled:opacity-40">Trước</button>
+          <button type="button" disabled={currentPage <= 1} onClick={() => replaceParams({ page: String(currentPage - 1) })} className="h-10 rounded-lg border border-cardon-border px-3 text-sm disabled:opacity-40">{t('esim.prev')}</button>
           <span className="text-sm text-cardon-gray">{currentPage} / {pageCount}</span>
-          <button type="button" disabled={currentPage >= pageCount} onClick={() => replaceParams({ page: String(currentPage + 1) })} className="h-10 rounded-lg border border-cardon-border px-3 text-sm disabled:opacity-40">Sau</button>
+          <button type="button" disabled={currentPage >= pageCount} onClick={() => replaceParams({ page: String(currentPage + 1) })} className="h-10 rounded-lg border border-cardon-border px-3 text-sm disabled:opacity-40">{t('esim.next')}</button>
         </div>
       ) : null}
 
       {filtersOpen ? (
         <div className="fixed inset-0 z-40 flex items-end bg-black/40 md:hidden" onClick={() => setFiltersOpen(false)}>
           <div className="max-h-[80vh] w-full overflow-auto rounded-t-3xl bg-white p-4 pb-28" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-lg font-bold text-cardon-navy">Bộ lọc</h2>
-            <p className="mt-3 text-sm font-semibold text-cardon-navy">Khu vực</p>
+            <h2 className="text-lg font-bold text-cardon-navy">{t('esim.filters')}</h2>
+            <p className="mt-3 text-sm font-semibold text-cardon-navy">{t('esim.region')}</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              <FilterChip active={!region} onClick={() => replaceParams({ region: '' })} label="Tất cả" />
+              <FilterChip active={!region} onClick={() => replaceParams({ region: '' })} label={t('common.all')} />
               {ESIM_REGIONS.map((item) => (
-                <FilterChip key={item.id} active={region === item.id} onClick={() => replaceParams({ region: item.id })} label={item.label} />
+                <FilterChip key={item.id} active={region === item.id} onClick={() => replaceParams({ region: item.id })} label={t(`esim.region.${item.id}` as MessageKey)} />
               ))}
             </div>
-            <p className="mt-4 text-sm font-semibold text-cardon-navy">Chữ cái</p>
+            <p className="mt-4 text-sm font-semibold text-cardon-navy">{t('esim.letter')}</p>
             <div className="mt-2 flex flex-wrap gap-1">
               {LETTERS.map((item) => (
                 <button key={item} type="button" onClick={() => replaceParams({ letter: item === letter ? '' : item })} className={`h-9 w-8 rounded-lg text-xs font-semibold ${letter === item ? 'bg-cardon-blue text-white' : 'bg-[#f4f7fb] text-cardon-navy'}`}>
@@ -186,7 +189,7 @@ export function EsimCountryDirectory({ result }: { result: EsimOfferResult }) {
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-5 h-12 w-full rounded-xl bg-cardon-blue text-sm font-semibold text-white">Áp dụng</button>
+            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-5 h-12 w-full rounded-xl bg-cardon-blue text-sm font-semibold text-white">{t('esim.apply')}</button>
           </div>
         </div>
       ) : null}

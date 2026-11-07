@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { filterMobileNavBySiteConfig, useSiteConfig } from '@/hooks/useSiteConfig';
+import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
 import { cn } from '@/lib/utils';
 
 function navItemActive(pathname: string, url: string): boolean {
@@ -14,8 +15,9 @@ function navItemActive(pathname: string, url: string): boolean {
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
-function isAccountItem(label: string, requireLogin?: boolean): boolean {
-  return requireLogin === true || label.toLowerCase().includes('tài khoản');
+function isAccountItem(url: string, requireLogin?: boolean): boolean {
+  const path = url.split('?')[0];
+  return requireLogin === true || path === '/account' || path === '/tai-khoan';
 }
 
 function MobileNavItem({
@@ -85,7 +87,8 @@ function MobileAccountSheet({
   isAuthenticated: boolean;
   onLogout: () => void;
 }) {
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,14 +150,14 @@ function MobileAccountSheet({
               onClick={onClose}
               className="block rounded-lg border border-gray-200 py-2.5 text-center text-sm font-semibold text-cardon-navy"
             >
-              Đăng nhập
+              {t('nav.login')}
             </Link>
             <Link
               href="/register"
               onClick={onClose}
               className="block rounded-lg bg-cardon-blue py-2.5 text-center text-sm font-semibold text-white"
             >
-              Đăng ký
+              {t('nav.register')}
             </Link>
           </div>
         )}
@@ -164,7 +167,8 @@ function MobileAccountSheet({
 }
 
 export function MobileBottomNav() {
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const { locale } = useLocale();
   const { isAuthenticated, logout } = useAuth();
   const { mobileNav } = useThemeSettings();
   const siteConfig = useSiteConfig();
@@ -181,7 +185,7 @@ export function MobileBottomNav() {
         <ul className="mx-auto flex h-16 max-w-site items-stretch justify-around px-1">
           {visible.map((item) => {
             const active = navItemActive(pathname, item.url);
-            const isAccount = isAccountItem(item.label, item.requireLogin);
+            const isAccount = isAccountItem(item.url, item.requireLogin);
 
             return (
               <li key={`${item.url}-${item.label}`} className="flex min-w-0 flex-1">
@@ -189,14 +193,14 @@ export function MobileBottomNav() {
                   <MobileNavItem
                     active={active}
                     icon={item.icon}
-                    label={item.label}
+                    label={resolveMenuLabel(locale, item)}
                     onClick={() => setAccountOpen(true)}
                   />
                 ) : (
                   <MobileNavItem
                     active={active}
                     icon={item.icon}
-                    label={item.label}
+                    label={resolveMenuLabel(locale, item)}
                     href={item.url}
                   />
                 )}

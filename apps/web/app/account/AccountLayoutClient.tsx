@@ -1,29 +1,32 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { WrongRetailPortalNotice } from '@/components/auth/WrongRetailPortalNotice';
+import { useBarePath, useT } from '@/components/i18n/LocaleProvider';
 import { PageContainer } from '@/components/layout/PageContainer';
+import type { MessageKey } from '@/lib/i18n/messages';
 import { useAuth } from '@/hooks/useAuth';
 import { isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import { isRetailCustomerRole } from '@/lib/retail-auth';
 import { cn } from '@/lib/utils';
 
-const LINKS = [
-  { href: ACCOUNT_PATHS.profile, label: 'Thông tin tài khoản', icon: '👤' },
-  { href: ACCOUNT_PATHS.orders, label: 'Lịch sử giao dịch', icon: '📋' },
-  { href: ACCOUNT_PATHS.cards, label: 'Thẻ đã mua', icon: '💳' },
-  { href: ACCOUNT_PATHS.esim, label: 'eSIM', icon: '📶' },
-  { href: ACCOUNT_PATHS.topups, label: 'Nạp cước', icon: '⚡' },
-  { href: ACCOUNT_PATHS.data, label: 'Nạp Data', icon: '📶', requiresData: true },
-  { href: ACCOUNT_PATHS.support, label: 'Hỗ trợ', icon: '🎧' },
-  { href: ACCOUNT_PATHS.password, label: 'Đổi mật khẩu', icon: '🔒' },
+const LINKS: Array<{ href: string; labelKey: MessageKey; icon: string; requiresData?: boolean }> = [
+  { href: ACCOUNT_PATHS.profile, labelKey: 'account.profile', icon: '👤' },
+  { href: ACCOUNT_PATHS.orders, labelKey: 'account.orders', icon: '📋' },
+  { href: ACCOUNT_PATHS.cards, labelKey: 'account.cardsBought', icon: '💳' },
+  { href: ACCOUNT_PATHS.esim, labelKey: 'account.esim', icon: '📶' },
+  { href: ACCOUNT_PATHS.topups, labelKey: 'account.topups', icon: '⚡' },
+  { href: ACCOUNT_PATHS.data, labelKey: 'account.data', icon: '📶', requiresData: true },
+  { href: ACCOUNT_PATHS.support, labelKey: 'nav.help', icon: '🎧' },
+  { href: ACCOUNT_PATHS.password, labelKey: 'account.passwordTitle', icon: '🔒' },
 ];
 
 export function AccountLayoutClient({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = useBarePath();
+  const t = useT();
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
   const siteConfig = useSiteConfig();
@@ -41,7 +44,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
   if (loading) {
     return (
       <PageContainer>
-        <p className="py-12 text-center text-cardon-gray">Đang tải...</p>
+        <p className="py-12 text-center text-cardon-gray">{t('common.loading')}</p>
       </PageContainer>
     );
   }
@@ -57,7 +60,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
   if (!isAuthenticated) {
     return (
       <PageContainer>
-        <p className="py-12 text-center text-cardon-gray">Đang tải...</p>
+        <p className="py-12 text-center text-cardon-gray">{t('common.loading')}</p>
       </PageContainer>
     );
   }
@@ -65,8 +68,8 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-cardon-navy">Trung tâm tài khoản</h1>
-        <p className="mt-1 text-sm text-cardon-gray">Quản lý thông tin, đơn hàng và bảo mật</p>
+        <h1 className="text-2xl font-bold text-cardon-navy">{t('account.center')}</h1>
+        <p className="mt-1 text-sm text-cardon-gray">{t('account.centerBody')}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
@@ -84,7 +87,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
                   )}
                 >
                   <span aria-hidden>{l.icon}</span>
-                  {l.label}
+                  {t(l.labelKey)}
                 </Link>
               </li>
             ))}
@@ -105,7 +108,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
                 )}
               >
                 <span aria-hidden>{l.icon}</span>
-                {l.label}
+                {t(l.labelKey)}
               </Link>
             ))}
           </div>

@@ -243,3 +243,51 @@ describe('adminApi.createSepayCheckout', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('adminApi.createPaypalCheckout', () => {
+  const fetchMock = vi.fn();
+  const orderId = '44444444-4444-4444-8444-444444444444';
+  const idempotencyKey = '55555555-5555-4555-8555-555555555555';
+
+  beforeEach(() => {
+    fetchMock.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000/api/v1';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.NEXT_PUBLIC_API_URL;
+  });
+
+  it('posts the existing payments route with PAYPAL and the same Idempotency-Key', async () => {
+    const approvalUrl = 'https://www.sandbox.paypal.com/checkoutnow?token=FROM-API';
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(201, {
+        success: true,
+        data: {
+          id: 'pay-1',
+          orderId,
+          gateway: 'PAYPAL',
+          paymentReference: 'PP-1',
+          amount: '1.00',
+          status: 'PENDING',
+          paymentUrl: approvalUrl,
+          expiresAt: null,
+          paidAt: null,
+          createdAt: '2026-11-05T10:00:00.000Z',
+        },
+        timestamp: '2026-11-05T10:00:00.000Z',
+      }),
+    );
+    const result = await adminApi.createPaypalCheckout(orderId, idempotencyKey);
+    expect(result.paymentUrl).toBe(approvalUrl);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:3000/api/v1/payments');
+    expect(JSON.parse(String(init.body))).toEqual({ orderId, gateway: 'PAYPAL' });
+    expect((init.headers as Record<string, string>)['Idempotency-Key']).toBe(idempotencyKey);
+    expect(JSON.stringify(init.body)).not.toContain('adminTest');
+    expect(JSON.stringify(init.body)).not.toMatch(/clientSecret|client_id|webhook/i);
+  });
+});

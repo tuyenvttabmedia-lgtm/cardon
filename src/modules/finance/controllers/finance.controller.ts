@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,8 +8,12 @@ import {
   ParseUUIDPipe,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { PaypalFeeMatchStatus } from '@prisma/client';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Permissions } from '../../../common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -30,17 +35,24 @@ import {
   ProviderReconciliationQueryDto,
   ProviderTransactionSearchQueryDto,
   RunProviderReconciliationDto,
+  EsimFinanceRevenueQueryDto,
+  PaypalFeeMatchListQueryDto,
+  PaypalFeeMatchResolveDto,
   VatDailyQueryDto,
   VatRetailOutputQueryDto,
 } from '../dto/finance.dto';
-import { FINANCE_PERMISSIONS } from '../entities/finance.constants';
+import { FINANCE_AUDIT_ACTIONS, FINANCE_PERMISSIONS } from '../entities/finance.constants';
+import { assertExportCsvSafe } from '../entities/export-safety';
+import { EsimAdminService } from '../../esim/esim-admin.service';
 import { AgentStatementService } from '../services/agent-statement.service';
 import { ExportService } from '../services/export.service';
+import { FinanceAuditService } from '../services/finance-audit.service';
 import { GatewayFeesService } from '../services/gateway-fees.service';
 import { GatewayInvoiceService } from '../services/gateway-invoice.service';
 import { InvoiceService } from '../services/invoice.service';
 import { PaymentReconcileService } from '../services/payment-reconcile.service';
 import { PaymentSettlementService } from '../services/payment-settlement.service';
+import { PaypalFeeReconcileService } from '../services/paypal-fee-reconcile.service';
 import { ProfitService } from '../services/profit.service';
 import { ProviderReconcileService } from '../services/provider-reconcile.service';
 import { ProviderOperationsService } from '../services/provider-operations.service';
@@ -63,6 +75,9 @@ export class FinanceController {
     private readonly invoiceService: InvoiceService,
     private readonly exportService: ExportService,
     private readonly vatDailyService: VatDailyService,
+    private readonly esimAdminService: EsimAdminService,
+    private readonly financeAuditService: FinanceAuditService,
+    private readonly paypalFeeReconcileService: PaypalFeeReconcileService,
   ) {}
 
   @Get('vat/supplier')
@@ -87,6 +102,123 @@ export class FinanceController {
   @Permissions(FINANCE_PERMISSIONS.VIEW)
   vatSummary(@Query() query: VatDailyQueryDto) {
     return this.vatDailyService.getMonthlySummary(query);
+  }
+
+  @Get('esim/revenue')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  esimRevenue(@Query() query: EsimFinanceRevenueQueryDto) {
+    return this.esimAdminService.getFinanceRevenue(toEsimFinanceQuery(query));
+  }
+
+  @Get('esim/revenue/export')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="esim-finance-revenue.csv"')
+  async exportEsimRevenue(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: EsimFinanceRevenueQueryDto,
+  ) {
+    const mapped = toEsimFinanceQuery(query);
+    const { csv, report } = await this.esimAdminService.exportFinanceRevenueCsv(mapped);
+    assertExportCsvSafe(csv);
+    await this.financeAuditService.recordEsimRevenueExported(user.id, {
+      productLane: 'ESIM',
+      dateFrom: mapped.from ?? null,
+      dateTo: mapped.to ?? null,
+      preset: mapped.preset ?? null,
+      market: mapped.market ?? null,
+      currency: mapped.currency ?? null,
+      gateway: mapped.gateway ?? null,
+      commercePayments: report.commerce.paymentCount,
+      sandboxPayments: report.sandbox.paymentCount,
+    });
+    return csv;
+  }
+
+  @Post('esim/paypal/imports')
+  @Permissions(FINANCE_PERMISSIONS.MANAGE)
+  @UseInterceptors(FileInterceptor('file'))
+  importPaypalActivityCsv(
+    @CurrentUser() user: AuthenticatedUser,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body('periodFrom') periodFrom?: string,
+    @Body('periodTo') periodTo?: string,
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('CSV file is required');
+    }
+    return this.paypalFeeReconcileService.importCsv({
+      adminId: user.id,
+      filename: file.originalname || 'paypal-activity.csv',
+      buffer: file.buffer,
+      periodFrom,
+      periodTo,
+    });
+  }
+
+  @Get('esim/paypal/imports')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  listPaypalImports() {
+    return this.paypalFeeReconcileService.listImports();
+  }
+
+  @Get('esim/paypal/imports/:id')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  getPaypalImport(@Param('id', ParseUUIDPipe) id: string) {
+    return this.paypalFeeReconcileService.getImport(id);
+  }
+
+  @Post('esim/paypal/imports/:id/match')
+  @Permissions(FINANCE_PERMISSIONS.MANAGE)
+  rematchPaypalImport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.paypalFeeReconcileService.runMatch(user.id, id);
+  }
+
+  @Get('esim/paypal/matches')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  listPaypalMatches(@Query() query: PaypalFeeMatchListQueryDto) {
+    return this.paypalFeeReconcileService.listMatches({
+      importId: query.importId,
+      status: query.status as PaypalFeeMatchStatus | undefined,
+      take: query.take,
+    });
+  }
+
+  @Post('esim/paypal/matches/:id/resolve')
+  @Permissions(FINANCE_PERMISSIONS.MANAGE)
+  resolvePaypalMatch(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: PaypalFeeMatchResolveDto,
+  ) {
+    return this.paypalFeeReconcileService.resolveManual({
+      adminId: user.id,
+      matchId: id,
+      paymentId: dto.paymentId,
+      note: dto.note,
+    });
+  }
+
+  @Get('esim/paypal/export')
+  @Permissions(FINANCE_PERMISSIONS.VIEW)
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="esim-paypal-fee-recon.csv"')
+  async exportPaypalMatches(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('importId') importId?: string,
+  ) {
+    const csv = await this.paypalFeeReconcileService.exportMatchesCsv(importId);
+    assertExportCsvSafe(csv);
+    await this.financeAuditService.recordPaypalEvent(
+      user.id,
+      FINANCE_AUDIT_ACTIONS.ESIM_PAYPAL_RECON_EXPORTED,
+      importId ?? user.id,
+      { importId: importId ?? null },
+    );
+    return csv;
   }
 
   @Post('reconcile/payment')
@@ -282,4 +414,15 @@ export class FinanceController {
   ) {
     return this.exportService.exportAgentStatementCsv(agentId, query);
   }
+}
+
+function toEsimFinanceQuery(query: EsimFinanceRevenueQueryDto) {
+  return {
+    from: query.dateFrom,
+    to: query.dateTo,
+    preset: query.preset,
+    market: query.market,
+    currency: query.currency,
+    gateway: query.gateway,
+  };
 }

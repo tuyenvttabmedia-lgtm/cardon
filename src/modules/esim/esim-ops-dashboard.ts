@@ -18,14 +18,26 @@ export interface EsimOpsDashboardOrder {
   clientTrace: unknown;
   providerCost: string;
   paymentFeeAmount: string;
+  esimMarket?: string | null;
+  chargeCurrency?: string | null;
+  chargeAmount?: string | null;
+  costCurrency?: string | null;
+  costAmount?: string | null;
 }
 
 export interface EsimOpsDashboardPayment {
   orderId: string;
   amount: string;
   gateway: string;
+  currency?: string | null;
   paidAt: Date | null;
   createdAt: Date;
+}
+
+export interface EsimOpsCurrencyTotal {
+  currency: string;
+  amount: string;
+  count: number;
 }
 
 export interface EsimOpsMoneyBucket {
@@ -152,7 +164,7 @@ export function buildEsimOpsDashboard(input: {
   for (const payment of uniquePayments) {
     const order = orderById.get(payment.orderId);
     const lane = order ? esimOpsLane(order) : 'commerce';
-    const currency = esimOpsCurrency(payment.gateway);
+    const currency = paymentCurrency(payment);
     addBucket(revenue[lane], currency, payment.gateway, payment.amount);
     if (!order) {
       costComplete = false;
@@ -216,7 +228,7 @@ export function buildEsimOpsDashboard(input: {
     definitions: {
       orderCounts: 'Đơn eSIM B2C tạo trong khoảng (createdAt). Không gồm thẻ/nạp.',
       revenue:
-        'Tổng amount của payment status=SUCCESS, một payment/order (paidAt mới nhất). Tách currency theo cổng: PAYPAL=USD, còn lại=VND. Không dùng customerPaid của đơn chưa SUCCESS.',
+        'Tổng amount của payment status=SUCCESS, một payment/order (paidAt mới nhất). Currency lấy từ payment; nếu trống thì PAYPAL=USD, còn lại=VND. Không cộng VND với USD. Không dùng customerPaid của đơn chưa SUCCESS.',
       installSuccessRate:
         'Mẫu số: đơn commerce (LIVE, không adminTest/sandbox) có paymentStatus=PAID trong khoảng tạo đơn. Tử số: trong đó fulfillmentStatus=COMPLETED.',
       sandbox:
@@ -274,6 +286,51 @@ export function buildEsimOpsDashboard(input: {
     matchedSuccessPayments: uniquePayments.length,
     unmatchedSuccessPayments: uniquePayments.filter((row) => !orderById.has(row.orderId)).length,
     successPaymentOrderIds: [...paymentByOrder.keys()],
+    snapshotEconomics: buildSnapshotEconomics(input.ordersCreated, uniquePayments, orderById),
+  };
+}
+
+/**
+ * Profit uses the order snapshot only when charge and cost share one currency.
+ * A USD charge with a VND cost is reported as unreconciled. No current FX is applied.
+ */
+export function buildSnapshotEconomics(
+  orders: EsimOpsDashboardOrder[],
+  payments: EsimOpsDashboardPayment[],
+  orderById: Map<string, EsimOpsDashboardOrder>,
+) {
+  const costByCurrency: EsimOpsCurrencyTotal[] = [];
+  const profitByCurrency: EsimOpsCurrencyTotal[] = [];
+  const missingIds = new Set<string>();
+  let unreconciled = 0;
+  for (const order of orders) {
+    if (order.paymentStatus !== 'PAID') continue;
+    if (!order.costCurrency || !order.costAmount) {
+      missingIds.add(order.id);
+      continue;
+    }
+    addCurrency(costByCurrency, order.costCurrency, order.costAmount);
+  }
+  for (const payment of payments) {
+    const order = orderById.get(payment.orderId);
+    if (!order?.chargeCurrency || !order.chargeAmount || !order.costCurrency || !order.costAmount) {
+      missingIds.add(payment.orderId);
+      continue;
+    }
+    if (order.chargeCurrency !== order.costCurrency) {
+      unreconciled += 1;
+      continue;
+    }
+    const profit = new Decimal(order.chargeAmount).minus(order.costAmount);
+    addCurrency(profitByCurrency, order.chargeCurrency, profit.toFixed(2));
+  }
+  return {
+    costByCurrency,
+    profitByCurrency,
+    unreconciledOrders: unreconciled,
+    missingSnapshot: missingIds.size,
+    note:
+      'Lợi nhuận chỉ khi charge và cost trên snapshot cùng currency. Không quy đổi bằng tỷ giá hiện tại. Đơn USD charge / VND cost được để riêng.',
   };
 }
 
@@ -299,6 +356,23 @@ function countBy<T>(rows: T[], key: (row: T) => string): Record<string, number> 
     counts[value] = (counts[value] ?? 0) + 1;
   }
   return counts;
+}
+
+function paymentCurrency(payment: EsimOpsDashboardPayment): string {
+  const stored = payment.currency?.trim().toUpperCase();
+  if (stored === 'USD' || stored === 'VND') return stored;
+  return esimOpsCurrency(payment.gateway);
+}
+
+function addCurrency(buckets: EsimOpsCurrencyTotal[], currency: string, amount: string) {
+  const code = currency.trim().toUpperCase();
+  const current = buckets.find((row) => row.currency === code);
+  if (current) {
+    current.amount = addMoney(current.amount, amount);
+    current.count += 1;
+    return;
+  }
+  buckets.push({ currency: code, amount: addMoney('0', amount), count: 1 });
 }
 
 function paymentTime(payment: EsimOpsDashboardPayment): number {

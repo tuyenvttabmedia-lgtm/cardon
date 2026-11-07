@@ -1,19 +1,26 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
   ValidateNested,
   Allow,
 } from 'class-validator';
+
+/** Align with agent-api buy card Max(100); prevents unbounded provider / payment load. */
+export const RETAIL_ORDER_MAX_QUANTITY_PER_LINE = 100;
+export const RETAIL_ORDER_MAX_LINE_ITEMS = 20;
 
 export class CreateOrderItemDto {
   @IsUUID()
@@ -22,12 +29,14 @@ export class CreateOrderItemDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
+  @Max(RETAIL_ORDER_MAX_QUANTITY_PER_LINE)
   quantity!: number;
 }
 
 export class CreateOrderDto {
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(RETAIL_ORDER_MAX_LINE_ITEMS)
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
   items!: CreateOrderItemDto[];
@@ -81,4 +90,9 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(8)
   market?: string;
+
+  /** Customer language for emails. Does not change price, payment, or fulfillment. */
+  @IsOptional()
+  @IsIn(['vi', 'en'])
+  locale?: 'vi' | 'en';
 }

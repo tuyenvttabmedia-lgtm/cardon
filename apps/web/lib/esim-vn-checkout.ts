@@ -1,4 +1,5 @@
 import { isInlineQrPayment, isSepayPgCheckout, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
+import { readBrowserLocale } from '@/lib/i18n/locale';
 import { enabledMethods, type PublicPaymentMethod } from '@/lib/payment-methods';
 import { getApiBaseUrl, generateIdempotencyKey } from '@/lib/utils';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
@@ -99,6 +100,7 @@ export async function startEsimVnCheckout(
     items: [{ variantId, quantity: 1 }],
     paymentMethodCode,
     market: 'VN',
+    locale: readBrowserLocale(),
   });
 
   const pay = await paymentApi.create(

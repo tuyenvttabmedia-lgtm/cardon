@@ -5,111 +5,78 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LoginRequiredModal } from '@/components/checkout/LoginRequiredModal';
-import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
 import { useAuth } from '@/hooks/useAuth';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { EsimProductGallery } from '@/components/esim/EsimProductGallery';
 import { dataAmountMb, destPhotoFor, durationDays, offerGallery } from '@/lib/esim-browse';
 import type { EsimPreviewOffer } from '@/lib/esim-offers';
-import { storeOrderGuestEmail } from '@/lib/order-guest-email';
 import { EsimSalesOffNotice } from '@/components/esim/EsimSalesOffNotice';
-import { esimCheckoutErrorMessage, startEsimVnCheckout } from '@/lib/esim-vn-checkout';
-import { formatVnd } from '@/lib/utils';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { EsimShelfPrice } from '@/components/esim/EsimShelfPrice';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import type { MessageKey } from '@/lib/i18n/messages';
+import { withLocalePrefix } from '@/lib/i18n/locale';
 
-const REGION_LABEL: Record<string, string> = {
-  JP: 'Châu Á',
-  KR: 'Châu Á',
-  TH: 'Châu Á',
-  CN: 'Châu Á',
-  TW: 'Châu Á',
-  SG: 'Châu Á',
-  MY: 'Châu Á',
-  ID: 'Châu Á',
-  PH: 'Châu Á',
-  HK: 'Châu Á',
-  IN: 'Châu Á',
-  KH: 'Châu Á',
-  ASIA: 'Châu Á',
-  GB: 'Châu Âu',
-  FR: 'Châu Âu',
-  DE: 'Châu Âu',
-  IT: 'Châu Âu',
-  ES: 'Châu Âu',
-  EUROPE: 'Châu Âu',
-  US: 'Châu Mỹ',
-  CA: 'Châu Mỹ',
-  AU: 'Châu Đại Dương',
-  NZ: 'Châu Đại Dương',
-  AE: 'Châu Á',
-  TR: 'Châu Á',
-  LA: 'Châu Á',
-  MO: 'Châu Á',
-  MV: 'Châu Á',
-  QA: 'Châu Á',
-  NL: 'Châu Âu',
-  CH: 'Châu Âu',
-  AT: 'Châu Âu',
-  PT: 'Châu Âu',
-  GR: 'Châu Âu',
-  BE: 'Châu Âu',
-  IE: 'Châu Âu',
-  CZ: 'Châu Âu',
-  EG: 'Châu Phi',
+const REGION_KEY: Record<string, MessageKey> = {
+  JP: 'esim.region.asia',
+  KR: 'esim.region.asia',
+  TH: 'esim.region.asia',
+  CN: 'esim.region.asia',
+  TW: 'esim.region.asia',
+  SG: 'esim.region.asia',
+  MY: 'esim.region.asia',
+  ID: 'esim.region.asia',
+  PH: 'esim.region.asia',
+  HK: 'esim.region.asia',
+  IN: 'esim.region.asia',
+  KH: 'esim.region.asia',
+  ASIA: 'esim.region.asia',
+  GB: 'esim.region.europe',
+  FR: 'esim.region.europe',
+  DE: 'esim.region.europe',
+  IT: 'esim.region.europe',
+  ES: 'esim.region.europe',
+  EUROPE: 'esim.region.europe',
+  US: 'esim.region.america',
+  CA: 'esim.region.america',
+  AU: 'esim.region.oceania',
+  NZ: 'esim.region.oceania',
+  AE: 'esim.region.asia',
+  TR: 'esim.region.asia',
+  LA: 'esim.region.asia',
+  MO: 'esim.region.asia',
+  MV: 'esim.region.asia',
+  QA: 'esim.region.asia',
+  NL: 'esim.region.europe',
+  CH: 'esim.region.europe',
+  AT: 'esim.region.europe',
+  PT: 'esim.region.europe',
+  GR: 'esim.region.europe',
+  BE: 'esim.region.europe',
+  IE: 'esim.region.europe',
+  CZ: 'esim.region.europe',
+  EG: 'esim.region.africa',
 };
 
 const DAY_SPANS = [
-  { id: '1-7', label: '1–7 ngày', min: 1, max: 7 },
-  { id: '8-15', label: '8–15 ngày', min: 8, max: 15 },
-  { id: '16-30', label: '16–30 ngày', min: 16, max: 30 },
-  { id: '31+', label: 'Trên 30 ngày', min: 31, max: 999 },
+  { id: '1-7', labelKey: 'esim.days17' as const, min: 1, max: 7 },
+  { id: '8-15', labelKey: 'esim.days815' as const, min: 8, max: 15 },
+  { id: '16-30', labelKey: 'esim.days1630' as const, min: 16, max: 30 },
+  { id: '31+', labelKey: 'esim.days31' as const, min: 31, max: 999 },
 ] as const;
 
 type SortKey = 'price' | 'data' | 'days';
 
-function buildFaq(country: string): FaqItem[] {
+function buildFaq(t: (key: MessageKey) => string): FaqItem[] {
   return [
-    {
-      id: 'what',
-      question: 'eSIM du lịch là gì?',
-      answer: `<p>eSIM là SIM điện tử cài bằng mã QR hoặc chuỗi cài đặt, không cần tháo SIM vật lý. Gói eSIM ${country} trên CardOn giúp bạn có dữ liệu di động ngay khi đến nơi.</p>`,
-    },
-    {
-      id: 'qr',
-      question: 'Tôi nhận mã cài eSIM thế nào?',
-      answer:
-        '<p>Sau khi thanh toán thành công, mã cài được lưu trong mục <strong>eSIM</strong> của tài khoản CardOn. Mở trên thiết bị hỗ trợ eSIM và làm theo hướng dẫn cài đặt.</p>',
-    },
-    {
-      id: 'devices',
-      question: 'Máy nào dùng được eSIM?',
-      answer:
-        '<p>Chỉ thiết bị hỗ trợ eSIM (nhiều iPhone, Google Pixel, Samsung Galaxy mới…). Kiểm tra trong phần cài đặt di động của máy trước khi mua.</p>',
-    },
-    {
-      id: 'hotspot',
-      question: 'eSIM có phát Wi‑Fi (hotspot) được không?',
-      answer:
-        '<p>Hầu hết gói cho phép chia sẻ kết nối, tùy chính sách nhà mạng tại điểm đến. Nếu cần hotspot, chọn gói có dung lượng phù hợp chuyến đi.</p>',
-    },
-    {
-      id: 'duration',
-      question: 'Thời hạn gói tính từ khi nào?',
-      answer:
-        '<p>Thời hạn ghi trên từng gói (ví dụ 7 hoặc 30 ngày). Thời điểm kích hoạt thường theo lần kết nối dữ liệu đầu tiên hoặc theo hướng dẫn kèm mã cài — xem chi tiết khi nhận mã.</p>',
-    },
-    {
-      id: 'cancel',
-      question: 'Có hoàn tiền sau khi đã thanh toán không?',
-      answer:
-        '<p>Đơn đã thanh toán và đã nhận mã cài không hoàn tự động. Liên hệ CardOn qua hotline, email hoặc ticket nếu cần hỗ trợ kiểm tra đơn.</p>',
-    },
-    {
-      id: 'support',
-      question: 'Gặp lỗi khi cài eSIM thì làm sao?',
-      answer:
-        '<p>Kiểm tra Wi‑Fi ổn định, máy còn khe eSIM trống, rồi thử lại. Nếu vẫn lỗi, gửi mã đơn hàng qua kênh hỗ trợ ở chân trang để CardOn hỗ trợ.</p>',
-    },
+    { id: 'what', question: t('esim.faqWhat'), answer: `<p>${t('esim.faqWhatA')}</p>` },
+    { id: 'qr', question: t('esim.faqQr'), answer: `<p>${t('esim.faqQrA')}</p>` },
+    { id: 'devices', question: t('esim.faqDevice'), answer: `<p>${t('esim.faqDeviceA')}</p>` },
+    { id: 'hotspot', question: t('esim.faqHotspot'), answer: `<p>${t('esim.faqHotspotA')}</p>` },
+    { id: 'duration', question: t('esim.faqDuration'), answer: `<p>${t('esim.faqDurationA')}</p>` },
+    { id: 'cancel', question: t('esim.faqRefund'), answer: `<p>${t('esim.faqRefundA')}</p>` },
+    { id: 'support', question: t('esim.faqError'), answer: `<p>${t('esim.faqErrorA')}</p>` },
   ];
 }
 
@@ -124,32 +91,30 @@ export function EsimDetailClient({
   plansHref?: string | null;
   salesOpen?: boolean;
 }) {
-  const country = offer.countryName || offer.countryIso || 'điểm đến';
+  const t = useT();
+  const { locale } = useLocale();
+  const country = offer.countryName || offer.countryIso || t('order.destination');
   const photo = destPhotoFor(offer.countryIso, offer.countryImageUrl || offer.photo);
   const gallery = useMemo(
     () => offerGallery(offer, offers.filter((item) => item.countryIso === offer.countryIso)),
     [offer, offers],
   );
-  const region = REGION_LABEL[offer.countryIso] ?? 'Quốc tế';
+  const regionKey = REGION_KEY[offer.countryIso] ?? 'esim.intl';
+  const region = t(regionKey);
   const network =
     (offer.networks && offer.networks.length > 0 ? offer.networks : offer.operators).join(', ') ||
-    'Theo gói';
+    t('esim.speedFallback');
   const countryOffers = offers.filter((item) => item.countryIso === offer.countryIso);
   const router = useRouter();
   const [section, setSection] = useState('tong-quan');
   const [loginOpen, setLoginOpen] = useState(false);
-  const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  const [sepayPg, setSepayPg] = useState<{
-    checkoutUrl: string;
-    checkoutFormFields: Record<string, string>;
-  } | null>(null);
   const [span, setSpan] = useState('');
   const [dataFilter, setDataFilter] = useState('');
   const [sort, setSort] = useState<SortKey>('price');
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const detailHref = `/esim/${offer.id}`;
-  const faq = useMemo(() => buildFaq(country), [country]);
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const detailHref = withLocalePrefix(`/esim/${offer.id}`, locale);
+  const faq = useMemo(() => buildFaq(t), [t]);
 
   const dataOptions = useMemo(
     () =>
@@ -179,51 +144,46 @@ export function EsimDetailClient({
 
   const benefits = [
     {
-      title: 'Kết nối ngay khi đến',
-      text: `Dữ liệu di động tại ${country}, không cần xếp hàng mua SIM tại sân bay.`,
+      title: t('esim.benefitConnect'),
+      text: t('esim.benefitConnectBody'),
       icon: <SignalIcon />,
     },
     {
-      title: 'Nhận mã cài nhanh',
-      text: 'Sau thanh toán, mã cài hiện trong tài khoản CardOn để bạn cài trên máy.',
+      title: t('esim.benefitCode'),
+      text: t('esim.benefitCodeBody'),
       icon: <QrIcon />,
     },
     {
-      title: 'Máy hỗ trợ eSIM',
-      text: 'Dùng trên smartphone/tablet hỗ trợ eSIM. Kiểm tra máy trước khi mua.',
+      title: t('esim.benefitDevice'),
+      text: t('esim.benefitDeviceBody'),
       icon: <DeviceIcon />,
     },
     {
-      title: 'Gói rõ ràng',
-      text: 'Mỗi gói ghi dung lượng, thời hạn, tốc độ và nhà mạng để bạn chọn đúng nhu cầu.',
+      title: t('esim.benefitClear'),
+      text: t('esim.benefitClearBody'),
       icon: <ShieldIcon />,
     },
   ];
 
   const attributes = [
-    { label: 'Điểm đến', value: country, icon: <PinIcon size="sm" /> },
-    { label: 'Khu vực', value: region, icon: <GlobeIcon size="sm" /> },
-    { label: 'Nhà mạng', value: network, icon: <SignalIcon size="sm" /> },
-    { label: 'Kích hoạt', value: offer.activationLabel || 'Qua mã QR / chuỗi LPA', icon: <QrIcon size="sm" /> },
+    { label: t('esim.dest'), value: country, icon: <PinIcon size="sm" /> },
+    { label: t('esim.region'), value: region, icon: <GlobeIcon size="sm" /> },
+    { label: t('esim.network'), value: network, icon: <SignalIcon size="sm" /> },
+    { label: t('esim.activate'), value: offer.activationLabel || t('esim.activateQr'), icon: <QrIcon size="sm" /> },
   ];
 
-  const introPoints = [
-    `Chọn gói dung lượng và số ngày phù hợp lịch trình tại ${country}.`,
-    'Thanh toán online; mã cài eSIM lưu trong tài khoản sau khi đơn hoàn tất.',
-    'Cài eSIM trước hoặc ngay khi đến nơi — giữ Wi‑Fi ổn định lúc quét mã.',
-    'Giữ điện thoại khóa màn hình / eSIM dự phòng nếu máy có nhiều profile.',
-  ];
+  const introPoints = [t('esim.intro1'), t('esim.intro2'), t('esim.intro3'), t('esim.intro4')];
 
   const sections = [
-    { id: 'tong-quan', label: 'Tổng quan' },
-    { id: 'goi-xem-truoc', label: 'Các gói' },
-    { id: 'huong-dan', label: 'Hướng dẫn' },
-    { id: 'cau-hoi', label: 'FAQ' },
+    { id: 'tong-quan', label: t('esim.overview') },
+    { id: 'goi-xem-truoc', label: t('esim.plansNav') },
+    { id: 'huong-dan', label: t('esim.guideNav') },
+    { id: 'cau-hoi', label: t('esim.faqNav') },
   ];
 
-  async function payEsimVn() {
+  function payEsim() {
     if (!salesOpen) {
-      setPayError('Chưa mở bán');
+      setPayError(t('error.salesOff'));
       return;
     }
     if (authLoading) return;
@@ -231,24 +191,8 @@ export function EsimDetailClient({
       setLoginOpen(true);
       return;
     }
-    setPaying(true);
     setPayError(null);
-    try {
-      const result = await startEsimVnCheckout(offer.variantId, { salesOpen });
-      if (user?.email) storeOrderGuestEmail(result.orderId, user.email);
-      if (result.kind === 'sepay_pg') {
-        setSepayPg({
-          checkoutUrl: result.checkoutUrl,
-          checkoutFormFields: result.checkoutFormFields,
-        });
-        return;
-      }
-      router.push(result.path);
-    } catch (error) {
-      setPayError(esimCheckoutErrorMessage(error));
-    } finally {
-      setPaying(false);
-    }
+    router.push(`${withLocalePrefix('/checkout', locale)}?variantId=${encodeURIComponent(offer.variantId)}`);
   }
 
   useEffect(() => {
@@ -273,11 +217,11 @@ export function EsimDetailClient({
     <div className="space-y-6 pb-8 md:space-y-8">
       <p className="text-sm text-cardon-gray">
         <Link href="/" className="transition-colors hover:text-cardon-blue">
-          Trang chủ
+          {t('nav.home')}
         </Link>
         <span aria-hidden> / </span>
         <Link href="/esim" className="transition-colors hover:text-cardon-blue">
-          eSIM du lịch
+          {t('nav.esim')}
         </Link>
         {plansHref ? (
           <>
@@ -306,12 +250,10 @@ export function EsimDetailClient({
               {offer.productName}
             </h1>
             <p className="mt-2 text-base font-semibold text-cardon-dark">
-              Internet di động tiện lợi khi du lịch {country}
+              {t('esim.tagline')}
             </p>
             <p className="mt-2 text-sm leading-relaxed text-cardon-gray">
-              {offer.shortInfo ||
-                offer.summary ||
-                `Chọn gói phù hợp lịch trình tại ${country}, thanh toán online và nhận mã cài eSIM trong tài khoản.`}
+              {offer.shortInfo || offer.summary || t('esim.fallbackSummary')}
             </p>
           </div>
           <ul className="grid grid-cols-2 gap-3">
@@ -340,19 +282,19 @@ export function EsimDetailClient({
             <p className="mt-1 text-sm leading-relaxed text-cardon-dark">
               {offer.dataLabel} · {offer.durationLabel}
               {offer.speedLabel ? ` · ${offer.speedLabel}` : ''}
-              {network !== 'Theo gói' ? ` · ${network}` : ''}
+              {network !== t('esim.speedFallback') ? ` · ${network}` : ''}
             </p>
             <p className="mt-3 text-base font-bold leading-tight text-cardon-blue md:text-lg">
-              {formatVnd(offer.sellPriceVnd)}
+              <EsimShelfPrice sellPriceVnd={offer.sellPriceVnd} chargeCurrency={offer.chargeCurrency} chargeAmount={offer.chargeAmount} />
             </p>
             {salesOpen ? (
               <button
                 type="button"
-                disabled={paying || authLoading || Boolean(sepayPg)}
+                disabled={authLoading}
                 className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-cardon-blue px-5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => void payEsimVn()}
+                onClick={payEsim}
               >
-                {sepayPg ? 'Đang chuyển tới SePay…' : paying ? 'Đang tạo thanh toán…' : 'Thanh toán'}
+                {t('checkout.payTitle')}
               </button>
             ) : (
               <div className="mt-4">
@@ -360,12 +302,6 @@ export function EsimDetailClient({
               </div>
             )}
             {payError ? <p className="mt-2 text-sm text-red-600">{payError}</p> : null}
-            {sepayPg ? (
-              <SepayPgCheckoutRedirect
-                checkoutUrl={sepayPg.checkoutUrl}
-                checkoutFormFields={sepayPg.checkoutFormFields}
-              />
-            ) : null}
           </section>
         </div>
       </div>
@@ -388,7 +324,7 @@ export function EsimDetailClient({
       </ul>
 
       <nav
-        aria-label="Mục nội dung"
+        aria-label={t('esim.contents')}
         className="esim-chip-rail max-w-full rounded-2xl border border-cardon-border bg-white p-2 shadow-card sm:flex-wrap sm:overflow-visible"
       >
         {sections.map((item) => (
@@ -411,12 +347,10 @@ export function EsimDetailClient({
       <section id="tong-quan" className="scroll-mt-24 grid items-stretch gap-4 lg:grid-cols-2">
         <div className="h-full rounded-2xl border border-cardon-border bg-white p-5 shadow-card">
           <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">
-            Giới thiệu eSIM {country}
+            {t('esim.introTitle')}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-cardon-gray">
-            {offer.shortInfo ||
-              `eSIM du lịch giúp bạn có dữ liệu di động tại ${country} mà không cần SIM vật lý.`}{' '}
-            {offer.activationLabel}
+            {offer.shortInfo || t('esim.introFallback')} {offer.activationLabel}
           </p>
           {offer.operatorInfo && offer.operatorInfo.length > 0 ? (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-cardon-dark">
@@ -437,17 +371,15 @@ export function EsimDetailClient({
         <div className="relative h-full min-h-56 overflow-hidden rounded-2xl shadow-card">
           <Image
             src={photo}
-            alt={`Du lịch ${country}`}
+            alt={country}
             fill
             sizes="(max-width: 1024px) 100vw, 560px"
             className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/80 via-[#0f172a]/20 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-            <h3 className="text-xl font-bold">Du lịch {country}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-white/90">
-              Giữ kết nối để bản đồ, dịch thuật và liên lạc trong suốt chuyến đi.
-            </p>
+            <h3 className="text-xl font-bold">{country}</h3>
+            <p className="mt-1 text-sm leading-relaxed text-white/90">{t('esim.travelBody')}</p>
           </div>
         </div>
       </section>
@@ -455,9 +387,11 @@ export function EsimDetailClient({
       <section id="goi-xem-truoc" className="scroll-mt-24">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Các gói {country}</h2>
+            <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">
+              {t('esim.plansFor')} {country}
+            </h2>
             <p className="mt-1 max-w-3xl text-sm text-cardon-gray">
-              Lọc theo thời hạn hoặc dung lượng để tìm gói phù hợp. Đang xem:{' '}
+              {t('esim.filterHint')}{' '}
               <span className="font-semibold text-cardon-navy">{offer.dataLabel} / {offer.durationLabel}</span>
             </p>
           </div>
@@ -466,7 +400,7 @@ export function EsimDetailClient({
               href={plansHref}
               className="text-sm font-semibold text-cardon-blue transition-colors hover:text-cardon-navy hover:underline"
             >
-              Xem toàn bộ gói {country} →
+              {t('esim.viewAllPlans')} →
             </Link>
           ) : null}
         </div>
@@ -483,20 +417,20 @@ export function EsimDetailClient({
                   : 'border border-gray-100 bg-white text-cardon-navy hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md'
               }`}
             >
-              {item.label}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-cardon-gray sm:flex-none">
-            <span className="shrink-0 font-semibold text-cardon-navy">Dung lượng</span>
+            <span className="shrink-0 font-semibold text-cardon-navy">{t('esim.data')}</span>
             <select
               value={dataFilter}
               onChange={(event) => setDataFilter(event.target.value)}
               className="h-9 min-w-0 flex-1 rounded-xl border border-cardon-border bg-white px-2 text-sm font-semibold text-cardon-navy outline-none transition-colors hover:border-cardon-blue/40 focus:border-cardon-blue sm:px-3"
             >
-              <option value="">Tất cả</option>
+              <option value="">{t('common.all')}</option>
               {dataOptions.map((label) => (
                 <option key={label} value={label}>
                   {label}
@@ -505,23 +439,25 @@ export function EsimDetailClient({
             </select>
           </label>
           <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-cardon-gray sm:flex-none">
-            <span className="shrink-0 font-semibold text-cardon-navy">Sắp xếp</span>
+            <span className="shrink-0 font-semibold text-cardon-navy">{t('esim.sort')}</span>
             <select
               value={sort}
               onChange={(event) => setSort(event.target.value as SortKey)}
               className="h-9 min-w-0 flex-1 rounded-xl border border-cardon-border bg-white px-2 text-sm font-semibold text-cardon-navy outline-none transition-colors hover:border-cardon-blue/40 focus:border-cardon-blue sm:px-3"
             >
-              <option value="price">Giá tăng dần</option>
-              <option value="data">Dung lượng</option>
-              <option value="days">Thời hạn</option>
+              <option value="price">{t('esim.priceAsc')}</option>
+              <option value="data">{t('esim.data')}</option>
+              <option value="days">{t('esim.duration')}</option>
             </select>
           </label>
-          <p className="w-full text-sm text-cardon-gray sm:ml-auto sm:w-auto">{shownOffers.length} gói</p>
+          <p className="w-full text-sm text-cardon-gray sm:ml-auto sm:w-auto">
+            {shownOffers.length} {t('esim.planCount')}
+          </p>
         </div>
 
         {shownOffers.length === 0 ? (
           <p className="mt-4 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
-            Không có gói khớp bộ lọc. Thử bỏ lọc thời hạn hoặc dung lượng.
+            {t('esim.noPlanMatch')}
           </p>
         ) : (
           <ul className="mt-4 grid grid-cols-2 items-stretch gap-2.5 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
@@ -548,11 +484,11 @@ export function EsimDetailClient({
                       {card.dataLabel} / {card.durationLabel}
                     </p>
                     <p className="mt-2 text-[11px] font-semibold text-slate-500 sm:text-xs">
-                      {card.speedLabel || 'Theo gói'}
+                      {card.speedLabel || t('esim.speedFallback')}
                       {card.operators[0] ? ` · ${card.operators[0]}` : ''}
                     </p>
                     <p className="mt-2 text-sm font-bold leading-tight text-cardon-blue sm:mt-3 sm:text-base md:text-lg">
-                      {formatVnd(card.sellPriceVnd)}
+                      <EsimShelfPrice sellPriceVnd={card.sellPriceVnd} chargeCurrency={card.chargeCurrency} chargeAmount={card.chargeAmount} />
                     </p>
                     <span
                       className={`mt-3 inline-flex h-10 items-center justify-center rounded-xl text-xs font-semibold transition-colors duration-200 sm:mt-4 sm:h-11 sm:text-sm ${
@@ -561,7 +497,7 @@ export function EsimDetailClient({
                           : 'bg-cardon-blue text-white group-hover:bg-cardon-navy'
                       }`}
                     >
-                      {active ? 'Đang xem' : 'Chọn gói'}
+                      {active ? t('esim.viewing') : t('esim.choose')}
                     </span>
                   </Link>
                 </li>
@@ -572,20 +508,18 @@ export function EsimDetailClient({
       </section>
 
       <section id="huong-dan" className="scroll-mt-24">
-        <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Hướng dẫn sử dụng</h2>
-        <p className="mt-1 max-w-3xl text-sm text-cardon-gray">
-          Cài eSIM {country} trên iPhone hoặc Android. Chi tiết APN, kích hoạt và nhà mạng đi kèm gói Keyon.
-        </p>
+        <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.guide')}</h2>
+        <p className="mt-1 max-w-3xl text-sm text-cardon-gray">{t('esim.guideLead')}</p>
         <div className="mt-4">
           <EsimInstallGuide offer={offer} country={country} />
         </div>
       </section>
 
       <section id="cau-hoi" className="scroll-mt-24">
-        <h2 className="mb-3 text-xl font-bold text-cardon-navy md:text-2xl">Câu hỏi thường gặp</h2>
-        <FaqAccordion items={faq} title="" />
+        <h2 className="mb-3 text-xl font-bold text-cardon-navy md:text-2xl">{t('home.faqTitle')}</h2>
+        <FaqAccordion items={faq} title="" layout="split" />
       </section>
-      <LoginRequiredModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <LoginRequiredModal open={loginOpen} onClose={() => setLoginOpen(false)} redirectPath={detailHref} />
     </div>
   );
 }
@@ -686,18 +620,28 @@ export function EsimDetailSkeleton() {
   return <div className="h-80 animate-pulse rounded-3xl bg-white" />;
 }
 
-export function EsimLoadError({ message }: { message: string }) {
+function EsimLoadErrorBody({ message }: { message: string }) {
+  const t = useT();
+  const { locale } = useLocale();
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-card">
-      <h1 className="text-2xl font-bold text-cardon-navy">Không mở được gói</h1>
-      <p className="mt-2 text-sm text-red-600">{message}</p>
+    <>
+      <h1 className="text-2xl font-bold text-cardon-navy">{t('esim.installFail')}</h1>
+      <p className="mt-2 text-sm text-red-600">{customerFacingError(locale, new Error(message))}</p>
       <button
         type="button"
         onClick={() => window.location.reload()}
         className="mt-4 h-11 rounded-xl bg-cardon-blue px-4 text-sm font-semibold text-white transition-colors hover:bg-cardon-navy"
       >
-        Thử lại
+        {t('esim.retry')}
       </button>
+    </>
+  );
+}
+
+export function EsimLoadError({ message }: { message: string }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-card">
+      <EsimLoadErrorBody message={message} />
     </div>
   );
 }

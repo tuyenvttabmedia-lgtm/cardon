@@ -195,11 +195,12 @@ describe('AgentApiBuyService', () => {
     createFinancialTransaction: jest.Mock;
     createAgentOrderWithHold: jest.Mock;
     updateFinancialTransactionStatus: jest.Mock;
+    claimFinancialTransactionStatus: jest.Mock;
     markOrderFailed: jest.Mock;
     isCardVariant: jest.Mock;
   };
   let agentRepository: { lockForUpdate: jest.Mock };
-  let variantRepository: { findBySku: jest.Mock };
+  let variantRepository: { findActiveBySku: jest.Mock };
   let pricingService: { getAgentPrice: jest.Mock; resolveAgentPrice: jest.Mock };
   let ledgerService: {
     holdInTransaction: jest.Mock;
@@ -256,12 +257,13 @@ describe('AgentApiBuyService', () => {
       createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'fin-1' }),
       createAgentOrderWithHold: jest.fn().mockResolvedValue(completedOrder),
       updateFinancialTransactionStatus: jest.fn(),
+      claimFinancialTransactionStatus: jest.fn().mockResolvedValue({ count: 1 }),
       markOrderFailed: jest.fn(),
       isCardVariant: jest.fn().mockReturnValue(true),
     };
     agentRepository = { lockForUpdate: jest.fn() };
     variantRepository = {
-      findBySku: jest.fn().mockResolvedValue(variant),
+      findActiveBySku: jest.fn().mockResolvedValue(variant),
     };
     pricingService = {
       getAgentPrice: jest.fn().mockResolvedValue('100000.00'),
@@ -334,7 +336,7 @@ describe('AgentApiBuyService', () => {
         classifier.isCardVariant(variantType),
       );
       repository.findOrderByAgentRequestId.mockResolvedValue(null);
-      variantRepository.findBySku.mockResolvedValue({
+      variantRepository.findActiveBySku.mockResolvedValue({
         ...variant,
         sku: `${type}_TEST`,
         type: ProductVariantType[type],
@@ -365,7 +367,7 @@ describe('AgentApiBuyService', () => {
         classifier.isCardVariant(type),
       );
       repository.findOrderByAgentRequestId.mockResolvedValue(null);
-      variantRepository.findBySku.mockResolvedValue({
+      variantRepository.findActiveBySku.mockResolvedValue({
         ...variant,
         sku,
         type: ProductVariantType.CARD,

@@ -1,8 +1,21 @@
 import type { CmsThemeSettings } from '@/types/api';
 import { normalizeContactChannels } from '@/lib/contact-channels';
 
-type MenuItem = { label: string; href: string; sortOrder?: number };
-type FooterColumn = { title: string; links: Array<{ label: string; href: string }> };
+type MenuItem = {
+  label: string;
+  href: string;
+  sortOrder?: number;
+  labelEn?: string;
+  navKey?: string;
+};
+type FooterLink = { label: string; href: string; labelEn?: string; navKey?: string };
+type FooterColumn = {
+  title: string;
+  titleEn?: string;
+  description?: string;
+  descriptionEn?: string;
+  links: FooterLink[];
+};
 type MobileNavItem = NonNullable<CmsThemeSettings['mobileNav']>[number];
 
 const DEFAULT_MOBILE_NAV: MobileNavItem[] = [
@@ -47,23 +60,62 @@ function stripCompanyColumn(columns: FooterColumn[]): FooterColumn[] {
   });
 }
 
+function optionalText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
 export function normalizeMenuItem(item: Partial<MenuItem>, index: number): MenuItem {
   const href = (item.href ?? '/').trim() || '/';
   const label = (item.label ?? '').trim() || href || `Mục ${index + 1}`;
-  return { label, href, sortOrder: item.sortOrder ?? index };
+  const next: MenuItem = { ...item, label, href, sortOrder: item.sortOrder ?? index };
+  const labelEn = optionalText(item.labelEn);
+  const navKey = optionalText(item.navKey);
+  if (labelEn) next.labelEn = labelEn;
+  else delete next.labelEn;
+  if (navKey) next.navKey = navKey;
+  else delete next.navKey;
+  return next;
 }
 
 export function normalizeFooterColumn(col: Partial<FooterColumn>, index: number): FooterColumn {
   const title = (col.title ?? '').trim() || `Cột ${index + 1}`;
-  const links = (col.links ?? []).map((link, li) => ({
-    label: (link.label ?? '').trim() || (link.href ?? '').trim() || `Liên kết ${li + 1}`,
-    href: (link.href ?? '/').trim() || '/',
-  }));
-  return { title, links: links.length ? links : [{ label: 'Liên kết', href: '/' }] };
+  const links = (col.links ?? []).map((link, li) => {
+    const href = (link.href ?? '/').trim() || '/';
+    const next: FooterLink = {
+      ...link,
+      label: (link.label ?? '').trim() || href || `Liên kết ${li + 1}`,
+      href,
+    };
+    const labelEn = optionalText(link.labelEn);
+    const navKey = optionalText(link.navKey);
+    if (labelEn) next.labelEn = labelEn;
+    else delete next.labelEn;
+    if (navKey) next.navKey = navKey;
+    else delete next.navKey;
+    return next;
+  });
+  const next: FooterColumn = {
+    ...col,
+    title,
+    links: links.length ? links : [{ label: 'Liên kết', href: '/' }],
+  };
+  const titleEn = optionalText(col.titleEn);
+  const description = optionalText(col.description);
+  const descriptionEn = optionalText(col.descriptionEn);
+  if (titleEn) next.titleEn = titleEn;
+  else delete next.titleEn;
+  if (description) next.description = description;
+  else delete next.description;
+  if (descriptionEn) next.descriptionEn = descriptionEn;
+  else delete next.descriptionEn;
+  return next;
 }
 
 export function normalizeMobileNavItem(item: Partial<MobileNavItem>, index: number): MobileNavItem {
-  return {
+  const next: MobileNavItem = {
+    ...item,
     label: (item.label ?? '').trim() || `Mục ${index + 1}`,
     icon: (item.icon ?? '📱').trim() || '📱',
     url: (item.url ?? '/').trim() || '/',
@@ -71,6 +123,13 @@ export function normalizeMobileNavItem(item: Partial<MobileNavItem>, index: numb
     requireLogin: item.requireLogin === true,
     active: item.active !== false,
   };
+  const labelEn = optionalText(item.labelEn);
+  const navKey = optionalText(item.navKey);
+  if (labelEn) next.labelEn = labelEn;
+  else delete next.labelEn;
+  if (navKey) next.navKey = navKey;
+  else delete next.navKey;
+  return next;
 }
 
 export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSettings {
@@ -89,12 +148,20 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       : DEFAULT_MOBILE_NAV
     ).map(normalizeMobileNavItem),
     companyInfo: {
+      ...theme.companyInfo,
       companyName: theme.companyInfo?.companyName ?? '',
       taxCode: theme.companyInfo?.taxCode ?? '',
       address: theme.companyInfo?.address ?? '',
       hotline: theme.companyInfo?.hotline ?? '',
       email: theme.companyInfo?.email ?? '',
       workingHours: theme.companyInfo?.workingHours ?? '',
+      description: theme.companyInfo?.description ?? '',
+      descriptionEn: theme.companyInfo?.descriptionEn ?? '',
+      taxLabelEn: theme.companyInfo?.taxLabelEn?.trim() ?? '',
+      addressLabelEn: theme.companyInfo?.addressLabelEn?.trim() ?? '',
+      emailLabelEn: theme.companyInfo?.emailLabelEn?.trim() ?? '',
+      hotlineLabelEn: theme.companyInfo?.hotlineLabelEn?.trim() ?? '',
+      hoursLabelEn: theme.companyInfo?.hoursLabelEn?.trim() ?? '',
       boCongThuongEnabled: theme.companyInfo?.boCongThuongEnabled === true,
       boCongThuongImageUrl: theme.companyInfo?.boCongThuongImageUrl ?? '',
       boCongThuongLinkUrl: theme.companyInfo?.boCongThuongLinkUrl ?? '',
@@ -102,5 +169,17 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       googleMapEmbedUrl: theme.companyInfo?.googleMapEmbedUrl ?? '',
     },
     contactChannels: normalizeContactChannels(theme.contactChannels),
+    homeBackgrounds: {
+      homeHeroBg: theme.homeBackgrounds?.homeHeroBg ?? '',
+      homeCategoryGameBg: theme.homeBackgrounds?.homeCategoryGameBg ?? '',
+      homeCategoryPhoneCardBg: theme.homeBackgrounds?.homeCategoryPhoneCardBg ?? '',
+      homeCategoryTopupBg: theme.homeBackgrounds?.homeCategoryTopupBg ?? '',
+      homeCategoryEsimBg: theme.homeBackgrounds?.homeCategoryEsimBg ?? '',
+      hubHeroGameBg: theme.homeBackgrounds?.hubHeroGameBg ?? '',
+      hubHeroPhoneBg: theme.homeBackgrounds?.hubHeroPhoneBg ?? '',
+      hubHeroTopupBg: theme.homeBackgrounds?.hubHeroTopupBg ?? '',
+      hubHeroEsimBg: theme.homeBackgrounds?.hubHeroEsimBg ?? '',
+      siteFooterBg: theme.homeBackgrounds?.siteFooterBg ?? '',
+    },
   };
 }

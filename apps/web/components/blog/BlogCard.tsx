@@ -48,7 +48,8 @@ export function BlogCard({
         href={href}
         className={cn(
           'group flex min-w-0 gap-3',
-          isHome && 'news-card-mobile rounded-2xl border border-cardon-border bg-white p-3 shadow-sm transition hover:shadow-card',
+          isHome &&
+            'news-card-mobile rounded-xl border border-cardon-border bg-white p-2.5 shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md',
           !isHome && 'py-0.5',
           className,
         )}
@@ -56,20 +57,30 @@ export function BlogCard({
         <div
           className={cn(
             'relative shrink-0 overflow-hidden rounded-lg bg-cardon-light',
-            isHome ? 'h-[76px] w-[112px] rounded-xl' : 'h-16 w-16 lg:h-[72px] lg:w-[72px]',
+            isHome ? 'h-14 w-[4.5rem] rounded-lg' : 'h-16 w-16 lg:h-[72px] lg:w-[72px]',
           )}
         >
           {post.featuredImage ? (
             <BlogListImage
               src={post.featuredImage}
               alt={post.title}
-              sizes={isHome ? '112px' : '72px'}
+              sizes={isHome ? '72px' : '72px'}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-lg opacity-30">📰</div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 py-0.5">
+          {isHome && post.category ? (
+            <span
+              className={cn(
+                'mb-1 inline-flex w-fit rounded px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-white',
+                /khuyến/i.test(post.category) ? 'bg-cardon-orange' : 'bg-cardon-blue',
+              )}
+            >
+              {post.category}
+            </span>
+          ) : null}
           <h3 className="line-clamp-2 text-sm font-semibold leading-[1.35] text-cardon-navy group-hover:text-cardon-blue">
             {post.title}
           </h3>
@@ -88,11 +99,11 @@ export function BlogCard({
       <Link
         href={href}
         className={cn(
-          'group flex flex-col overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-card transition hover:shadow-card-hover',
+          'group flex flex-col overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-card transition-all duration-200 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md',
           className,
         )}
       >
-        <div className="relative aspect-[2/1] overflow-hidden rounded-t-xl bg-cardon-light">
+        <div className="relative aspect-[16/10] overflow-hidden rounded-t-xl bg-cardon-light">
           {post.featuredImage ? (
             <BlogListImage
               src={post.featuredImage}
@@ -104,6 +115,16 @@ export function BlogCard({
           )}
         </div>
         <div className="flex flex-1 flex-col p-3">
+          {post.category ? (
+            <span
+              className={cn(
+                'mb-2 inline-flex w-fit rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white',
+                /khuyến/i.test(post.category) ? 'bg-cardon-orange' : 'bg-cardon-blue',
+              )}
+            >
+              {post.category}
+            </span>
+          ) : null}
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-cardon-navy group-hover:text-cardon-blue">
             {post.title}
           </h3>

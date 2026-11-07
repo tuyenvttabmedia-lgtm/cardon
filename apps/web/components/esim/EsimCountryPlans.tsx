@@ -7,15 +7,18 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { EsimFlag } from '@/components/esim/EsimFlag';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { EsimSalesOffNotice } from '@/components/esim/EsimSalesOffNotice';
+import { useT } from '@/components/i18n/LocaleProvider';
+import { EsimShelfPrice } from '@/components/esim/EsimShelfPrice';
+import type { MessageKey } from '@/lib/i18n/messages';
 import type { EsimPreviewOffer } from '@/lib/esim-offers';
 import {
   PLAN_GROUPS,
   countriesFromOffers,
   dataAmountMb,
+  isUnlimitedDataLabel,
   directoryHref,
   durationDays,
 } from '@/lib/esim-browse';
-import { formatVnd } from '@/lib/utils';
 
 export function EsimCountryPlans({
   iso,
@@ -26,6 +29,7 @@ export function EsimCountryPlans({
   offers: EsimPreviewOffer[];
   salesOpen?: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -79,22 +83,23 @@ export function EsimCountryPlans({
   if (!country) {
     return (
       <div className="site-container py-8">
-        <p className="text-sm text-cardon-gray">Chưa có gói cho quốc gia này.</p>
-        <Link href={listHref} className="mt-3 inline-flex font-semibold text-cardon-blue">Quay lại danh sách</Link>
+        <p className="text-sm text-cardon-gray">{t('esim.emptyCountry')}</p>
+        <Link href={listHref} className="mt-3 inline-flex font-semibold text-cardon-blue">{t('esim.backList')}</Link>
       </div>
     );
   }
 
-  const speedChip = country.speedLabel ? `Tốc độ ${country.speedLabel}` : 'Tốc độ theo gói';
-  const networkText = country.operators.join(', ') || 'Theo gói';
+  const speedChip = country.speedLabel ? `${t('esim.speed')} ${country.speedLabel}` : t('esim.speedFallback');
+  const networkText = country.operators.join(', ') || t('esim.speedFallback');
+  const groupLabels = typeOptions.map((item) => (item.id === 'Standard Fixed' ? t('esim.groupFixed') : item.label));
 
   return (
     <div className="pb-10">
       <div className="site-container pt-4">
         <nav className="flex flex-wrap items-center gap-1.5 text-sm text-cardon-gray">
-          <Link href="/" className="hover:text-cardon-blue">Trang chủ</Link>
+          <Link href="/" className="hover:text-cardon-blue">{t('nav.home')}</Link>
           <span aria-hidden>›</span>
-          <Link href="/esim" className="hover:text-cardon-blue">eSIM du lịch</Link>
+          <Link href="/esim" className="hover:text-cardon-blue">{t('nav.esim')}</Link>
           <span aria-hidden>›</span>
           <span className="font-semibold text-cardon-navy">{country.name}</span>
         </nav>
@@ -112,33 +117,33 @@ export function EsimCountryPlans({
               </span>
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold leading-tight sm:text-3xl md:text-4xl">eSIM {country.name}</h1>
-                <p className="mt-1 text-xs text-white/90 sm:text-sm md:text-base">Kết nối nhanh, ổn định trong suốt chuyến đi.</p>
+                <p className="mt-1 text-xs text-white/90 sm:text-sm md:text-base">{t('esim.connectBody')}</p>
               </div>
             </div>
             <ul className="esim-chip-rail mt-4 md:mt-5 md:flex-wrap md:overflow-visible">
-              <HeroChip icon={<SignalIcon />} label="Phủ sóng toàn quốc" />
+              <HeroChip icon={<SignalIcon />} label={t('esim.coverageNational')} />
               <HeroChip icon={<BoltIcon />} label={speedChip} />
-              <HeroChip icon={<QrIcon />} label="Kích hoạt nhanh" />
-              <HeroChip icon={<ChatIcon />} label="Hỗ trợ 24/7" />
+              <HeroChip icon={<QrIcon />} label={t('esim.activateFast')} />
+              <HeroChip icon={<ChatIcon />} label={t('trust.support')} />
             </ul>
           </div>
         </section>
 
         <div className="esim-chip-rail mt-4">
-          <Tab href="#goi" active>Gói dữ liệu</Tab>
-          <Tab href="#thong-tin">Thông tin điểm đến</Tab>
-          <Tab href="#huong-dan">Hướng dẫn sử dụng</Tab>
-          <Tab href="#faq">Câu hỏi thường gặp</Tab>
+          <Tab href="#goi" active>{t('esim.dataPlans')}</Tab>
+          <Tab href="#thong-tin">{t('esim.destInfo')}</Tab>
+          <Tab href="#huong-dan">{t('esim.guide')}</Tab>
+          <Tab href="#faq">{t('home.faqTitle')}</Tab>
         </div>
 
         <div className="mt-3 hidden items-end gap-3 rounded-2xl border border-[#e6edf5] bg-white p-3 shadow-sm md:grid md:grid-cols-4">
-          <Select label="Dung lượng" value={data} onChange={(value) => replaceParams({ data: value })} options={dataOptions} />
-          <Select label="Thời hạn" value={days} onChange={(value) => replaceParams({ days: value, span: '' })} options={dayOptions} />
-          <Select label="Loại gói" value={type} onChange={(value) => replaceParams({ type: value })} options={typeOptions.map((item) => item.label)} values={typeOptions.map((item) => item.id)} />
-          <Select label="Nhà mạng" value={net} onChange={(value) => replaceParams({ net: value })} options={country.operators} />
+          <Select label={t('esim.data')} value={data} onChange={(value) => replaceParams({ data: value })} options={dataOptions} />
+          <Select label={t('esim.duration')} value={days} onChange={(value) => replaceParams({ days: value, span: '' })} options={dayOptions} />
+          <Select label={t('esim.planType')} value={type} onChange={(value) => replaceParams({ type: value })} options={groupLabels} values={typeOptions.map((item) => item.id)} />
+          <Select label={t('esim.network')} value={net} onChange={(value) => replaceParams({ net: value })} options={country.operators} />
         </div>
         <button type="button" onClick={() => setFiltersOpen(true)} className="mt-3 h-11 rounded-full border border-cardon-border bg-white px-4 text-sm font-semibold md:hidden">
-          Bộ lọc
+          {t('esim.filters')}
         </button>
 
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -150,19 +155,19 @@ export function EsimCountryPlans({
                 onClick={() => replaceParams({ span: span === item.id ? '' : item.id, days: '' })}
                 className={`h-9 rounded-full px-3.5 text-sm font-semibold transition-all duration-200 ${span === item.id ? 'bg-cardon-blue text-white' : 'border border-gray-100 bg-white text-cardon-navy hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md'}`}
               >
-                {item.label}
+                {t(item.labelKey)}
               </button>
             ))}
           </div>
           <div className="hidden min-w-[180px] md:block">
-            <Select label="Sắp xếp" value={sort} onChange={(value) => replaceParams({ sort: value === 'price' ? '' : value })} options={['Giá tăng dần', 'Dung lượng', 'Thời hạn']} values={['price', 'data', 'days']} allLabel="" />
+            <Select label={t('esim.sort')} value={sort} onChange={(value) => replaceParams({ sort: value === 'price' ? '' : value })} options={[t('esim.priceAsc'), t('esim.data'), t('esim.duration')]} values={['price', 'data', 'days']} allLabel="" />
           </div>
         </div>
-        {activeGroup ? <p className="mt-3 text-sm text-cardon-gray">{activeGroup.note}</p> : null}
+        {activeGroup && GROUP_NOTES[activeGroup.id] ? <p className="mt-3 text-sm text-cardon-gray">{t(GROUP_NOTES[activeGroup.id])}</p> : null}
 
-        <h2 id="goi" className="mt-5 scroll-mt-24 text-xl font-bold text-cardon-navy md:text-2xl">{shown.length} gói eSIM {country.name}</h2>
+        <h2 id="goi" className="mt-5 scroll-mt-24 text-xl font-bold text-cardon-navy md:text-2xl">{shown.length} {t('esim.planCount')} · {country.name}</h2>
         {shown.length === 0 ? (
-          <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">Không có gói khớp bộ lọc.</p>
+          <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">{t('esim.noPlanMatch')}</p>
         ) : (
           <ul className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
             {shown.map((offer) => (
@@ -171,14 +176,16 @@ export function EsimCountryPlans({
                 <p className="mt-2 text-sm font-bold leading-tight text-cardon-navy sm:mt-3 sm:text-base md:text-lg">{offer.dataLabel} / {offer.durationLabel}</p>
                 <p className="mt-2 flex min-w-0 items-center gap-1 text-[11px] font-semibold text-slate-500 sm:gap-1.5 sm:text-xs">
                   <span className="text-cardon-blue"><SignalIcon /></span>
-                  <span className="truncate">{offer.speedLabel || 'Theo gói'}</span>
+                  <span className="truncate">{offer.speedLabel || t('esim.speedFallback')}</span>
                 </p>
-                <p className="mt-2 text-sm font-bold leading-tight text-cardon-blue sm:mt-3 sm:text-base md:text-lg">{formatVnd(offer.sellPriceVnd)}</p>
+                <p className="mt-2 text-sm font-bold leading-tight text-cardon-blue sm:mt-3 sm:text-base md:text-lg">
+                  <EsimShelfPrice sellPriceVnd={offer.sellPriceVnd} chargeCurrency={offer.chargeCurrency} chargeAmount={offer.chargeAmount} />
+                </p>
                 <Link
                   href={`/esim/${offer.id}?back=${encodeURIComponent(plansPath)}`}
                   className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-cardon-blue text-xs font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy sm:mt-4 sm:h-11 sm:text-sm"
                 >
-                  {salesOpen ? 'Chọn gói' : 'Xem gói'}
+                  {salesOpen ? t('esim.choose') : t('esim.viewPlan')}
                 </Link>
               </li>
             ))}
@@ -186,44 +193,42 @@ export function EsimCountryPlans({
         )}
 
         <section id="thong-tin" className="mt-8 scroll-mt-24 rounded-2xl border border-[#e6edf5] bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Thông tin về eSIM {country.name}</h2>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.about')} · {country.name}</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-            <Info icon={<SignalIcon />} title="Vùng phủ sóng" text={country.iso === 'ASIA' || country.iso === 'EUROPE' ? 'Nhiều quốc gia trong khu vực' : 'Toàn quốc'} />
-            <Info icon={<AntennaIcon />} title="Nhà mạng" text={networkText} />
-            <Info icon={<BoltIcon />} title="Loại mạng" text={country.speedLabel || 'Theo gói'} />
-            <Info icon={<QrIcon />} title="Kích hoạt" text={plans[0]?.activationLabel || 'Nhận mã cài'} />
-            <Info icon={<ChatIcon />} title="Hỗ trợ" text="08:00–22:00" />
+            <Info icon={<SignalIcon />} title={t('esim.coverageLabel')} text={country.iso === 'ASIA' || country.iso === 'EUROPE' ? t('esim.coverageRegion') : t('esim.coverageNational')} />
+            <Info icon={<AntennaIcon />} title={t('esim.network')} text={networkText} />
+            <Info icon={<BoltIcon />} title={t('esim.networkType')} text={country.speedLabel || t('esim.speedFallback')} />
+            <Info icon={<QrIcon />} title={t('esim.activate')} text={plans[0]?.activationLabel || t('esim.activateQr')} />
+            <Info icon={<ChatIcon />} title={t('footer.support')} text="08:00–22:00" />
           </div>
         </section>
         <section id="huong-dan" className="mt-4 scroll-mt-24">
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Hướng dẫn sử dụng</h2>
-          <p className="mt-1 text-sm text-cardon-gray">
-            Cài trên iPhone hoặc Android. Thông tin APN, kích hoạt và nhà mạng đi kèm từng gói Keyon.
-          </p>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.guide')}</h2>
+          <p className="mt-1 text-sm text-cardon-gray">{t('esim.guideLead')}</p>
           <div className="mt-4">
             <EsimInstallGuide offer={plans[0]} country={country.name} />
           </div>
-          <Link href={listHref} className="mt-3 inline-flex font-semibold text-cardon-blue">Quay lại danh sách điểm đến</Link>
+          <Link href={listHref} className="mt-3 inline-flex font-semibold text-cardon-blue">{t('esim.backDirectory')}</Link>
         </section>
         <section id="faq" className="mt-4 scroll-mt-24 rounded-2xl border border-[#e6edf5] bg-white p-5 text-sm leading-relaxed text-cardon-gray">
-          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">Câu hỏi thường gặp</h2>
-          <p className="mt-3">Máy cần hỗ trợ eSIM. Nên cài khi còn WiFi, trước giờ bay. Mã cài nằm trong tài khoản sau khi thanh toán.</p>
-          <Link href="/tro-giup" className="mt-3 inline-flex font-semibold text-cardon-blue">Xem thêm câu hỏi</Link>
+          <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('home.faqTitle')}</h2>
+          <p className="mt-3">{t('esim.howNote')}</p>
+          <Link href="/tro-giup" className="mt-3 inline-flex font-semibold text-cardon-blue">{t('esim.moreFaq')}</Link>
         </section>
       </div>
 
       {filtersOpen ? (
         <div className="fixed inset-0 z-40 flex items-end bg-black/40 md:hidden" onClick={() => setFiltersOpen(false)}>
           <div className="max-h-[85vh] w-full overflow-auto rounded-t-3xl bg-white p-4 pb-28" onClick={(event) => event.stopPropagation()}>
-            <h2 className="text-lg font-bold text-cardon-navy">Bộ lọc</h2>
+            <h2 className="text-lg font-bold text-cardon-navy">{t('esim.filters')}</h2>
             <div className="mt-3 space-y-3">
-              <Select label="Dung lượng" value={data} onChange={(value) => replaceParams({ data: value })} options={dataOptions} />
-              <Select label="Thời hạn" value={days} onChange={(value) => replaceParams({ days: value, span: '' })} options={dayOptions} />
-              <Select label="Loại gói" value={type} onChange={(value) => replaceParams({ type: value })} options={typeOptions.map((item) => item.label)} values={typeOptions.map((item) => item.id)} />
-              <Select label="Nhà mạng" value={net} onChange={(value) => replaceParams({ net: value })} options={country.operators} />
-              <Select label="Sắp xếp" value={sort} onChange={(value) => replaceParams({ sort: value === 'price' ? '' : value })} options={['Giá tăng dần', 'Dung lượng', 'Thời hạn']} values={['price', 'data', 'days']} allLabel="" />
+              <Select label={t('esim.data')} value={data} onChange={(value) => replaceParams({ data: value })} options={dataOptions} />
+              <Select label={t('esim.duration')} value={days} onChange={(value) => replaceParams({ days: value, span: '' })} options={dayOptions} />
+              <Select label={t('esim.planType')} value={type} onChange={(value) => replaceParams({ type: value })} options={groupLabels} values={typeOptions.map((item) => item.id)} />
+              <Select label={t('esim.network')} value={net} onChange={(value) => replaceParams({ net: value })} options={country.operators} />
+              <Select label={t('esim.sort')} value={sort} onChange={(value) => replaceParams({ sort: value === 'price' ? '' : value })} options={[t('esim.priceAsc'), t('esim.data'), t('esim.duration')]} values={['price', 'data', 'days']} allLabel="" />
             </div>
-            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-5 h-12 w-full rounded-xl bg-cardon-blue text-sm font-semibold text-white">Áp dụng</button>
+            <button type="button" onClick={() => setFiltersOpen(false)} className="mt-5 h-12 w-full rounded-xl bg-cardon-blue text-sm font-semibold text-white">{t('esim.apply')}</button>
           </div>
         </div>
       ) : null}
@@ -236,14 +241,21 @@ function windowPath(iso: string, query: string): string {
 }
 
 const DAY_SPANS = [
-  { id: '1-3', label: '1 – 3 ngày' },
-  { id: '5-7', label: '5 – 7 ngày' },
-  { id: '10-15', label: '10 – 15 ngày' },
-  { id: 'unlimited', label: 'Không giới hạn' },
+  { id: '1-3', labelKey: 'esim.span13' as const },
+  { id: '5-7', labelKey: 'esim.span57' as const },
+  { id: '10-15', labelKey: 'esim.span1015' as const },
+  { id: 'unlimited', labelKey: 'esim.unlimited' as const },
 ] as const;
 
+const GROUP_NOTES: Record<string, MessageKey> = {
+  'Standard Fixed': 'esim.groupFixedNote',
+  'Standard Unlimited Lite': 'esim.groupLiteNote',
+  'Standard Unlimited Essential': 'esim.groupEssentialNote',
+  'Standard Unlimited Plus': 'esim.groupPlusNote',
+};
+
 function matchesSpan(offer: EsimPreviewOffer, span: string): boolean {
-  if (span === 'unlimited') return offer.dataLabel.startsWith('Không');
+  if (span === 'unlimited') return isUnlimitedDataLabel(offer.dataLabel);
   const days = durationDays(offer.durationLabel);
   if (span === '1-3') return days >= 1 && days <= 3;
   if (span === '5-7') return days >= 5 && days <= 7;
@@ -293,7 +305,7 @@ function Select({
   onChange,
   options,
   values,
-  allLabel = 'Tất cả',
+  allLabel,
 }: {
   label: string;
   value: string;
@@ -302,6 +314,8 @@ function Select({
   values?: string[];
   allLabel?: string;
 }) {
+  const t = useT();
+  const emptyLabel = allLabel === undefined ? t('common.all') : allLabel;
   return (
     <label className="block text-xs font-semibold text-cardon-gray">
       {label}
@@ -310,7 +324,7 @@ function Select({
         onChange={(event) => onChange(event.target.value)}
         className="mt-1 h-11 w-full rounded-xl border border-cardon-border bg-white px-3 text-sm font-semibold text-cardon-navy"
       >
-        {allLabel ? <option value="">{allLabel}</option> : null}
+        {emptyLabel ? <option value="">{emptyLabel}</option> : null}
         {options.map((option, index) => (
           <option key={option} value={values?.[index] ?? option}>{option}</option>
         ))}

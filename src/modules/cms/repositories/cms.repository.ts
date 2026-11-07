@@ -6,7 +6,11 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
-import { CMS_SEO_SETTING_KEYS, CMS_THEME_SETTING_KEYS } from '../entities/cms.constants';
+import {
+  CMS_SEO_SETTING_KEYS,
+  CMS_THEME_SETTING_KEYS,
+  type CmsHomeBackgrounds,
+} from '../entities/cms.constants';
 import type { CmsMobileNavItem } from '../entities/cms-theme.defaults';
 import {
   DEFAULT_CONTACT_CHANNELS,
@@ -23,6 +27,21 @@ const PAGE_INCLUDE = {
   author: { select: { id: true, email: true } },
   categoryRel: true,
   pageTags: { include: { tag: true } },
+};
+
+const ADMIN_PAGE_INCLUDE = {
+  ...PAGE_INCLUDE,
+  translations: true,
+  seoTranslations: true,
+};
+
+const PUBLIC_PAGE_INCLUDE = {
+  seo: true,
+  translations: true,
+  seoTranslations: true,
+  author: { select: { id: true, email: true } },
+  categoryRel: { include: { translations: true } },
+  pageTags: { include: { tag: { include: { translations: true } } } },
 };
 
 const BLOG_LIST_SELECT = {
@@ -48,6 +67,43 @@ const BLOG_LIST_SELECT = {
   pageTags: { select: { tag: { select: { name: true, slug: true } } } },
 } as const;
 
+const BLOG_LIST_LOCALE_SELECT = {
+  ...BLOG_LIST_SELECT,
+  translations: {
+    select: { locale: true, title: true, excerpt: true, content: true, status: true },
+  },
+  seoTranslations: {
+    select: {
+      locale: true,
+      metaTitle: true,
+      metaDescription: true,
+      metaKeywords: true,
+      focusKeyword: true,
+      ogTitle: true,
+      ogDescription: true,
+      canonicalUrl: true,
+    },
+  },
+  categoryRel: {
+    select: {
+      name: true,
+      slug: true,
+      translations: { select: { locale: true, name: true } },
+    },
+  },
+  pageTags: {
+    select: {
+      tag: {
+        select: {
+          name: true,
+          slug: true,
+          translations: { select: { locale: true, name: true } },
+        },
+      },
+    },
+  },
+} as const;
+
 @Injectable()
 export class CmsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -58,7 +114,7 @@ export class CmsRepository {
         ...(filters.type ? { type: filters.type } : {}),
         ...(filters.status ? { status: filters.status } : {}),
       },
-      include: PAGE_INCLUDE,
+      include: ADMIN_PAGE_INCLUDE,
       orderBy: { updatedAt: 'desc' },
     });
   }
@@ -66,7 +122,7 @@ export class CmsRepository {
   findPageById(id: string) {
     return this.prisma.cmsPage.findUnique({
       where: { id },
-      include: PAGE_INCLUDE,
+      include: ADMIN_PAGE_INCLUDE,
     });
   }
 
@@ -92,22 +148,67 @@ export class CmsRepository {
     });
   }
 
-  findPublishedPageBySlug(slug: string) {
+  findPublishedPageBySlug(slug: string, withTranslations = false) {
     return this.prisma.cmsPage.findFirst({
       where: { slug, status: CmsPageStatus.PUBLISHED },
-      include: PAGE_INCLUDE,
+      include: withTranslations ? PUBLIC_PAGE_INCLUDE : PAGE_INCLUDE,
     });
   }
 
-  findNavPagesForPublic() {
+  findNavPagesForPublic(withTranslations = false) {
     return this.prisma.cmsPage.findMany({
       where: {
         type: CmsPageType.PAGE,
         status: CmsPageStatus.PUBLISHED,
         showInNav: true,
       },
-      select: { slug: true, title: true, navSortOrder: true },
+      select: withTranslations
+        ? {
+            slug: true,
+            title: true,
+            navSortOrder: true,
+            excerpt: true,
+            translations: {
+              select: { locale: true, title: true, excerpt: true, content: true, status: true },
+            },
+          }
+        : { slug: true, title: true, navSortOrder: true },
       orderBy: [{ navSortOrder: 'asc' }, { title: 'asc' }],
+    });
+  }
+
+  findPublishedEnglishSitemap() {
+    return this.prisma.cmsPage.findMany({
+      where: {
+        status: CmsPageStatus.PUBLISHED,
+        translations: { some: { locale: 'en', status: CmsPageStatus.PUBLISHED } },
+      },
+      select: {
+        slug: true,
+        type: true,
+        updatedAt: true,
+        categoryRel: { select: { slug: true } },
+        translations: {
+          where: { locale: 'en' },
+          select: { locale: true, status: true },
+        },
+      },
+      orderBy: { slug: 'asc' },
+    });
+  }
+
+  findCategoriesWithEnglishCopy() {
+    return this.prisma.cmsCategory.findMany({
+      where: { translations: { some: { locale: 'en' } } },
+      select: {
+        slug: true,
+        updatedAt: true,
+        translations: {
+          where: { locale: 'en' },
+          select: { locale: true, name: true },
+        },
+      },
+      orderBy: { slug: 'asc' },
     });
   }
 
@@ -119,18 +220,67 @@ export class CmsRepository {
     return (agg._max.navSortOrder ?? 0) + 1;
   }
 
-  createPage(data: Prisma.CmsPageCreateInput) {
-    return this.prisma.cmsPage.create({
-      data,
-      include: PAGE_INCLUDE,
+  createPage(data: Prisma.CmsPageCreateInput, seo?: Prisma.CmsSeoCreateWithoutPageInput) {
+    return this.prisma.$transaction(async (tx) => {
+      const page = await tx.cmsPage.create({ data });
+      if (seo) await this.upsertSeoTx(tx, page.id, seo);
+      await this.mirrorVietnamesePage(tx, page, seo ?? null);
+      return tx.cmsPage.findUniqueOrThrow({ where: { id: page.id }, include: ADMIN_PAGE_INCLUDE });
     });
   }
 
-  updatePage(id: string, data: Prisma.CmsPageUpdateInput) {
-    return this.prisma.cmsPage.update({
-      where: { id },
-      data,
-      include: PAGE_INCLUDE,
+  updatePage(id: string, data: Prisma.CmsPageUpdateInput, seo?: Prisma.CmsSeoCreateWithoutPageInput) {
+    return this.prisma.$transaction(async (tx) => {
+      const page = await tx.cmsPage.update({ where: { id }, data });
+      if (seo) await this.upsertSeoTx(tx, id, seo);
+      await this.mirrorVietnamesePage(tx, page, seo ?? null);
+      return tx.cmsPage.findUniqueOrThrow({ where: { id }, include: ADMIN_PAGE_INCLUDE });
+    });
+  }
+
+  upsertEnglishPageTranslation(
+    pageId: string,
+    input: {
+      title: string;
+      excerpt?: string | null;
+      content: string;
+      status?: CmsPageStatus;
+      seo?: Prisma.CmsSeoCreateWithoutPageInput | null;
+    },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const page = await tx.cmsPage.findUnique({ where: { id: pageId }, select: { id: true } });
+      if (!page) return null;
+      const existing = await tx.cmsPageTranslation.findUnique({
+        where: { pageId_locale: { pageId, locale: 'en' } },
+        select: { status: true },
+      });
+      const status = input.status ?? existing?.status ?? CmsPageStatus.DRAFT;
+      await tx.cmsPageTranslation.upsert({
+        where: { pageId_locale: { pageId, locale: 'en' } },
+        create: {
+          pageId,
+          locale: 'en',
+          title: input.title,
+          excerpt: input.excerpt,
+          content: input.content,
+          status,
+        },
+        update: {
+          title: input.title,
+          excerpt: input.excerpt,
+          content: input.content,
+          status,
+        },
+      });
+      if (input.seo) {
+        await tx.cmsSeoTranslation.upsert({
+          where: { pageId_locale: { pageId, locale: 'en' } },
+          create: { pageId, locale: 'en', ...this.seoText(input.seo) },
+          update: this.seoText(input.seo),
+        });
+      }
+      return tx.cmsPage.findUniqueOrThrow({ where: { id: pageId }, include: ADMIN_PAGE_INCLUDE });
     });
   }
 
@@ -249,12 +399,20 @@ export class CmsRepository {
       logoMobile: coerceSettingString(map[CMS_THEME_SETTING_KEYS.LOGO_MOBILE]),
       favicon: coerceSettingString(map[CMS_THEME_SETTING_KEYS.FAVICON]),
       ogDefaultImage: coerceSettingString(map[CMS_THEME_SETTING_KEYS.OG_DEFAULT_IMAGE]),
-      headerMenu: coerceSettingJson<Array<{ label: string; href: string; sortOrder?: number }>>(
+      headerMenu: coerceSettingJson<
+        Array<{ label: string; href: string; sortOrder?: number; labelEn?: string; navKey?: string }>
+      >(
         map[CMS_THEME_SETTING_KEYS.HEADER_MENU],
         [],
       ),
       footerColumns: coerceSettingJson<
-        Array<{ title: string; links: Array<{ label: string; href: string }> }>
+        Array<{
+          title: string;
+          titleEn?: string;
+          description?: string;
+          descriptionEn?: string;
+          links: Array<{ label: string; href: string; labelEn?: string; navKey?: string }>;
+        }>
       >(map[CMS_THEME_SETTING_KEYS.FOOTER_COLUMNS], []),
       companyInfo: coerceSettingJson<{
         companyName?: string;
@@ -263,6 +421,13 @@ export class CmsRepository {
         hotline?: string;
         email?: string;
         workingHours?: string;
+        description?: string;
+        descriptionEn?: string;
+        taxLabelEn?: string;
+        addressLabelEn?: string;
+        emailLabelEn?: string;
+        hotlineLabelEn?: string;
+        hoursLabelEn?: string;
         boCongThuongEnabled?: boolean;
         boCongThuongImageUrl?: string;
         boCongThuongLinkUrl?: string;
@@ -277,6 +442,10 @@ export class CmsRepository {
         map[CMS_THEME_SETTING_KEYS.MOBILE_NAV],
         [],
       ),
+      homeBackgrounds: coerceSettingJson<CmsHomeBackgrounds>(
+        map[CMS_THEME_SETTING_KEYS.HOME_BACKGROUNDS],
+        {},
+      ),
     };
   }
 
@@ -289,6 +458,7 @@ export class CmsRepository {
     tagSlug?: string;
     skip?: number;
     take?: number;
+    withTranslations?: boolean;
   }) {
     return this.prisma.cmsPage.findMany({
       where: {
@@ -301,14 +471,14 @@ export class CmsRepository {
           ? { pageTags: { some: { tag: { slug: filters.tagSlug } } } }
           : {}),
       },
-      select: BLOG_LIST_SELECT,
+      select: filters.withTranslations ? BLOG_LIST_LOCALE_SELECT : BLOG_LIST_SELECT,
       orderBy: [{ publishedAt: 'desc' }, { updatedAt: 'desc' }],
       skip: filters.skip ?? 0,
       take: filters.take ?? 20,
     });
   }
 
-  findRelatedBlogPosts(pageId: string, categoryId: string | null, take = 4) {
+  findRelatedBlogPosts(pageId: string, categoryId: string | null, take = 4, withTranslations = false) {
     return this.prisma.cmsPage.findMany({
       where: {
         id: { not: pageId },
@@ -316,30 +486,82 @@ export class CmsRepository {
         status: CmsPageStatus.PUBLISHED,
         ...(categoryId ? { categoryId } : {}),
       },
-      select: BLOG_LIST_SELECT,
+      select: withTranslations ? BLOG_LIST_LOCALE_SELECT : BLOG_LIST_SELECT,
       orderBy: { publishedAt: 'desc' },
       take,
     });
   }
 
-  listCategories() {
-    return this.prisma.cmsCategory.findMany({ orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+  listCategories(withTranslations = false) {
+    return this.prisma.cmsCategory.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      ...(withTranslations ? { include: { translations: true } } : {}),
+    });
   }
 
   createCategory(data: Prisma.CmsCategoryCreateInput) {
-    return this.prisma.cmsCategory.create({ data });
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.cmsCategory.create({ data });
+      await this.mirrorVietnameseCategory(tx, category);
+      return tx.cmsCategory.findUniqueOrThrow({
+        where: { id: category.id },
+        include: { translations: true },
+      });
+    });
   }
 
   updateCategory(id: string, data: Prisma.CmsCategoryUpdateInput) {
-    return this.prisma.cmsCategory.update({ where: { id }, data });
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.cmsCategory.update({ where: { id }, data });
+      await this.mirrorVietnameseCategory(tx, category);
+      return tx.cmsCategory.findUniqueOrThrow({
+        where: { id },
+        include: { translations: true },
+      });
+    });
+  }
+
+  upsertEnglishCategoryTranslation(
+    categoryId: string,
+    input: { name: string; description?: string | null },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const category = await tx.cmsCategory.findUnique({ where: { id: categoryId }, select: { id: true } });
+      if (!category) return null;
+      await tx.cmsCategoryTranslation.upsert({
+        where: { categoryId_locale: { categoryId, locale: 'en' } },
+        create: {
+          categoryId,
+          locale: 'en',
+          name: input.name,
+          description: input.description,
+        },
+        update: { name: input.name, description: input.description },
+      });
+      return tx.cmsCategory.findUniqueOrThrow({
+        where: { id: categoryId },
+        include: { translations: true },
+      });
+    });
   }
 
   deleteCategory(id: string) {
     return this.prisma.cmsCategory.delete({ where: { id } });
   }
 
-  findCategoryBySlug(slug: string) {
-    return this.prisma.cmsCategory.findUnique({ where: { slug } });
+  findCategoryById(id: string) {
+    return this.prisma.cmsCategory.findUnique({ where: { id } });
+  }
+
+  findTagById(id: string) {
+    return this.prisma.cmsTag.findUnique({ where: { id } });
+  }
+
+  findCategoryBySlug(slug: string, withTranslations = false) {
+    return this.prisma.cmsCategory.findUnique({
+      where: { slug },
+      ...(withTranslations ? { include: { translations: true } } : {}),
+    });
   }
 
   countTagUsage(tagId: string) {
@@ -359,7 +581,7 @@ export class CmsRepository {
   listTags() {
     return this.prisma.cmsTag.findMany({
       orderBy: { name: 'asc' },
-      include: { _count: { select: { pageTags: true } } },
+      include: { _count: { select: { pageTags: true } }, translations: true },
     }).then((rows) =>
       rows.map(({ _count, ...tag }) => ({
         ...tag,
@@ -369,11 +591,45 @@ export class CmsRepository {
   }
 
   createTag(data: Prisma.CmsTagCreateInput) {
-    return this.prisma.cmsTag.create({ data });
+    return this.prisma.$transaction(async (tx) => {
+      const tag = await tx.cmsTag.create({ data });
+      await this.mirrorVietnameseTag(tx, tag);
+      return tx.cmsTag.findUniqueOrThrow({ where: { id: tag.id }, include: { translations: true } });
+    });
   }
 
   updateTag(id: string, data: Prisma.CmsTagUpdateInput) {
-    return this.prisma.cmsTag.update({ where: { id }, data });
+    return this.prisma.$transaction(async (tx) => {
+      const tag = await tx.cmsTag.update({ where: { id }, data });
+      await this.mirrorVietnameseTag(tx, tag);
+      return tx.cmsTag.findUniqueOrThrow({ where: { id }, include: { translations: true } });
+    });
+  }
+
+  upsertEnglishTagTranslation(
+    tagId: string,
+    input: { name: string; metaTitle?: string | null; metaDescription?: string | null },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const tag = await tx.cmsTag.findUnique({ where: { id: tagId }, select: { id: true } });
+      if (!tag) return null;
+      await tx.cmsTagTranslation.upsert({
+        where: { tagId_locale: { tagId, locale: 'en' } },
+        create: {
+          tagId,
+          locale: 'en',
+          name: input.name,
+          metaTitle: input.metaTitle,
+          metaDescription: input.metaDescription,
+        },
+        update: {
+          name: input.name,
+          metaTitle: input.metaTitle,
+          metaDescription: input.metaDescription,
+        },
+      });
+      return tx.cmsTag.findUniqueOrThrow({ where: { id: tagId }, include: { translations: true } });
+    });
   }
 
   deleteTag(id: string) {
@@ -451,6 +707,99 @@ export class CmsRepository {
       where: { key },
       create: { key, value: value as Prisma.InputJsonValue, description },
       update: { value: value as Prisma.InputJsonValue, description },
+    });
+  }
+
+  private upsertSeoTx(tx: Prisma.TransactionClient, pageId: string, seo: Prisma.CmsSeoCreateWithoutPageInput) {
+    return tx.cmsSeo.upsert({
+      where: { pageId },
+      create: { pageId, ...seo },
+      update: seo,
+    });
+  }
+
+  private seoText(seo: Prisma.CmsSeoCreateWithoutPageInput) {
+    return {
+      metaTitle: seo.metaTitle,
+      metaDescription: seo.metaDescription,
+      metaKeywords: seo.metaKeywords,
+      focusKeyword: seo.focusKeyword,
+      ogTitle: seo.ogTitle,
+      ogDescription: seo.ogDescription,
+      canonicalUrl: seo.canonicalUrl,
+    };
+  }
+
+  private async mirrorVietnamesePage(
+    tx: Prisma.TransactionClient,
+    page: { id: string; title: string; excerpt: string | null; content: string; status: CmsPageStatus },
+    seo: Prisma.CmsSeoCreateWithoutPageInput | null,
+  ) {
+    await tx.cmsPageTranslation.upsert({
+      where: { pageId_locale: { pageId: page.id, locale: 'vi' } },
+      create: {
+        pageId: page.id,
+        locale: 'vi',
+        title: page.title,
+        excerpt: page.excerpt,
+        content: page.content,
+        status: page.status,
+      },
+      update: {
+        title: page.title,
+        excerpt: page.excerpt,
+        content: page.content,
+        status: page.status,
+      },
+    });
+    if (!seo) return;
+    await tx.cmsSeoTranslation.upsert({
+      where: { pageId_locale: { pageId: page.id, locale: 'vi' } },
+      create: { pageId: page.id, locale: 'vi', ...this.seoText(seo) },
+      update: this.seoText(seo),
+    });
+  }
+
+  private mirrorVietnameseCategory(
+    tx: Prisma.TransactionClient,
+    category: {
+      id: string;
+      name: string;
+      description: string | null;
+      intro: string | null;
+      metaTitle: string | null;
+      metaDescription: string | null;
+      canonicalUrl: string | null;
+    },
+  ) {
+    const text = {
+      name: category.name,
+      description: category.description,
+      intro: category.intro,
+      metaTitle: category.metaTitle,
+      metaDescription: category.metaDescription,
+      canonicalUrl: category.canonicalUrl,
+    };
+    return tx.cmsCategoryTranslation.upsert({
+      where: { categoryId_locale: { categoryId: category.id, locale: 'vi' } },
+      create: { categoryId: category.id, locale: 'vi', ...text },
+      update: text,
+    });
+  }
+
+  private mirrorVietnameseTag(
+    tx: Prisma.TransactionClient,
+    tag: { id: string; name: string; metaTitle: string | null; metaDescription: string | null },
+  ) {
+    const text = {
+      name: tag.name,
+      metaTitle: tag.metaTitle,
+      metaDescription: tag.metaDescription,
+    };
+    return tx.cmsTagTranslation.upsert({
+      where: { tagId_locale: { tagId: tag.id, locale: 'vi' } },
+      create: { tagId: tag.id, locale: 'vi', ...text },
+      update: text,
     });
   }
 }

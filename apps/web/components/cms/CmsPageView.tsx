@@ -5,6 +5,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { PageHero } from '@/components/layout/PageHero';
 import { StaticPageLayout } from '@/components/layout/StaticPageLayout';
 import { SafeCmsHtml } from '@/components/SafeCmsHtml';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import type { CmsPageLayoutValue } from '@/lib/cms-page-layout';
 import type { StaticPageNavItem } from '@/components/layout/StaticPageLayout';
 
@@ -15,6 +16,7 @@ interface CmsPageViewProps {
   excerpt?: string | null;
   pageLayout: CmsPageLayoutValue;
   navItems?: StaticPageNavItem[];
+  contentFallback?: boolean;
 }
 
 export function CmsPageView({
@@ -24,7 +26,14 @@ export function CmsPageView({
   excerpt,
   pageLayout,
   navItems,
+  contentFallback = false,
 }: CmsPageViewProps) {
+  const t = useT();
+  const { locale } = useLocale();
+  const notice =
+    locale === 'en' && contentFallback ? (
+      <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+    ) : null;
   if (pageLayout === 'POLICY') {
     return (
       <StaticPageLayout
@@ -32,8 +41,9 @@ export function CmsPageView({
         title={title}
         content={content}
         navItems={navItems}
+        contentFallback={contentFallback}
         breadcrumb={[
-          { label: 'Trang chủ', href: '/' },
+          { label: t('nav.home'), href: '/' },
           { label: title },
         ]}
       />
@@ -46,10 +56,10 @@ export function CmsPageView({
         <PageHero
           title={title}
           subtitle={
-            excerpt?.trim() ||
-            'Nền tảng mua thẻ game, thẻ điện thoại và nạp cước trực tuyến uy tín tại Việt Nam.'
+            excerpt?.trim() || t('home.heroBody')
           }
         />
+        {notice}
         <SafeCmsHtml html={content} className="cms-prose cms-landing mt-8" />
       </PageContainer>
     );
@@ -58,6 +68,7 @@ export function CmsPageView({
   return (
     <PageContainer>
       <article className="rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-8">
+        {notice}
         <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{title}</h1>
         {excerpt ? <p className="mt-3 text-sm text-cardon-gray md:text-base">{excerpt}</p> : null}
         <SafeCmsHtml html={content} className="cms-prose mt-6" />

@@ -593,8 +593,8 @@ describe('B3.49 legacy order lanes', () => {
 
   function legacyVariant(
     id: string,
-    type: 'CARD' | 'TOPUP' | 'DATA',
-    homeService: 'GAME_CARD' | 'PHONE_CARD' | 'TOPUP' | 'DATA',
+    type: 'CARD' | 'TOPUP' | 'DATA' | 'ESIM',
+    homeService: 'GAME_CARD' | 'PHONE_CARD' | 'TOPUP' | 'DATA' | 'ESIM',
   ) {
     return {
       id,
@@ -738,6 +738,50 @@ describe('B3.49 legacy order lanes', () => {
     );
     expect(card.esimCreate).not.toHaveBeenCalled();
     expect(card.orderRepository.createWithTransaction).toHaveBeenCalled();
+  });
+
+  it.each(['GAME_CARD', 'PHONE_CARD', 'TOPUP', 'DATA'] as const)(
+    'rejects %s outside Vietnam even if the body claims market VN',
+    async (homeService) => {
+      const variantId = homeService.toLowerCase();
+      const type = homeService === 'TOPUP' ? 'TOPUP' : homeService === 'DATA' ? 'DATA' : 'CARD';
+      const { service, orderRepository } = buildService(legacyVariant(variantId, type, homeService));
+      await expect(
+        service.createOrder(
+          { items: [{ variantId, quantity: 1 }], market: 'VN' },
+          customerUser,
+          { countryCode: 'US' },
+        ),
+      ).rejects.toThrow('chỉ bán tại Việt Nam');
+      expect(orderRepository.createWithTransaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still creates a Vietnam card order when the body market is tampered to INTL', async () => {
+    const { service, orderRepository } = buildService(
+      legacyVariant('game-card', 'CARD', 'GAME_CARD'),
+    );
+    const result = await service.createOrder(
+      { items: [{ variantId: 'game-card', quantity: 1 }], market: 'INTL' },
+      customerUser,
+      { countryCode: 'VN' },
+    );
+    expect(result.orderCode).toBe('ORD-LEGACY');
+    expect(orderRepository.createWithTransaction).toHaveBeenCalled();
+  });
+
+  it('does not apply the Vietnam-only rule to an eSIM order from outside Vietnam', async () => {
+    const { service, esimCreate, orderRepository } = buildService(
+      legacyVariant('esim', 'ESIM', 'ESIM'),
+    );
+    esimCreate.mockResolvedValue({ orderCode: 'ESIM-1' });
+    await service.createOrder(
+      { items: [{ variantId: 'esim', quantity: 1 }], market: 'INTL' },
+      customerUser,
+      { countryCode: 'US' },
+    );
+    expect(esimCreate).toHaveBeenCalled();
+    expect(orderRepository.createWithTransaction).not.toHaveBeenCalled();
   });
 
   it('rejects an eSIM order when sales are disabled and does not write a legacy order', async () => {

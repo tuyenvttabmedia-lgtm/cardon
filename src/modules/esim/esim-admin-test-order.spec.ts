@@ -1,4 +1,4 @@
-import { ForbiddenException, RequestMethod } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, RequestMethod, ValidationPipe } from '@nestjs/common';
 import {
   GUARDS_METADATA,
   METHOD_METADATA,
@@ -13,6 +13,7 @@ import { PERMISSIONS_KEY } from '../../common/decorators/permissions.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { EsimOpsAdminController } from '../admin/controllers/esim-ops.controller';
+import { AdminEsimTestOrderDto } from '../admin/dto/esim-ops.dto';
 import { ADMIN_AUDIT_ACTIONS } from '../admin/entities/admin.constants';
 import { EsimOrderService } from './esim-order.service';
 import { EsimPublicCatalogService } from './esim-public-catalog.service';
@@ -204,7 +205,10 @@ describe('admin-only eSIM test order', () => {
 
   it('public OrderService never passes adminTest', () => {
     const source = readFileSync(join(root, 'src/modules/order/services/order.service.ts'), 'utf8');
+    const customerDto = readFileSync(join(root, 'src/modules/order/dto/create-order.dto.ts'), 'utf8');
     expect(source).not.toContain('adminTest');
+    expect(source).not.toContain('testAmountUsd');
+    expect(customerDto).not.toContain('testAmountUsd');
     expect(source).toContain('this.esimOrders.create(dto, user, requestMeta)');
   });
 
@@ -276,6 +280,7 @@ describe('admin-only eSIM test order', () => {
       },
       expect.objectContaining({ role: UserRole.SUPER_ADMIN }),
       expect.any(Object),
+      undefined,
     );
     expect(record).toHaveBeenCalledWith(
       'sa-1',
@@ -317,5 +322,265 @@ describe('admin-only eSIM test order', () => {
       expect.objectContaining({ role: UserRole.SUPER_ADMIN }),
       undefined,
     );
+  });
+});
+
+describe('PayPal sandbox admin-test charge', () => {
+  const superAdmin = {
+    id: 'sa-1',
+    email: 'superadmin@cardon.vn',
+    role: UserRole.SUPER_ADMIN,
+  };
+
+  function paypalHarness(mode: 'sandbox' | 'live' = 'sandbox') {
+    const orders: Array<Record<string, unknown>> = [];
+    const createWithTransaction = jest.fn().mockImplementation(async (_tx: unknown, data: Record<string, unknown>) => {
+      const created = {
+        ...waitingOrder,
+        id: `order-${orders.length + 1}`,
+        totalAmount: data.totalAmount,
+        faceValue: data.faceValue,
+        sellAmount: data.sellAmount,
+        customerPaid: data.customerPaid,
+        providerCost: data.providerCost,
+        paymentGateway: data.paymentGateway,
+        paymentMethodCode: data.paymentMethodCode,
+        clientTrace: data.clientTrace,
+        paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+        fulfillmentStatus: FulfillmentStatus.PENDING,
+        paymentExpiresAt: data.paymentExpiresAt,
+      };
+      orders.push(created);
+      return created;
+    });
+    const service = new EsimOrderService(
+      {
+        $transaction: (fn: (tx: unknown) => Promise<unknown>) =>
+          fn({
+            $executeRaw: async () => 1,
+            esimOrderQuote: { create: jest.fn().mockResolvedValue({}) },
+            order: {
+              findMany: async () => orders,
+              findFirst: async () => orders[orders.length - 1] ?? null,
+            },
+          }),
+        providerProductMapping: {
+          findFirst: async () => ({
+            provider: { id: 'airalo-1' },
+            providerProductCode: 'failte-7days-1gb',
+            providerCost: 90000,
+          }),
+        },
+      } as never,
+      {
+        createFinancialTransaction: jest.fn().mockResolvedValue({ id: 'fin-1' }),
+        createWithTransaction,
+        createOrderItem: jest.fn().mockResolvedValue({ id: 'item-1' }),
+      } as never,
+      {
+        findActiveById: async () => ({ id: 'variant-1', type: 'ESIM', faceValue: 103000 }),
+      } as never,
+      { getCustomerPrice: async () => '103000' } as never,
+      { listForVariant: jest.fn() } as never,
+      {
+        resolveSystemConfig: () => ({ customerEsimEnabled: false }),
+        getPublicPaymentMethods: () => [],
+        resolvePaymentMethod: (code?: string) =>
+          code === 'PAYPAL'
+            ? {
+                methodCode: 'PAYPAL',
+                displayName: 'PayPal',
+                gatewayCode: 'PAYPAL',
+                settlementType: 'GATEWAY_SETTLEMENT',
+                percentageFee: 0,
+                fixedFee: 0,
+              }
+            : {
+                methodCode: 'VIETQR',
+                displayName: 'VietQR',
+                gatewayCode: 'SEPAY',
+                settlementType: 'BANK_TRANSFER',
+                percentageFee: 0,
+                fixedFee: 0,
+              },
+        resolvePaypalConfig: () => ({
+          esimEnabled: true,
+          mode,
+          clientId: 'client',
+          clientSecret: 'secret',
+          webhookId: 'wh',
+        }),
+      } as never,
+      { get: liveEnv } as never,
+    );
+    return { service, createWithTransaction, orders };
+  }
+
+  function paypalDto() {
+    return {
+      items: [{ variantId: 'variant-1', quantity: 1 }],
+      paymentMethodCode: 'PAYPAL',
+      market: 'INTL',
+    };
+  }
+
+  function createPaypal(service: EsimOrderService, testAmountUsd?: string) {
+    return service.createAdminTest(paypalDto() as never, superAdmin as never, undefined, testAmountUsd);
+  }
+
+  it('stores a 1.00 USD snapshot and keeps the 103000 VND catalog amounts', async () => {
+    const { service, createWithTransaction } = paypalHarness();
+    await createPaypal(service, '1.00');
+    const saved = createWithTransaction.mock.calls[0][1] as {
+      totalAmount: Decimal;
+      sellAmount: Decimal;
+      customerPaid: Decimal;
+      providerCost: Decimal;
+      catalogCurrency: string;
+      catalogAmount: Decimal;
+      chargeCurrency: string;
+      chargeAmount: Decimal;
+      esimMarket: string;
+      clientTrace: {
+        adminTest: boolean;
+        adminTestCharge: Record<string, string>;
+      };
+    };
+    expect(saved.totalAmount.toFixed(0)).toBe('103000');
+    expect(saved.sellAmount.toFixed(0)).toBe('103000');
+    expect(saved.customerPaid.toFixed(0)).toBe('103000');
+    expect(saved.providerCost.toFixed(0)).toBe('90000');
+    expect(saved.catalogCurrency).toBe('VND');
+    expect(saved.catalogAmount.toFixed(0)).toBe('103000');
+    expect(saved.chargeCurrency).toBe('VND');
+    expect(saved.chargeAmount.toFixed(0)).toBe('103000');
+    expect(saved.esimMarket).toBe('INTL');
+    expect(saved.clientTrace.adminTest).toBe(true);
+    expect(saved.clientTrace.adminTestCharge).toEqual({
+      currency: 'USD',
+      amount: '1.00',
+      mode: 'sandbox',
+      catalogCurrency: 'VND',
+      catalogSellAmountVnd: '103000',
+    });
+  });
+
+  it('defaults a blank PayPal amount to 1.00 and accepts 80.00', async () => {
+    const blank = paypalHarness();
+    await createPaypal(blank.service);
+    expect(blank.createWithTransaction.mock.calls[0][1].clientTrace.adminTestCharge.amount).toBe('1.00');
+
+    const max = paypalHarness();
+    await createPaypal(max.service, '80.00');
+    expect(max.createWithTransaction.mock.calls[0][1].clientTrace.adminTestCharge.amount).toBe('80.00');
+  });
+
+  it.each(['80.01', '0', '-1', '1.001', 'NaN', 'Infinity'])(
+    'rejects PayPal amount %s before creating an order',
+    async (amount) => {
+      const { service, createWithTransaction } = paypalHarness();
+      await expect(
+        createPaypal(service, amount),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(createWithTransaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects LIVE mode before any order write', async () => {
+    const { service, createWithTransaction } = paypalHarness('live');
+    await expect(
+      createPaypal(service, '1.00'),
+    ).rejects.toThrow('Admin test PayPal requires sandbox mode');
+    expect(createWithTransaction).not.toHaveBeenCalled();
+  });
+
+  it('does not reuse a waiting VietQR order or a skipped admin test', async () => {
+    const viet = paypalHarness();
+    viet.orders.push({
+      ...waitingOrder,
+      paymentGateway: 'SEPAY',
+      paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+      fulfillmentStatus: FulfillmentStatus.PENDING,
+      paymentExpiresAt: new Date(Date.now() + 10 * 60_000),
+      clientTrace: { adminTest: true },
+      orderItems: waitingOrder.orderItems,
+    });
+    await createPaypal(viet.service, '1.00');
+    expect(viet.createWithTransaction).toHaveBeenCalledTimes(1);
+
+    const skipped = paypalHarness();
+    const skippedTrace = {
+      adminTest: true,
+      adminTestCharge: {
+        currency: 'USD',
+        amount: '1.00',
+        mode: 'sandbox',
+        catalogCurrency: 'VND',
+        catalogSellAmountVnd: '103000',
+      },
+      adminTestFulfillment: { status: 'SKIPPED', reason: 'ADMIN_TEST' },
+    };
+    skipped.orders.push({
+      ...waitingOrder,
+      paymentGateway: 'PAYPAL',
+      paymentStatus: OrderPaymentStatus.PAID,
+      fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+      clientTrace: skippedTrace,
+      orderItems: waitingOrder.orderItems,
+    });
+    await createPaypal(skipped.service, '1.00');
+    expect(skipped.createWithTransaction).toHaveBeenCalledTimes(1);
+    expect(skippedTrace.adminTestCharge.amount).toBe('1.00');
+  });
+
+  it('reuses the same waiting PayPal charge and does not rewrite it for a different amount', async () => {
+    const { service, createWithTransaction, orders } = paypalHarness();
+    const trace = {
+      adminTest: true,
+      adminTestCharge: {
+        currency: 'USD',
+        amount: '1.00',
+        mode: 'sandbox',
+        catalogCurrency: 'VND',
+        catalogSellAmountVnd: '103000',
+      },
+    };
+    orders.push({
+      ...waitingOrder,
+      paymentGateway: 'PAYPAL',
+      paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+      fulfillmentStatus: FulfillmentStatus.PENDING,
+      paymentExpiresAt: new Date(Date.now() + 10 * 60_000),
+      clientTrace: trace,
+      orderItems: waitingOrder.orderItems,
+    });
+    const reused = await createPaypal(service, '1.00');
+    expect(reused.id).toBe('order-admin-test');
+    expect(createWithTransaction).not.toHaveBeenCalled();
+
+    await createPaypal(service, '5.00');
+    expect(createWithTransaction).toHaveBeenCalledTimes(1);
+    expect(trace.adminTestCharge.amount).toBe('1.00');
+    expect(createWithTransaction.mock.calls[0][1].clientTrace.adminTestCharge.amount).toBe('5.00');
+  });
+
+  it('rejects adminTest on the request body', async () => {
+    const pipe = new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    });
+    await expect(
+      pipe.transform(
+        {
+          variantId: '11111111-1111-4111-8111-111111111111',
+          paymentMethodCode: 'PAYPAL',
+          market: 'INTL',
+          adminTest: true,
+        },
+        { type: 'body', metatype: AdminEsimTestOrderDto },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

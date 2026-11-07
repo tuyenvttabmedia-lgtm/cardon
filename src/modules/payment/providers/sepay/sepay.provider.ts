@@ -240,12 +240,11 @@ export class SePayProvider implements PaymentProviderInterface {
           invoiceNumber: reference,
         });
         const amountNum = queried.amount != null ? Number(queried.amount) : NaN;
-        const amount = Number.isFinite(amountNum)
-          ? formatSepayAmount(amountNum)
-          : '0.00';
+        // Missing/invalid amount stays undefined so sync cannot skip the amount assert via "0.00".
+        const amount = Number.isFinite(amountNum) ? formatSepayAmount(amountNum) : undefined;
         this.logSafe('queryTransaction', {
           paymentReference: reference,
-          amount: Number(amount),
+          amount: amount != null ? Number(amount) : undefined,
           status: queried.status,
         });
         return {
@@ -271,7 +270,6 @@ export class SePayProvider implements PaymentProviderInterface {
     return {
       paymentReference: reference,
       status: 'PENDING',
-      amount: '0.00',
     };
   }
 

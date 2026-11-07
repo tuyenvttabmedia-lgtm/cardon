@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { EsimQueueProducer } from '../../esim/esim-queue.producer';
+import { isPersistedAdminTest } from '../../esim/esim-admin-test.rules';
 import { ProductVariantType } from '@prisma/client';
 import { ProviderOrderRepository } from '../repositories/provider.repository';
 import { ProviderQueueProducer } from './provider-queue.producer';
@@ -32,6 +33,12 @@ export class FulfillmentDispatchService {
     const order = await this.orderRepository.findOrderForFulfillment(orderId);
     if (!order) {
       this.logger.warn(`dispatchOrderFulfillment: order ${orderId} not found`);
+      return [];
+    }
+
+    if (isPersistedAdminTest(order.clientTrace)) {
+      await this.orderRepository.markAdminTestFulfillmentSkipped(orderId);
+      this.logger.log(`admin test order ${orderId} fulfillment not enqueued`);
       return [];
     }
 

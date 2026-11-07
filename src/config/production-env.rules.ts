@@ -98,6 +98,14 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
     errors.push('PAYPAL_ESIM_ENABLED must stay off until PayPal eSIM checkout is live');
   }
 
+  if (env.PAYPAL_MODE === 'live') {
+    if (!env.PAYPAL_CLIENT_ID || !env.PAYPAL_CLIENT_SECRET || !env.PAYPAL_WEBHOOK_ID) {
+      errors.push(
+        'PAYPAL_MODE=live requires PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, and PAYPAL_WEBHOOK_ID',
+      );
+    }
+  }
+
   if (errors.length > 0) {
     throw new Error(`Production environment validation failed:\n- ${errors.join('\n- ')}`);
   }

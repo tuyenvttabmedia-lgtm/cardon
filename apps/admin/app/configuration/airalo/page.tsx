@@ -217,6 +217,9 @@ export default function SettingsAiraloPage() {
               value={usdVndRate}
               onChange={(event) => setUsdVndRate(event.target.value)}
             />
+            <p className="mt-1 text-xs text-slate-500">
+              Chỉ dùng lúc nhập giá catalog từ Airalo. PayPal thu theo tỷ giá EFFECTIVE ở mục Tỷ giá, không trừ phần trăm từ số này.
+            </p>
           </div>
           <div>
             <Label htmlFor="airalo-account-mode">Chế độ tài khoản Airalo</Label>

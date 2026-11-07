@@ -31,9 +31,9 @@ Tách khách bằng **market + currency + gateway** (không chỉ IP).
 | P1 | Airalo adapter, config, wiring `ESIM_PROVIDER_PORT` | Xong (nền) |
 | P2 | Ngừng eSIM Go runtime; script deactivate mapping ESIM_GO | Xong (nền + script) |
 | P3 | Rule market VN/INTL + cổng SePay/PayPal cho eSIM | Xong (rules + order gate) |
-| P4 | i18n toàn site | Chưa |
-| P5 | PayPal provider + webhook + hạn mức | Stub + enum + limits; createPayment tắt |
-| P6 | Giới hạn thẻ/nạp chỉ VN (tuỳ chọn) | Chưa |
+| P4 | i18n toàn site | DONE (P4-C). Form ticket `/account/support` còn tiếng Việt, ngoài checklist đã nghiệm thu |
+| P5 | PayPal provider + webhook + hạn mức | P5-A + P5-B + P5-C DONE (admin config, mask, audit). Checkout khách vẫn OFF. Chưa P5-D |
+| P6 | Giới hạn thẻ/nạp chỉ VN (tuỳ chọn) | Xong (retail: GAME_CARD/PHONE_CARD/TOPUP/DATA chỉ VN; eSIM không bị luật này) |
 
 ## PayPal hạn mức gợi ý (config)
 

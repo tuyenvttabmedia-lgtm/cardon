@@ -30,6 +30,8 @@ import {
 
   extractClientUserAgent,
 
+  extractClientCountryCode,
+
 } from '../../../common/utils/request-client.util';
 
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -94,7 +96,11 @@ export class OrderController {
 
       req
 
-        ? { ip: extractClientIp(req), userAgent: extractClientUserAgent(req) }
+        ? {
+            ip: extractClientIp(req),
+            userAgent: extractClientUserAgent(req),
+            countryCode: extractClientCountryCode(req),
+          }
 
         : undefined,
 

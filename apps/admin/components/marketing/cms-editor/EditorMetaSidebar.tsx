@@ -43,6 +43,7 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
   categoryCounts,
   onPickFeaturedImage,
   onCreateTag,
+  locked = false,
 }: {
   form: CmsEditorFormState;
   setForm: (fn: (prev: CmsEditorFormState) => CmsEditorFormState) => void;
@@ -53,6 +54,7 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
   categoryCounts: Record<string, number>;
   onPickFeaturedImage: () => void;
   onCreateTag?: (name: string) => void;
+  locked?: boolean;
 }) {
   const sortedCategories = useMemo(
     () => [...categories].sort((a, b) => a.name.localeCompare(b.name, 'vi')),
@@ -60,7 +62,8 @@ export const EditorMetaSidebar = memo(function EditorMetaSidebar({
   );
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-slate-50/80 p-3 md:w-64">
+    <aside className={`flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-slate-50/80 p-3 md:w-64 ${locked ? 'pointer-events-none opacity-60' : ''}`}>
+      {locked ? <p className="text-xs text-slate-500">Slug, ảnh, danh mục và tag dùng chung. Đang sửa bản tiếng Anh.</p> : null}
       {showTaxonomy && (
         <>
           <SidebarSection icon="📁" title="Danh mục">

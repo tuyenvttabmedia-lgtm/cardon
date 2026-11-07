@@ -25,6 +25,7 @@ import { MaintenanceModule } from '../../maintenance-center/decorators/maintenan
 import { IDEMPOTENCY_KEY_HEADER } from '../entities/payment.constants';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { PaymentService } from '../services/payment.service';
+import { EsimSepayPaymentService } from '../services/esim-sepay-payment.service';
 import {
   depositCodeNotifyBadAmount,
   depositCodeNotifyBadSignature,
@@ -37,6 +38,7 @@ import {
 export class PaymentController {
   constructor(
     private readonly paymentService: PaymentService,
+    private readonly esimSepayPaymentService: EsimSepayPaymentService,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -59,6 +61,16 @@ export class PaymentController {
     @CurrentUser() user?: AuthenticatedUser,
   ) {
     return this.paymentService.syncFromGateway(orderId, user);
+  }
+
+  @Post('ipn/esim/sepay')
+  @Public()
+  @HttpCode(200)
+  esimSepayIpn(
+    @Body() payload: unknown,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.esimSepayPaymentService.handleIpn(payload, headers);
   }
 
   @Post('webhook/:gateway')

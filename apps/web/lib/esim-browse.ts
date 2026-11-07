@@ -186,6 +186,8 @@ export interface EsimCountry {
   region: EsimRegion | null;
   count: number;
   fromPrice: number;
+  fromChargeCurrency?: string | null;
+  fromChargeAmount?: string | null;
   operators: string[];
   speedLabel: string;
   photo: string | null;
@@ -199,8 +201,12 @@ export function foldEsimText(value: string): string {
     .replace(/đ/g, 'd');
 }
 
+export function isUnlimitedDataLabel(label: string): boolean {
+  return /^(không|unlimited)\b/i.test(label.trim());
+}
+
 export function dataAmountMb(label: string): number {
-  if (label.startsWith('Không')) return Number.POSITIVE_INFINITY;
+  if (isUnlimitedDataLabel(label)) return Number.POSITIVE_INFINITY;
   const amount = Number(label.replace(/[^\d.]/g, ''));
   if (!Number.isFinite(amount)) return 0;
   return label.includes('MB') ? amount : amount * 1000;
@@ -223,6 +229,8 @@ export function countriesFromOffers(offers: EsimPreviewOffer[]): EsimCountry[] {
         region: REGION_BY_ISO[iso] ?? null,
         count: 1,
         fromPrice: offer.sellPriceVnd,
+        fromChargeCurrency: offer.chargeCurrency ?? null,
+        fromChargeAmount: offer.chargeAmount ?? null,
         operators: [...offer.operators],
         speedLabel: offer.speedLabel,
         photo: destPhotoFor(iso, offer.countryImageUrl || offer.photo),
@@ -230,7 +238,11 @@ export function countriesFromOffers(offers: EsimPreviewOffer[]): EsimCountry[] {
       continue;
     }
     current.count += 1;
-    current.fromPrice = Math.min(current.fromPrice, offer.sellPriceVnd);
+    if (offer.sellPriceVnd < current.fromPrice) {
+      current.fromPrice = offer.sellPriceVnd;
+      current.fromChargeCurrency = offer.chargeCurrency ?? null;
+      current.fromChargeAmount = offer.chargeAmount ?? null;
+    }
     if (!current.photo || current.photo.startsWith('/images/')) {
       const nextPhoto = destPhotoFor(iso, offer.countryImageUrl || offer.photo);
       if (nextPhoto) current.photo = nextPhoto;

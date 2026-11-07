@@ -52,3 +52,14 @@ export function evaluateEsimMarketPayment(input: EsimMarketRuleInput): EsimMarke
 export function gatewaysForEsimMarket(market: EsimMarket): EsimCheckoutGateway[] {
   return market === 'VN' ? ['SEPAY'] : ['PAYPAL'];
 }
+
+/** Package destination, not the shopper's language, IP, or payment method. */
+export function marketFromEsimPackage(input: {
+  countryIso?: string | null;
+  destinationKey?: string | null;
+}): EsimMarket {
+  const iso = (input.countryIso ?? '').trim().toUpperCase();
+  const key = (input.destinationKey ?? '').trim().toLowerCase();
+  if (iso === 'VN' || key === 'vn' || key === 'vietnam') return 'VN';
+  return 'INTL';
+}

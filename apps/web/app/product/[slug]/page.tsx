@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import { ProductJsonLd } from '@/components/seo/ProductJsonLd';
 import { getProductBySlug } from '@/lib/product-api';
+import { headers } from 'next/headers';
+import { LOCALE_HEADER, type Locale } from '@/lib/i18n/locale';
 import { buildMetadata } from '@/lib/seo';
 import ProductPageClient from './ProductPageClient';
 
@@ -12,17 +14,21 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
+  const headerList = await headers();
+  const locale: Locale = headerList.get(LOCALE_HEADER) === 'en' ? 'en' : 'vi';
   const product = await getProductBySlug(slug);
   if (!product) {
     return buildMetadata({
-      title: 'Sản phẩm',
+      title: locale === 'en' ? 'Product' : 'Sản phẩm',
       path: `/product/${slug}`,
+      locale,
     });
   }
 
   const description =
-    product.description?.trim() ||
-    `Mua ${product.name} giá tốt, giao nhanh tại CardOn.vn`;
+    locale === 'en'
+      ? `${product.name} on CardOn.vn. Price stays in VND.`
+      : product.description?.trim() || `Mua ${product.name} giá tốt, giao nhanh tại CardOn.vn`;
   const ogImage = product.bannerUrl || product.logoUrl || undefined;
 
   return buildMetadata({
@@ -30,6 +36,7 @@ export async function generateMetadata({
     description,
     path: `/product/${product.slug}`,
     ogImage,
+    locale,
   });
 }
 

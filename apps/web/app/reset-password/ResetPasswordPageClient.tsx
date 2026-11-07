@@ -6,12 +6,16 @@ import { Suspense, useState } from 'react';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { authApi, ApiClientError } from '@/services/api-client';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
+import { authApi } from '@/services/api-client';
 
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
+  const t = useT();
+  const { locale } = useLocale();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,11 +24,11 @@ function ResetPasswordForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!token || token.length < 32) {
-      setError('Liên kết đặt lại mật khẩu không hợp lệ');
+      setError(t('auth.resetInvalid'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
+      setError(t('auth.passwordMismatch'));
       return;
     }
     setLoading(true);
@@ -33,7 +37,7 @@ function ResetPasswordForm() {
       await authApi.resetPassword(token, password);
       router.push('/login?reset=success');
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Đặt lại mật khẩu thất bại');
+      setError(customerFacingError(locale, err));
     } finally {
       setLoading(false);
     }
@@ -41,11 +45,11 @@ function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <AuthLayout title="Liên kết không hợp lệ">
+      <AuthLayout title={t('auth.resetBad')}>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-900">
-          <p>Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.</p>
+          <p>{t('auth.resetInvalid')}</p>
           <Link href="/forgot-password" className="mt-4 inline-block font-semibold text-cardon-blue hover:underline">
-            Yêu cầu liên kết mới
+            {t('auth.sendReset')}
           </Link>
         </div>
       </AuthLayout>
@@ -53,10 +57,10 @@ function ResetPasswordForm() {
   }
 
   return (
-    <AuthLayout title="Đặt lại mật khẩu" subtitle="Nhập mật khẩu mới cho tài khoản CardOn của bạn">
+    <AuthLayout title={t('auth.resetTitle')} subtitle={t('auth.resetBody')}>
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="text-sm font-medium text-cardon-navy">Mật khẩu mới</label>
+          <label className="text-sm font-medium text-cardon-navy">{t('account.newPassword')}</label>
           <Input
             className="mt-1"
             type="password"
@@ -68,7 +72,7 @@ function ResetPasswordForm() {
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-cardon-navy">Xác nhận mật khẩu mới</label>
+          <label className="text-sm font-medium text-cardon-navy">{t('account.confirmNew')}</label>
           <Input
             className="mt-1"
             type="password"
@@ -81,7 +85,7 @@ function ResetPasswordForm() {
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button className="w-full" type="submit" disabled={loading}>
-          {loading ? 'Đang lưu...' : 'Cập nhật mật khẩu'}
+          {loading ? t('auth.saving') : t('auth.updatePassword')}
         </Button>
       </form>
     </AuthLayout>
