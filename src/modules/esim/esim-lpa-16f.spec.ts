@@ -163,7 +163,7 @@ describe('LPA-16F source contract', () => {
     expect(panel).toContain('applyRevealForOrder');
     expect(panel).toContain('retainRevealAfterMetadataPoll');
     expect(panel).toContain('setRevealed(null)');
-    expect(panel).toContain('Ẩn mã');
+    expect(panel).toContain("t('esim.hideCode')");
     expect(panel).not.toContain('localStorage');
     expect(panel).not.toContain('sessionStorage');
     expect(panel).not.toContain('console.log');
