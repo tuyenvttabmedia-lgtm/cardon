@@ -9,6 +9,7 @@ import {
   type FooterColumn,
 } from '@/lib/footer-config';
 import { DEFAULT_CONTACT_CHANNELS, normalizeContactChannels } from '@/lib/contact-channels';
+import { resolveHomeBackgrounds } from '@/lib/home-backgrounds';
 import { DEFAULT_MOBILE_NAV, type MobileNavItem } from '@/lib/mobile-nav.defaults';
 
 export const DEFAULT_HEADER_MENU = [
@@ -81,6 +82,19 @@ export function useThemeSettings() {
   const logoDesktop = theme?.logoDesktop || '/images/cardon-logo-full.png';
   const logoMobile = theme?.logoMobile || '/images/cardon-icon.png';
   const favicon = theme?.favicon || '/images/cardon-icon.png';
+  // Wave 1: bundled defaults only (CMS homeBackgrounds arrives with Wave 2 marketing).
+  const homeBackgrounds = resolveHomeBackgrounds();
 
-  return { theme, headerMenu, footerColumns, mobileNav, logoDesktop, logoMobile, favicon, companyInfo, contactChannels };
+  return {
+    theme,
+    headerMenu,
+    footerColumns,
+    mobileNav,
+    logoDesktop,
+    logoMobile,
+    favicon,
+    companyInfo,
+    contactChannels,
+    homeBackgrounds,
+  };
 }
