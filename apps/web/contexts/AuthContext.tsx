@@ -19,19 +19,14 @@ import {
   hasAuthSession,
   setAuthSession,
 } from '@/lib/auth-storage';
-import type {
-  AuthResult,
-  AuthUser,
-  RegisterPayload,
-  RegisterPendingResult,
-} from '@/types/api';
+import type { AuthResult, AuthUser, RegisterPayload } from '@/types/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   login: (identifier: string, password: string) => Promise<AuthResult>;
-  register: (payload: RegisterPayload) => Promise<RegisterPendingResult>;
+  register: (payload: RegisterPayload) => Promise<AuthResult>;
   logout: () => void;
   refreshUser: () => Promise<AuthUser | null>;
 }
