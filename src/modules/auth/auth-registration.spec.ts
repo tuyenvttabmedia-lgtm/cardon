@@ -159,16 +159,17 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     );
   });
 
-  it('stores profile fields and encrypts identity number without session', async () => {
+  it('stores profile fields, encrypts identity number, and issues a session', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue(activeUser);
     prisma.emailVerificationToken.create.mockResolvedValue({});
+    prisma.refreshToken.create.mockResolvedValue({});
 
     const dto = validRegisterDto();
     const result = await authService.register(dto);
 
-    expect(result.requiresEmailVerification).toBe(true);
-    expect(result.email).toBe('customer@cardon.vn');
+    expect(result.accessToken).toBeDefined();
+    expect(result.user.email).toBe('customer@cardon.vn');
     expect(settingsEncryption.encrypt).toHaveBeenCalledWith('123456789012');
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -178,10 +179,11 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
           phone: '0912345678',
           identityNumberEnc: 'enc:identity',
           acceptedTermsAt: expect.any(Date),
+          emailVerifiedAt: expect.any(Date),
         }),
       }),
     );
-    expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    expect(prisma.refreshToken.create).toHaveBeenCalled();
   });
 
   it('rejects duplicate username with generic conflict', async () => {

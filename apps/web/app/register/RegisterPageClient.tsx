@@ -52,14 +52,8 @@ function RegisterForm() {
         ...form,
         identityNumber: form.identityNumber?.trim() || undefined,
       });
-      setToast(t('auth.registerVerifyEmail'));
-      setTimeout(
-        () =>
-          router.push(
-            `/login?registered=1&redirect=${encodeURIComponent(redirectTo)}`,
-          ),
-        1200,
-      );
+      setToast(t('auth.registerOk'));
+      setTimeout(() => router.push(redirectTo || '/tai-khoan'), 800);
     } catch (err) {
       setError(customerFacingError(locale, err));
     } finally {

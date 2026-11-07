@@ -134,21 +134,23 @@ describe('AuthService', () => {
       acceptTerms: true,
     };
 
-    it('registers a new customer without issuing a session', async () => {
+    it('registers a retail customer and issues a session immediately', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       prisma.user.create.mockResolvedValue(activeUser);
       prisma.emailVerificationToken.create.mockResolvedValue({});
+      prisma.refreshToken.create.mockResolvedValue({});
 
       const result = await authService.register(registerDto);
 
-      expect(result.requiresEmailVerification).toBe(true);
-      expect(result.email).toBe('test@cardon.vn');
-      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+      expect(result.accessToken).toBeDefined();
+      expect(result.user.email).toBe('test@cardon.vn');
+      expect(prisma.refreshToken.create).toHaveBeenCalled();
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             role: UserRole.CUSTOMER,
             email: 'test@cardon.vn',
+            emailVerifiedAt: expect.any(Date),
           }),
         }),
       );
@@ -242,9 +244,24 @@ describe('AuthService', () => {
       });
     });
 
-    it('rejects unverified customer login', async () => {
+    it('allows unverified retail customer login', async () => {
       prisma.user.findFirst.mockResolvedValue({
         ...activeUser,
+        role: UserRole.CUSTOMER,
+        emailVerifiedAt: null,
+      });
+
+      const result = await authService.login({
+        identifier: 'test@cardon.vn',
+        password: 'password123',
+      });
+      expect(result.accessToken).toBeDefined();
+    });
+
+    it('rejects unverified agent login', async () => {
+      prisma.user.findFirst.mockResolvedValue({
+        ...activeUser,
+        role: UserRole.AGENT,
         emailVerifiedAt: null,
       });
 

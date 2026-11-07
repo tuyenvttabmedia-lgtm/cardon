@@ -160,11 +160,7 @@ export const authApi = {
     });
   },
   register(payload: RegisterPayload) {
-    return apiRequest<{
-      requiresEmailVerification: true;
-      email: string;
-      message: string;
-    }>('/auth/register', {
+    return apiRequest<AuthResult>('/auth/register', {
       method: 'POST',
       body: payload,
       auth: false,
