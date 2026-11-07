@@ -583,9 +583,9 @@ export function EsimDetailClient({
 
       <section id="cau-hoi" className="scroll-mt-24">
         <h2 className="mb-3 text-xl font-bold text-cardon-navy md:text-2xl">Câu hỏi thường gặp</h2>
-        <FaqAccordion items={faq} title="" layout="split" />
+        <FaqAccordion items={faq} title="" />
       </section>
-      <LoginRequiredModal open={loginOpen} onClose={() => setLoginOpen(false)} redirectPath={detailHref} />
+      <LoginRequiredModal open={loginOpen} onClose={() => setLoginOpen(false)} />
     </div>
   );
 }

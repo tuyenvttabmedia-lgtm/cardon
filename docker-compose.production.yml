@@ -68,6 +68,10 @@ x-backend-env: &backend-env
   ADMIN_INTERNAL_URL: ${ADMIN_INTERNAL_URL:-http://admin:3003}
   BACKUP_ENABLED: ${BACKUP_ENABLED:-false}
   BACKUP_DIR: ${BACKUP_DIR:-backups}
+  ESIM_ENABLED: ${ESIM_ENABLED:-false}
+  ESIM_PROVIDER_MODE: ${ESIM_PROVIDER_MODE:-mock}
+  ESIM_LIVE_ARM: ${ESIM_LIVE_ARM:-false}
+  PAYPAL_ESIM_ENABLED: ${PAYPAL_ESIM_ENABLED:-false}
 
 services:
   postgres:

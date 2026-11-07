@@ -10,6 +10,16 @@ export function isInlineQrPayment(payment: Payment): boolean {
   return payment.gateway === 'SEPAY' && !payment.checkoutUrl;
 }
 
+/** SePay Payment Gateway hosted checkout (sandbox / production form POST). */
+export function isSepayPgCheckout(payment: Payment): boolean {
+  return Boolean(
+    payment.gateway === 'SEPAY' &&
+      payment.checkoutUrl &&
+      payment.checkoutFormFields &&
+      Object.keys(payment.checkoutFormFields).length > 0,
+  );
+}
+
 export function buildCheckoutPayPath(params: {
   orderId: string;
   orderCode: string;
