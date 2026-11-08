@@ -2,8 +2,6 @@
 
 
 
-import Link from 'next/link';
-
 import { useParams, useRouter } from 'next/navigation';
 
 import { useEffect, useState } from 'react';
@@ -116,20 +114,38 @@ export default function OrderDetailPage() {
       {redirectingEsim ? (
         <p className="text-sm text-slate-600">Đang mở trang vận hành eSIM…</p>
       ) : (
-      <div className="space-y-6">
+      <div className="space-y-5">
 
-        <div className="flex items-center justify-between">
-
-          <div>
-
-            <Link href="/orders" className="text-sm text-admin-600 hover:underline">
-
-              ← {vi.orders.title}
-
-            </Link>
-
-            <h1 className="admin-page-title">{detail?.overview.orderCode ?? vi.orders.detail}</h1>
-
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined' && window.history.length > 1) {
+                  router.back();
+                  return;
+                }
+                router.push('/orders');
+              }}
+              className="text-sm text-admin-600 hover:underline"
+            >
+              ← Quay lại danh sách
+            </button>
+            <h1 className="admin-page-title break-all">
+              {detail?.overview.orderCode ?? vi.orders.detail}
+            </h1>
+            {detail ? (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Badge tone={statusTone(detail.overview.paymentStatus)} status={detail.overview.paymentStatus} />
+                <Badge
+                  tone={statusTone(detail.overview.fulfillmentStatus)}
+                  status={detail.overview.fulfillmentStatus}
+                />
+                <span className="text-xs text-slate-500">
+                  {formatDateTime(detail.overview.createdAt)} · {formatVnd(detail.overview.totalAmount)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {can('orders.retry') && detail && (
@@ -209,36 +225,68 @@ export default function OrderDetailPage() {
               )}
             </div>
           )}
-
         </div>
+
+        {detail ? (
+          <Card className="grid gap-2 p-3 text-sm sm:grid-cols-3 sm:p-4">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Khách hàng</p>
+              <p className="mt-0.5 truncate font-medium text-slate-900">
+                {detail.overview.customer.fullName ??
+                  detail.overview.customer.email ??
+                  detail.overview.customer.guestEmail ??
+                  '—'}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {detail.overview.customer.email ?? detail.overview.customer.guestEmail ?? '—'}
+                {(detail.overview.customer.phone ?? detail.overview.customer.guestPhone)
+                  ? ` · ${detail.overview.customer.phone ?? detail.overview.customer.guestPhone}`
+                  : ''}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Thanh toán</p>
+              <p className="mt-0.5 font-medium text-slate-900">
+                {detail.overview.pricing?.methodDisplayName ??
+                  detail.overview.pricing?.methodCode ??
+                  '—'}
+              </p>
+              <p className="text-xs text-slate-500">
+                {detail.overview.pricing?.gatewayCode ??
+                  detail.overview.pricing?.paymentGateway ??
+                  '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Chỉ xem / thao tác</p>
+              <p className="mt-0.5 text-xs text-slate-600">
+                Tab bên dưới là dữ liệu đọc. Nút retry/recovery chỉ hiện khi đủ quyền và trạng thái cho phép —
+                không đổi state machine.
+              </p>
+            </div>
+          </Card>
+        ) : null}
 
         {error && <ErrorMessage message={error} />}
         {actionMessage && (
           <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">{actionMessage}</p>
         )}
 
-        <div className="flex flex-wrap gap-2">
-
-          {TABS.map((t) => (
-
-            <button
-
-              key={t.id}
-
-              type="button"
-
-              onClick={() => setTab(t.id)}
-
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === t.id ? 'bg-admin-100 text-admin-800' : 'bg-slate-100'}`}
-
-            >
-
-              {t.label}
-
-            </button>
-
-          ))}
-
+        <div className="overflow-x-auto">
+          <div className="flex min-w-max gap-1 rounded-xl border border-slate-200 bg-white p-1">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                  tab === t.id ? 'bg-admin-600 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
 
