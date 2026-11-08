@@ -35,8 +35,8 @@ export function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-cardon-border bg-white/95 shadow-sm backdrop-blur">
-        <div className="site-container relative flex h-14 items-center justify-between gap-3">
-          <Link href="/" className="relative z-10 flex h-9 shrink-0 items-center md:h-10">
+        <div className="site-container flex h-14 items-center gap-2 lg:gap-3">
+          <Link href="/" className="flex h-9 shrink-0 items-center md:h-10">
             <Image
               key={`logo-${logoKey}`}
               src={logoSrc}
@@ -45,14 +45,15 @@ export function Header() {
               height={48}
               quality={60}
               sizes="140px"
-              className="h-full w-auto object-contain"
+              className="h-full w-auto max-w-[140px] object-contain lg:max-w-[160px]"
               style={{ width: 'auto' }}
               priority
               unoptimized={!isOptimizableImageSrc(logoSrc)}
             />
           </Link>
 
-          <nav className="absolute left-1/2 z-10 hidden -translate-x-1/2 items-center gap-1 lg:flex">
+          {/* Flex middle slot — avoid absolute centering that collides with right actions on prod. */}
+          <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 lg:flex xl:gap-1">
             {visibleMenu.map((item) => {
               const active = isActivePath(pathname, item.href);
               return (
@@ -60,9 +61,9 @@ export function Header() {
                   key={`${item.href}-${item.label}`}
                   href={item.href}
                   className={cn(
-                    'relative rounded-lg px-3 py-1.5 text-[15px] font-semibold uppercase tracking-wide transition',
+                    'relative whitespace-nowrap rounded-lg px-2 py-1.5 text-sm font-semibold uppercase tracking-normal transition xl:px-2.5 xl:text-[15px]',
                     active
-                      ? 'text-cardon-blue after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:rounded-full after:bg-cardon-blue'
+                      ? 'text-cardon-blue after:absolute after:bottom-0 after:left-2 after:right-2 after:h-0.5 after:rounded-full after:bg-cardon-blue'
                       : 'text-cardon-navy hover:bg-cardon-light hover:text-cardon-blue',
                   )}
                 >
@@ -72,7 +73,7 @@ export function Header() {
             })}
           </nav>
 
-          <div className="relative z-10 flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Link
               href="/#home-search"
               aria-label={t('nav.search')}

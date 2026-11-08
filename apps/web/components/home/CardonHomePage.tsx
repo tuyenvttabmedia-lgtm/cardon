@@ -199,7 +199,7 @@ export function CardonHomePage({
           wash="#e7f3ff"
         />
         <CategoryCard
-          title={t('home.topupTitle')}
+          title={t('nav.topup')}
           text={t('home.topupCard')}
           href="/nap-cuoc"
           action={t('home.topupNow')}
@@ -273,6 +273,7 @@ export function CardonHomePage({
           products={topupProducts}
           empty={t('home.emptyTopup')}
           columns="grid-cols-4 gap-2"
+          badge="Nạp"
         />
       </section>
 
@@ -382,7 +383,7 @@ function CategoryQuickTile({
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13px] font-bold leading-tight text-cardon-navy">
+        <span className="block truncate text-sm font-bold leading-tight text-cardon-navy">
           {title}
         </span>
         <span className="mt-0.5 block truncate text-[11px] leading-tight text-cardon-gray">
@@ -433,7 +434,9 @@ function CategoryCard({
     >
       <div className="pointer-events-none absolute inset-y-0 left-0 w-[52%] bg-gradient-to-r from-white/85 via-white/40 to-transparent" />
       <div className="relative z-10 flex h-full w-[54%] min-w-0 flex-col p-3 xl:p-2.5">
-        <h2 className="text-[15px] font-extrabold leading-tight text-cardon-navy">{title}</h2>
+        <h2 className="whitespace-nowrap text-base font-extrabold leading-tight tracking-tight text-cardon-navy sm:text-lg">
+          {title}
+        </h2>
         <p className="mt-1 text-[13px] leading-snug text-cardon-gray">{text}</p>
         {note ? <p className="mt-1 text-[11px] font-semibold leading-tight text-cardon-orange">{note}</p> : null}
         <div className="mt-auto pt-2">
@@ -463,6 +466,7 @@ function LogoSection({
   loading,
   empty,
   columns,
+  badge,
 }: {
   id?: string;
   href: string;
@@ -472,6 +476,8 @@ function LogoSection({
   loading: boolean;
   empty: string;
   columns: string;
+  /** Small corner label — used on top-up tiles to distinguish from phone cards. */
+  badge?: string;
 }) {
   const t = useT();
   return (
@@ -488,7 +494,7 @@ function LogoSection({
       {loading ? (
         <div className={`grid ${columns}`}>
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-24 animate-pulse rounded-xl bg-white" />
+            <div key={index} className="h-[72px] animate-pulse rounded-xl bg-white" />
           ))}
         </div>
       ) : products.length === 0 ? (
@@ -499,12 +505,17 @@ function LogoSection({
             <Link
               key={product.id}
               href={href}
-              className="flex h-[92px] flex-col items-center rounded-xl border border-cardon-border bg-white px-2 pt-2.5 text-center transition-all duration-200 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md focus-visible:ring-2 focus-visible:ring-cardon-blue"
+              aria-label={badge ? `${badge} ${product.name}` : product.name}
+              className="relative flex h-[72px] items-center justify-center rounded-xl border border-cardon-border bg-white px-2 transition-all duration-200 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md focus-visible:ring-2 focus-visible:ring-cardon-blue"
             >
-              <div className="flex h-10 w-full items-center justify-center">
+              {badge ? (
+                <span className="absolute left-1.5 top-1.5 rounded-md bg-cardon-green/15 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none tracking-wide text-cardon-green">
+                  {badge}
+                </span>
+              ) : null}
+              <div className="flex h-11 w-full items-center justify-center">
                 <CustomerProductLogo name={product.name} slug={product.slug} logoUrl={product.logoUrl} />
               </div>
-              <span className="mt-1.5 line-clamp-2 text-xs font-semibold leading-tight text-cardon-dark">{product.name}</span>
             </Link>
           ))}
         </div>
