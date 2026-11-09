@@ -3,6 +3,9 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { AbuseRateLimitModule } from './common/abuse-rate-limit/abuse-rate-limit.module';
+import { EmailPolicyModule } from './common/email-policy/email-policy.module';
+import { TurnstileModule } from './common/turnstile/turnstile.module';
 import { AppConfigModule } from './config/app-config.module';
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
@@ -54,6 +57,10 @@ const workerProviders = shouldRegisterWorkers() ? [WorkerHeartbeatService] : [];
 @Module({
   imports: [
     AppConfigModule,
+    EmailPolicyModule,
+    AbuseRateLimitModule,
+    SettingsModule,
+    TurnstileModule,
     ThrottlerModule.forRoot([
       {
         ttl: 60_000,
@@ -73,7 +80,6 @@ const workerProviders = shouldRegisterWorkers() ? [WorkerHeartbeatService] : [];
     FaqModule,
     ContactModule,
     SupportModule,
-    SettingsModule,
     OrderModule,
     PaymentModule,
     AgentDepositModule,

@@ -5,20 +5,45 @@ import {
   SupportTicketStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
+import { attachmentUrlMatchesFilename } from '../entities/support-attachment-url.util';
 
 @Injectable()
 export class SupportRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  createTicket(params: {
+  countOpenTickets(customerId: string): Promise<number> {
+    return this.prisma.supportTicket.count({
+      where: { customerId, status: SupportTicketStatus.OPEN },
+    });
+  }
+
+  /**
+   * Create ticket under a user-row lock to serialize OPEN-cap checks (no schema change).
+   */
+  createTicketWithOpenCap(params: {
     ticketCode: string;
     customerId: string;
     orderId?: string | null;
     subject: string;
     message: string;
     priority?: SupportTicketPriority;
+    openCap: number;
   }) {
     return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT id FROM users WHERE id = ${params.customerId}::uuid FOR UPDATE
+      `;
+
+      const openCount = await tx.supportTicket.count({
+        where: {
+          customerId: params.customerId,
+          status: SupportTicketStatus.OPEN,
+        },
+      });
+      if (openCount >= params.openCap) {
+        return { ok: false as const, openCount };
+      }
+
       const ticket = await tx.supportTicket.create({
         data: {
           ticketCode: params.ticketCode,
@@ -37,8 +62,28 @@ export class SupportRepository {
           body: params.message,
         },
       });
-      return ticket;
+      return { ok: true as const, ticket };
     });
+  }
+
+  /** True if any message on the customer's tickets references this attachment exactly. */
+  async customerOwnsAttachment(customerId: string, filename: string): Promise<boolean> {
+    const onTickets = await this.prisma.supportTicketMessage.findMany({
+      where: {
+        attachmentUrl: { not: null },
+        ticket: { customerId },
+      },
+      select: { attachmentUrl: true },
+      take: 1000,
+    });
+    return onTickets.some((m) =>
+      attachmentUrlMatchesFilename(m.attachmentUrl ?? '', filename),
+    );
+  }
+
+  /** New uploads may be owned by userId prefix before attached to a ticket. */
+  filenameOwnedByUser(filename: string, userId: string): boolean {
+    return filename.startsWith(`${userId}_`);
   }
 
   findCustomerTicket(id: string, customerId: string) {

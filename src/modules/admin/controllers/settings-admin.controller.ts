@@ -46,6 +46,7 @@ import {
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
+  UpdateTurnstileSettingsDto,
   CreateFxRateDto,
 } from '../dto/settings.dto';
 import { SettingsAdminService } from '../services/settings-admin.service';
@@ -535,6 +536,25 @@ export class SettingsAdminController {
     @Body() dto: UpdateTelegramSettingsDto,
   ) {
     return this.settingsAdminService.updateTelegram(user.id, dto);
+  }
+
+  @Get('turnstile')
+  getTurnstile() {
+    return this.settingsAdminService.getTurnstile();
+  }
+
+  @Put('turnstile')
+  @Audit({
+    resource: SystemAuditResource.SETTING,
+    action: SystemAuditAction.UPDATE,
+    snapshot: AuditSnapshotKey.TURNSTILE,
+    detectEnableDisable: true,
+  })
+  updateTurnstile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateTurnstileSettingsDto,
+  ) {
+    return this.settingsAdminService.updateTurnstile(user.id, dto);
   }
 
   @Post('reload')

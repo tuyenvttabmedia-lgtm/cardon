@@ -177,14 +177,17 @@ export default function SupportTicketsPage() {
                         </p>
                         <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
                         {m.attachmentUrl && (
-                          <a
-                            href={m.attachmentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void supportAdminApi.openAttachment(m.attachmentUrl!).catch(() => {
+                                setError('Không mở được ảnh đính kèm');
+                              });
+                            }}
                             className="mt-1 inline-block text-xs text-blue-600"
                           >
                             Ảnh đính kèm
-                          </a>
+                          </button>
                         )}
                       </div>
                     ))}

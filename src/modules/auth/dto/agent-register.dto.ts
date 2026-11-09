@@ -47,6 +47,12 @@ export class AgentRegisterDto {
   @IsString()
   @MaxLength(128)
   inviteToken?: string;
+
+  /** Cloudflare Turnstile token — required only when TURNSTILE_ENABLED=true. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
 }
 
 export class VerifyEmailDto {

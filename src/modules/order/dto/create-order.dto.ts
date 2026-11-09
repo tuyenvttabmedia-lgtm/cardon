@@ -46,6 +46,12 @@ export class CreateOrderDto {
   @MaxLength(255)
   guestEmail?: string;
 
+  /** Cloudflare Turnstile — required for guest when TURNSTILE_ENABLED=true. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(32)

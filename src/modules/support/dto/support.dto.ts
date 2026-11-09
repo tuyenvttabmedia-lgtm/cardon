@@ -19,6 +19,12 @@ export class CreateSupportTicketDto {
   @IsOptional()
   @IsEnum(SupportTicketPriority)
   priority?: SupportTicketPriority;
+
+  /** Cloudflare Turnstile token — required only when TURNSTILE_ENABLED=true. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
 }
 
 export class ReplySupportTicketDto {
@@ -26,6 +32,18 @@ export class ReplySupportTicketDto {
   @MinLength(1)
   @MaxLength(5000)
   body!: string;
+}
+
+export class CustomerSupportMessageDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(5000)
+  message!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  attachmentUrl?: string;
 }
 
 export class ListSupportTicketsQueryDto {

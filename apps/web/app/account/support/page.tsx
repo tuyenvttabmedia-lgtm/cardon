@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  TurnstileField,
+  captchaErrorFromApi,
+  isTurnstileSiteKeyConfigured,
+  type TurnstileFieldHandle,
+} from '@/components/security/TurnstileField';
+import { useTurnstileSiteKey } from '@/hooks/useTurnstileSiteKey';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { accountApi, supportApi, ApiClientError } from '@/services/api-client';
@@ -32,6 +39,10 @@ export default function AccountSupportPage() {
   const [creating, setCreating] = useState(false);
   const [reply, setReply] = useState('');
   const [uploading, setUploading] = useState(false);
+  const captchaRef = useRef<TurnstileFieldHandle>(null);
+  const turnstileSiteKey = useTurnstileSiteKey();
+  const captchaRequired = isTurnstileSiteKeyConfigured(turnstileSiteKey);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     subject: prefillOrderCode ? `Hỗ trợ đơn ${prefillOrderCode}` : '',
@@ -91,6 +102,10 @@ export default function AccountSupportPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (captchaRequired && !captchaToken) {
+      setError('Vui lòng hoàn tất xác minh bảo mật trước khi gửi ticket.');
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
@@ -98,12 +113,24 @@ export default function AccountSupportPage() {
         subject: form.subject.trim(),
         message: form.message.trim(),
         orderId: form.orderId || undefined,
+        captchaToken: captchaToken || undefined,
       });
       setForm({ subject: '', message: '', orderId: '' });
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
       await loadTickets();
       setSelectedId(ticket.id);
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Không tạo được ticket');
+      const captchaErr = captchaErrorFromApi(err);
+      if (captchaErr) {
+        setError(captchaErr.message);
+        if (captchaErr.shouldReset) {
+          captchaRef.current?.reset();
+          setCaptchaToken(null);
+        }
+      } else {
+        setError(err instanceof ApiClientError ? err.message : 'Không tạo được ticket');
+      }
     } finally {
       setCreating(false);
     }
@@ -218,14 +245,17 @@ export default function AccountSupportPage() {
                     </p>
                     <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
                     {m.attachmentUrl && (
-                      <a
-                        href={m.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void supportApi.openAttachment(m.attachmentUrl!).catch(() => {
+                            setError('Không mở được ảnh đính kèm');
+                          });
+                        }}
                         className="mt-2 inline-block text-xs font-medium text-cardon-blue hover:underline"
                       >
                         Xem ảnh đính kèm
-                      </a>
+                      </button>
                     )}
                   </div>
                 ))}
@@ -294,7 +324,12 @@ export default function AccountSupportPage() {
                 onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
                 required
               />
-              <Button type="submit" disabled={creating}>
+              <TurnstileField
+                ref={captchaRef}
+                action="support-ticket"
+                onTokenChange={setCaptchaToken}
+              />
+              <Button type="submit" disabled={creating || (captchaRequired && !captchaToken)}>
                 {creating ? 'Đang gửi...' : 'Gửi yêu cầu hỗ trợ'}
               </Button>
             </div>

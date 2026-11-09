@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CustomerPriceBreakdown } from '@/components/checkout/CustomerPriceBreakdown';
 import { QuantityInput, DEFAULT_MAX_QUANTITY } from '@/components/checkout/QuantityInput';
@@ -8,6 +8,13 @@ import { PaymentMethodPicker, PaymentMethodsEmpty } from '@/components/checkout/
 import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
 import { MegapayPgCheckoutOpen } from '@/components/checkout/MegapayPgCheckoutOpen';
 import { PageContainer } from '@/components/layout/PageContainer';
+import {
+  TurnstileField,
+  captchaErrorFromApi,
+  isTurnstileSiteKeyConfigured,
+  type TurnstileFieldHandle,
+} from '@/components/security/TurnstileField';
+import { useTurnstileSiteKey } from '@/hooks/useTurnstileSiteKey';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/hooks/useAuth';
@@ -116,6 +123,10 @@ export default function CheckoutPageClient() {
   );
 
   const [guestEmail, setGuestEmail] = useState('');
+  const captchaRef = useRef<TurnstileFieldHandle>(null);
+  const turnstileSiteKey = useTurnstileSiteKey();
+  const captchaRequired = !isAuthenticated && isTurnstileSiteKeyConfigured(turnstileSiteKey);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(initialQuantity);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -236,6 +247,9 @@ export default function CheckoutPageClient() {
       if (!email) {
         throw new Error('Vui lòng nhập email để nhận đơn hàng');
       }
+      if (captchaRequired && !captchaToken) {
+        throw new Error('Vui lòng hoàn tất xác minh bảo mật');
+      }
 
       if (isEsim) {
         if (!quote || !selectedOption || !esimMethod) {
@@ -302,6 +316,7 @@ export default function CheckoutPageClient() {
         guestEmail: isAuthenticated ? undefined : email,
         paymentMethodCode,
         locale: readBrowserLocale(),
+        captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
       });
 
       const resolvedEmail = email ?? order.guestEmail ?? '';
@@ -336,7 +351,14 @@ export default function CheckoutPageClient() {
       // MegaPay PG layer (VNPAYQR / ZaloPay) opens via MegapayPgCheckoutOpen below.
       // SePay / other redirect forms handled by checkout form components.
     } catch (err) {
-      if (err instanceof ApiClientError) {
+      const captchaErr = captchaErrorFromApi(err);
+      if (captchaErr) {
+        setError(captchaErr.message);
+        if (captchaErr.shouldReset) {
+          captchaRef.current?.reset();
+          setCaptchaToken(null);
+        }
+      } else if (err instanceof ApiClientError) {
         const limitDetails = parseOrderAmountLimitError({
           code: err.code,
           message: err.message,
@@ -502,6 +524,14 @@ export default function CheckoutPageClient() {
               value={guestEmail}
               onChange={(e) => setGuestEmail(e.target.value)}
             />
+            {captchaRequired && (
+              <TurnstileField
+                ref={captchaRef}
+                className="mt-4"
+                action="guest-order"
+                onTokenChange={setCaptchaToken}
+              />
+            )}
             <p className="mt-3 text-sm text-cardon-gray">
               {t('checkout.hasAccount')}{' '}
               <a href={withLocalePrefix('/login', locale)} className="font-semibold text-cardon-blue hover:underline">
@@ -532,7 +562,12 @@ export default function CheckoutPageClient() {
             <Button
               className="mt-6 w-full"
               size="lg"
-              disabled={loading || !hasPaymentMethods || !paymentMethodCode}
+              disabled={
+                loading ||
+                !hasPaymentMethods ||
+                !paymentMethodCode ||
+                (captchaRequired && !captchaToken)
+              }
               onClick={handleCheckout}
             >
               {loading ? t('checkout.processing') : `${t('checkout.createPay')}${pricing ? ` ${money(pricing.totalPayment)}` : ''}`}

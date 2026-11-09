@@ -51,6 +51,14 @@ const ITEMS: IntegrationItem[] = [
     test: () => configurationCenterApi.testTelegram({}),
   },
   {
+    key: 'turnstile',
+    href: '/configuration/turnstile',
+    label: 'Turnstile',
+    moduleId: 'turnstile',
+    test: null,
+    hint: 'Cloudflare captcha — Site Key + Secret (AES). Không cần sửa .env.',
+  },
+  {
     key: 'providers',
     href: '/configuration/providers',
     label: 'Provider eSale',

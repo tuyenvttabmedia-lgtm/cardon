@@ -1,14 +1,16 @@
 import type { Request } from 'express';
 
+/**
+ * Client IP for abuse limits / audit.
+ * Relies on Express `trust proxy` (configured in main.ts) so forged
+ * `X-Forwarded-For` from the public internet is not trusted blindly.
+ * Do not parse XFF here — that re-opens spoofing when trust proxy is off/mis-set.
+ */
 export function extractClientIp(req: Request): string | null {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0]?.trim() ?? null;
-  }
-  if (Array.isArray(forwarded) && forwarded[0]) {
-    return forwarded[0].split(',')[0]?.trim() ?? null;
-  }
-  return req.ip ?? req.socket?.remoteAddress ?? null;
+  const raw = req.ip ?? req.socket?.remoteAddress ?? null;
+  if (!raw) return null;
+  const ip = raw.startsWith('::ffff:') ? raw.slice(7) : raw;
+  return ip.trim() || null;
 }
 
 export function extractClientUserAgent(req: Request): string | null {

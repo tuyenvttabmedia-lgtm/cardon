@@ -120,6 +120,7 @@ describe('AuthService', () => {
       { encrypt: jest.fn(), decrypt: jest.fn() } as never,
       { dispatch: jest.fn() } as never,
       { assertLoginAllowed: jest.fn() } as never,
+      { assertRegistrationEmailAllowed: jest.fn() } as never,
     );
   });
 

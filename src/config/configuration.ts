@@ -1,5 +1,9 @@
 import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
+import {
+  isEmailPolicyEnabled,
+  parseEmailDomainAllowlist,
+} from '../common/email-policy/email-policy';
 
 function loadMegapayNotifyPublicKey(): string | undefined {
   const inline = process.env.MEGAPAY_NOTIFY_PUBLIC_KEY;
@@ -33,12 +37,49 @@ export default () => ({
     adminInternalUrl: process.env.ADMIN_INTERNAL_URL,
     corsOrigins: process.env.CORS_ORIGINS?.split(',').map((o) => o.trim()).filter(Boolean) ?? [],
     workerHeartbeatRequired: process.env.WORKER_HEARTBEAT_REQUIRED === 'true',
+    /**
+     * Express trust proxy hops (nginx → API). Default 1.
+     * Set 0 only for direct local without reverse proxy.
+     */
+    trustProxyHops: parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10),
   },
   database: {
     url: process.env.DATABASE_URL,
   },
   redis: {
     url: process.env.REDIS_URL,
+  },
+  /**
+   * W1 registration email deny-list. Default ON when EMAIL_POLICY_ENABLED unset.
+   * allowlist bypasses disposable domains only — never RFC reserved.
+   */
+  emailPolicy: {
+    enabled: isEmailPolicyEnabled(process.env.EMAIL_POLICY_ENABLED),
+    allowlist: parseEmailDomainAllowlist(process.env.EMAIL_DOMAIN_ALLOWLIST),
+  },
+  abuseRateLimit: {
+    enabled: process.env.ABUSE_RATE_LIMIT_ENABLED !== 'false',
+    redisUrl: process.env.REDIS_ABUSE_URL || undefined,
+    commandTimeoutMs: parseInt(process.env.ABUSE_REDIS_COMMAND_TIMEOUT_MS ?? '100', 10),
+    supportOpenCapEnabled: process.env.SUPPORT_OPEN_CAP_ENABLED !== 'false',
+    supportOpenCap: parseInt(process.env.SUPPORT_OPEN_CAP ?? '5', 10),
+  },
+  /**
+   * W3 Cloudflare Turnstile. Default OFF until secrets + FE site key are configured.
+   * When enabled: fail-closed on missing secret, CF timeout/network/5xx, Redis replay errors.
+   */
+  turnstile: {
+    enabled: process.env.TURNSTILE_ENABLED === 'true',
+    siteKey:
+      process.env.TURNSTILE_SITE_KEY ||
+      process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+      process.env.WEB_NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
+      undefined,
+    secretKey: process.env.TURNSTILE_SECRET_KEY || undefined,
+    allowedHostnames: process.env.TURNSTILE_ALLOWED_HOSTNAMES ?? '',
+    timeoutMs: parseInt(process.env.TURNSTILE_TIMEOUT_MS ?? '4000', 10),
+    maxAgeSec: parseInt(process.env.TURNSTILE_MAX_AGE_SEC ?? '300', 10),
+    replayEnabled: process.env.TURNSTILE_REPLAY_ENABLED !== 'false',
   },
   jwt: {
     secret: process.env.JWT_SECRET,

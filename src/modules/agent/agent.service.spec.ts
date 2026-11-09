@@ -31,7 +31,13 @@ describe('AgentService (Phase 3A)', () => {
     saveApiCredentials: jest.Mock;
     saveSandboxCredentials: jest.Mock;
   };
-  let kycRepository: { upsertSubmitted: jest.Mock; approve: jest.Mock; reject: jest.Mock; requestMoreInfo: jest.Mock };
+  let kycRepository: {
+    upsertSubmitted: jest.Mock;
+    tryUpsertSubmittedExclusive: jest.Mock;
+    approve: jest.Mock;
+    reject: jest.Mock;
+    requestMoreInfo: jest.Mock;
+  };
   let userRepository: {
     assertCanReviewKyc: jest.Mock;
     promoteToAgent: jest.Mock;
@@ -105,6 +111,7 @@ describe('AgentService (Phase 3A)', () => {
     };
     kycRepository = {
       upsertSubmitted: jest.fn(),
+      tryUpsertSubmittedExclusive: jest.fn().mockResolvedValue({ ok: true }),
       approve: jest.fn(),
       reject: jest.fn(),
       requestMoreInfo: jest.fn(),
@@ -182,7 +189,7 @@ describe('AgentService (Phase 3A)', () => {
 
     const result = await service.submitKyc(userId, kycDto);
 
-    expect(kycRepository.upsertSubmitted).toHaveBeenCalledWith(
+    expect(kycRepository.tryUpsertSubmittedExclusive).toHaveBeenCalledWith(
       agentId,
       expect.objectContaining({
         accountType: 'COMPANY',

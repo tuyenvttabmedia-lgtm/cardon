@@ -25,6 +25,7 @@ import {
   StoredSmtp,
   StoredSystem,
   StoredTelegram,
+  StoredTurnstile,
   DEFAULT_MAINTENANCE_MODULES,
   createDefaultMaintenanceConfig,
   StoredMaintenance,
@@ -1026,6 +1027,87 @@ export class SettingsStoreService implements OnModuleInit {
       botToken: this.encryption.maskSecret(token),
       source: this.hasDbSetting(SETTINGS_KEYS.TELEGRAM) ? 'database' : 'environment',
     };
+  }
+
+  /**
+   * Resolve Turnstile for runtime verify / public widget.
+   * DB fields win when present; otherwise ENV fallback (KeyOn-style hybrid).
+   */
+  resolveTurnstile(): {
+    enabled: boolean;
+    siteKey: string;
+    secretKey: string;
+    allowedHostnames: string;
+    source: 'database' | 'environment' | 'mixed' | 'none';
+    ready: boolean;
+  } {
+    const stored = this.getStored<StoredTurnstile>(SETTINGS_KEYS.TURNSTILE) ?? {};
+    const hasDb = this.hasDbSetting(SETTINGS_KEYS.TURNSTILE);
+    const adminSite = (stored.siteKey ?? '').trim();
+    const adminSecret = stored.secretKeyEnc
+      ? (this.decryptField(stored.secretKeyEnc)?.trim() ?? '')
+      : '';
+    const envEnabled = this.configService.get<boolean>('turnstile.enabled') === true;
+    const envSite = (this.configService.get<string>('turnstile.siteKey') ?? '').trim()
+      || (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '').trim()
+      || (process.env.WEB_NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '').trim();
+    const envSecret = (this.configService.get<string>('turnstile.secretKey') ?? '').trim();
+    const envHosts = (this.configService.get<string>('turnstile.allowedHostnames') ?? '').trim();
+
+    const siteKey = adminSite || envSite;
+    const secretKey = adminSecret || envSecret;
+    const allowedHostnames = (stored.allowedHostnames ?? '').trim() || envHosts;
+    const enabled = hasDb ? stored.enabled === true : envEnabled;
+
+    const fromAdmin = Boolean(adminSite || adminSecret || hasDb);
+    const fromEnv = Boolean(envSite || envSecret || envEnabled);
+    let source: 'database' | 'environment' | 'mixed' | 'none' = 'none';
+    if (fromAdmin && fromEnv) source = 'mixed';
+    else if (fromAdmin) source = 'database';
+    else if (fromEnv) source = 'environment';
+
+    return {
+      enabled,
+      siteKey,
+      secretKey,
+      allowedHostnames,
+      source,
+      ready: Boolean(enabled && siteKey && secretKey),
+    };
+  }
+
+  getTurnstileAdminView(): Record<string, unknown> {
+    const stored = this.getStored<StoredTurnstile>(SETTINGS_KEYS.TURNSTILE) ?? {};
+    const resolved = this.resolveTurnstile();
+    const secretConfigured = Boolean(
+      stored.secretKeyEnc || (this.configService.get<string>('turnstile.secretKey') ?? '').trim(),
+    );
+    return {
+      enabled: resolved.enabled,
+      siteKey: stored.siteKey ?? resolved.siteKey ?? '',
+      secretKey: this.encryption.maskSecret(
+        stored.secretKeyEnc ? this.decryptField(stored.secretKeyEnc) : undefined,
+      ),
+      secretConfigured,
+      allowedHostnames:
+        (stored.allowedHostnames ?? '').trim() ||
+        (this.configService.get<string>('turnstile.allowedHostnames') ?? ''),
+      ready: resolved.ready,
+      source: this.hasDbSetting(SETTINGS_KEYS.TURNSTILE)
+        ? resolved.source === 'mixed'
+          ? 'mixed'
+          : 'database'
+        : resolved.source === 'none'
+          ? 'environment'
+          : resolved.source,
+    };
+  }
+
+  /** Public storefront — site key only when enabled+configured. Never secret. */
+  getTurnstilePublicClient(): { enabled: boolean; siteKey: string | null } {
+    const resolved = this.resolveTurnstile();
+    if (!resolved.ready) return { enabled: false, siteKey: null };
+    return { enabled: true, siteKey: resolved.siteKey };
   }
 
   resolvePaymentRuntime(): StoredPaymentRuntime {

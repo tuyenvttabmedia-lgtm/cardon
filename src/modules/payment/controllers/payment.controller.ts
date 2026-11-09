@@ -13,6 +13,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Public } from '../../../common/decorators/public.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
@@ -65,6 +66,7 @@ export class PaymentController {
 
   @Post('ipn/esim/sepay')
   @Public()
+  @SkipThrottle()
   @HttpCode(200)
   esimSepayIpn(
     @Body() payload: unknown,
@@ -75,6 +77,7 @@ export class PaymentController {
 
   @Post('webhook/:gateway')
   @Public()
+  @SkipThrottle()
   @HttpCode(200)
   async handleWebhook(
     @Param('gateway') gateway: string,

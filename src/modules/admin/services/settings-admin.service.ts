@@ -21,6 +21,7 @@ import {
   StoredSmtp,
   StoredSystem,
   StoredTelegram,
+  StoredTurnstile,
 } from '../../settings/entities/settings.constants';
 import { SettingsEncryptionService } from '../../settings/services/settings-encryption.service';
 import { SettingsRepository } from '../../settings/repositories/settings.repository';
@@ -44,6 +45,7 @@ import {
   UpdateSystemSettingsDto,
   UpdateOrderSettingsDto,
   UpdateTelegramSettingsDto,
+  UpdateTurnstileSettingsDto,
 } from '../dto/settings.dto';
 import { EsimAiraloAdapter } from '../../esim/esim-airalo.adapter';
 import { EsimAiraloCatalogueService } from '../../esim/esim-airalo-catalogue.service';
@@ -289,6 +291,10 @@ export class SettingsAdminService {
     return this.settingsStore.getTelegramAdminView();
   }
 
+  getTurnstile() {
+    return this.settingsStore.getTurnstileAdminView();
+  }
+
   getPaymentRuntime() {
     return this.settingsStore.getPaymentRuntimeAdminView();
   }
@@ -393,6 +399,34 @@ export class SettingsAdminService {
       'botToken',
     ]);
     return this.getTelegram();
+  }
+
+  async updateTurnstile(adminId: string, dto: UpdateTurnstileSettingsDto) {
+    const current =
+      (await this.settingsStore.getRawStored<StoredTurnstile>(SETTINGS_KEYS.TURNSTILE)) ?? {};
+    let secretKeyEnc = current.secretKeyEnc;
+    if (dto.clearSecret === true) {
+      secretKeyEnc = undefined;
+    } else {
+      secretKeyEnc = this.mergeSecretField(dto.secretKey, current.secretKeyEnc);
+    }
+    const next: StoredTurnstile = {
+      ...current,
+      enabled: dto.enabled ?? current.enabled ?? false,
+      siteKey: dto.siteKey !== undefined ? dto.siteKey.trim() : current.siteKey,
+      allowedHostnames:
+        dto.allowedHostnames !== undefined
+          ? dto.allowedHostnames.trim()
+          : current.allowedHostnames,
+      secretKeyEnc,
+    };
+    await this.persist(adminId, SETTINGS_KEYS.TURNSTILE, next as Prisma.InputJsonValue, [
+      'enabled',
+      'siteKey',
+      'secretKey',
+      'allowedHostnames',
+    ]);
+    return this.getTurnstile();
   }
 
   async updatePaymentMegapay(adminId: string, dto: UpdatePaymentGatewayDto) {

@@ -74,6 +74,8 @@ export class AuditSnapshotService {
         return { data: this.settingsStore.getOrderAdminView(), resourceName: 'Order Settings' };
       case AuditSnapshotKey.TELEGRAM:
         return { data: this.settingsStore.getTelegramAdminView(), resourceName: 'Telegram' };
+      case AuditSnapshotKey.TURNSTILE:
+        return { data: this.settingsStore.getTurnstileAdminView(), resourceName: 'Turnstile' };
       case AuditSnapshotKey.PROVIDER_RUNTIME: {
         const providerId = params.id;
         if (!providerId) {

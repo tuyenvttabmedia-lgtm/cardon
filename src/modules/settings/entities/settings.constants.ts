@@ -16,6 +16,8 @@ export const SETTINGS_KEYS = {
   SYSTEM: 'settings.system',
   ORDER: 'settings.order',
   TELEGRAM: 'settings.telegram',
+  /** Cloudflare Turnstile — secret encrypted; site key public. */
+  TURNSTILE: 'settings.security.turnstile',
   MAINTENANCE: 'settings.maintenance',
 } as const;
 
@@ -244,6 +246,15 @@ export interface StoredTelegram {
   enabled?: boolean;
   botTokenEnc?: string;
   chatId?: string;
+}
+
+/** Admin-managed Turnstile. Secret AES-encrypted; site key plain (public). */
+export interface StoredTurnstile {
+  enabled?: boolean;
+  siteKey?: string;
+  secretKeyEnc?: string;
+  /** CSV hostnames for siteverify allowlist, e.g. cardon.vn,www.cardon.vn */
+  allowedHostnames?: string;
 }
 
 export type MaintenanceMode = 'OFF' | 'READ_ONLY' | 'MAINTENANCE' | 'EMERGENCY';

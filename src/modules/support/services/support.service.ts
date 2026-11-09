@@ -3,21 +3,63 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   SupportMessageAuthorType,
   SupportTicketStatus,
 } from '@prisma/client';
 import { NotificationService } from '../../notification/services/notification.service';
-import { CreateSupportTicketDto, ListSupportTicketsQueryDto, ReplySupportTicketDto } from '../dto/support.dto';
+import {
+  CreateSupportTicketDto,
+  ListSupportTicketsQueryDto,
+  ReplySupportTicketDto,
+} from '../dto/support.dto';
+import {
+  SUPPORT_ATTACHMENT_URL_PREFIX,
+  SUPPORT_FILES_API_PREFIX,
+  SUPPORT_ADMIN_FILES_API_PREFIX,
+  SUPPORT_OPEN_CAP_DEFAULT,
+} from '../entities/support.constants';
 import { generateTicketCode } from '../entities/ticket-code.generator';
 import { SupportRepository } from '../repositories/support.repository';
+import { SupportUploadService } from './support-upload.service';
 
 @Injectable()
 export class SupportService {
   constructor(
     private readonly repository: SupportRepository,
     private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService,
+    private readonly uploadService: SupportUploadService,
   ) {}
+
+  private openCapEnabled(): boolean {
+    return this.configService.get<boolean>('abuseRateLimit.supportOpenCapEnabled') !== false;
+  }
+
+  private openCap(): number {
+    return (
+      this.configService.get<number>('abuseRateLimit.supportOpenCap') ??
+      SUPPORT_OPEN_CAP_DEFAULT
+    );
+  }
+
+  assertAttachmentUrlAllowed(attachmentUrl?: string): string | undefined {
+    if (attachmentUrl == null || !attachmentUrl.trim()) return undefined;
+    const url = attachmentUrl.trim();
+    const allowed =
+      url.startsWith(SUPPORT_ATTACHMENT_URL_PREFIX) ||
+      url.startsWith(SUPPORT_FILES_API_PREFIX) ||
+      url.startsWith(SUPPORT_ADMIN_FILES_API_PREFIX);
+    if (!allowed) {
+      throw new BadRequestException('Invalid attachment URL');
+    }
+    const filename = this.uploadService.extractFilenameFromAttachmentUrl(url);
+    if (!filename) {
+      throw new BadRequestException('Invalid attachment URL');
+    }
+    return url;
+  }
 
   async createTicket(customerId: string, dto: CreateSupportTicketDto) {
     if (dto.orderId) {
@@ -27,15 +69,24 @@ export class SupportService {
       }
     }
 
-    const ticket = await this.repository.createTicket({
+    const openCap = this.openCapEnabled() ? this.openCap() : Number.MAX_SAFE_INTEGER;
+    const result = await this.repository.createTicketWithOpenCap({
       ticketCode: generateTicketCode(),
       customerId,
       orderId: dto.orderId,
       subject: dto.subject.trim(),
       message: dto.message.trim(),
       priority: dto.priority,
+      openCap,
     });
 
+    if (!result.ok) {
+      throw new BadRequestException(
+        `Too many open support tickets (max ${this.openCap()}). Close an existing ticket or wait for support.`,
+      );
+    }
+
+    const ticket = result.ticket;
     await this.notificationService.notifyAdminNewTicket({
       ticketId: ticket.id,
       ticketCode: ticket.ticketCode,
@@ -68,12 +119,14 @@ export class SupportService {
       throw new BadRequestException('Ticket is closed');
     }
 
+    const safeAttachment = this.assertAttachmentUrlAllowed(attachmentUrl);
+
     await this.repository.addMessage({
       ticketId,
       authorType: SupportMessageAuthorType.CUSTOMER,
       authorId: customerId,
       body: body.trim(),
-      attachmentUrl,
+      attachmentUrl: safeAttachment,
     });
 
     if (ticket.status === SupportTicketStatus.OPEN) {
@@ -81,6 +134,17 @@ export class SupportService {
     }
 
     return this.repository.findCustomerTicket(ticketId, customerId);
+  }
+
+  async assertCustomerCanDownload(customerId: string, filename: string): Promise<void> {
+    const safe = this.uploadService.assertSafeFilename(filename);
+    if (this.repository.filenameOwnedByUser(safe, customerId)) {
+      return;
+    }
+    const owns = await this.repository.customerOwnsAttachment(customerId, safe);
+    if (!owns) {
+      throw new NotFoundException('Attachment not found');
+    }
   }
 
   listAdminTickets(query: ListSupportTicketsQueryDto) {

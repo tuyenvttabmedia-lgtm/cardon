@@ -6,6 +6,7 @@ export type ConfigurationModuleId =
   | 'orders'
   | 'smtp'
   | 'telegram'
+  | 'turnstile'
   | 'content-ai'
   | 'webhooks'
   | 'security'
@@ -41,6 +42,13 @@ export const CONFIGURATION_SEARCH_INDEX: ConfigurationSearchEntry[] = [
   { id: 'order-limit', module: 'orders', label: 'Order Limit', keywords: ['order', 'limit', 'timeout', 'đơn hàng'], href: '/configuration/orders' },
   { id: 'telegram', module: 'telegram', label: 'Telegram', keywords: ['telegram', 'bot', 'notification'], href: '/configuration/telegram' },
   {
+    id: 'turnstile',
+    module: 'turnstile',
+    label: 'Cloudflare Turnstile',
+    keywords: ['turnstile', 'captcha', 'cloudflare', 'site key', 'secret'],
+    href: '/configuration/turnstile',
+  },
+  {
     id: 'content-ai',
     module: 'content-ai',
     label: 'Content AI',
@@ -64,6 +72,7 @@ export const MODULE_AUDIT_RESOURCE: Partial<Record<ConfigurationModuleId, System
   system: SystemAuditResource.FEATURE_FLAG,
   orders: SystemAuditResource.SETTING,
   telegram: SystemAuditResource.SETTING,
+  turnstile: SystemAuditResource.SETTING,
   'content-ai': SystemAuditResource.SETTING,
   maintenance: SystemAuditResource.SETTING,
 };

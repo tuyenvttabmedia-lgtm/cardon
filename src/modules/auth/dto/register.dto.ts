@@ -52,4 +52,10 @@ export class RegisterDto {
   @IsBoolean()
   @Equals(true, { message: 'You must accept the terms and conditions' })
   acceptTerms!: boolean;
+
+  /** Cloudflare Turnstile token — required only when TURNSTILE_ENABLED=true. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  captchaToken?: string;
 }

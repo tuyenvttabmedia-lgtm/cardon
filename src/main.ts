@@ -47,7 +47,8 @@ async function bootstrap(): Promise<void> {
 
   app.useLogger(logger);
 
-
+  const trustProxyHops = configService.get<number>('app.trustProxyHops') ?? 1;
+  app.set('trust proxy', Number.isFinite(trustProxyHops) ? trustProxyHops : 1);
 
   const isProduction = configService.get<string>('app.env') === 'production';
 
@@ -63,7 +64,13 @@ async function bootstrap(): Promise<void> {
 
   );
 
-
+  // W2: support attachments are authenticated-only (legacy + new files).
+  app.use('/uploads/support', (_req, res) => {
+    res.status(401).json({
+      success: false,
+      error: { message: 'Authentication required for support attachments' },
+    });
+  });
 
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
