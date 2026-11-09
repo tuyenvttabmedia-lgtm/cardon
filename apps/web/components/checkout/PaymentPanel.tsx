@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { VietQrImage, canBuildVietQrImage } from '@/components/checkout/VietQrImage';
 import { useT } from '@/components/i18n/LocaleProvider';
 import { cn } from '@/lib/utils';
 import {
@@ -129,6 +130,7 @@ export function SepayQrDisplay({
   paymentUrl,
   bankInfo,
   transferContent,
+  amount,
 }: {
   paymentUrl?: string | null;
   bankInfo?: {
@@ -138,19 +140,33 @@ export function SepayQrDisplay({
     accountName?: string | null;
   } | null;
   transferContent?: string | null;
+  /** Order amount — required to generate NAPAS VietQR when MegaPay has no image URL. */
+  amount?: string | number | null;
 }) {
   const [error, setError] = useState(false);
   const t = useT();
   const hasQrImage = Boolean(paymentUrl?.trim());
   const hasBank = Boolean(bankInfo?.accountNumber);
+  const vietQrInput =
+    !hasQrImage && bankInfo?.accountNumber && amount != null && transferContent
+      ? {
+          accountNumber: bankInfo.accountNumber,
+          bankCode: bankInfo.bankCode,
+          bankName: bankInfo.bankName,
+          amount,
+          addInfo: transferContent,
+        }
+      : null;
+  const canGenerateVietQr = Boolean(vietQrInput && canBuildVietQrImage(vietQrInput));
+  const showQrPanel = hasQrImage || canGenerateVietQr;
 
   return (
     <div className="flex h-full w-full flex-col rounded-2xl border border-cardon-border bg-white p-4 text-center shadow-card sm:p-6 lg:p-8">
       <p className="text-base font-semibold text-cardon-navy sm:text-lg">
-        {hasQrImage ? t('pay.scanTitle') : t('pay.transferTitle')}
+        {showQrPanel ? t('pay.scanTitle') : t('pay.transferTitle')}
       </p>
       <p className="mt-1 text-xs text-cardon-gray sm:text-sm">
-        {hasQrImage ? t('pay.scanHint') : t('pay.transferHint')}
+        {showQrPanel ? t('pay.scanHint') : t('pay.transferHint')}
       </p>
       {hasQrImage ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
@@ -170,6 +186,11 @@ export function SepayQrDisplay({
               </p>
             )}
           </div>
+        </div>
+      ) : canGenerateVietQr && vietQrInput ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
+          <VietQrImage {...vietQrInput} />
+          <p className="mt-2 px-2 text-xs text-cardon-gray">{t('pay.vietQrGenerated')}</p>
         </div>
       ) : (
         <div className="flex min-h-[8rem] flex-1 items-center justify-center px-2 py-6">

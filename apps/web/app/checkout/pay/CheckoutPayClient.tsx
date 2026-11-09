@@ -288,6 +288,7 @@ export default function CheckoutPayPageClient() {
               paymentUrl={pending.paymentUrl}
               bankInfo={pending.bankInfo}
               transferContent={pending.transferContent}
+              amount={pending.amount}
             />
           </div>
         </div>

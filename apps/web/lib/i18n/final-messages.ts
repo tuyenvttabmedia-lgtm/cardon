@@ -118,7 +118,10 @@ export const finalVi = {
     'Thông tin QR/chuyển khoản chỉ lưu trên trình duyệt khi tạo đơn. Nếu bạn đã đóng tab thanh toán hoặc mở đơn ở thiết bị khác, hãy quay lại tab chờ chuyển khoản (nếu còn) hoặc tạo đơn mới.',
   'pay.transferTitle': 'Thông tin chuyển khoản',
   'pay.transferHint': 'Chuyển đúng số tiền và nội dung để đơn được xác nhận tự động.',
-  'pay.transferOnly': 'Đơn này dùng mã nộp tiền (không có ảnh QR). Chi tiết tài khoản bên dưới.',
+  'pay.transferOnly':
+    'Không tạo được ảnh VietQR từ thông tin ngân hàng. Hãy chuyển khoản thủ công theo chi tiết bên dưới.',
+  'pay.vietQrGenerated':
+    'QR được tạo từ số TK VA + số tiền + nội dung chuyển khoản (cùng thông tin bên dưới).',
   'pay.amountDue': 'Số tiền cần chuyển',
   'pay.details': 'Chi tiết đơn',
   'pay.loadingItems': 'Đang tải chi tiết sản phẩm…',
@@ -345,7 +348,10 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
     'QR/transfer details are only kept in this browser when the order was created. If you closed the payment tab or opened the order elsewhere, return to the waiting-transfer tab if you still have it, or place a new order.',
   'pay.transferTitle': 'Transfer details',
   'pay.transferHint': 'Transfer the exact amount and content so the order can confirm automatically.',
-  'pay.transferOnly': 'This order uses a deposit account (no QR image). Account details are below.',
+  'pay.transferOnly':
+    'Could not build a VietQR image from the bank details. Transfer manually using the account details below.',
+  'pay.vietQrGenerated':
+    'QR is generated from the VA number + amount + transfer content (same details below).',
   'pay.amountDue': 'Amount to transfer',
   'pay.details': 'Order details',
   'pay.loadingItems': 'Loading product details…',

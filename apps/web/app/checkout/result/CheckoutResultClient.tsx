@@ -8,6 +8,7 @@ import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
+import { VietQrImage, canBuildVietQrImage } from '@/components/checkout/VietQrImage';
 import { buildCheckoutPayPath, persistMegapayVaForReopen } from '@/lib/checkout-qr-flow';
 import {
   clearPendingMegapayPayment,
@@ -228,6 +229,30 @@ export default function CheckoutResultClient() {
 
         {status === 'awaiting_transfer' && (
           <>
+            {vaInfo.accountNumber &&
+            vaInfo.content &&
+            (vaInfo.amount || pending?.amount) &&
+            canBuildVietQrImage({
+              accountNumber: vaInfo.accountNumber,
+              bankName: vaInfo.bankName,
+              bankCode: searchParams.get('bankCode'),
+              amount: vaInfo.amount ?? pending?.amount ?? '',
+              addInfo: vaInfo.content,
+            }) ? (
+              <div className="mt-5 rounded-xl border border-cardon-border bg-white p-4 text-center">
+                <p className="text-sm font-semibold text-cardon-navy">{t('pay.scanTitle')}</p>
+                <div className="mt-3">
+                  <VietQrImage
+                    accountNumber={vaInfo.accountNumber}
+                    bankName={vaInfo.bankName}
+                    bankCode={searchParams.get('bankCode')}
+                    amount={vaInfo.amount ?? pending?.amount ?? ''}
+                    addInfo={vaInfo.content}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-cardon-gray">{t('pay.vietQrGenerated')}</p>
+              </div>
+            ) : null}
             <dl className="mt-5 space-y-3 rounded-xl border border-cardon-border bg-cardon-light p-4 text-sm">
               {amountLabel && (
                 <div className="flex items-baseline justify-between gap-3">
