@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { HomePageClient } from '@/components/home/HomePageClient';
-import { readRequestLocale } from '@/lib/i18n/request-locale';
-import { listBlogPosts, listFaqs } from '@/lib/cms-api';
+import { listFaqs } from '@/lib/cms-api';
 import { THE_PHONE_SEO } from '@/lib/hub-seo-copy';
 import { localizedMetadata } from '@/lib/seo';
 import { translate } from '@/lib/i18n/messages';
@@ -18,15 +17,10 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function TheDienThoaiPage() {
-  const locale = await readRequestLocale();
-  const [newsPosts, faqs] = await Promise.all([
-    listBlogPosts({ take: 8, locale }),
-    listFaqs({ featured: true, limit: 10 }),
-  ]);
+  const faqs = await listFaqs({ featured: true, limit: 10 });
   return (
     <Suspense fallback={<p className="text-cardon-gray">Đang tải...</p>}>
       <HomePageClient
-        newsPosts={newsPosts ?? []}
         initialCategory="phone"
         initialFaqs={faqs ? faqs.items : undefined}
       />

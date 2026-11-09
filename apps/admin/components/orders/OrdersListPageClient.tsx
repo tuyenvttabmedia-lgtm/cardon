@@ -41,10 +41,10 @@ const DELIVERY_FILTERS: { value: string; label: string }[] = [
 const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA', 'ESIM'] as const;
 
 const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: 'last7', label: '7 ngày' },
-  { value: 'last30', label: '30 ngày' },
   { value: 'today', label: 'Hôm nay' },
   { value: 'yesterday', label: 'Hôm qua' },
+  { value: 'last7', label: '7 ngày' },
+  { value: 'last30', label: '30 ngày' },
   { value: 'thisMonth', label: 'Tháng này' },
   { value: 'lastMonth', label: 'Tháng trước' },
   { value: 'custom', label: 'Tùy chọn' },
@@ -94,7 +94,7 @@ type ListState = {
 
 const DEFAULT_STATE: ListState = {
   q: '',
-  datePreset: 'last7',
+  datePreset: 'today',
   fromDate: '',
   toDate: '',
   paymentFilter: '',
@@ -122,7 +122,7 @@ function parsePreset(raw: string | null): DatePreset {
     'all',
   ];
   if (raw && (allowed as string[]).includes(raw)) return raw as DatePreset;
-  return 'last7';
+  return 'today';
 }
 
 function parseException(raw: string | null): ExceptionBucket {
@@ -179,7 +179,7 @@ function stateFromSearchParams(params: URLSearchParams): ListState {
 function stateToSearchParams(state: ListState): URLSearchParams {
   const q = new URLSearchParams();
   if (state.q.trim()) q.set('q', state.q.trim());
-  if (state.datePreset !== 'last7') q.set('preset', state.datePreset);
+  if (state.datePreset !== 'today') q.set('preset', state.datePreset);
   if (state.datePreset === 'custom') {
     if (state.fromDate) q.set('from', state.fromDate);
     if (state.toDate) q.set('to', state.toDate);
