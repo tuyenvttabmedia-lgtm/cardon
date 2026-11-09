@@ -128,60 +128,80 @@ export function PaymentMethodPicker({
 export function SepayQrDisplay({
   paymentUrl,
   bankInfo,
+  transferContent,
 }: {
-  paymentUrl: string;
+  paymentUrl?: string | null;
   bankInfo?: {
     bankCode?: string | null;
     bankName?: string | null;
     accountNumber?: string | null;
     accountName?: string | null;
   } | null;
+  transferContent?: string | null;
 }) {
   const [error, setError] = useState(false);
   const t = useT();
+  const hasQrImage = Boolean(paymentUrl?.trim());
+  const hasBank = Boolean(bankInfo?.accountNumber);
 
   return (
     <div className="flex h-full w-full flex-col rounded-2xl border border-cardon-border bg-white p-4 text-center shadow-card sm:p-6 lg:p-8">
-      <p className="text-base font-semibold text-cardon-navy sm:text-lg">{t('pay.scanTitle')}</p>
-      <p className="mt-1 text-xs text-cardon-gray sm:text-sm">{t('pay.scanHint')}</p>
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
-        <div className="relative aspect-square w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px]">
-          {!error ? (
-            <Image
-              src={paymentUrl}
-              alt={t('pay.scanTitle')}
-              fill
-              className="object-contain"
-              unoptimized
-              onError={() => setError(true)}
-            />
-          ) : (
-            <p className="flex h-full items-center justify-center text-sm text-red-600">
-              {t('pay.qrMissing')}
-            </p>
-          )}
+      <p className="text-base font-semibold text-cardon-navy sm:text-lg">
+        {hasQrImage ? t('pay.scanTitle') : t('pay.transferTitle')}
+      </p>
+      <p className="mt-1 text-xs text-cardon-gray sm:text-sm">
+        {hasQrImage ? t('pay.scanHint') : t('pay.transferHint')}
+      </p>
+      {hasQrImage ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center py-4 sm:py-5">
+          <div className="relative aspect-square w-full max-w-[240px] sm:max-w-[300px] lg:max-w-[360px]">
+            {!error ? (
+              <Image
+                src={paymentUrl!}
+                alt={t('pay.scanTitle')}
+                fill
+                className="object-contain"
+                unoptimized
+                onError={() => setError(true)}
+              />
+            ) : (
+              <p className="flex h-full items-center justify-center text-sm text-red-600">
+                {t('pay.qrMissing')}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-      {bankInfo?.accountNumber ? (
+      ) : (
+        <div className="flex min-h-[8rem] flex-1 items-center justify-center px-2 py-6">
+          <p className="text-sm text-cardon-gray">{t('pay.transferOnly')}</p>
+        </div>
+      )}
+      {hasBank ? (
         <div className="mt-auto space-y-1.5 rounded-xl bg-cardon-light px-3.5 py-3 text-left text-sm sm:px-5 sm:py-4">
-          {bankInfo.bankName || bankInfo.bankCode ? (
+          {bankInfo?.bankName || bankInfo?.bankCode ? (
             <p>
               <span className="text-cardon-gray">{t('result.bank')}: </span>
               <span className="font-semibold text-cardon-navy">
-                {bankInfo.bankName || bankInfo.bankCode}
+                {bankInfo?.bankName || bankInfo?.bankCode}
               </span>
             </p>
           ) : null}
           <p>
             <span className="text-cardon-gray">{t('pay.va')}: </span>
             <span className="break-all font-semibold text-cardon-navy">
-              {bankInfo.accountNumber}
+              {bankInfo?.accountNumber}
             </span>
           </p>
-          {bankInfo.accountName ? (
+          {bankInfo?.accountName ? (
             <p>
               <span className="text-cardon-gray">{t('result.holder')}: </span>
               <span className="font-semibold text-cardon-navy">{bankInfo.accountName}</span>
+            </p>
+          ) : null}
+          {transferContent ? (
+            <p>
+              <span className="text-cardon-gray">{t('result.note')}: </span>
+              <span className="break-all font-semibold text-cardon-navy">{transferContent}</span>
             </p>
           ) : null}
         </div>

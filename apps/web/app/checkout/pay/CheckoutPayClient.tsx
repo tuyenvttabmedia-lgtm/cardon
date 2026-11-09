@@ -50,8 +50,11 @@ export default function CheckoutPayPageClient() {
     const stored = readPendingQrPayment(orderId);
     if (stored) {
       setPending(stored);
+      setError(null);
       return;
     }
+    // No session payload — show a clear error (do not leave the page on «loading QR»).
+    setPending(null);
     setError(t('pay.noQr'));
   }, [orderId, t]);
 
@@ -95,7 +98,9 @@ export default function CheckoutPayPageClient() {
         }
 
         setStatusLabel(t('pay.waitingHint'));
-        setError(null);
+        // Only clear transient poll errors when we actually have QR/VA payload to show.
+        // Clearing here while pending is null caused infinite «Đang tải mã QR…».
+        if (readPendingQrPayment(orderId)) setError(null);
       } catch (err) {
         if (!active) return;
         setError(customerFacingError(locale, err));
@@ -123,13 +128,27 @@ export default function CheckoutPayPageClient() {
       <PageContainer>
         <div className="mx-auto max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-6">
           <p className="font-semibold text-amber-900">{error}</p>
-          <button
-            type="button"
-            className="mt-4 text-sm font-semibold text-cardon-blue hover:underline"
-            onClick={() => router.push('/')}
-          >
-            ← {t('common.backHome')}
-          </button>
+          <p className="mt-2 text-sm text-amber-800">{t('pay.noQrHint')}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              className="text-sm font-semibold text-cardon-blue hover:underline"
+              onClick={() =>
+                router.push(
+                  `/checkout/success?orderCode=${encodeURIComponent(orderCode)}&email=${encodeURIComponent(email)}`,
+                )
+              }
+            >
+              {t('pay.viewStatus')}
+            </button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-cardon-blue hover:underline"
+              onClick={() => router.push('/')}
+            >
+              ← {t('common.backHome')}
+            </button>
+          </div>
         </div>
       </PageContainer>
     );
@@ -265,7 +284,11 @@ export default function CheckoutPayPageClient() {
 
           {/* QR — first on mobile for quicker scan; stretch to match left on desktop */}
           <div className="order-1 flex min-h-0 lg:order-2">
-            <SepayQrDisplay paymentUrl={pending.paymentUrl} bankInfo={pending.bankInfo} />
+            <SepayQrDisplay
+              paymentUrl={pending.paymentUrl}
+              bankInfo={pending.bankInfo}
+              transferContent={pending.transferContent}
+            />
           </div>
         </div>
       </div>

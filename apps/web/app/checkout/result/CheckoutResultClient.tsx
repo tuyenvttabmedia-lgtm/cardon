@@ -8,6 +8,7 @@ import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
+import { buildCheckoutPayPath, persistMegapayVaForReopen } from '@/lib/checkout-qr-flow';
 import {
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
@@ -82,6 +83,31 @@ export default function CheckoutResultClient() {
       setMessage(
         t('result.pending'),
       );
+      // Mirror VA into pending-qr storage so «mở lại thanh toán» from order status works
+      // (that page only reads cardon:pending-qr:*, not pendingMegapay).
+      if (stored?.orderId && stored.orderCode) {
+        const accountNumber =
+          searchParams.get('vaNumber') ??
+          searchParams.get('vaAcc') ??
+          searchParams.get('vaAccount');
+        if (accountNumber) {
+          persistMegapayVaForReopen({
+            orderId: stored.orderId,
+            orderCode: stored.orderCode,
+            email: stored.email ?? '',
+            amount: searchParams.get('amount') ?? stored.amount ?? '',
+            paymentReference: stored.paymentReference,
+            bankInfo: {
+              accountNumber,
+              accountName: searchParams.get('vaName'),
+              bankName: searchParams.get('bankName') ?? searchParams.get('bankCode'),
+              bankCode: searchParams.get('bankCode'),
+            },
+            transferContent:
+              searchParams.get('vaContent') ?? searchParams.get('invoiceNo'),
+          });
+        }
+      }
       return;
     }
 
@@ -109,7 +135,7 @@ export default function CheckoutResultClient() {
       t('result.failed'),
     );
     if (resultMsg?.trim()) console.error('Gateway result message', resultMsg.trim());
-  }, [resultCd, resultMsg, router, t, locale]);
+  }, [resultCd, resultMsg, router, t, locale, searchParams]);
 
   const goToSuccess = useCallback(() => {
     if (!pending?.orderCode) return;
@@ -239,7 +265,22 @@ export default function CheckoutResultClient() {
             </p>
             {pollError && <p className="mt-2 text-sm text-red-600">{pollError}</p>}
             {pending?.orderCode && (
-              <div className="mt-6">
+              <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+                {pending.orderId ? (
+                  <Link
+                    href={withLocalePrefix(
+                      buildCheckoutPayPath({
+                        orderId: pending.orderId,
+                        orderCode: pending.orderCode,
+                        email: pending.email ?? '',
+                      }),
+                      locale,
+                    )}
+                    className="text-sm font-semibold text-cardon-blue hover:underline"
+                  >
+                    {t('order.reopenTransfer')}
+                  </Link>
+                ) : null}
                 <Link
                   href={withLocalePrefix(
                     `/checkout/success?orderCode=${encodeURIComponent(pending.orderCode)}${

@@ -93,7 +93,14 @@ export const finalVi = {
   'order.syncing': 'Đang xác nhận thanh toán và chuẩn bị mã eSIM. Trang này tự cập nhật.',
   'order.esimFetching': 'Thanh toán đã xác nhận. Đang chuẩn bị mã cài eSIM.',
   'order.waitingGateway': 'Chưa nhận được xác nhận thanh toán. Giữ trang QR và chuyển đúng số tiền.',
+  'order.waitingTransfer':
+    'Chưa nhận được xác nhận thanh toán. Chuyển đúng số tiền theo thông tin tài khoản đã cấp.',
   'order.reopenQr': 'Mở lại trang thanh toán QR',
+  'order.reopenTransfer': 'Xem lại thông tin chuyển khoản',
+  'order.reopenTransferLost':
+    'Phiên hiển thị số tài khoản không còn trên trình duyệt này. Hãy mở lại tab «Chờ nhận chuyển khoản» nếu vẫn còn, hoặc tạo đơn mới / liên hệ hỗ trợ.',
+  'order.reopenQrLost':
+    'Không còn thông tin QR trên trình duyệt này (đã đóng tab thanh toán hoặc mở đơn ở thiết bị khác). Hãy tạo đơn mới hoặc liên hệ hỗ trợ — không mở trang QR trống.',
   'order.order': 'Đơn hàng',
   'order.yourCards': 'Thẻ của bạn',
   'order.timeline': 'Tiến trình đơn hàng',
@@ -107,6 +114,11 @@ export const finalVi = {
   'order.cannotShow': 'Không thể hiển thị mã',
   'pay.missing': 'Thiếu thông tin đơn hàng.',
   'pay.loadingQr': 'Đang tải mã QR…',
+  'pay.noQrHint':
+    'Thông tin QR/chuyển khoản chỉ lưu trên trình duyệt khi tạo đơn. Nếu bạn đã đóng tab thanh toán hoặc mở đơn ở thiết bị khác, hãy quay lại tab chờ chuyển khoản (nếu còn) hoặc tạo đơn mới.',
+  'pay.transferTitle': 'Thông tin chuyển khoản',
+  'pay.transferHint': 'Chuyển đúng số tiền và nội dung để đơn được xác nhận tự động.',
+  'pay.transferOnly': 'Đơn này dùng mã nộp tiền (không có ảnh QR). Chi tiết tài khoản bên dưới.',
   'pay.amountDue': 'Số tiền cần chuyển',
   'pay.details': 'Chi tiết đơn',
   'pay.loadingItems': 'Đang tải chi tiết sản phẩm…',
@@ -308,7 +320,14 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'order.syncing': 'Confirming payment and preparing your eSIM code. This page updates automatically.',
   'order.esimFetching': 'Payment confirmed. Preparing the eSIM install code.',
   'order.waitingGateway': 'Payment is not confirmed yet. Keep the QR page open and transfer the exact amount.',
+  'order.waitingTransfer':
+    'Payment is not confirmed yet. Transfer the exact amount using the account details already issued.',
   'order.reopenQr': 'Open the QR payment page again',
+  'order.reopenTransfer': 'View transfer details again',
+  'order.reopenTransferLost':
+    'Transfer details are no longer in this browser session. Reopen the waiting-transfer tab if you still have it, or place a new order / contact support.',
+  'order.reopenQrLost':
+    'QR details are no longer in this browser (payment tab closed or different device). Place a new order or contact support — do not open an empty QR page.',
   'order.order': 'Order',
   'order.yourCards': 'Your codes',
   'order.timeline': 'Order progress',
@@ -322,6 +341,11 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'order.cannotShow': 'Could not show the code',
   'pay.missing': 'Order details are missing.',
   'pay.loadingQr': 'Loading QR code…',
+  'pay.noQrHint':
+    'QR/transfer details are only kept in this browser when the order was created. If you closed the payment tab or opened the order elsewhere, return to the waiting-transfer tab if you still have it, or place a new order.',
+  'pay.transferTitle': 'Transfer details',
+  'pay.transferHint': 'Transfer the exact amount and content so the order can confirm automatically.',
+  'pay.transferOnly': 'This order uses a deposit account (no QR image). Account details are below.',
   'pay.amountDue': 'Amount to transfer',
   'pay.details': 'Order details',
   'pay.loadingItems': 'Loading product details…',

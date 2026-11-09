@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { EsimInstallPanel } from '@/components/esim/EsimInstallPanel';
 import { CardDeliveryPanel } from '@/components/order/CardDeliveryPanel';
 import { OrderStatusPanel } from '@/components/order/OrderStatusPanel';
 import { OrderTimeline } from '@/components/order/OrderTimeline';
 import { useT } from '@/components/i18n/LocaleProvider';
-import { buildCheckoutPayPath } from '@/lib/checkout-qr-flow';
+import { buildCheckoutPayPath, isMegapayDepositMethod } from '@/lib/checkout-qr-flow';
+import { readPendingQrPayment } from '@/lib/pending-qr-payment';
 import type { EsimDelivery, OrderDeliveryResponse } from '@/types/api';
 
 export function OrderDeliveryContent({
@@ -52,21 +54,13 @@ export function OrderDeliveryContent({
       )}
 
       {order.paymentStatus === 'WAITING_PAYMENT' && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p>
-            {t('order.waitingGateway')}
-          </p>
-          <Link
-            href={buildCheckoutPayPath({
-              orderId,
-              orderCode: order.orderCode,
-              email: order.guestEmail || guestEmail || '',
-            })}
-            className="mt-2 inline-block font-semibold text-cardon-blue hover:underline"
-          >
-            {t('order.reopenQr')}
-          </Link>
-        </div>
+        <WaitingPaymentBanner
+          orderId={orderId}
+          orderCode={order.orderCode}
+          email={order.guestEmail || guestEmail || ''}
+          paymentMethodCode={order.paymentMethodCode}
+          paymentGateway={order.paymentGateway}
+        />
       )}
 
       {!showCardsOnly && (
@@ -111,6 +105,54 @@ export function OrderDeliveryContent({
         <Link href={backHref} className="inline-block text-sm font-semibold text-cardon-blue hover:underline">
           {resolvedBack}
         </Link>
+      )}
+    </div>
+  );
+}
+
+function WaitingPaymentBanner({
+  orderId,
+  orderCode,
+  email,
+  paymentMethodCode,
+  paymentGateway,
+}: {
+  orderId: string;
+  orderCode: string;
+  email: string;
+  paymentMethodCode?: string | null;
+  paymentGateway?: string | null;
+}) {
+  const t = useT();
+  const [sessionLooksDeposit, setSessionLooksDeposit] = useState(false);
+  const [hasSessionPayload, setHasSessionPayload] = useState(false);
+
+  useEffect(() => {
+    const session = readPendingQrPayment(orderId);
+    setHasSessionPayload(Boolean(session));
+    // Prefer session shape: MegaPay VA stores bankInfo with empty paymentUrl.
+    setSessionLooksDeposit(
+      Boolean(session?.bankInfo?.accountNumber) && !session?.paymentUrl?.trim(),
+    );
+  }, [orderId]);
+
+  const isDeposit =
+    sessionLooksDeposit || isMegapayDepositMethod(paymentMethodCode, paymentGateway);
+
+  return (
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <p>{isDeposit ? t('order.waitingTransfer') : t('order.waitingGateway')}</p>
+      {hasSessionPayload ? (
+        <Link
+          href={buildCheckoutPayPath({ orderId, orderCode, email })}
+          className="mt-2 inline-block font-semibold text-cardon-blue hover:underline"
+        >
+          {isDeposit ? t('order.reopenTransfer') : t('order.reopenQr')}
+        </Link>
+      ) : (
+        <p className="mt-2 text-amber-800">
+          {isDeposit ? t('order.reopenTransferLost') : t('order.reopenQrLost')}
+        </p>
       )}
     </div>
   );

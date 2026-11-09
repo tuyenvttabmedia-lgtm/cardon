@@ -7,8 +7,11 @@ export type PendingQrPayment = {
   orderCode: string;
   email: string;
   amount: string;
+  /** Empty when MegaPay VA / deposit-code (bank details only, no QR image). */
   paymentUrl: string;
   bankInfo: Payment['bankInfo'];
+  /** Transfer content / invoice ref for MegaPay VA (not always in bankInfo). */
+  transferContent?: string | null;
   expiresAt: string | null;
   paymentReference: string;
   gateway: string;
