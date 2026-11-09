@@ -21,7 +21,17 @@ export function useTurnstileSiteKey(): string {
     void fetch(`${base}/public/turnstile`, { credentials: 'omit' })
       .then(async (res) => {
         if (!res.ok) return;
-        const data = (await res.json()) as PublicTurnstileClient;
+        const payload = (await res.json()) as
+          | PublicTurnstileClient
+          | { success?: boolean; data?: PublicTurnstileClient };
+        const data =
+          payload &&
+          typeof payload === 'object' &&
+          'data' in payload &&
+          payload.data &&
+          typeof payload.data === 'object'
+            ? payload.data
+            : (payload as PublicTurnstileClient);
         if (cancelled) return;
         if (data.enabled && data.siteKey?.trim()) {
           setSiteKey(data.siteKey.trim());
