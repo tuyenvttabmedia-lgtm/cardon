@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { EmailPolicyModule } from './common/email-policy/email-policy.module';
 import { AppConfigModule } from './config/app-config.module';
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
@@ -24,6 +25,7 @@ import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
 @Module({
   imports: [
     AppConfigModule,
+    EmailPolicyModule,
     DatabaseModule,
     QueueModule,
     LoggerModule,
