@@ -103,6 +103,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = useCallback(
     async (payload: RegisterPayload) => {
       const result = await authApi.register(payload);
+      // Persist tokens before /auth/me — same order as login. Calling me() first
+      // sends no/stale Bearer and surfaces as "Phiên đăng nhập không còn hiệu lực".
+      setAuthSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        user: result.user,
+      });
       const me = await authApi.me();
       setAuthSession({
         accessToken: result.accessToken,
