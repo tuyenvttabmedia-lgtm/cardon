@@ -66,7 +66,7 @@ Sandbox payment webhook settlement tests: **not run** in this slice (need owner 
 | `w4-skip-payments` | Skip (remaining custom + RL + managed + Super Bot Fight) | Active |
 | `w4-skip-partner-api` | Skip (same components) | Active |
 | `w4-skip-health` | Skip (same components) | Active |
-| `w4-challenge-register` | Managed Challenge | Active |
+| `w4-challenge-register` | Managed Challenge | Active — **conflict with Turnstile SPA**: change to **Skip** / disable after W3/W5 Turnstile live (POST XHR never reaches origin → false «session expired») |
 
 CF warning “skip php2shell” on skip+managed: **expected** for payment/partner/health paths.
 

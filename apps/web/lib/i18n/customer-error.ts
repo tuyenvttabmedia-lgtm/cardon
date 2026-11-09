@@ -30,13 +30,15 @@ const VI_MESSAGE_KEYS: Record<string, MessageKey> = {
 
 const CODE_KEYS: Record<string, MessageKey> = {
   UNAUTHORIZED: 'error.unauthorized',
-  FORBIDDEN: 'error.unauthorized',
+  FORBIDDEN: 'error.edgeBlocked',
+  EDGE_BLOCKED: 'error.edgeBlocked',
   NOT_FOUND: 'error.notFound',
   BAD_REQUEST: 'error.generic',
   VALIDATION_ERROR: 'error.generic',
   EMAIL_NOT_VERIFIED: 'auth.emailNotVerified',
   ACCOUNT_SUSPENDED: 'auth.accountSuspended',
   ESIM_ORDER_AMOUNT_LIMIT: 'error.esimOrderAmountLimit',
+  TOO_MANY_REQUESTS: 'error.rateLimited',
 };
 
 function hasVietnamese(value: string): boolean {
@@ -51,7 +53,10 @@ function failedRequestKey(raw: string): MessageKey | null {
 }
 
 function statusKey(status: number): MessageKey | null {
-  if (status === 401 || status === 403) return 'error.unauthorized';
+  // 401 only — 403 is often Cloudflare Managed Challenge on public POSTs, not session expiry.
+  if (status === 401) return 'error.unauthorized';
+  if (status === 403) return 'error.edgeBlocked';
+  if (status === 429) return 'error.rateLimited';
   if (status === 404) return 'error.notFound';
   if (status >= 500) return 'error.unavailable';
   return null;
