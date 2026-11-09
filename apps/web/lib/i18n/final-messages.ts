@@ -27,6 +27,9 @@ export const finalVi = {
   'error.failed': 'Yêu cầu thất bại',
   'error.notFound': 'Không tìm thấy dữ liệu.',
   'error.unauthorized': 'Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại.',
+  'error.edgeBlocked':
+    'Yêu cầu bị chặn bởi Cloudflare. Tải lại trang và thử lại. Nếu vẫn lỗi: Dashboard → WAF → tắt/Skip rule w4-challenge-register (Turnstile đã bảo vệ đăng ký).',
+  'error.rateLimited': 'Bạn thao tác quá nhanh. Vui lòng đợi vài phút rồi thử lại.',
   'error.unavailable': 'Dịch vụ tạm thời không phản hồi. Vui lòng thử lại.',
   'error.salesOff': 'Tạm dừng bán eSIM',
   'error.esimOrderAmountLimit':
@@ -239,6 +242,9 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'error.failed': 'The request failed',
   'error.notFound': 'We could not find that.',
   'error.unauthorized': 'Your session expired. Please log in again.',
+  'error.edgeBlocked':
+    'Request blocked by Cloudflare. Reload and try again. If it persists: Dashboard → WAF → Skip/disable w4-challenge-register (Turnstile already protects signup).',
+  'error.rateLimited': 'Too many attempts. Please wait a few minutes and try again.',
   'error.unavailable': 'The service is temporarily unavailable. Please try again.',
   'error.salesOff': 'eSIM sales paused',
   'error.esimOrderAmountLimit':
