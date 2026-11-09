@@ -1,10 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { AuthLayout } from '@/components/auth/AuthLayout';
+import {
+  TurnstileField,
+  captchaErrorFromApi,
+  isTurnstileSiteKeyConfigured,
+  type TurnstileFieldHandle,
+} from '@/components/security/TurnstileField';
+import { useTurnstileSiteKey } from '@/hooks/useTurnstileSiteKey';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Toast } from '@/components/ui/Toast';
@@ -21,6 +28,10 @@ function RegisterForm() {
   const { register } = useAuth();
   const t = useT();
   const { locale } = useLocale();
+  const captchaRef = useRef<TurnstileFieldHandle>(null);
+  const turnstileSiteKey = useTurnstileSiteKey();
+  const captchaRequired = isTurnstileSiteKeyConfigured(turnstileSiteKey);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [form, setForm] = useState<RegisterPayload>({
     username: '',
     fullName: '',
@@ -45,17 +56,31 @@ function RegisterForm() {
       setError(t('auth.passwordMismatch'));
       return;
     }
+    if (captchaRequired && !captchaToken) {
+      setError('Vui lòng hoàn tất xác minh bảo mật trước khi đăng ký.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       await register({
         ...form,
         identityNumber: form.identityNumber?.trim() || undefined,
+        captchaToken: captchaToken || undefined,
       });
       setToast(t('auth.registerOk'));
       setTimeout(() => router.push(redirectTo || '/tai-khoan'), 800);
     } catch (err) {
-      setError(customerFacingError(locale, err));
+      const captchaErr = captchaErrorFromApi(err);
+      if (captchaErr) {
+        setError(captchaErr.message);
+        if (captchaErr.shouldReset) {
+          captchaRef.current?.reset();
+          setCaptchaToken(null);
+        }
+      } else {
+        setError(customerFacingError(locale, err));
+      }
     } finally {
       setLoading(false);
     }
@@ -181,8 +206,17 @@ function RegisterForm() {
               </Link>
             </span>
           </label>
+          <TurnstileField
+            ref={captchaRef}
+            action="register"
+            onTokenChange={setCaptchaToken}
+          />
           {error && <p className="text-sm text-red-600">{error}</p>}
-          <Button className="w-full" type="submit" disabled={loading}>
+          <Button
+            className="w-full"
+            type="submit"
+            disabled={loading || (captchaRequired && !captchaToken)}
+          >
             {loading ? t('auth.registering') : t('auth.register')}
           </Button>
         </form>

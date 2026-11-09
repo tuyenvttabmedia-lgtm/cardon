@@ -14,6 +14,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { UserRole } from '@prisma/client';
+import { AbuseRateLimitService } from '../../../common/abuse-rate-limit/abuse-rate-limit.service';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Permissions } from '../../../common/decorators/permissions.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
@@ -42,6 +43,7 @@ export class AgentController {
     private readonly onboardingService: AgentOnboardingService,
     private readonly kycDocumentService: AgentKycDocumentService,
     private readonly accountService: AccountService,
+    private readonly abuseRateLimit: AbuseRateLimitService,
   ) {}
 
   @Get('me/onboarding-status')
@@ -62,26 +64,45 @@ export class AgentController {
   }
 
   @Post('kyc')
-  submitKyc(@CurrentUser() user: AuthenticatedUser, @Body() dto: SubmitKycDto) {
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.AGENT)
+  async submitKyc(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: SubmitKycDto,
+  ) {
+    await this.abuseRateLimit.consumeOrThrow({
+      bucket: 'kyc_submit',
+      userId: user.id,
+    });
     return this.agentService.submitKyc(user.id, dto);
   }
 
   @Get('me/kyc')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.AGENT)
   getMyKyc(@CurrentUser() user: AuthenticatedUser) {
     return this.agentService.getMyKyc(user.id);
   }
 
   @Post('me/kyc/documents')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.AGENT)
   @UseInterceptors(FileInterceptor('file'))
-  uploadKycDocument(
+  async uploadKycDocument(
     @CurrentUser() user: AuthenticatedUser,
     @UploadedFile() file: Express.Multer.File,
     @Body('field') field: string,
   ) {
+    await this.abuseRateLimit.consumeOrThrow({
+      bucket: 'kyc_document',
+      userId: user.id,
+    });
     return this.agentService.uploadKycDocument(user.id, field, file);
   }
 
   @Get('me/kyc/documents/file')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.AGENT)
   async getKycDocument(
     @CurrentUser() user: AuthenticatedUser,
     @Query('key') storageKey: string,

@@ -93,6 +93,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         { encrypt: jest.fn(), decrypt: jest.fn() } as never,
         { dispatch: jest.fn() } as never,
         { assertLoginAllowed: jest.fn() } as never,
+        { assertRegistrationEmailAllowed: jest.fn() } as never,
       );
     });
 
@@ -179,6 +180,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         { encrypt: jest.fn(), decrypt: jest.fn() } as never,
         { dispatch: jest.fn() } as never,
         { assertLoginAllowed: jest.fn() } as never,
+        { assertRegistrationEmailAllowed: jest.fn() } as never,
       );
 
       jwtStrategy = Object.create(JwtStrategy.prototype) as JwtStrategy;
@@ -472,6 +474,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         { encrypt: jest.fn(), decrypt: jest.fn() } as never,
         { dispatch: jest.fn() } as never,
         { assertLoginAllowed: jest.fn() } as never,
+        { assertRegistrationEmailAllowed: jest.fn() } as never,
       );
     });
 
@@ -577,6 +580,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         { encrypt: jest.fn(), decrypt: jest.fn() } as never,
         { dispatch: jest.fn() } as never,
         { assertLoginAllowed: jest.fn() } as never,
+        { assertRegistrationEmailAllowed: jest.fn() } as never,
       );
     });
 
@@ -717,6 +721,7 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         { encrypt: jest.fn(), decrypt: jest.fn() } as never,
         { dispatch: jest.fn() } as never,
         { assertLoginAllowed: jest.fn() } as never,
+        { assertRegistrationEmailAllowed: jest.fn() } as never,
       );
       (service as unknown as { logger: typeof logger }).logger = logger;
 

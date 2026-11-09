@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { AgentStatus, Prisma, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { ConfigService } from '@nestjs/config';
+import { EmailPolicyService } from '../../../common/email-policy/email-policy.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { MaintenanceAvailabilityService } from '../../maintenance-center/services/maintenance-availability.service';
 import { NotificationService } from '../../notification/services/notification.service';
@@ -23,12 +24,15 @@ export class AgentRegistrationService {
     private readonly notificationService: NotificationService,
     private readonly configService: ConfigService,
     private readonly maintenanceAvailability: MaintenanceAvailabilityService,
+    private readonly emailPolicy: EmailPolicyService,
   ) {}
 
   async registerPublic(dto: AgentRegisterDto) {
     this.maintenanceAvailability.assertLoginAllowed(UserRole.AGENT);
     const email = dto.email.trim().toLowerCase();
     const phone = dto.phone.trim();
+
+    this.emailPolicy.assertRegistrationEmailAllowed(email);
 
     const invite = await this.agentInviteService.requireInviteForMode(dto.inviteToken, email);
 

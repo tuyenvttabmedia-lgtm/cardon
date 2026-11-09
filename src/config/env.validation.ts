@@ -68,6 +68,19 @@ export const envValidationSchema = Joi.object({
   MEDIA_MAX_BYTES: Joi.number().integer().min(1024).optional(),
   CMS_MEDIA_GENERATE_WEBP: Joi.boolean().truthy('true').falsy('false').optional(),
   ADMIN_ALERT_EMAIL: Joi.string().email().optional(),
+  EMAIL_POLICY_ENABLED: Joi.string().optional().allow(''),
+  EMAIL_DOMAIN_ALLOWLIST: Joi.string().optional().allow(''),
+  ABUSE_RATE_LIMIT_ENABLED: Joi.string().optional().allow(''),
+  REDIS_ABUSE_URL: Joi.string().uri({ scheme: ['redis', 'rediss'] }).optional().allow(''),
+  ABUSE_REDIS_COMMAND_TIMEOUT_MS: Joi.number().integer().min(50).optional(),
+  SUPPORT_OPEN_CAP_ENABLED: Joi.string().optional().allow(''),
+  SUPPORT_OPEN_CAP: Joi.number().integer().min(1).max(50).optional(),
+  TURNSTILE_ENABLED: Joi.string().optional().allow(''),
+  TURNSTILE_SECRET_KEY: Joi.string().optional().allow(''),
+  TURNSTILE_ALLOWED_HOSTNAMES: Joi.string().optional().allow(''),
+  TURNSTILE_TIMEOUT_MS: Joi.number().integer().min(500).max(30_000).optional(),
+  TURNSTILE_MAX_AGE_SEC: Joi.number().integer().min(30).max(3600).optional(),
+  TURNSTILE_REPLAY_ENABLED: Joi.string().optional().allow(''),
 }).custom((env, helpers) => {
   try {
     assertProductionEnv(env as Record<string, unknown>);

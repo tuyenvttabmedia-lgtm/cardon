@@ -315,6 +315,10 @@ export class ConfigurationCenterService {
     const sepay = this.settingsStore.getSepayAdminView() as { enabled?: boolean; configured?: boolean };
     const smtp = this.settingsStore.getSmtpAdminView() as { enabled?: boolean; host?: string };
     const telegram = this.settingsStore.getTelegramAdminView() as { enabled?: boolean; chatId?: string };
+    const turnstile = this.settingsStore.getTurnstileAdminView() as {
+      enabled?: boolean;
+      ready?: boolean;
+    };
     const esale = this.settingsStore.getEsaleAdminView() as { enabled?: boolean; configured?: boolean };
     const system = this.settingsStore.getSystemAdminView() as { siteName?: string };
 
@@ -324,6 +328,11 @@ export class ConfigurationCenterService {
       this.moduleRow('orders', 'Orders', 'configured'),
       this.moduleRow('smtp', 'SMTP', smtp.host ? (smtp.enabled === false ? 'disabled' : 'configured') : 'needs_attention'),
       this.moduleRow('telegram', 'Telegram', telegram.enabled ? (telegram.chatId ? 'configured' : 'needs_attention') : 'disabled'),
+      this.moduleRow(
+        'turnstile',
+        'Turnstile',
+        turnstile.ready ? 'production_ready' : turnstile.enabled ? 'needs_attention' : 'disabled',
+      ),
       this.moduleRow('webhooks', 'Webhooks', megapay.configured || sepay.configured ? 'configured' : 'needs_attention'),
       this.moduleRow('security', 'Security', 'production_ready'),
       this.moduleRow('integrations', 'Integrations', 'configured'),
@@ -402,6 +411,7 @@ export class ConfigurationCenterService {
       system: SETTINGS_KEYS.SYSTEM,
       orders: SETTINGS_KEYS.ORDER,
       telegram: SETTINGS_KEYS.TELEGRAM,
+      turnstile: SETTINGS_KEYS.TURNSTILE,
       maintenance: SETTINGS_KEYS.MAINTENANCE,
       'feature-flags': SETTINGS_KEYS.SYSTEM,
       'content-ai': 'content.ai',

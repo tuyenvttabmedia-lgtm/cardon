@@ -8,6 +8,13 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
+import { AbuseRateLimitService } from '../../common/abuse-rate-limit/abuse-rate-limit.service';
+import {
+  TURNSTILE_ACTION_AGENT_REGISTER,
+  TURNSTILE_ACTION_REGISTER,
+} from '../../common/turnstile/turnstile.constants';
+import { TurnstileService } from '../../common/turnstile/turnstile.service';
+import { extractClientIp } from '../../common/utils/request-client.util';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Permissions } from '../../common/decorators/permissions.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -43,19 +50,43 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly rbacService: RbacService,
     private readonly agentRegistrationService: AgentRegistrationService,
+    private readonly abuseRateLimit: AbuseRateLimitService,
+    private readonly turnstile: TurnstileService,
   ) {}
 
   @Public()
   @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('register')
-  register(@Body() dto: RegisterDto) {
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    const ip = extractClientIp(req);
+    await this.turnstile.verifyOrThrow({
+      token: dto.captchaToken,
+      remoteIp: ip,
+      expectedAction: TURNSTILE_ACTION_REGISTER,
+    });
+    await this.abuseRateLimit.consumeOrThrow({
+      bucket: 'auth_register',
+      ip,
+      email: dto.email,
+    });
     return this.authService.register(dto);
   }
 
   @Public()
   @Throttle({ default: AUTH_REGISTER_THROTTLE })
   @Post('agent-register')
-  agentRegister(@Body() dto: AgentRegisterDto) {
+  async agentRegister(@Body() dto: AgentRegisterDto, @Req() req: Request) {
+    const ip = extractClientIp(req);
+    await this.turnstile.verifyOrThrow({
+      token: dto.captchaToken,
+      remoteIp: ip,
+      expectedAction: TURNSTILE_ACTION_AGENT_REGISTER,
+    });
+    await this.abuseRateLimit.consumeOrThrow({
+      bucket: 'auth_agent_register',
+      ip,
+      email: dto.email,
+    });
     return this.agentRegistrationService.registerPublic(dto);
   }
 
@@ -77,6 +108,10 @@ export class AuthController {
   @Throttle({ default: AUTH_LOGIN_THROTTLE })
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: Request) {
+    await this.abuseRateLimit.consumeOrThrow({
+      bucket: 'auth_login',
+      ip: extractClientIp(req),
+    });
     const result = await this.authService.login(dto, activityContextFromRequest(req));
     const permissions = await this.rbacService.getPermissionsForRole(result.user.role as never);
     return {

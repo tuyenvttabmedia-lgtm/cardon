@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import {
+  TurnstileField,
+  captchaErrorFromApi,
+  isTurnstileSiteKeyConfigured,
+  type TurnstileFieldHandle,
+} from '@/components/security/TurnstileField';
+import { useTurnstileSiteKey } from '@/hooks/useTurnstileSiteKey';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { authApi, ApiClientError } from '@/services/api-client';
@@ -16,6 +23,10 @@ const ACCOUNT_TYPES: { id: AccountType; label: string }[] = [
 ];
 
 export default function AgentRegisterPageClient() {
+  const captchaRef = useRef<TurnstileFieldHandle>(null);
+  const turnstileSiteKey = useTurnstileSiteKey();
+  const captchaRequired = isTurnstileSiteKeyConfigured(turnstileSiteKey);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [accountType, setAccountType] = useState<AccountType>('COMPANY');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -36,6 +47,10 @@ export default function AgentRegisterPageClient() {
       setError('Mật khẩu xác nhận không khớp');
       return;
     }
+    if (captchaRequired && !captchaToken) {
+      setError('Vui lòng hoàn tất xác minh bảo mật trước khi đăng ký.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -46,10 +61,20 @@ export default function AgentRegisterPageClient() {
         password,
         confirmPassword,
         acceptTerms,
+        captchaToken: captchaToken || undefined,
       });
       setSuccess({ message: res.message, partnerLoginUrl: res.partnerLoginUrl });
     } catch (err) {
-      setError(err instanceof ApiClientError ? err.message : 'Đăng ký thất bại');
+      const captchaErr = captchaErrorFromApi(err);
+      if (captchaErr) {
+        setError(captchaErr.message);
+        if (captchaErr.shouldReset) {
+          captchaRef.current?.reset();
+          setCaptchaToken(null);
+        }
+      } else {
+        setError(err instanceof ApiClientError ? err.message : 'Đăng ký thất bại');
+      }
     } finally {
       setLoading(false);
     }
@@ -168,9 +193,19 @@ export default function AgentRegisterPageClient() {
                 </span>
               </label>
 
+              <TurnstileField
+                ref={captchaRef}
+                action="agent-register"
+                onTokenChange={setCaptchaToken}
+              />
+
               {error && <p className="text-sm text-red-600">{error}</p>}
 
-              <Button className="w-full" type="submit" disabled={loading}>
+              <Button
+                className="w-full"
+                type="submit"
+                disabled={loading || (captchaRequired && !captchaToken)}
+              >
                 {loading ? 'Đang đăng ký...' : 'Đăng ký đại lý'}
               </Button>
 

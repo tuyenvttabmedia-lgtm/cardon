@@ -19,6 +19,7 @@ export enum AuditSnapshotKey {
   SYSTEM = 'system',
   ORDER = 'order',
   TELEGRAM = 'telegram',
+  TURNSTILE = 'turnstile',
   PROVIDER_RUNTIME = 'provider_runtime',
   CMS_SEO = 'cms_seo',
 }

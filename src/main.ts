@@ -2,8 +2,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { RequestMethod } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
-import express from 'express';
+import express, { type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { getAppProcessRole, shouldRegisterHttp } from './config/process-role';
@@ -31,7 +32,7 @@ async function bootstrap(): Promise<void> {
 
 
 
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
 
     bufferLogs: true,
 
@@ -47,7 +48,8 @@ async function bootstrap(): Promise<void> {
 
   app.useLogger(logger);
 
-
+  const trustProxyHops = configService.get<number>('app.trustProxyHops') ?? 1;
+  app.set('trust proxy', Number.isFinite(trustProxyHops) ? trustProxyHops : 1);
 
   const isProduction = configService.get<string>('app.env') === 'production';
 
@@ -63,7 +65,13 @@ async function bootstrap(): Promise<void> {
 
   );
 
-
+  // W2: support attachments are authenticated-only (legacy + new files).
+  app.use('/uploads/support', (_req: Request, res: Response) => {
+    res.status(401).json({
+      success: false,
+      error: { message: 'Authentication required for support attachments' },
+    });
+  });
 
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 

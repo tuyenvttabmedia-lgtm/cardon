@@ -271,6 +271,78 @@ export class AgentKycRepository {
     });
   }
 
+  /**
+   * Serialize KYC submit against concurrent requests by locking the agent row.
+   * Returns false when KYC is already SUBMITTED/APPROVED (no schema migration).
+   */
+  async tryUpsertSubmittedExclusive(
+    agentId: string,
+    data: {
+      accountType: import('@prisma/client').AgentAccountType;
+      profile: Record<string, unknown>;
+      documents: Record<string, string>;
+      businessProfile: Record<string, unknown>;
+      companyName: string;
+      taxCode: string;
+      representativeName: string;
+      documentFront: string;
+      documentBack: string;
+      businessLicense: string;
+    },
+  ): Promise<{ ok: true } | { ok: false; reason: 'already_submitted' }> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`
+        SELECT id FROM agents WHERE id = ${agentId}::uuid FOR UPDATE
+      `;
+      const existing = await tx.agentKyc.findUnique({ where: { agentId } });
+      if (
+        existing &&
+        (existing.status === AgentKycStatus.SUBMITTED ||
+          existing.status === AgentKycStatus.APPROVED)
+      ) {
+        return { ok: false as const, reason: 'already_submitted' as const };
+      }
+
+      await tx.agentKyc.upsert({
+        where: { agentId },
+        create: {
+          agentId,
+          accountType: data.accountType,
+          profile: data.profile as Prisma.InputJsonValue,
+          documents: data.documents as Prisma.InputJsonValue,
+          businessProfile: data.businessProfile as Prisma.InputJsonValue,
+          companyName: data.companyName,
+          taxCode: data.taxCode,
+          representativeName: data.representativeName,
+          documentFront: data.documentFront,
+          documentBack: data.documentBack,
+          businessLicense: data.businessLicense,
+          status: AgentKycStatus.SUBMITTED,
+          reviewNote: null,
+          requestedFields: Prisma.DbNull,
+        },
+        update: {
+          accountType: data.accountType,
+          profile: data.profile as Prisma.InputJsonValue,
+          documents: data.documents as Prisma.InputJsonValue,
+          businessProfile: data.businessProfile as Prisma.InputJsonValue,
+          companyName: data.companyName,
+          taxCode: data.taxCode,
+          representativeName: data.representativeName,
+          documentFront: data.documentFront,
+          documentBack: data.documentBack,
+          businessLicense: data.businessLicense,
+          status: AgentKycStatus.SUBMITTED,
+          reviewedById: null,
+          reviewedAt: null,
+          reviewNote: null,
+          requestedFields: Prisma.DbNull,
+        },
+      });
+      return { ok: true as const };
+    });
+  }
+
   approve(agentId: string, reviewedById: string) {
     return this.prisma.agentKyc.update({
       where: { agentId },

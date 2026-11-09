@@ -453,6 +453,31 @@ export class UpdateTelegramSettingsDto {
   botToken?: string;
 }
 
+export class UpdateTurnstileSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  siteKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  secretKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  allowedHostnames?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  clearSecret?: boolean;
+}
+
 export class PaymentMethodConfigDto {
   @IsString()
   @MaxLength(64)

@@ -261,6 +261,8 @@ export interface RegisterPayload {
   confirmPassword: string;
   identityNumber?: string;
   acceptTerms: boolean;
+  /** Cloudflare Turnstile token when Site Key is configured. */
+  captchaToken?: string;
 }
 
 export interface AuthResult {
@@ -286,6 +288,8 @@ export interface CreateOrderPayload {
   market?: 'VN' | 'INTL';
   locale?: 'vi' | 'en';
   clientDeviceInfo?: Record<string, unknown>;
+  /** Cloudflare Turnstile — guest checkout when site key configured / API enabled. */
+  captchaToken?: string;
 }
 
 export interface CreatePaymentPayload {

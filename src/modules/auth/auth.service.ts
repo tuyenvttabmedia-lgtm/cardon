@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { ErrorCode } from '../../common/constants/error-codes.constants';
+import { EmailPolicyService } from '../../common/email-policy/email-policy.service';
 import { AppHttpException } from '../../common/exceptions/app-http.exception';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationService } from '../notification/services/notification.service';
@@ -53,6 +54,7 @@ export class AuthService {
     private readonly settingsEncryption: SettingsEncryptionService,
     private readonly activityDispatcher: ActivityEventDispatcher,
     private readonly maintenanceAvailability: MaintenanceAvailabilityService,
+    private readonly emailPolicy: EmailPolicyService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
@@ -60,6 +62,8 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const username = dto.username.trim().toLowerCase();
     const phone = dto.phone.trim();
+
+    this.emailPolicy.assertRegistrationEmailAllowed(email);
 
     const [existingEmail, existingUsername, existingPhone] = await Promise.all([
       this.prisma.user.findFirst({

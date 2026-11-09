@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { validate } from 'class-validator';
+import { EMAIL_POLICY_REJECT_MESSAGE } from '../../common/email-policy/email-policy.constants';
 import { AuthService } from './auth.service';
 import { AuditService } from './audit.service';
 import { RegisterDto } from './dto/register.dto';
@@ -80,6 +82,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
   let settingsEncryption: { encrypt: jest.Mock; decrypt: jest.Mock };
   let notifyUserRegister: jest.Mock;
   let notifyPasswordReset: jest.Mock;
+  let emailPolicy: { assertRegistrationEmailAllowed: jest.Mock };
 
   const activeUser = {
     id: 'user-1',
@@ -144,6 +147,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
 
     notifyUserRegister = jest.fn();
     notifyPasswordReset = jest.fn();
+    emailPolicy = { assertRegistrationEmailAllowed: jest.fn() };
 
     authService = new AuthService(
       prisma as never,
@@ -156,6 +160,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
       settingsEncryption as never,
       { dispatch: jest.fn() } as never,
       { assertLoginAllowed: jest.fn() } as never,
+      emailPolicy as never,
     );
   });
 
@@ -195,6 +200,37 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
 
     await expect(authService.register(validRegisterDto())).rejects.toBeInstanceOf(
       ConflictException,
+    );
+  });
+
+  it('rejects denied email domains before create (W1)', async () => {
+    emailPolicy.assertRegistrationEmailAllowed.mockImplementation(() => {
+      throw new BadRequestException(EMAIL_POLICY_REJECT_MESSAGE);
+    });
+    const dto = validRegisterDto();
+    dto.email = 'probe@example.com';
+
+    await expect(authService.register(dto)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.user.create).not.toHaveBeenCalled();
+    expect(emailPolicy.assertRegistrationEmailAllowed).toHaveBeenCalledWith(
+      'probe@example.com',
+    );
+  });
+
+  it('still sets emailVerifiedAt for allowed retail register (unchanged)', async () => {
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue(activeUser);
+    prisma.emailVerificationToken.create.mockResolvedValue({});
+    prisma.refreshToken.create.mockResolvedValue({});
+
+    await authService.register(validRegisterDto());
+
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          emailVerifiedAt: expect.any(Date),
+        }),
+      }),
     );
   });
 

@@ -123,13 +123,16 @@ export class AgentService {
       legacy.companyName || agent.companyName,
     );
 
-    await this.kycRepository.upsertSubmitted(agent.id, {
+    const exclusive = await this.kycRepository.tryUpsertSubmittedExclusive(agent.id, {
       accountType: dto.accountType,
       profile: dto.profile,
       documents: dto.documents,
       businessProfile: dto.businessProfile,
       ...legacy,
     });
+    if (!exclusive.ok) {
+      throw new ConflictException('KYC already submitted or approved');
+    }
 
     await this.agentRepository.updateStatus(agent.id, AgentStatus.PENDING_KYC, {
       companyName,

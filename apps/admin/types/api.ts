@@ -1510,6 +1510,7 @@ export type ConfigurationModuleId =
   | 'orders'
   | 'smtp'
   | 'telegram'
+  | 'turnstile'
   | 'content-ai'
   | 'webhooks'
   | 'security'
@@ -2434,6 +2435,15 @@ export interface TelegramSettings extends SettingsSourceView {
   enabled?: boolean;
   chatId?: string;
   botToken?: string;
+}
+
+export interface TurnstileSettings extends SettingsSourceView {
+  enabled?: boolean;
+  siteKey?: string;
+  secretKey?: string;
+  secretConfigured?: boolean;
+  allowedHostnames?: string;
+  ready?: boolean;
 }
 
 export interface ContentAiSettings {

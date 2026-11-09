@@ -7,6 +7,8 @@ const SETTINGS_READONLY_KEYS = [
   'depositCodeReady',
   'pgLayerReady',
   'pgRefundReady',
+  'secretConfigured',
+  'ready',
 ] as const;
 
 export function stripSettingsReadonly<T extends Record<string, unknown>>(body: T): Partial<T> {

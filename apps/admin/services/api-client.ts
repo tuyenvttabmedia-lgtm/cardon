@@ -81,6 +81,7 @@ import type {
   SystemSettings,
   OrderSettings,
   TelegramSettings,
+  TurnstileSettings,
   ContentAiSettings,
   SystemAuditLog,
   SystemAuditLogListResponse,
@@ -1086,6 +1087,33 @@ export const supportAdminApi = {
   close(id: string) {
     return apiRequest<SupportTicket>(`/admin/support/tickets/${id}/close`, { method: 'PATCH' });
   },
+  async openAttachment(attachmentUrl: string) {
+    const markers = [
+      '/admin/support/files/',
+      '/account/support/files/',
+      '/uploads/support/',
+    ];
+    let filename = attachmentUrl.trim();
+    for (const marker of markers) {
+      const idx = filename.indexOf(marker);
+      if (idx >= 0) {
+        filename = decodeURIComponent(filename.slice(idx + marker.length).split('?')[0] ?? '');
+        break;
+      }
+    }
+    const token = getAccessToken();
+    const response = await fetch(
+      `${getApiBaseUrl()}/admin/support/files/${encodeURIComponent(filename)}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+    );
+    if (!response.ok) {
+      throw new ApiClientError('Không mở được ảnh đính kèm', response.status);
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    window.open(objectUrl, '_blank', 'noopener,noreferrer');
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  },
 };
 
 export const faqAdminApi = {
@@ -1427,6 +1455,15 @@ export const settingsAdminApi = {
   },
   updateTelegram(body: Partial<TelegramSettings>) {
     return apiRequest<TelegramSettings>('/admin/settings/telegram', {
+      method: 'PUT',
+      body: stripSettingsReadonly(body as Record<string, unknown>),
+    });
+  },
+  getTurnstile() {
+    return apiRequest<TurnstileSettings>('/admin/settings/turnstile');
+  },
+  updateTurnstile(body: Partial<TurnstileSettings> & { clearSecret?: boolean }) {
+    return apiRequest<TurnstileSettings>('/admin/settings/turnstile', {
       method: 'PUT',
       body: stripSettingsReadonly(body as Record<string, unknown>),
     });
