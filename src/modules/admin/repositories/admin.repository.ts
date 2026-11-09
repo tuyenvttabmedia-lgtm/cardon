@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   AgentStatus,
+  AuditTargetType,
   FulfillmentStatus,
   OrderPaymentStatus,
   PaymentGatewayCode,
@@ -456,43 +457,69 @@ export class AdminRepository {
     });
   }
 
-  findCustomers(filters: {
+  private buildCustomerListWhere(filters: {
     q?: string;
     status?: UserStatus;
-    skip?: number;
-    take?: number;
-  }) {
+    createdFrom?: Date;
+    createdToExclusive?: Date;
+  }): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
       deletedAt: null,
     };
     if (filters.status) where.status = filters.status;
+    if (filters.createdFrom || filters.createdToExclusive) {
+      where.createdAt = {};
+      if (filters.createdFrom) where.createdAt.gte = filters.createdFrom;
+      if (filters.createdToExclusive) where.createdAt.lt = filters.createdToExclusive;
+    }
     if (filters.q) {
       const q = filters.q.trim();
+      const uuidLike =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          q,
+        );
       where.OR = [
+        ...(uuidLike ? [{ id: q }] : []),
         { email: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
         { username: { contains: q, mode: 'insensitive' } },
         { fullName: { contains: q, mode: 'insensitive' } },
       ];
     }
+    return where;
+  }
+
+  async findCustomers(filters: {
+    q?: string;
+    status?: UserStatus;
+    createdFrom?: Date;
+    createdToExclusive?: Date;
+    skip?: number;
+    take?: number;
+  }) {
+    const where = this.buildCustomerListWhere(filters);
     const pagination = resolveAdminPagination(filters.skip, filters.take);
-    return this.prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        status: true,
-        lastLoginAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: pagination.skip,
-      take: pagination.take,
-    });
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return { items, total, skip: pagination.skip, take: pagination.take };
   }
 
   findCustomerById(id: string, orderSkip = 0, orderTake = 10) {
@@ -510,8 +537,9 @@ export class AdminRepository {
         acceptedTermsAt: true,
         lastLoginAt: true,
         createdAt: true,
+        updatedAt: true,
         orders: {
-          where: ACTIVE_ORDER_WHERE,
+          where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS },
           select: {
             id: true,
             orderCode: true,
@@ -519,6 +547,18 @@ export class AdminRepository {
             paymentStatus: true,
             fulfillmentStatus: true,
             createdAt: true,
+            orderItems: {
+              select: {
+                quantity: true,
+                variant: {
+                  select: {
+                    name: true,
+                    product: { select: { name: true } },
+                  },
+                },
+              },
+              take: 3,
+            },
           },
           orderBy: { createdAt: 'desc' },
           skip: pagination.skip,
@@ -526,24 +566,127 @@ export class AdminRepository {
         },
         _count: {
           select: {
-            orders: { where: ACTIVE_ORDER_WHERE },
+            orders: { where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS } },
           },
         },
       },
     });
   }
 
+  private customerOrderBaseWhere(userId: string): Prisma.OrderWhereInput {
+    return {
+      userId,
+      ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
+    };
+  }
+
+  /**
+   * Order KPIs counted on distinct Order rows (prisma order.count), never payment attempts.
+   * - successful = PAID + COMPLETED
+   * - failedOrCancelled = FAILED/EXPIRED payment OR fulfillment FAILED; excludes REFUNDED
+   * - refunded = paymentStatus REFUNDED (own bucket)
+   */
+  async aggregateCustomerOrderKpis(userId: string) {
+    const base = this.customerOrderBaseWhere(userId);
+    const [
+      totalOrders,
+      successfulOrders,
+      failedOrCancelledOrders,
+      refundedOrders,
+      paidAgg,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: base }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.COMPLETED,
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          NOT: { paymentStatus: OrderPaymentStatus.REFUNDED },
+          OR: [
+            {
+              paymentStatus: {
+                in: [OrderPaymentStatus.FAILED, OrderPaymentStatus.EXPIRED],
+              },
+            },
+            { fulfillmentStatus: FulfillmentStatus.FAILED },
+          ],
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.REFUNDED,
+        },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.PAID,
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalOrders,
+      successfulOrders,
+      failedOrCancelledOrders,
+      refundedOrders,
+      totalPaidAmount: paidAgg._sum.totalAmount ?? new Decimal(0),
+    };
+  }
+
   sumCustomerPaidTotal(userId: string) {
     return this.prisma.order.aggregate({
       where: {
-        userId,
-        deletedAt: null,
-        paymentStatus: 'PAID',
-        ...ACTIVE_ORDER_WHERE,
-        ...EXCLUDE_ADMIN_TEST_ORDERS,
+        ...this.customerOrderBaseWhere(userId),
+        paymentStatus: OrderPaymentStatus.PAID,
       },
       _sum: { totalAmount: true },
     });
+  }
+
+  /**
+   * Best-effort auth events from audit_logs (customer self-actor pattern in AuthService).
+   * AuthService writes LOGIN_* with adminId=targetId=customerId — exclude admin lock/unlock
+   * (different actions) and staff logins (different targetId).
+   * Not a dedicated Customer Login History table.
+   */
+  async findCustomerLoginAuditEvents(
+    customerId: string,
+    skip = 0,
+    take = 10,
+  ) {
+    const pagination = resolveAdminPagination(skip, take);
+    const where: Prisma.AuditLogWhereInput = {
+      targetType: AuditTargetType.USER,
+      targetId: customerId,
+      adminId: customerId,
+      action: { in: ['LOGIN_SUCCESS', 'LOGIN_FAILED'] },
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        select: {
+          id: true,
+          action: true,
+          ipAddress: true,
+          createdAt: true,
+          metadata: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    return { items, total, skip: pagination.skip, take: pagination.take };
   }
 
   findStaffUsers(filters: { skip?: number; take?: number }) {

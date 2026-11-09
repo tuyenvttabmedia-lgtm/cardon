@@ -49,6 +49,7 @@ import type {
   FaqListResponse,
   AdminCustomer,
   AdminCustomerDetail,
+  AdminCustomerListResponse,
   AdminOrderDetail,
   AdminOrderListItem,
   AdminOrderSummary,
@@ -698,12 +699,22 @@ export const adminApi = {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== '') q.set(k, String(v));
     });
-    return apiRequest<AdminCustomer[]>(`/admin/customers?${q}`);
+    return apiRequest<AdminCustomerListResponse>(`/admin/customers?${q}`);
   },
-  getCustomer(id: string, params?: { orderSkip?: number; orderTake?: number }) {
+  getCustomer(
+    id: string,
+    params?: {
+      orderSkip?: number;
+      orderTake?: number;
+      loginEventSkip?: number;
+      loginEventTake?: number;
+    },
+  ) {
     const q = new URLSearchParams();
     if (params?.orderSkip) q.set('orderSkip', String(params.orderSkip));
     if (params?.orderTake) q.set('orderTake', String(params.orderTake));
+    if (params?.loginEventSkip) q.set('loginEventSkip', String(params.loginEventSkip));
+    if (params?.loginEventTake) q.set('loginEventTake', String(params.loginEventTake));
     const qs = q.toString();
     return apiRequest<AdminCustomerDetail>(`/admin/customers/${id}${qs ? `?${qs}` : ''}`);
   },

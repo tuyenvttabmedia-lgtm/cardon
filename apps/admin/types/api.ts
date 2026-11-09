@@ -2619,15 +2619,60 @@ export interface AdminCustomer {
   status: string;
   lastLoginAt: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface AdminCustomerListResponse {
+  items: AdminCustomer[];
+  total: number;
+  skip: number;
+  take: number;
+}
+
+export interface AdminCustomerOrderKpis {
+  totalOrders: number;
+  successfulOrders: number;
+  failedOrCancelledOrders: number;
+  refundedOrders: number;
+  totalPaidAmount: string;
+}
+
+export interface AdminCustomerLoginAuditEvent {
+  id: string;
+  action: string;
+  ipAddress: string | null;
+  createdAt: string;
 }
 
 export interface AdminCustomerDetail {
-  profile: AdminCustomer & { emailVerifiedAt: string | null; acceptedTermsAt: string | null };
-  orders: Array<{ id: string; orderCode: string; totalAmount: unknown; paymentStatus: string; fulfillmentStatus: string; createdAt: string }>;
+  profile: AdminCustomer & {
+    emailVerifiedAt: string | null;
+    acceptedTermsAt: string | null;
+    updatedAt?: string;
+  };
+  orders: Array<{
+    id: string;
+    orderCode: string;
+    totalAmount: unknown;
+    paymentStatus: string;
+    fulfillmentStatus: string;
+    createdAt: string;
+    productSummary?: string;
+  }>;
   ordersTotal: number;
   orderSkip: number;
   orderTake: number;
+  kpis: AdminCustomerOrderKpis;
+  /** @deprecated use kpis.totalPaidAmount */
   totalSpending: string;
+  loginEvents: {
+    source: 'audit_logs';
+    note: string;
+    items: AdminCustomerLoginAuditEvent[];
+    total: number;
+    skip: number;
+    take: number;
+  };
 }
 
 export interface AdminStaff {
