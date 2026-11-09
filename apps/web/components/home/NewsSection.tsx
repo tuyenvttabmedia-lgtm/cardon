@@ -38,9 +38,9 @@ export function NewsSection({ posts, icon }: { posts: PublicBlogPost[]; icon?: R
         <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
       ) : null}
 
-      {/* Mobile: compact rows (small thumb). md+: keep home grid cards. */}
+      {/* Mobile: compact rows (small thumb). md+: 2×4 home grid. */}
       <div className="flex flex-col gap-2.5 md:hidden">
-        {desktopItems.slice(0, 4).map((post) => (
+        {desktopItems.map((post) => (
           <BlogCard
             key={post.id}
             post={post}

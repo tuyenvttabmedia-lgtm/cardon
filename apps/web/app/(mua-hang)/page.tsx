@@ -6,7 +6,7 @@ import { listBlogPosts, listFaqs } from '@/lib/cms-api';
 export default async function HomePage() {
   const locale = await readRequestLocale();
   const [newsPosts, faqs] = await Promise.all([
-    listBlogPosts({ take: 4, locale }),
+    listBlogPosts({ take: 8, locale }),
     listFaqs({ featured: true, limit: 6 }),
   ]);
   return (

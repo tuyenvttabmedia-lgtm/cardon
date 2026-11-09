@@ -304,7 +304,7 @@ export function CardonHomePage({
         />
       </section>
 
-      <NewsSection posts={newsPosts.slice(0, 4)} icon={<NewsIcon />} />
+      <NewsSection posts={newsPosts.slice(0, 8)} icon={<NewsIcon />} />
       <FaqSection
         featured
         limit={6}
