@@ -91,16 +91,16 @@ describe('commercial totals exclude boolean adminTest orders', () => {
     expect(settlement.sections[0].totalVolume).toBe('150000.00');
   });
 
-  it('asks the database for boolean true only', async () => {
+  it('asks the database to drop boolean adminTest true without dropping missing keys', async () => {
     const { repo, prisma } = repository();
     await repo.sumGatewayFees(dateFrom, dateTo);
     await repo.findB2cCompletedOrderItemsForVat(dateFrom, dateTo);
-    expect(whereOf(prisma.order.aggregate).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
-    expect((whereOf(prisma.orderItem.findMany).order as { NOT: unknown }).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
+    expect(whereOf(prisma.order.aggregate)).toEqual(
+      expect.objectContaining(EXCLUDE_ADMIN_TEST_ORDERS),
+    );
+    expect(whereOf(prisma.orderItem.findMany).order).toEqual(
+      expect.objectContaining(EXCLUDE_ADMIN_TEST_ORDERS),
+    );
   });
 });
 
@@ -125,9 +125,9 @@ describe('admin dashboard revenue skips boolean admin tests', () => {
     const stats = await repo.getDashboardStats();
     expect(stats.todayRevenue).toBe('150000.00');
     expect(stats.ordersCount).toBe(2);
-    expect(whereOf(prisma.order.count).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
+    expect(whereOf(prisma.order.count)).toEqual(
+      expect.objectContaining(EXCLUDE_ADMIN_TEST_ORDERS),
+    );
     expect(whereOf(prisma.payment.count).order).toEqual(EXCLUDE_ADMIN_TEST_ORDERS);
     expect(paid[1].clientTrace).toEqual({ adminTest: true });
   });
