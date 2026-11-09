@@ -95,7 +95,7 @@ describe('vat-invoice.engine', () => {
     expect(line.amountExclVat + line.vatAmount).toBe(196_000);
   });
 
-  it('uses confirmed eSale goods names for Viettel, Zing and Gosu', () => {
+  it('uses confirmed eSale goods names for phone/game cards; face only changes', () => {
     expect(
       esaleInvoiceGoodsName({
         productSlug: 'viettel-card',
@@ -103,6 +103,34 @@ describe('vat-invoice.engine', () => {
         fallbackName: 'Viettel 10k',
       }),
     ).toBe('Mã thẻ Viettel 10.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'vinaphone',
+        faceValue: 500_000,
+        fallbackName: 'Vinaphone 500k',
+      }),
+    ).toBe('Mã thẻ Vinaphone 500.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'vinaphone',
+        faceValue: 10_000,
+        fallbackName: 'Vinaphone 10k',
+      }),
+    ).toBe('Mã thẻ Vinaphone 10.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'mobifone',
+        faceValue: 100_000,
+        fallbackName: 'Mobifone 100k',
+      }),
+    ).toBe('Mã thẻ Mobifone 100.000VND');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'vietnamobile',
+        faceValue: 50_000,
+        fallbackName: 'Vietnamobile 50k',
+      }),
+    ).toBe('Mã thẻ Vietnamobile 50.000VND');
     expect(
       esaleInvoiceGoodsName({
         productSlug: 'zing-card',
@@ -145,6 +173,13 @@ describe('vat-invoice.engine', () => {
         fallbackName: 'Soha 100k',
       }),
     ).toBe('Soha 100k');
+    expect(
+      esaleInvoiceGoodsName({
+        productSlug: 'vinaphone-topup',
+        faceValue: 500_000,
+        fallbackName: 'PopupVina 500k',
+      }),
+    ).toBe('PopupVina 500k');
   });
 
   it('retail invoice line matches the e-invoice rounding', () => {

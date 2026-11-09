@@ -122,8 +122,9 @@ function formatFaceAmount(faceValue: number): string {
 }
 
 /**
- * Goods name on the retail VAT invoice, matching confirmed eSale input invoices.
- * Brands without a real supplier invoice sample keep the catalog variant name.
+ * Goods name on VAT packs, matching confirmed eSale invoice wording.
+ * Face amount only changes across denominations of the same brand.
+ * Brands / topup SKUs without a confirmed sample keep the catalog variant name.
  */
 export function esaleInvoiceGoodsName(input: {
   productSlug: string;
@@ -134,6 +135,12 @@ export function esaleInvoiceGoodsName(input: {
   switch (input.productSlug.trim().toLowerCase()) {
     case 'viettel-card':
       return `Mã thẻ Viettel ${face}VND`;
+    case 'vinaphone':
+      return `Mã thẻ Vinaphone ${face}VND`;
+    case 'mobifone':
+      return `Mã thẻ Mobifone ${face}VND`;
+    case 'vietnamobile':
+      return `Mã thẻ Vietnamobile ${face}VND`;
     case 'zing-card':
       return `Mã thẻ Zing ${face}VND`;
     case 'gosu-card':
