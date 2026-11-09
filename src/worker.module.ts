@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { AbuseRateLimitModule } from './common/abuse-rate-limit/abuse-rate-limit.module';
 import { EmailPolicyModule } from './common/email-policy/email-policy.module';
+import { TurnstileModule } from './common/turnstile/turnstile.module';
 import { AppConfigModule } from './config/app-config.module';
 import { DatabaseModule } from './database/database.module';
 import { LoggerModule } from './logger/logger.module';
@@ -26,6 +28,8 @@ import { WorkerHeartbeatService } from './queue/worker-heartbeat.service';
   imports: [
     AppConfigModule,
     EmailPolicyModule,
+    AbuseRateLimitModule,
+    TurnstileModule,
     DatabaseModule,
     QueueModule,
     LoggerModule,
