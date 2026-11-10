@@ -29,6 +29,8 @@ export type FooterColumn = {
 
 export type CompanyInfo = {
   companyName?: string;
+  /** Optional English company name for footer / copyright on /en. */
+  companyNameEn?: string;
   taxCode?: string;
   address?: string;
   /** Shown with the catalog email label. The address value is not translated. */
@@ -93,8 +95,12 @@ export const DEFAULT_FOOTER_LINK_COLUMNS: FooterColumn[] = [
 
 export function buildCompanyFooterColumn(company: CompanyInfo): FooterColumn {
   const links: FooterLink[] = [];
-  if (company.companyName?.trim()) {
-    links.push({ label: company.companyName.trim(), href: '/gioi-thieu' });
+  if (company.companyName?.trim() || company.companyNameEn?.trim()) {
+    links.push({
+      label: company.companyName?.trim() || company.companyNameEn!.trim(),
+      labelEn: optionalLabel(company.companyNameEn),
+      href: '/gioi-thieu',
+    });
   }
   if (company.taxCode?.trim()) {
     const tax = company.taxCode.trim();

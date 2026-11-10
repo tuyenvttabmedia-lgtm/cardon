@@ -192,6 +192,15 @@ describe('footer labels', () => {
     ).toBe('Working hours: 08:00 - 22:00 (Mon–Sun)');
   });
 
+  it('uses companyNameEn for the company name link on English', () => {
+    const column = buildCompanyFooterColumn({
+      companyName: 'Công Ty TNHH Giải Pháp Keyon',
+      companyNameEn: 'Keyon Solutions Co., Ltd.',
+    });
+    expect(presentFooterLink('vi', column.links[0])).toBe('Công Ty TNHH Giải Pháp Keyon');
+    expect(presentFooterLink('en', column.links[0])).toBe('Keyon Solutions Co., Ltd.');
+  });
+
   it('keeps company facts and shows a separate description per locale', () => {
     const column = buildCompanyFooterColumn({
       companyName: 'Công ty CardOn',

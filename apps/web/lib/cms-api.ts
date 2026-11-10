@@ -320,6 +320,7 @@ export interface CmsThemeSettings {
   }>;
   companyInfo?: {
     companyName?: string;
+    companyNameEn?: string;
     taxCode?: string;
     address?: string;
     addressEn?: string;

@@ -164,6 +164,7 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       return {
         ...theme.companyInfo,
         companyName: theme.companyInfo?.companyName ?? '',
+        companyNameEn: theme.companyInfo?.companyNameEn ?? '',
         taxCode,
         address,
         hotline,
