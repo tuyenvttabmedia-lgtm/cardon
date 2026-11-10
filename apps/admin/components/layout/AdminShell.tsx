@@ -3,10 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cn, ROLE_LABELS } from '@/lib/utils';
+import { ROLE_LABELS } from '@/lib/utils';
 import {
-  NAV_ITEMS,
-  canAccessNavItem,
   defaultRouteForRole,
   isAdminStaffRole,
 } from '@/lib/permissions';
@@ -15,60 +13,16 @@ import { Drawer, DialogCloseButton } from '@/components/ui/Dialog';
 import { vi } from '@/lib/i18n/vi';
 import { GlobalSearchBar } from '@/components/layout/GlobalSearchBar';
 import { AdminNotificationBell } from '@/components/layout/AdminNotificationBell';
+import {
+  DesktopSidebar,
+  SidebarBrand,
+  SidebarNav,
+} from '@/components/layout/AdminSidebar';
 import { useAuth } from '@/hooks/useAuth';
-
-function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const { permissions, user } = useAuth();
-
-  return (
-    <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Điều hướng chính">
-      <p className="px-3 pb-2 pt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-        Điều hành hệ thống
-      </p>
-      {NAV_ITEMS.filter((item) =>
-        canAccessNavItem(item, permissions, user?.role ?? ''),
-      ).map((item) => {
-        const active =
-          item.href === '/orders'
-            ? pathname === '/orders' || /^\/orders\/[^/]+$/.test(pathname)
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? 'page' : undefined}
-            onClick={onNavigate}
-            className={cn(
-              'block rounded-lg border-l-2 px-3 py-2.5 text-sm font-medium transition-all duration-150',
-              active
-                ? 'border-admin-400 bg-white/10 text-white shadow-sm'
-                : 'border-transparent text-slate-400 hover:border-slate-600 hover:bg-white/[0.06] hover:text-white',
-            )}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
 
 function useAdminHome(): string {
   const { user, permissions } = useAuth();
   return defaultRouteForRole(user?.role ?? '', permissions);
-}
-
-function SidebarBrand({ onNavigate }: { onNavigate?: () => void }) {
-  const homeHref = useAdminHome();
-  return (
-    <Link href={homeHref} className="group block" onClick={onNavigate}>
-      <span className="text-lg font-bold tracking-tight text-white">
-        CardOn <span className="text-admin-400 transition-colors group-hover:text-admin-300">Admin</span>
-      </span>
-      <span className="mt-1 block text-xs font-medium text-slate-500">Trung tâm vận hành</span>
-    </Link>
-  );
 }
 
 function MobileNavDrawer() {
@@ -105,7 +59,7 @@ function MobileNavDrawer() {
         open={open}
         onClose={close}
         title="Điều hướng chính"
-        panelClassName="border-r border-slate-800 bg-slate-950"
+        panelClassName="border-r border-white/5 bg-[#080D1C]"
       >
         <div className="flex items-start justify-between gap-3 border-b border-white/10 px-5 py-5">
           <SidebarBrand onNavigate={close} />
@@ -194,17 +148,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const homeHref = useAdminHome();
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 shadow-xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col">
-        <div className="border-b border-white/10 px-5 py-5">
-          <SidebarBrand />
-        </div>
-        <SidebarNav />
-        <div className="border-t border-white/10 px-5 py-4 text-xs text-slate-500">
-          Hệ thống quản trị nội bộ
-        </div>
-      </aside>
+      <DesktopSidebar />
 
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex min-w-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl sm:gap-3 lg:px-6">
           <MobileNavDrawer />
           <Link
