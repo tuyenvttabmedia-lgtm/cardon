@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { WEB_BUILD_VERSION } from '@/lib/build-version';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@/lib/footer-config';
 import { resolveAssetUrl } from '@/lib/assets';
 import { backgroundLayer } from '@/lib/home-backgrounds';
-import { SITE_NAME } from '@/lib/utils';
+import { SITE_NAME, cn } from '@/lib/utils';
 import { stripLocalePrefix } from '@/lib/i18n/locale';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import type { MessageKey } from '@/lib/i18n/messages';
@@ -21,6 +21,7 @@ import {
   resolveThemeDescription,
   resolveThemeTitle,
 } from '@/lib/i18n/theme-labels';
+import type { ContactChannel } from '@/lib/contact-channels';
 
 const TRUST_ITEMS: Array<{ icon: string; title: MessageKey; desc: MessageKey }> = [
   { icon: '⚡', title: 'trust.instant', desc: 'trust.instantBody' },
@@ -29,29 +30,55 @@ const TRUST_ITEMS: Array<{ icon: string; title: MessageKey; desc: MessageKey }> 
   { icon: '✓', title: 'trust.brand', desc: 'trust.brandBody' },
 ];
 
+const footerLinkClass =
+  'inline-block text-white/70 transition hover:text-cardon-orange hover:underline hover:underline-offset-4';
+const barLinkClass =
+  'text-white/50 transition hover:text-white hover:underline hover:underline-offset-4';
+
+function isExternalHref(href: string) {
+  return /^(mailto:|tel:|https?:\/\/)/i.test(href);
+}
+
+function FooterHref({
+  href,
+  className,
+  children,
+}: {
+  href: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  if (isExternalHref(href)) {
+    return (
+      <a href={href} className={className}>
+        {children}
+      </a>
+    );
+  }
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  );
+}
+
 function FooterColumnLinks({ col }: { col: FooterColumn }) {
   const { locale } = useLocale();
   const title = resolveThemeTitle(locale, col);
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
   return (
     <div className="min-w-0">
-      <p className="font-semibold text-white">{title}</p>
-      {description ? <p className="mt-2 text-sm text-white/70">{description}</p> : null}
-      <ul className="mt-3 space-y-2 text-sm text-white/75">
+      <p className="mb-3 text-sm font-semibold text-white">{title}</p>
+      {description ? <p className="mb-3 text-sm leading-relaxed text-white/70">{description}</p> : null}
+      <ul className="space-y-2.5 text-sm">
         {col.links.map((link) => {
           const label = presentFooterLink(locale, link);
           return (
-          <li key={`${col.title}-${link.href}-${link.label}`}>
-            {link.href.startsWith('mailto:') || link.href.startsWith('tel:') ? (
-              <a href={link.href} className="hover:text-cardon-orange">
+            <li key={`${col.title}-${link.href}-${link.label}`} className="min-w-0">
+              <FooterHref href={link.href} className={cn(footerLinkClass, 'break-words')}>
                 {label}
-              </a>
-            ) : (
-              <Link href={link.href} className="hover:text-cardon-orange">
-                {label}
-              </Link>
-            )}
-          </li>
+              </FooterHref>
+            </li>
           );
         })}
       </ul>
@@ -59,7 +86,58 @@ function FooterColumnLinks({ col }: { col: FooterColumn }) {
   );
 }
 
-function BoCongThuongBadge({ company }: { company: CompanyInfo }) {
+function BrandColumn({
+  col,
+  companyInfo,
+  logoSrc,
+}: {
+  col: FooterColumn;
+  companyInfo: CompanyInfo;
+  logoSrc?: string | null;
+}) {
+  const { locale } = useLocale();
+  const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
+  return (
+    <div className="min-w-0">
+      {logoSrc ? (
+        <Link href="/" className="mb-4 inline-flex max-w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element -- same CMS logo as the header */}
+          <img
+            src={logoSrc}
+            alt="CardOn.vn"
+            className="h-8 w-auto max-w-[min(180px,48vw)] object-contain object-left sm:h-9 sm:max-w-[200px]"
+          />
+        </Link>
+      ) : (
+        <p className="mb-3 text-lg font-semibold text-white">{SITE_NAME}</p>
+      )}
+      {description ? (
+        <p className="max-w-md text-sm leading-relaxed text-white/70">{description}</p>
+      ) : null}
+      <ul className="mt-4 max-w-md space-y-2.5 text-sm leading-relaxed text-white/70">
+        {col.links.map((link) => {
+          const label = presentFooterLink(locale, link);
+          return (
+            <li key={`${col.title}-${link.href}-${link.label}`} className="min-w-0">
+              <FooterHref href={link.href} className={cn(footerLinkClass, 'break-words')}>
+                {label}
+              </FooterHref>
+            </li>
+          );
+        })}
+      </ul>
+      <BoCongThuongBadge company={companyInfo} className="mt-4 lg:hidden" />
+    </div>
+  );
+}
+
+function BoCongThuongBadge({
+  company,
+  className,
+}: {
+  company: CompanyInfo;
+  className?: string;
+}) {
   const { locale } = useLocale();
   const badge = resolveBoCongThuongBadge(company, locale);
   if (!badge) return null;
@@ -69,47 +147,164 @@ function BoCongThuongBadge({ company }: { company: CompanyInfo }) {
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-4 inline-block max-w-[148px] opacity-90 transition hover:opacity-100"
+      className={cn('inline-block max-w-[148px] opacity-90 transition hover:opacity-100', className)}
       aria-label={badge.alt}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        className="mt-1 h-auto w-full object-contain object-left"
+        className="h-11 w-auto max-w-[168px] object-contain object-left sm:h-12 sm:max-w-[180px]"
       />
     </a>
   );
 }
 
-function FooterLinkGrid({
-  columns,
-  companyInfo,
-  className,
-  logoSrc,
-}: {
-  columns: FooterColumn[];
-  companyInfo: CompanyInfo;
-  className: string;
-  logoSrc?: string | null;
-}) {
+function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
+  const { locale } = useLocale();
+  const [open, setOpen] = useState<string | null>(null);
+
   return (
-    <div className={className}>
-      {columns.map((col, index) => (
-        <div
-          key={`${className}-${col.title}-${index}`}
-          className={index === 0 ? 'min-w-0 lg:pr-2' : 'min-w-0'}
-        >
-          {logoSrc && index === 0 ? (
-            <Link href="/" className="mb-4 inline-flex max-w-full">
-              {/* eslint-disable-next-line @next/next/no-img-element -- same CMS logo as the header */}
-              <img src={logoSrc} alt="CardOn.vn" className="h-10 max-h-10 w-auto max-w-[200px] object-contain object-left" />
+    <div className="border-t border-white/10 lg:hidden">
+      {columns.map((col) => {
+        const title = resolveThemeTitle(locale, col);
+        const key = `${col.title}-${title}`;
+        const isOpen = open === key;
+        return (
+          <div key={key} className="border-b border-white/10">
+            <button
+              type="button"
+              className="flex min-h-12 w-full items-center justify-between gap-3 py-3 text-left text-sm font-semibold text-white"
+              aria-expanded={isOpen}
+              onClick={() => setOpen(isOpen ? null : key)}
+            >
+              {title}
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={cn(
+                  'shrink-0 text-white/50 transition-transform duration-200',
+                  isOpen ? 'rotate-180' : '',
+                )}
+                aria-hidden
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {isOpen ? (
+              <ul className="space-y-2.5 pb-4 text-sm">
+                {col.links.map((link) => {
+                  const label = presentFooterLink(locale, link);
+                  return (
+                    <li key={`${col.title}-${link.href}-${link.label}`}>
+                      <FooterHref href={link.href} className={footerLinkClass}>
+                        {label}
+                      </FooterHref>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FooterBottomBar({
+  copyrightName,
+  companyInfo,
+  contactChannels,
+}: {
+  copyrightName: string;
+  companyInfo: CompanyInfo;
+  contactChannels: ContactChannel[];
+}) {
+  const t = useT();
+  const email =
+    companyInfo.email?.trim() ||
+    contactChannels.find((c) => c.key === 'email' && c.enabled)?.value?.trim() ||
+    '';
+  const fanpage = contactChannels.find((c) => c.key === 'fanpage' && c.enabled);
+  const zalo = contactChannels.find((c) => c.key === 'zalo' && c.enabled);
+  const badge = resolveBoCongThuongBadge(companyInfo);
+
+  return (
+    <div className="border-t border-white/10">
+      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+        <span className="shrink-0 text-xs leading-none text-white/50">
+          © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-center">
+          <nav
+            aria-label="Liên hệ nhanh"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5"
+          >
+            {email ? (
+              <a href={`mailto:${email}`} className={barLinkClass}>
+                {email}
+              </a>
+            ) : null}
+            {email ? (
+              <span className="text-white/25" aria-hidden>
+                ·
+              </span>
+            ) : null}
+            <Link href="/tro-giup" className={barLinkClass}>
+              {t('footer.support')}
             </Link>
-          ) : null}
-          <FooterColumnLinks col={col} />
-          {index === columns.length - 1 ? <BoCongThuongBadge company={companyInfo} /> : null}
+            <span className="text-white/25" aria-hidden>
+              ·
+            </span>
+            <Link href="/lien-he" className={barLinkClass}>
+              {t('nav.contact')}
+            </Link>
+          </nav>
+
+          {(fanpage?.href || zalo?.href) && (
+            <div className="flex items-center gap-2" aria-label="Mạng xã hội">
+              {fanpage?.href ? (
+                <a
+                  href={fanpage.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
+                  aria-label="Facebook"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
+                  </svg>
+                </a>
+              ) : null}
+              {zalo?.href ? (
+                <a
+                  href={zalo.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[10px] font-bold text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
+                  aria-label="Zalo"
+                >
+                  Zalo
+                </a>
+              ) : null}
+            </div>
+          )}
         </div>
-      ))}
+
+        {badge ? (
+          <div className="hidden flex-wrap items-center gap-3 lg:flex lg:justify-end" aria-label="Chứng nhận">
+            <BoCongThuongBadge company={companyInfo} />
+          </div>
+        ) : (
+          <span className="hidden lg:block" aria-hidden />
+        )}
+      </div>
     </div>
   );
 }
@@ -118,14 +313,20 @@ export function Footer() {
   const pathname = usePathname();
   const t = useT();
   const { locale } = useLocale();
-  const { footerColumns, companyInfo, logoDesktop, homeBackgrounds } = useThemeSettings();
+  const { footerColumns, companyInfo, logoDesktop, homeBackgrounds, contactChannels } =
+    useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
   const homeLogo = home ? resolveAssetUrl(logoDesktop) : null;
-  const footerArt = home ? backgroundLayer(homeBackgrounds.siteFooterBg, 'center bottom', '100% auto') : undefined;
+  const footerArt = home
+    ? backgroundLayer(homeBackgrounds.siteFooterBg, 'center bottom', '100% auto')
+    : undefined;
   const copyrightName =
     locale === 'en' && companyInfo.companyNameEn?.trim()
       ? companyInfo.companyNameEn.trim()
       : companyInfo.companyName?.trim() || SITE_NAME;
+
+  const brandColumn = footerColumns[0];
+  const linkColumns = footerColumns.slice(1);
 
   useEffect(() => {
     console.log(`WEB_BUILD_VERSION=${WEB_BUILD_VERSION}`);
@@ -153,24 +354,47 @@ export function Footer() {
       )}
 
       <div className={`border-t border-white/10 ${home ? 'bg-transparent' : 'bg-[#152d6b]'}`}>
-        <div className="site-container py-10">
-          <FooterLinkGrid
-            columns={footerColumns}
-            companyInfo={companyInfo}
-            logoSrc={homeLogo}
-            className="footer-links grid grid-cols-2 items-start gap-x-8 gap-y-8 md:hidden"
-          />
-          <FooterLinkGrid
-            columns={footerColumns}
-            companyInfo={companyInfo}
-            logoSrc={homeLogo}
-            className="footer-links hidden grid-cols-2 items-start gap-x-10 gap-y-8 md:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.8fr)_minmax(0,1.05fr)_minmax(0,0.9fr)]"
-          />
+        <div className="site-container py-10 lg:py-12">
+          {/* Mobile: brand + Keyon-style accordion */}
+          <div className="lg:hidden">
+            {brandColumn ? (
+              <div className="mb-8">
+                <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
+              </div>
+            ) : null}
+            <FooterAccordions columns={linkColumns} />
+          </div>
+
+          {/* Desktop: multi-column grid */}
+          <div
+            className={cn(
+              'footer-links hidden items-start gap-x-10 gap-y-8 lg:grid',
+              linkColumns.length >= 3
+                ? 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.8fr)_minmax(0,1.05fr)_minmax(0,0.9fr)]'
+                : linkColumns.length === 2
+                  ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]'
+                  : 'lg:grid-cols-2',
+            )}
+          >
+            {brandColumn ? (
+              <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
+            ) : null}
+            {linkColumns.map((col, index) => (
+              <div key={`${col.title}-${index}`} className="min-w-0">
+                <FooterColumnLinks col={col} />
+                {index === linkColumns.length - 1 ? (
+                  <BoCongThuongBadge company={companyInfo} className="mt-4" />
+                ) : null}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
-          © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
-        </div>
+        <FooterBottomBar
+          copyrightName={copyrightName}
+          companyInfo={companyInfo}
+          contactChannels={contactChannels}
+        />
       </div>
     </footer>
   );

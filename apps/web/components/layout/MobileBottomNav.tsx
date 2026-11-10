@@ -7,6 +7,7 @@ import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { filterMobileNavBySiteConfig, useSiteConfig } from '@/hooks/useSiteConfig';
 import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
+import { compactMobileNavLabel } from '@/lib/mobile-nav-label';
 import { cn } from '@/lib/utils';
 
 function navItemActive(pathname: string, url: string): boolean {
@@ -34,7 +35,7 @@ function MobileNavItem({
   onClick?: () => void;
 }) {
   const className = cn(
-    'relative flex h-16 w-full flex-col items-center justify-center gap-0.5 px-1',
+    'relative flex h-[3.75rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 px-0.5',
   );
   const content = (
     <>
@@ -44,7 +45,7 @@ function MobileNavItem({
       <span
         aria-hidden
         className={cn(
-          'flex h-[22px] w-[22px] items-center justify-center text-[22px] leading-none',
+          'flex h-[20px] w-[20px] shrink-0 items-center justify-center text-[20px] leading-none',
           active ? 'text-cardon-blue' : 'text-cardon-gray',
         )}
       >
@@ -52,7 +53,7 @@ function MobileNavItem({
       </span>
       <span
         className={cn(
-          'text-[10px]',
+          'w-full max-w-full px-0.5 text-center text-[9px] leading-[1.15] break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden',
           active ? 'font-semibold text-cardon-blue' : 'font-medium text-cardon-gray',
         )}
       >
@@ -182,25 +183,26 @@ export function MobileBottomNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-cardon-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <ul className="mx-auto flex h-16 max-w-site items-stretch justify-around px-1">
+        <ul className="mx-auto flex h-[3.75rem] max-w-site items-stretch justify-between gap-0 px-0.5">
           {visible.map((item) => {
             const active = navItemActive(pathname, item.url);
             const isAccount = isAccountItem(item.url, item.requireLogin);
+            const label = compactMobileNavLabel(resolveMenuLabel(locale, item));
 
             return (
-              <li key={`${item.url}-${item.label}`} className="flex min-w-0 flex-1">
+              <li key={`${item.url}-${item.label}`} className="flex min-w-0 flex-1 basis-0">
                 {isAccount ? (
                   <MobileNavItem
                     active={active}
                     icon={item.icon}
-                    label={resolveMenuLabel(locale, item)}
+                    label={label}
                     onClick={() => setAccountOpen(true)}
                   />
                 ) : (
                   <MobileNavItem
                     active={active}
                     icon={item.icon}
-                    label={resolveMenuLabel(locale, item)}
+                    label={label}
                     href={item.url}
                   />
                 )}
