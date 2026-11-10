@@ -11,7 +11,8 @@ import type { MessageKey } from '@/lib/i18n/messages';
 const MENU: Array<{ href: string; label: MessageKey; requiresData?: boolean }> = [
   { href: ACCOUNT_PATHS.profile, label: 'account.profile' },
   { href: ACCOUNT_PATHS.orders, label: 'account.orders' },
-  { href: ACCOUNT_PATHS.cards, label: 'account.cards' },
+  { href: ACCOUNT_PATHS.gameCards, label: 'account.gameCards' },
+  { href: ACCOUNT_PATHS.phoneCards, label: 'account.phoneCards' },
   { href: ACCOUNT_PATHS.esim, label: 'account.esim' },
   { href: ACCOUNT_PATHS.topups, label: 'account.topups' },
   { href: ACCOUNT_PATHS.data, label: 'account.data', requiresData: true },

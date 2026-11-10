@@ -3,7 +3,11 @@ import { UserRole } from '@prisma/client';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { ChangePasswordDto, UpdateProfileDto } from '../../admin/dto/admin-operation.dto';
-import { CustomerOrderQueryDto, AccountListQueryDto } from '../../order/dto/customer-order-query.dto';
+import {
+  AccountCardsQueryDto,
+  AccountListQueryDto,
+  CustomerOrderQueryDto,
+} from '../../order/dto/customer-order-query.dto';
 import { NotificationService } from '../../notification/services/notification.service';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
@@ -51,8 +55,8 @@ export class AccountController {
   }
 
   @Get('cards')
-  listCards(@CurrentUser() user: AuthenticatedUser, @Query() query: AccountListQueryDto) {
-    return this.accountService.listPurchasedCards(user.id, query.skip, query.take);
+  listCards(@CurrentUser() user: AuthenticatedUser, @Query() query: AccountCardsQueryDto) {
+    return this.accountService.listPurchasedCards(user.id, query.skip, query.take, query.homeService);
   }
 
   @Get('topups')

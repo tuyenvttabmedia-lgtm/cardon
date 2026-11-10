@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils';
 const LINKS: Array<{ href: string; labelKey: MessageKey; icon: string; requiresData?: boolean }> = [
   { href: ACCOUNT_PATHS.profile, labelKey: 'account.profile', icon: '👤' },
   { href: ACCOUNT_PATHS.orders, labelKey: 'account.orders', icon: '📋' },
-  { href: ACCOUNT_PATHS.cards, labelKey: 'account.cardsBought', icon: '💳' },
+  { href: ACCOUNT_PATHS.gameCards, labelKey: 'account.gameCards', icon: '🎮' },
+  { href: ACCOUNT_PATHS.phoneCards, labelKey: 'account.phoneCards', icon: '📱' },
   { href: ACCOUNT_PATHS.esim, labelKey: 'account.esim', icon: '📶' },
   { href: ACCOUNT_PATHS.topups, labelKey: 'account.topups', icon: '⚡' },
   { href: ACCOUNT_PATHS.data, labelKey: 'account.data', icon: '📶', requiresData: true },

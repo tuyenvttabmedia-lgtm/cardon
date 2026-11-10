@@ -268,10 +268,11 @@ export const accountApi = {
   getEsimProfile(orderId: string) {
     return apiRequest<import('@/types/api').EsimDelivery>(`/esim/profiles/${orderId}`);
   },
-  listCards(skip = 0, take = 15) {
+  listCards(skip = 0, take = 15, homeService?: 'GAME_CARD' | 'PHONE_CARD') {
     const params = new URLSearchParams();
     if (skip > 0) params.set('skip', String(skip));
     if (take !== 15) params.set('take', String(take));
+    if (homeService) params.set('homeService', homeService);
     const qs = params.toString();
     return apiRequest<import('@/types/api').PaginatedList<AccountCard>>(
       `/account/cards${qs ? `?${qs}` : ''}`,
