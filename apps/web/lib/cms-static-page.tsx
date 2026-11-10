@@ -3,8 +3,9 @@ import { notFound } from 'next/navigation';
 import { ContactPageClient } from '@/components/contact/ContactPageClient';
 import { CmsPageView } from '@/components/cms/CmsPageView';
 import { getCmsPage, listStaticNavPages } from '@/lib/cms-api';
-import { GIOI_THIEU_LANDING_HTML } from '@/lib/cms-block-snippets';
+import { GIOI_THIEU_LANDING_HTML, LIEN_HE_INTRO_HTML } from '@/lib/cms-block-snippets';
 import { defaultPageLayoutForSlug, resolveEffectivePageLayout, type CmsPageLayoutValue } from '@/lib/cms-page-layout';
+import { translate } from '@/lib/i18n/messages';
 import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { buildCmsMetadata, isPublishedEnglishDocument } from '@/lib/seo';
 import { staticPageLabel } from '@/lib/static-pages';
@@ -37,9 +38,7 @@ export const CMS_STATIC_FALLBACK: Record<string, string> = {
     <p>Thanh toán được xử lý tự động sau khi hệ thống xác nhận giao dịch.</p>
   `,
   'gioi-thieu': GIOI_THIEU_LANDING_HTML,
-  'lien-he': `
-    <p>Liên hệ CardOn.vn — chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.</p>
-  `,
+  'lien-he': LIEN_HE_INTRO_HTML,
 };
 
 const FALLBACK_EXCERPTS: Record<string, string> = {
@@ -105,16 +104,21 @@ export async function renderCmsContentPage(slug: string) {
 export async function renderContactPage() {
   const locale = await readRequestLocale();
   const page = await getCmsPage('lien-he', locale);
-  const title = page?.title ?? staticPageLabel('lien-he');
-  const intro = page?.content ?? CMS_STATIC_FALLBACK['lien-he'];
-  const subtitle = page?.excerpt?.trim() || 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.';
+  const title = page?.title?.trim() || translate(locale, 'contact.title');
+  const excerpt = page?.excerpt?.trim();
+  const subtitle = excerpt || translate(locale, 'contact.subtitle');
+  const hasCmsContent = Boolean(page?.content?.trim());
+  const intro =
+    page?.content?.trim() ||
+    (locale === 'vi' ? CMS_STATIC_FALLBACK['lien-he'] : undefined);
+  const contentFallback = locale === 'en' && Boolean(page) && page?.fallback !== false;
 
   return (
     <ContactPageClient
       title={title}
       subtitle={subtitle}
       introHtml={intro}
-      contentFallback={locale === 'en' && page?.fallback !== false}
+      contentFallback={contentFallback && hasCmsContent}
     />
   );
 }

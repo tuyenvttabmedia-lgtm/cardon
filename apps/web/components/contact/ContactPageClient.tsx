@@ -81,7 +81,12 @@ export function ContactPageClient({
       ) : null}
       {introHtml ? (
         <div className="mt-6 rounded-2xl border border-cardon-border bg-white p-5 shadow-card md:p-6">
-          <SafeCmsHtml html={introHtml} className="cms-prose" />
+          <SafeCmsHtml
+            html={introHtml}
+            className={
+              /cms-block-/i.test(introHtml) ? 'cms-prose cms-landing' : 'cms-prose'
+            }
+          />
         </div>
       ) : null}
 

@@ -11,7 +11,11 @@ import { slugifyVi } from '@/lib/slugify-vi';
 import { vi } from '@/lib/i18n/vi';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsCategory, CmsPage, CmsTag } from '@/types/api';
-import { GIOI_THIEU_LANDING_HTML } from '@/lib/cms-block-snippets';
+import {
+  GIOI_THIEU_LANDING_HTML,
+  LIEN_HE_INTRO_HTML,
+  LIEN_HE_INTRO_HTML_EN,
+} from '@/lib/cms-block-snippets';
 import {
   emptyCmsForm,
   fromDatetimeLocalValue,
@@ -193,35 +197,66 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
       return;
     }
 
-    const presets = {
+    const presets: Record<
+      'gioi-thieu' | 'lien-he',
+      {
+        title: string;
+        excerpt: string;
+        content: string;
+        pageLayout: 'ARTICLE' | 'LANDING';
+        english?: {
+          title: string;
+          excerpt: string;
+          content: string;
+          metaTitle: string;
+          metaDescription: string;
+        };
+      }
+    > = {
       'gioi-thieu': {
         title: 'Giới thiệu',
         excerpt:
           'Nền tảng mua thẻ game, thẻ điện thoại và nạp cước trực tuyến uy tín tại Việt Nam.',
         content: GIOI_THIEU_LANDING_HTML,
-        pageLayout: 'LANDING' as const,
+        pageLayout: 'LANDING',
       },
       'lien-he': {
         title: 'Liên hệ',
         excerpt: 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.',
-        content: '<p>Liên hệ CardOn.vn — chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.</p>',
-        pageLayout: 'ARTICLE' as const,
+        content: LIEN_HE_INTRO_HTML,
+        pageLayout: 'ARTICLE',
+        english: {
+          title: 'Contact CardOn',
+          excerpt: 'We are here to help.',
+          content: LIEN_HE_INTRO_HTML_EN,
+          metaTitle: 'Contact CardOn',
+          metaDescription: 'Contact CardOn support for cards, top-up, payments and order lookup.',
+        },
       },
-    }[slug];
+    };
+    const preset = presets[slug];
 
     setEditingId(null);
     setEditorLocale('vi');
-    setEnglish(emptyEnglishPageDraft());
+    setEnglish(
+      preset.english
+        ? {
+            ...emptyEnglishPageDraft(),
+            ...preset.english,
+            status: 'DRAFT',
+          }
+        : emptyEnglishPageDraft(),
+    );
     setForm({
       ...emptyCmsForm(),
-      title: presets.title,
+      title: preset.title,
       slug,
       slugManual: true,
-      excerpt: presets.excerpt,
-      content: presets.content,
-      pageLayout: presets.pageLayout,
-      metaTitle: presets.title,
-      metaDescription: presets.excerpt,
+      excerpt: preset.excerpt,
+      content: preset.content,
+      pageLayout: preset.pageLayout,
+      metaTitle: preset.title,
+      metaDescription: preset.excerpt,
     });
     setAuthorLabel('CardOn');
     setLastSavedAt(null);
@@ -659,6 +694,13 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                   onPickImage={pickImageUrl}
                   linkTargets={linkTargets}
                   pageLayout={form.pageLayout}
+                  templateKey={
+                    form.slug === 'gioi-thieu'
+                      ? 'gioi-thieu-full'
+                      : form.slug === 'lien-he'
+                        ? 'lien-he-intro'
+                        : undefined
+                  }
                 />
               </main>
 

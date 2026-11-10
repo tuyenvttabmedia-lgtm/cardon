@@ -40,6 +40,7 @@ const LAYOUT_SLASH_ITEMS: Array<{ key: CmsBlockSnippetKey; icon: string }> = [
   { key: 'features', icon: '✦' },
   { key: 'cta', icon: '⬚' },
   { key: 'gioi-thieu-full', icon: '★' },
+  { key: 'lien-he-intro', icon: '☎' },
 ];
 
 const SLASH_CATEGORIES = [
@@ -102,6 +103,8 @@ export interface ProfessionalEditorProps {
   linkTargets?: Array<{ label: string; href: string; type: string }>;
   placeholder?: string;
   pageLayout?: 'ARTICLE' | 'LANDING' | 'POLICY';
+  /** Optional full-page / intro restore button (Giới thiệu / Liên hệ). */
+  templateKey?: 'gioi-thieu-full' | 'lien-he-intro';
 }
 
 function ProfessionalEditorInner({
@@ -111,12 +114,21 @@ function ProfessionalEditorInner({
   linkTargets = [],
   placeholder = "Bắt đầu viết hoặc nhập '/' để chèn block...",
   pageLayout = 'ARTICLE',
+  templateKey,
 }: ProfessionalEditorProps) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashFilter, setSlashFilter] = useState('');
-  const [htmlMode, setHtmlMode] = useState(pageLayout === 'LANDING');
+  const [htmlMode, setHtmlMode] = useState(
+    pageLayout === 'LANDING' || templateKey === 'lien-he-intro',
+  );
   const landingLocked = pageLayout === 'LANDING';
+  const templateLabel =
+    templateKey === 'lien-he-intro'
+      ? 'Mẫu Liên hệ (intro)'
+      : templateKey === 'gioi-thieu-full'
+        ? 'Mẫu Giới thiệu đầy đủ'
+        : null;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -379,20 +391,20 @@ function ProfessionalEditorInner({
               {'</>'}
             </ToolbarBtn>
           ) : null}
-          {landingLocked ? (
+          {templateKey && templateLabel ? (
             <ToolbarBtn
-              title="Khôi phục mẫu Giới thiệu đầy đủ"
+              title={`Khôi phục ${templateLabel}`}
               onClick={() => {
                 if (
                   value.trim() &&
-                  !window.confirm('Thay toàn bộ nội dung bằng mẫu Giới thiệu đầy đủ?')
+                  !window.confirm(`Thay toàn bộ nội dung bằng ${templateLabel}?`)
                 ) {
                   return;
                 }
-                onChangeRef.current(CMS_BLOCK_SNIPPETS['gioi-thieu-full']);
+                onChangeRef.current(CMS_BLOCK_SNIPPETS[templateKey]);
               }}
             >
-              ★ Mẫu
+              {templateKey === 'lien-he-intro' ? '☎ Mẫu' : '★ Mẫu'}
             </ToolbarBtn>
           ) : null}
           {pageLayout === 'LANDING'
