@@ -43,15 +43,19 @@ function purchaseHref(product: Product): string {
 export function CardonHomePage({
   newsPosts,
   initialFaqs,
+  initialHeroBg,
 }: {
   newsPosts: PublicBlogPost[];
   initialFaqs?: PublicFaqItem[];
+  /** SSR theme hero so first paint matches LCP preload (avoids default→CMS swap). */
+  initialHeroBg?: string;
 }) {
   const t = useT();
   const { products, loading } = useProducts();
   const { homeBackgrounds } = useThemeSettings();
   const [query, setQuery] = useState('');
   const normalized = query.trim().toLowerCase();
+  const heroBg = homeBackgrounds.homeHeroBg || initialHeroBg;
 
   const gameProducts = products.filter((product) => product.homeService === 'GAME_CARD').slice(0, 8);
   const phoneProducts = products.filter((product) => product.homeService === 'PHONE_CARD').slice(0, 4);
@@ -86,7 +90,7 @@ export function CardonHomePage({
   return (
     <div className="pb-6 md:pb-8">
       <StorefrontHero
-        backgroundUrl={homeBackgrounds.homeHeroBg}
+        backgroundUrl={heroBg}
         title={t('home.heroTitle')}
         subtitle={t('home.heroBody')}
         headingLevel="h1"

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -10,7 +11,7 @@ import {
   type CompanyInfo,
   type FooterColumn,
 } from '@/lib/footer-config';
-import { resolveAssetUrl } from '@/lib/assets';
+import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
 import { backgroundLayer } from '@/lib/home-backgrounds';
 import { SITE_NAME, cn } from '@/lib/utils';
 import { stripLocalePrefix } from '@/lib/i18n/locale';
@@ -100,13 +101,35 @@ function BrandColumn({
   return (
     <div className="min-w-0">
       {logoSrc ? (
-        <Link href="/" className="mb-4 inline-flex max-w-full">
-          {/* eslint-disable-next-line @next/next/no-img-element -- same CMS logo as the header */}
-          <img
-            src={logoSrc}
-            alt="CardOn.vn"
-            className="h-8 w-auto max-w-[min(180px,48vw)] object-contain object-left sm:h-9 sm:max-w-[200px]"
-          />
+        <Link
+          href="/"
+          className="relative mb-4 inline-block h-8 w-[min(180px,48vw)] sm:h-9 sm:w-[200px]"
+        >
+          {(() => {
+            const optimized = optimizerImageSrc(logoSrc) ?? logoSrc;
+            if (isOptimizableImageSrc(optimized)) {
+              return (
+                <Image
+                  src={optimized}
+                  alt="CardOn.vn"
+                  fill
+                  sizes="(max-width: 640px) 180px, 200px"
+                  quality={60}
+                  className="object-contain object-left"
+                />
+              );
+            }
+            return (
+              // eslint-disable-next-line @next/next/no-img-element -- remote non-optimizer logo
+              <img
+                src={logoSrc}
+                alt="CardOn.vn"
+                width={200}
+                height={36}
+                className="h-full w-full object-contain object-left"
+              />
+            );
+          })()}
         </Link>
       ) : (
         <p className="mb-3 text-lg font-semibold text-white">{SITE_NAME}</p>
