@@ -257,8 +257,9 @@ export const authApi = {
 };
 
 export const adminApi = {
-  getDashboard() {
-    return apiRequest<DashboardStats>('/admin/dashboard');
+  getDashboard(period?: 'today' | 'last7' | 'month') {
+    const q = period ? `?period=${encodeURIComponent(period)}` : '';
+    return apiRequest<DashboardStats>(`/admin/dashboard${q}`);
   },
   listOrders(params: Record<string, string | number | undefined>) {
     const q = new URLSearchParams();

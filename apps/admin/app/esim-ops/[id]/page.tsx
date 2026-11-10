@@ -45,6 +45,7 @@ export default function EsimOpsDetailPage() {
   const [boundOrderId, setBoundOrderId] = useState<string | undefined>(params.id);
   const [revealing, setRevealing] = useState(false);
   const [confirmPay, setConfirmPay] = useState(false);
+  const [confirmRecover, setConfirmRecover] = useState(false);
   const [confirmCloseClaim, setConfirmCloseClaim] = useState(false);
   const [closeReason, setCloseReason] = useState('');
   const [closingClaim, setClosingClaim] = useState(false);
@@ -67,6 +68,7 @@ export default function EsimOpsDetailPage() {
     setCheckout(null);
     setPayError(null);
     setConfirmCloseClaim(false);
+    setConfirmRecover(false);
     setCloseReason('');
     setClosingClaim(false);
   }
@@ -103,6 +105,7 @@ export default function EsimOpsDetailPage() {
           ? 'Đã lấy mã cài từ nhà cung cấp.'
           : `Đã đọc lại nhà cung cấp — ${result.fulfillmentStatus}. Không tạo eSIM mới. Chưa có mã cài thì xem lỗi bên dưới.`,
       );
+      setConfirmRecover(false);
       await load();
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Không đọc được đơn từ nhà cung cấp');
@@ -227,7 +230,7 @@ export default function EsimOpsDetailPage() {
                 Làm mới
               </Button>
               {canRecover && (
-                <Button onClick={() => void recover()} disabled={busy}>
+                <Button onClick={() => setConfirmRecover(true)} disabled={busy}>
                   {busy
                     ? 'Đang đọc nhà cung cấp…'
                     : hasAiralo
@@ -541,6 +544,57 @@ export default function EsimOpsDetailPage() {
           </div>
         )}
 
+        <Dialog
+          open={confirmRecover}
+          onClose={() => {
+            if (!busy) setConfirmRecover(false);
+          }}
+          title="Xác nhận đọc lại nhà cung cấp"
+          description={
+            detail
+              ? `Đơn ${detail.orderCode} · TT ${detail.paymentStatus} · Giao ${detail.fulfillmentStatus}`
+              : undefined
+          }
+          closeOnOverlayClick={!busy}
+          footer={(
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => setConfirmRecover(false)}
+              >
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                disabled={busy}
+                onClick={() => void recover()}
+              >
+                {busy ? 'Đang đọc nhà cung cấp…' : 'Xác nhận đọc lại'}
+              </Button>
+            </>
+          )}
+        >
+          <div className="space-y-2 text-sm text-slate-700">
+            <p>
+              Thao tác truy vấn / recovery hiện tại: đọc lại đơn nhà cung cấp đã tạo để lấy mã cài
+              (nếu có).
+            </p>
+            <p className="font-medium text-slate-900">
+              Không tạo eSIM mới. Không mở đơn NCC mới. Hủy sẽ không gọi API.
+            </p>
+            {detail?.airaloOrderId ? (
+              <p className="font-mono text-xs text-slate-500">
+                Mã NCC tham chiếu: {detail.airaloOrderId}
+              </p>
+            ) : (
+              <p className="text-xs text-amber-800">
+                Chưa có mã đơn nhà cung cấp trên hồ sơ — nút vẫn chỉ đọc theo API recover hiện tại.
+              </p>
+            )}
+          </div>
+        </Dialog>
         <Dialog
           open={confirmCloseClaim}
           onClose={() => {

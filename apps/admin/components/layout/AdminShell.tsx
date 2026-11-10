@@ -144,21 +144,25 @@ function UserMenu() {
     };
   }, [open]);
 
+  const roleLabel = ROLE_LABELS[user?.role ?? ''] ?? user?.role ?? '';
+
   return (
     <div className="relative" ref={containerRef}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow"
+        className="flex max-w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:bg-slate-50 hover:shadow sm:px-3"
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={roleLabel ? `Tài khoản · ${roleLabel}` : 'Tài khoản'}
       >
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-admin-50 text-xs font-bold text-admin-700">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-admin-50 text-xs font-bold text-admin-700">
           {(user?.email?.[0] ?? 'A').toUpperCase()}
         </span>
-        <span className="hidden sm:inline">{user?.email}</span>
-        <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-          {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+        <span className="hidden min-w-0 truncate sm:inline">{user?.email}</span>
+        {/* Hide role chip below sm — it caused document overflow-x at 375px. */}
+        <span className="hidden shrink-0 rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 sm:inline">
+          {roleLabel}
         </span>
       </button>
       {open && (
@@ -201,18 +205,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl lg:px-6">
+        <header className="sticky top-0 z-40 flex min-w-0 items-center gap-2 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl sm:gap-3 lg:px-6">
           <MobileNavDrawer />
           <Link
             href={homeHref}
-            className="whitespace-nowrap font-bold text-admin-700 lg:hidden"
+            className="min-w-0 truncate font-bold text-admin-700 lg:hidden"
           >
             CardOn Admin
           </Link>
           <div className="hidden min-w-0 flex-1 lg:block">
             <GlobalSearchBar />
           </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1.5 sm:gap-2">
             <AdminNotificationBell />
             <UserMenu />
           </div>

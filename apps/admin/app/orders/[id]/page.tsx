@@ -10,12 +10,19 @@ import { RequirePermission } from '@/components/layout/AdminShell';
 
 import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 
+import { Dialog } from '@/components/ui/Dialog';
+
 import { Button, Input } from '@/components/ui/Form';
 
 import { useAuth } from '@/hooks/useAuth';
 
 import { translateStatus } from '@/lib/i18n';
 import { vi } from '@/lib/i18n/vi';
+import {
+  buildOrderActionConfirmCopy,
+  type OrderActionConfirmCopy,
+  type OrderActionConfirmKind,
+} from '@/lib/order-action-confirm';
 
 import { formatDateTime, formatVnd } from '@/lib/utils';
 
@@ -58,6 +65,11 @@ export default function OrderDetailPage() {
 
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<{
+    copy: OrderActionConfirmCopy;
+    actionLabel: string;
+    execute: () => Promise<{ fulfillmentStatus?: string } | unknown>;
+  } | null>(null);
 
   async function load(filter?: string) {
     setError(null);
@@ -90,12 +102,40 @@ export default function OrderDetailPage() {
           ? `${label} — xong (${status}). Đơn chưa hoàn tất — NCC có thể vẫn đang xử lý.`
           : `${label} — thành công`,
       );
+      setPendingConfirm(null);
       await load(gatewayFilter || undefined);
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : `${label} — thất bại`);
     } finally {
       setActionBusy(false);
     }
+  }
+
+  function openActionConfirm(
+    kind: OrderActionConfirmKind,
+    actionLabel: string,
+    execute: () => Promise<{ fulfillmentStatus?: string } | unknown>,
+  ) {
+    if (!detail || actionBusy) return;
+    const customerEmail =
+      detail.overview.customer.email ?? detail.overview.customer.guestEmail ?? null;
+    const copy = buildOrderActionConfirmCopy({
+      kind,
+      orderCode: detail.overview.orderCode,
+      paymentStatus: detail.overview.paymentStatus,
+      fulfillmentStatus: detail.overview.fulfillmentStatus,
+      customerEmail,
+      orderTotalLabel: detail.overview.totalAmount
+        ? formatVnd(detail.overview.totalAmount)
+        : null,
+      retryLabel: isEsimOrder(detail) ? 'Đọc lại đơn nhà cung cấp' : vi.orders.retryFulfillment,
+    });
+    setPendingConfirm({ copy, actionLabel, execute });
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingConfirm || actionBusy) return;
+    await runAction(pendingConfirm.actionLabel, pendingConfirm.execute);
   }
 
 
@@ -157,7 +197,11 @@ export default function OrderDetailPage() {
                   variant="secondary"
                   size="sm"
                   disabled={actionBusy}
-                  onClick={() => void runAction('Gửi lại email', () => adminApi.resendOrderEmail(params.id))}
+                  onClick={() =>
+                    openActionConfirm('resend_email', 'Gửi lại email', () =>
+                      adminApi.resendOrderEmail(params.id),
+                    )
+                  }
                 >
                   Gửi lại email
                 </Button>
@@ -176,7 +220,8 @@ export default function OrderDetailPage() {
                         : 'Đối chiếu MMS MegaPay (Merchant trx Id ≈ PAY-…) nếu nghi tiền chưa về cổng, rồi mới bấm Giao lại'
                     }
                     onClick={() =>
-                      void runAction(
+                      openActionConfirm(
+                        'retry',
                         isEsimOrder(detail) ? 'Đọc lại đơn nhà cung cấp' : vi.orders.retryFulfillment,
                         () => adminApi.retryOrder(params.id),
                       )
@@ -194,7 +239,9 @@ export default function OrderDetailPage() {
                         variant="secondary"
                         disabled={actionBusy}
                         onClick={() =>
-                          void adminApi.orderManualRecovery(params.id, 'switch_provider').then(() => load())
+                          openActionConfirm('switch_provider', 'Đổi NCC', () =>
+                            adminApi.orderManualRecovery(params.id, 'switch_provider'),
+                          )
                         }
                       >
                         Đổi NCC
@@ -203,7 +250,9 @@ export default function OrderDetailPage() {
                         variant="secondary"
                         disabled={actionBusy}
                         onClick={() =>
-                          void adminApi.orderManualRecovery(params.id, 'mark_fulfilled').then(() => load())
+                          openActionConfirm('mark_fulfilled', 'Đánh dấu hoàn tất', () =>
+                            adminApi.orderManualRecovery(params.id, 'mark_fulfilled'),
+                          )
                         }
                       >
                         Đánh dấu hoàn tất
@@ -215,7 +264,9 @@ export default function OrderDetailPage() {
                       variant="ghost"
                       disabled={actionBusy}
                       onClick={() =>
-                        void adminApi.orderManualRecovery(params.id, 'refund').then(() => load())
+                        openActionConfirm('refund', 'Hoàn tiền', () =>
+                          adminApi.orderManualRecovery(params.id, 'refund'),
+                        )
                       }
                     >
                       Hoàn tiền
@@ -761,6 +812,48 @@ export default function OrderDetailPage() {
 
       </div>
       )}
+
+      <Dialog
+        open={Boolean(pendingConfirm)}
+        onClose={() => {
+          if (!actionBusy) setPendingConfirm(null);
+        }}
+        title={pendingConfirm?.copy.title ?? 'Xác nhận thao tác'}
+        description={
+          pendingConfirm
+            ? `${pendingConfirm.copy.danger ? 'Thao tác nhạy cảm · ' : ''}Đơn ${detail?.overview.orderCode ?? ''}`
+            : undefined
+        }
+        closeOnOverlayClick={!actionBusy}
+        footer={(
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={actionBusy}
+              onClick={() => setPendingConfirm(null)}
+            >
+              Hủy
+            </Button>
+            <Button
+              size="sm"
+              variant={pendingConfirm?.copy.danger ? 'danger' : undefined}
+              disabled={actionBusy || !pendingConfirm}
+              onClick={() => void confirmPendingAction()}
+            >
+              {actionBusy ? 'Đang xử lý…' : (pendingConfirm?.copy.confirmLabel ?? 'Xác nhận')}
+            </Button>
+          </>
+        )}
+      >
+        {pendingConfirm ? (
+          <ul className="list-disc space-y-2 pl-5 text-sm text-slate-700">
+            {pendingConfirm.copy.lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
+      </Dialog>
     </RequirePermission>
   );
 }

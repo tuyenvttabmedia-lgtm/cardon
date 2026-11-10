@@ -24,22 +24,61 @@ export interface AuthResult {
   user: AuthUser;
 }
 
+export type DashboardPeriodPreset = 'today' | 'last7' | 'month';
+
+export interface DashboardPeriodInfo {
+  preset: DashboardPeriodPreset;
+  dateFrom: string;
+  dateTo: string;
+  timezone: 'Asia/Ho_Chi_Minh';
+}
+
+export interface DashboardBusinessStats {
+  revenue: string;
+  profit: string;
+  providerCost: string;
+  gatewayFee: string;
+  paidOrderCount: number;
+  createdOrderCount: number;
+}
+
+export interface DashboardPaymentAttempts {
+  successAttemptCount: number;
+  failedAttemptCount: number;
+}
+
+export interface DashboardBacklog {
+  pendingDelivery: number;
+  processing: number;
+  waitingAdminRetry: number;
+  needManualReview: number;
+}
+
+export interface DashboardAgentStatistics {
+  total: number;
+  active: number;
+  pendingKyc: number;
+  suspended: number;
+  rejected: number;
+}
+
+/** Operations Cockpit — GET /admin/dashboard?period=… (C1). */
 export interface DashboardStats {
+  period: DashboardPeriodInfo;
+  asOf: string;
+  currency: 'VND';
+  business: DashboardBusinessStats;
+  payments: DashboardPaymentAttempts;
+  backlog: DashboardBacklog;
+  providerErrors: number;
+  providerErrorsScope: 'SYSTEM';
+  agentStatistics: DashboardAgentStatistics;
+  /** Legacy fields kept for compatibility; cockpit UI must not use pendingFulfillment. */
   todayRevenue: string;
   ordersCount: number;
   successfulPayments: number;
   failedPayments: number;
   pendingFulfillment: number;
-  providerErrors: number;
-  agentStatistics: {
-    total: number;
-    active: number;
-    pendingKyc: number;
-    suspended: number;
-    rejected: number;
-  };
-  currency: 'VND';
-  asOf: string;
 }
 
 export type IntegritySeverity = 'ok' | 'warning' | 'error';
@@ -61,16 +100,18 @@ export interface SystemVersionInfo {
 }
 
 export interface SystemHealthSummary {
-  healthScore: number;
-  productionLabel?: string;
-  status: IntegritySeverity;
+  /** false when never scanned — do not invent Production Ready. */
+  scanAvailable?: boolean;
+  healthScore: number | null;
+  productionLabel?: string | null;
+  status: IntegritySeverity | null;
   runAt: string | null;
   lastScanAt?: string | null;
   scanning?: boolean;
   summary: { ok: number; warning: number; error: number };
   categoryIntegrity?: {
     status: IntegritySeverity;
-    label: 'Healthy' | 'Needs Repair';
+    label: string;
   };
   systemVersion?: SystemVersionInfo;
   versionMismatch?: boolean;

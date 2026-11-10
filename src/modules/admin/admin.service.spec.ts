@@ -35,6 +35,15 @@ describe('AdminDashboardService', () => {
     expect(result.todayRevenue).toBe('500000.00');
     expect(result.ordersCount).toBe(12);
   });
+
+  it('forwards period query to repository', async () => {
+    const repository = {
+      getDashboardStats: jest.fn().mockResolvedValue({ period: { preset: 'last7' } }),
+    };
+    const service = new AdminDashboardService(repository as never);
+    await service.getDashboard('last7');
+    expect(repository.getDashboardStats).toHaveBeenCalledWith('last7');
+  });
 });
 
 describe('AdminOrderService', () => {

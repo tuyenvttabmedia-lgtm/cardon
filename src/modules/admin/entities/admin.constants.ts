@@ -45,6 +45,8 @@ export const ADMIN_AUDIT_ACTIONS = {
 
 export const ADMIN_PERMISSIONS = {
   DASHBOARD: 'admin.dashboard',
+  /** Read-only operations health summary (no scan / autofix / export). */
+  SYSTEM_HEALTH_READ: 'system.health.read',
   AUDIT_VIEW: 'audit.view',
   PAYMENTS_REVIEW: 'payments.review',
   CUSTOMERS_READ: 'customers.read',
