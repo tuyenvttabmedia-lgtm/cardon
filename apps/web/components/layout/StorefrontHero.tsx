@@ -1,6 +1,7 @@
 'use client';
 
-import type { CSSProperties, FormEvent, ReactNode } from 'react';
+import Image from 'next/image';
+import type { FormEvent, ReactNode } from 'react';
 import { useT } from '@/components/i18n/LocaleProvider';
 import { resolveAssetUrl } from '@/lib/assets';
 import { cn } from '@/lib/utils';
@@ -34,7 +35,7 @@ export type StorefrontHeroProps = {
 
 /**
  * Full-bleed hero shared by home and purchase hubs.
- * Layout matches the homepage banner; only the background image and copy differ.
+ * LCP uses next/image (priority) instead of multi‑MB CSS background PNGs.
  */
 export function StorefrontHero({
   backgroundUrl,
@@ -53,6 +54,7 @@ export function StorefrontHero({
   const badgeText = badge ?? t('home.badge');
   const TitleTag = headingLevel;
   const isHub = variant === 'hub';
+  const isLocal = Boolean(heroSrc?.startsWith('/'));
 
   return (
     <section
@@ -61,8 +63,24 @@ export function StorefrontHero({
         isHub && 'home-hero-banner--hub',
         className,
       )}
-      style={heroSrc ? ({ '--home-hero': `url("${heroSrc}")` } as CSSProperties) : undefined}
     >
+      {heroSrc ? (
+        <div className="home-hero-media" aria-hidden>
+          {isLocal ? (
+            <Image
+              src={heroSrc}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover object-top"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- remote CMS hero URL
+            <img src={heroSrc} alt="" className="h-full w-full object-cover object-top" />
+          )}
+        </div>
+      ) : null}
       <div className="site-container relative z-10 pb-2 lg:flex lg:items-start lg:pb-6 lg:pt-4 xl:h-full xl:items-center xl:pb-4 xl:pt-0">
         <div className="relative max-w-xl lg:max-w-[30rem]">
           <div

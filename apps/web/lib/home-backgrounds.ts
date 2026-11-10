@@ -15,19 +15,40 @@ export type HomeBackgrounds = {
   siteFooterBg: string;
 };
 
-/** Bundled design files. CMS values override these when set. */
+/**
+ * Prefer compressed JPG defaults (~40–100KB) over multi‑MB design PNGs.
+ * CMS can still override; known heavy PNGs are remapped in resolveHomeBackgrounds.
+ */
 export const HOME_BACKGROUND_DEFAULTS: HomeBackgrounds = {
-  homeHeroBg: '/images/home/backgrounds/banner-header-4.png',
-  homeCategoryGameBg: '/images/home/backgrounds/category-game-2.png',
-  homeCategoryPhoneCardBg: '/images/home/backgrounds/category-phone-2.png',
-  homeCategoryTopupBg: '/images/home/backgrounds/category-topup-2.png',
-  homeCategoryEsimBg: '/images/home/backgrounds/category-esim-2.png',
-  hubHeroGameBg: '/images/home/backgrounds/banner-header-1.png',
-  hubHeroPhoneBg: '/images/home/backgrounds/banner-header-2.png',
-  hubHeroTopupBg: '/images/home/backgrounds/banner-header-3.png',
-  hubHeroEsimBg: '/images/esim/hero.png',
+  homeHeroBg: '/images/home/backgrounds/hero.jpg',
+  homeCategoryGameBg: '/images/home/backgrounds/category-game.jpg',
+  homeCategoryPhoneCardBg: '/images/home/backgrounds/category-phone-card.jpg',
+  homeCategoryTopupBg: '/images/home/backgrounds/category-topup.jpg',
+  homeCategoryEsimBg: '/images/home/backgrounds/category-esim.jpg',
+  hubHeroGameBg: '/images/home/backgrounds/hero.jpg',
+  hubHeroPhoneBg: '/images/home/backgrounds/hero.jpg',
+  hubHeroTopupBg: '/images/home/backgrounds/hero.jpg',
+  hubHeroEsimBg: '/images/esim/hero.jpg',
   siteFooterBg: '/images/home/backgrounds/footer.jpg',
 };
+
+/** Legacy CMS/design PNG paths → compressed JPG counterparts. */
+const HEAVY_ASSET_REMAP: Record<string, string> = {
+  '/images/home/backgrounds/banner-header-1.png': '/images/home/backgrounds/hero.jpg',
+  '/images/home/backgrounds/banner-header-2.png': '/images/home/backgrounds/hero.jpg',
+  '/images/home/backgrounds/banner-header-3.png': '/images/home/backgrounds/hero.jpg',
+  '/images/home/backgrounds/banner-header-4.png': '/images/home/backgrounds/hero.jpg',
+  '/images/home/backgrounds/category-game-2.png': '/images/home/backgrounds/category-game.jpg',
+  '/images/home/backgrounds/category-phone-2.png': '/images/home/backgrounds/category-phone-card.jpg',
+  '/images/home/backgrounds/category-topup-2.png': '/images/home/backgrounds/category-topup.jpg',
+  '/images/home/backgrounds/category-esim-2.png': '/images/home/backgrounds/category-esim.jpg',
+  '/images/esim/hero.png': '/images/esim/hero.jpg',
+};
+
+function remapHeavyAsset(url: string): string {
+  const pathOnly = url.split('?')[0];
+  return HEAVY_ASSET_REMAP[pathOnly] ?? url;
+}
 
 export function resolveHomeBackgrounds(
   stored?: Partial<HomeBackgrounds> | null,
@@ -36,7 +57,7 @@ export function resolveHomeBackgrounds(
   if (!stored) return next;
   (Object.keys(HOME_BACKGROUND_DEFAULTS) as Array<keyof HomeBackgrounds>).forEach((key) => {
     const value = stored[key]?.trim();
-    if (value) next[key] = value;
+    if (value) next[key] = remapHeavyAsset(value);
   });
   return next;
 }
@@ -47,7 +68,8 @@ export function backgroundLayer(
   position: string,
   size = 'cover',
 ): CSSProperties | undefined {
-  const src = resolveAssetUrl(url);
+  const raw = url?.trim() ? remapHeavyAsset(url.trim()) : url;
+  const src = resolveAssetUrl(raw);
   if (!src) return undefined;
   return {
     backgroundImage: `url("${src}")`,

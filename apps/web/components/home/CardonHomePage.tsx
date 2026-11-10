@@ -230,7 +230,8 @@ export function CardonHomePage({
                 src={item.image}
                 alt=""
                 fill
-                sizes="(max-width: 1024px) 78vw, 220px"
+                sizes="(max-width: 640px) 78vw, (max-width: 1024px) 46vw, 220px"
+                loading="lazy"
                 className="object-cover object-center transition duration-300 group-hover:scale-105"
               />
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-3 pt-10 pb-3 text-white">

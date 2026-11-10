@@ -74,6 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       setUser(getStoredUser<AuthUser>());
+      // Guest: no network. Avoid /auth/me on every public pageview.
+      if (!getAccessToken() && !getRefreshToken()) {
+        setLoading(false);
+        return;
+      }
       await refreshUser();
       setLoading(false);
     })();
