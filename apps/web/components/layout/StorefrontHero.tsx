@@ -1,8 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import type { FormEvent, ReactNode } from 'react';
 import { useT } from '@/components/i18n/LocaleProvider';
-import { resolveAssetUrl } from '@/lib/assets';
+import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
 import { cn } from '@/lib/utils';
 
 export type StorefrontHeroProps = {
@@ -34,8 +35,8 @@ export type StorefrontHeroProps = {
 
 /**
  * Full-bleed hero shared by home and purchase hubs.
- * Local heroes use a static <img> (fetchPriority=high) to avoid /_next/image
- * cold-start latency on LCP; spacer reserves height to limit CLS.
+ * Same-origin /uploads heroes go through next/image so mobile gets a resized AVIF/WebP
+ * instead of the full 2k CMS file (main LCP win).
  */
 export function StorefrontHero({
   backgroundUrl,
@@ -50,7 +51,13 @@ export function StorefrontHero({
   children,
 }: StorefrontHeroProps) {
   const t = useT();
-  const heroSrc = resolveAssetUrl(backgroundUrl);
+  const rawSrc = resolveAssetUrl(backgroundUrl);
+  const optimizedSrc = optimizerImageSrc(backgroundUrl);
+  const useOptimizer = Boolean(
+    optimizedSrc && isOptimizableImageSrc(optimizedSrc) && !optimizedSrc.startsWith('/images/'),
+  );
+  // Bundled /images/* are already small — serve directly. CMS /uploads need the optimizer.
+  const staticSrc = rawSrc;
   const badgeText = badge ?? t('home.badge');
   const TitleTag = headingLevel;
   const isHub = variant === 'hub';
@@ -64,21 +71,33 @@ export function StorefrontHero({
       )}
     >
       <div className="home-hero-spacer" aria-hidden />
-      {heroSrc ? (
+      {staticSrc || optimizedSrc ? (
         <div className="home-hero-media" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element -- LCP: static asset beats image optimizer TTFB */}
-          <img
-            src={heroSrc}
-            alt=""
-            width={2068}
-            height={550}
-            decoding="async"
-            fetchPriority="high"
-            className="h-full w-full object-cover object-top"
-          />
+          {useOptimizer && optimizedSrc ? (
+            <Image
+              src={optimizedSrc}
+              alt=""
+              fill
+              priority
+              quality={65}
+              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 100vw, 1600px"
+              className="object-cover object-top"
+            />
+          ) : staticSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element -- small bundled public assets
+            <img
+              src={staticSrc}
+              alt=""
+              width={2068}
+              height={550}
+              decoding="async"
+              fetchPriority="high"
+              className="h-full w-full object-cover object-top"
+            />
+          ) : null}
         </div>
       ) : null}
-      <div className="site-container relative z-10 pb-2 lg:flex lg:items-start lg:pb-6 lg:pt-4 xl:h-full xl:items-center xl:pb-4 xl:pt-0">
+      <div className="site-container relative z-10 pb-2">
         <div className="relative max-w-xl lg:max-w-[30rem]">
           <div
             aria-hidden

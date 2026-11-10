@@ -108,19 +108,13 @@ body {
     pointer-events: none;
   }
 
-  @media (min-width: 1024px) {
-    .home-hero-spacer {
-      display: none;
-    }
-  }
-
   /* Soft rim into body gray: left/right + bottom. Intersect keeps center opaque. */
   .home-hero-banner .home-hero-media {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    aspect-ratio: 2068 / 550;
+    height: 100%;
     pointer-events: none;
     -webkit-mask-image:
       linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
@@ -132,37 +126,40 @@ body {
     mask-composite: intersect;
   }
 
-  /* Below desktop: keep a small gap under the reserved photo before copy. */
+  /* Below desktop: copy sits under the reserved photo. */
   @media (max-width: 1023.98px) {
     .home-hero-banner > .site-container {
       padding-top: 1.25rem;
     }
   }
 
-  /* 1024–1279px: let the section grow with copy so badge sits below the menu. */
-  @media (min-width: 1024px) and (max-width: 1279.98px) {
-    .home-hero-banner {
-      height: auto;
-      aspect-ratio: auto;
+  /*
+   * Home desktop (PSI ~1350px): height ONLY from spacer. Copy overlays so
+   * font/theme hydration cannot grow the section (CLS ~0.42 was stacked copy).
+   * Hubs keep in-flow copy — they pack more chips/points than the photo box.
+   */
+  @media (min-width: 1024px) {
+    .home-hero-banner:not(.home-hero-banner--hub) {
+      overflow: hidden;
     }
-  }
 
-  @media (min-width: 1280px) {
-    .home-hero-banner {
-      aspect-ratio: 2068 / 550;
+    .home-hero-banner:not(.home-hero-banner--hub) > .site-container {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      padding-top: 1rem;
+      padding-bottom: 1.5rem;
     }
   }
 
   @media (min-width: 1900px) {
-    .home-hero-banner {
-      height: 500px;
+    .home-hero-spacer {
       aspect-ratio: auto;
-      overflow: hidden;
+      height: 500px;
     }
 
     .home-hero-banner .home-hero-media {
-      height: 100%;
-      aspect-ratio: auto;
       -webkit-mask-image:
         linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%),
         linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
