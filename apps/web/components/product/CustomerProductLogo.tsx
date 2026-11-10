@@ -46,31 +46,46 @@ export function CustomerProductLogo({
 
   if (resolved && optimized && isOptimizableImageSrc(optimized)) {
     return (
-      <Image
-        src={optimized}
-        alt=""
-        aria-hidden
-        width={160}
-        height={64}
-        quality={60}
-        sizes={roomy ? '140px' : '96px'}
-        className={imgClass}
-        style={roomy ? { width: 'auto', height: '3.5rem' } : { width: 'auto', height: 'auto' }}
-      />
+      <span
+        className={cn(
+          'inline-flex items-center justify-center',
+          roomy ? 'h-14 w-[7.5rem]' : 'h-12 w-[5.5rem]',
+        )}
+      >
+        <Image
+          src={optimized}
+          alt=""
+          aria-hidden
+          width={160}
+          height={64}
+          quality={60}
+          sizes={roomy ? '140px' : '96px'}
+          className={imgClass}
+        />
+      </span>
     );
   }
 
   if (resolved) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={resolved}
-        alt=""
-        aria-hidden
-        loading="lazy"
-        decoding="async"
-        className={imgClass}
-      />
+      <span
+        className={cn(
+          'inline-flex items-center justify-center',
+          roomy ? 'h-14 w-[7.5rem]' : 'h-12 w-[5.5rem]',
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={resolved}
+          alt=""
+          aria-hidden
+          width={160}
+          height={64}
+          loading="lazy"
+          decoding="async"
+          className={imgClass}
+        />
+      </span>
     );
   }
 

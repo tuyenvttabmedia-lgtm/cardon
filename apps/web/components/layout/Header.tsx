@@ -36,17 +36,19 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 border-b border-cardon-border bg-white/95 shadow-sm backdrop-blur">
         <div className="site-container flex h-14 items-center gap-2 lg:gap-3">
-          <Link href="/" className="flex h-9 shrink-0 items-center md:h-10">
+          <Link
+            href="/"
+            className="relative flex h-9 w-[140px] shrink-0 items-center md:h-10 md:w-[160px]"
+          >
             <Image
               key={`logo-${logoKey}`}
               src={logoSrc}
               alt="CardOn.vn"
-              width={180}
-              height={48}
+              width={160}
+              height={40}
               quality={60}
-              sizes="140px"
-              className="h-full w-auto max-w-[140px] object-contain lg:max-w-[160px]"
-              style={{ width: 'auto' }}
+              sizes="160px"
+              className="h-full w-full object-contain object-left"
               priority
               unoptimized={!isOptimizableImageSrc(logoSrc)}
             />
