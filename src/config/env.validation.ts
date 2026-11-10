@@ -81,6 +81,20 @@ export const envValidationSchema = Joi.object({
   TURNSTILE_TIMEOUT_MS: Joi.number().integer().min(500).max(30_000).optional(),
   TURNSTILE_MAX_AGE_SEC: Joi.number().integer().min(30).max(3600).optional(),
   TURNSTILE_REPLAY_ENABLED: Joi.string().optional().allow(''),
+  ESIM_ENABLED: Joi.string().optional().allow(''),
+  ESIM_PROVIDER_MODE: Joi.string().valid('mock', 'live').optional(),
+  ESIM_LIVE_ARM: Joi.string().optional().allow(''),
+  AIRALO_BASE_URL: Joi.string().uri().optional().allow(''),
+  AIRALO_CLIENT_ID: Joi.string().optional().allow(''),
+  AIRALO_CLIENT_SECRET: Joi.string().optional().allow(''),
+  AIRALO_ACCOUNT_MODE: Joi.string().valid('sandbox', 'production').optional(),
+  AIRALO_WEBHOOK_SECRET: Joi.string().optional().allow(''),
+  AIRALO_WEBHOOK_PUBLIC_BASE_URL: Joi.string().uri().optional().allow(''),
+  PAYPAL_ESIM_ENABLED: Joi.string().optional().allow(''),
+  PAYPAL_MODE: Joi.string().valid('sandbox', 'live').optional(),
+  PAYPAL_CLIENT_ID: Joi.string().optional().allow(''),
+  PAYPAL_CLIENT_SECRET: Joi.string().optional().allow(''),
+  PAYPAL_WEBHOOK_ID: Joi.string().optional().allow(''),
 }).custom((env, helpers) => {
   try {
     assertProductionEnv(env as Record<string, unknown>);
