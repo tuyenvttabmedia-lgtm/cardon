@@ -1,5 +1,6 @@
-import { Body, Controller, Head, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Head, HttpCode, Post, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
 
 /**
@@ -13,9 +14,9 @@ export class EsimAiraloWebhookController {
   constructor(private readonly webhooks: EsimAiraloWebhookService) {}
 
   @Head('low-data')
-  @HttpCode(200)
-  headLowData(): void {
-    return;
+  headLowData(@Res() res: Response): void {
+    // Empty 200 — no JSON envelope / Content-Length body (Airalo accessibility check).
+    res.status(200).end();
   }
 
   @Post('low-data')
