@@ -96,7 +96,10 @@ function FooterLinkGrid({
   return (
     <div className={className}>
       {columns.map((col, index) => (
-        <div key={`${className}-${col.title}-${index}`} className="min-w-0">
+        <div
+          key={`${className}-${col.title}-${index}`}
+          className={index === 0 ? 'min-w-0 lg:pr-2' : 'min-w-0'}
+        >
           {logoSrc && index === 0 ? (
             <Link href="/" className="mb-4 inline-flex max-w-full">
               {/* eslint-disable-next-line @next/next/no-img-element -- same CMS logo as the header */}
@@ -161,7 +164,7 @@ export function Footer() {
             columns={footerColumns}
             companyInfo={companyInfo}
             logoSrc={homeLogo}
-            className="footer-links hidden grid-cols-2 items-start gap-x-10 gap-y-8 md:grid lg:grid-cols-4"
+            className="footer-links hidden grid-cols-2 items-start gap-x-10 gap-y-8 md:grid lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.8fr)_minmax(0,1.05fr)_minmax(0,0.9fr)]"
           />
         </div>
 
