@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuditTargetType, EsimCatalogLifecycle, Prisma } from '@prisma/client';
 import { EsaleHttpClient } from '../../provider/adapters/esale/esale.client';
 import { ProviderRepository } from '../../provider/repositories/provider.repository';
@@ -65,6 +66,7 @@ export class SettingsAdminService {
     private readonly smtpProvider: SmtpEmailProvider,
     private readonly airalo: EsimAiraloAdapter,
     private readonly airaloCatalogue: EsimAiraloCatalogueService,
+    private readonly config: ConfigService,
   ) {}
 
   private paypalClient = new PaypalClient();
@@ -184,7 +186,7 @@ export class SettingsAdminService {
 
   /**
    * Register CardOn low-data webhook URL with Airalo (POST /v2/notifications/opt-in).
-   * Endpoint must answer HEAD+POST 200 at /api/v1/webhooks/airalo/low-data.
+   * Prefer DNS-only host (AIRALO_WEBHOOK_PUBLIC_BASE_URL) + optional ?token= secret.
    */
   async optInAiraloLowDataWebhook() {
     const view = this.settingsStore.getAiraloAdminView();
@@ -192,14 +194,17 @@ export class SettingsAdminService {
       throw new BadRequestException('Chưa có Airalo client_id / client_secret');
     }
     let publicUrl = (
+      this.config.get<string>('airalo.webhookPublicBaseUrl') ||
       this.settingsStore.resolveSystemConfig().publicUrl ||
-      'https://cardon.vn'
+      'https://webhooks.cardon.vn'
     ).replace(/\/$/, '');
     // Airalo requires https; normalize misconfigured http publicUrl on prod hosts.
     if (publicUrl.startsWith('http://')) {
       publicUrl = `https://${publicUrl.slice('http://'.length)}`;
     }
-    const webhookUrl = `${publicUrl}/api/v1/webhooks/airalo/low-data`;
+    const secret = (this.config.get<string>('airalo.webhookSecret') ?? '').trim();
+    const tokenQuery = secret ? `?token=${encodeURIComponent(secret)}` : '';
+    const webhookUrl = `${publicUrl}/api/v1/webhooks/airalo/low-data${tokenQuery}`;
     const result = await this.airalo.optInLowDataWebhook(webhookUrl);
     return { ...result, webhookUrl };
   }

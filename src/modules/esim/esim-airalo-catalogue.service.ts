@@ -280,7 +280,7 @@ export class EsimAiraloCatalogueService {
         homeService: HomeServiceType.ESIM,
         slug,
         name,
-        description: `Gói eSIM ${name.replace(/^eSIM /, '')} trên CardOn, thương hiệu Keyon.`,
+        description: `Gói eSIM ${name.replace(/^eSIM /, '')} trên CardOn.`,
         logoUrl: destPhotoPath(pkg.destinationKey || pkg.countryIso) || pkg.countryImageUrl || null,
         status: CatalogProductStatus.ACTIVE,
       },

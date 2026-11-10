@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { EsimAttemptOutcome, FulfillmentStatus, OrderEventType, Prisma } from '@prisma/client';
 import { CardEncryptionService } from '../provider/services/card-encryption.service';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
@@ -9,7 +16,7 @@ import { EsimFulfillmentRepository, EsimQuoteRow } from './esim-fulfillment.repo
 import { AiraloRequestError } from './esim-airalo.adapter';
 import { airaloNumericId, airaloOrderCode } from './esim-airalo-code';
 import { ESIM_PROVIDER_PORT, EsimProviderPort } from './esim-provider.port';
-import { ESIM_TEST_MARKER } from './esim.constants';
+import { ESIM_LIVE_HTTP_DISABLED, ESIM_TEST_MARKER } from './esim.constants';
 import { isEsimTestSecret } from './esim-delivery.view';
 
 export interface EsimFulfillmentResult {
@@ -25,7 +32,7 @@ const FIRST_CREATE_BLOCKED = new Set<FulfillmentStatus>([
   FulfillmentStatus.NEED_MANUAL_REVIEW,
   FulfillmentStatus.COMPLETED,
   FulfillmentStatus.FAILED,
-  FulfillmentStatus.WAITING_ADMIN_RETRY,
+  // WAITING_ADMIN_RETRY is claimable after definite no-CREATE (openGuard released).
 ]);
 
 /**
@@ -151,6 +158,23 @@ export class EsimFulfillmentService {
     if (existing) {
       return existing;
     }
+    const pay = await this.repository.getOrderPaymentFulfillment?.(orderId);
+    const status = pay?.fulfillmentStatus ?? (await this.repository.getOrderFulfillmentStatus(orderId));
+    // Retryable without open CREATE: definite no-CREATE, or PAID never claimed.
+    if (
+      status === FulfillmentStatus.WAITING_ADMIN_RETRY ||
+      (status === FulfillmentStatus.PENDING &&
+        String(pay?.paymentStatus ?? '') === 'PAID')
+    ) {
+      return {
+        orderId,
+        fulfillmentStatus: status,
+        created: false,
+        queried: false,
+        hasOpenCreate: false,
+        hasReference: false,
+      };
+    }
     const fulfillmentStatus = await this.repository.ensureManualReview(quote.orderItemId);
     return {
       orderId,
@@ -192,7 +216,10 @@ export class EsimFulfillmentService {
       created: false,
       queried: false,
     };
-    if (status !== FulfillmentStatus.PROCESSING) {
+    if (
+      status !== FulfillmentStatus.PROCESSING &&
+      status !== FulfillmentStatus.NEED_MANUAL_REVIEW
+    ) {
       return refuse;
     }
     const openCreate = await this.repository.findOpenCreate(quote.orderItemId);
@@ -403,7 +430,10 @@ export class EsimFulfillmentService {
         created: false,
       };
     }
-    if (status !== FulfillmentStatus.PENDING) {
+    if (
+      status !== FulfillmentStatus.PENDING &&
+      status !== FulfillmentStatus.WAITING_ADMIN_RETRY
+    ) {
       return { orderId, fulfillmentStatus: status, created: false };
     }
     return null;
@@ -620,11 +650,23 @@ export class EsimFulfillmentService {
         iccid,
       );
     } catch (error) {
-      await this.repository.markUnconfirmed(
-        inserted.attemptId,
-        quote.orderItemId,
-        this.safeErrorMessage(error),
-      );
+      const message = this.safeErrorMessage(error);
+      if (
+        this.isDefiniteNoCreateError(error) &&
+        typeof this.repository.markDefiniteNoCreate === 'function'
+      ) {
+        await this.repository.markDefiniteNoCreate(
+          inserted.attemptId,
+          quote.orderItemId,
+          message,
+        );
+        return {
+          orderId,
+          fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+          created: false,
+        };
+      }
+      await this.repository.markUnconfirmed(inserted.attemptId, quote.orderItemId, message);
       return review;
     }
   }
@@ -803,10 +845,45 @@ export class EsimFulfillmentService {
     });
   }
 
+  /** True when CREATE never left this host or Airalo rejected before accepting an order. */
+  private isDefiniteNoCreateError(error: unknown): boolean {
+    if (error instanceof ForbiddenException) {
+      const response = error.getResponse();
+      const message =
+        typeof response === 'string'
+          ? response
+          : response && typeof response === 'object' && 'message' in response
+            ? String((response as { message?: unknown }).message ?? '')
+            : error.message;
+      if (message.includes(ESIM_LIVE_HTTP_DISABLED) || /live http disabled/i.test(message)) {
+        return true;
+      }
+    }
+    if (error instanceof AiraloRequestError) {
+      if (
+        error.airaloCode === 11 ||
+        error.airaloCode === 33 ||
+        error.airaloCode === 34 ||
+        error.airaloCode === 43 ||
+        error.airaloCode === 88 ||
+        error.airaloCode === 89
+      ) {
+        return true;
+      }
+      if (error.status === 401 || error.status === 403 || error.status === 404) {
+        return true;
+      }
+    }
+    if (error instanceof Error && /AbortError|TimeoutError|The operation was aborted/i.test(error.name + error.message)) {
+      return false;
+    }
+    return false;
+  }
+
   private safeErrorMessage(error: unknown): string {
     if (error instanceof AiraloRequestError) {
       if (error.airaloCode === 11) {
-        return 'Airalo insufficient balance (code 11). No second CREATE.';
+        return 'Airalo insufficient balance (code 11). Admin may retry after top-up. No second CREATE until then.';
       }
       if (error.airaloCode === 13) {
         return 'Airalo operator maintenance (code 13). Retry later via GET only. No second CREATE.';

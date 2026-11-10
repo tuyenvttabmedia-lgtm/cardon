@@ -93,5 +93,5 @@ function readString(value: unknown): string {
 }
 
 function hideSupplierBrand(value: string): string {
-  return value.replace(/Airalo/gi, 'Keyon');
+  return value.replace(/Airalo/gi, 'CardOn');
 }

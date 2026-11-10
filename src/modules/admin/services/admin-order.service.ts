@@ -40,6 +40,7 @@ import { AdminRepository } from '../repositories/admin.repository';
 
 import { AdminAuditService } from './admin-audit.service';
 import { EsimAdminService } from '../../esim/esim-admin.service';
+import { EsimQueueProducer } from '../../esim/esim-queue.producer';
 import { RefundRequestService } from './refund-request.service';
 
 
@@ -74,6 +75,7 @@ export class AdminOrderService {
 
     @Optional() private readonly esimAdmin?: EsimAdminService,
     @Optional() private readonly refundRequests?: RefundRequestService,
+    @Optional() private readonly esimQueue?: EsimQueueProducer,
 
   ) {}
 
@@ -156,7 +158,20 @@ export class AdminOrderService {
     if (this.esimAdmin && (await this.esimAdmin.isEsimOrder(orderId))) {
 
       const recovery = await this.esimAdmin.recoverInstall(orderId);
-      const fulfillmentStatus = recovery.fulfillmentStatus;
+      let fulfillmentStatus = recovery.fulfillmentStatus;
+      let recoveryMode: 'query_only' | 'enqueue_create' = 'query_only';
+
+      // PAID never claimed / definite no-CREATE: enqueue FULFILL (still no inline POST).
+      if (
+        this.esimQueue &&
+        !recovery.hasOpenCreate &&
+        !recovery.hasReference &&
+        (fulfillmentStatus === FulfillmentStatus.WAITING_ADMIN_RETRY ||
+          fulfillmentStatus === FulfillmentStatus.PENDING)
+      ) {
+        await this.esimQueue.enqueueFulfillment(orderId);
+        recoveryMode = 'enqueue_create';
+      }
 
       await this.adminAudit.record(
 
@@ -172,7 +187,7 @@ export class AdminOrderService {
           fulfillmentStatus,
           esimRecovered: true,
           // Contract of this admin path. Not proof a provider GET ran.
-          recovery: 'query_only',
+          recovery: recoveryMode,
           created: recovery.created === true,
           createOpened: recovery.created === true,
           queried: recovery.queried === true,

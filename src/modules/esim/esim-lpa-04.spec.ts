@@ -153,6 +153,12 @@ class MemoryFulfillmentStore {
     this.status = FulfillmentStatus.NEED_MANUAL_REVIEW;
     if (errorMessage) this.unconfirmedMessages.push(errorMessage);
   }
+  async markDefiniteNoCreate(_attemptId: string, orderItemId: string, errorMessage?: string) {
+    this.createOutcomes.set(_attemptId, 'UNCONFIRMED');
+    this.open.delete(orderItemId);
+    this.status = FulfillmentStatus.WAITING_ADMIN_RETRY;
+    if (errorMessage) this.unconfirmedMessages.push(errorMessage);
+  }
   async markNeedsReview() {
     this.status = FulfillmentStatus.NEED_MANUAL_REVIEW;
     return this.status;
@@ -372,22 +378,13 @@ describe('GATE LPA-04 fulfill recover', () => {
     expect(store.savedSecrets).toEqual([`enc:${FIXTURE_LPA}`]);
   });
 
-  it('does not CREATE again after timeout, 422, code 11, 43, or 83', async () => {
+  it('does not CREATE again after timeout, plain 422, or code 83 (openGuard held)', async () => {
     const failures = [
       async () => {
         throw new Error('timeout');
       },
       async () => {
         throw new AiraloRequestError('Airalo request failed with status 422 (code 422)', 422);
-      },
-      async () => {
-        throw new AiraloRequestError('Airalo request failed with status 422 (code 11)', 422, { airaloCode: 11 });
-      },
-      async () => {
-        throw new AiraloRequestError('Airalo request failed with status 422 (code 43)', 422, {
-          airaloCode: 43,
-          field: 'package_id',
-        });
       },
       async () => {
         throw new AiraloRequestError('Airalo request failed with status 422 (code 83)', 422, { airaloCode: 83 });
@@ -408,7 +405,7 @@ describe('GATE LPA-04 fulfill recover', () => {
     }
   });
 
-  it('maps code 11 / 43 / 83 to safe unconfirmed messages and never opens a second CREATE', async () => {
+  it('maps code 11 / 43 to WAITING_ADMIN_RETRY (definite no-CREATE) and 83 to unconfirmed', async () => {
     const store = new MemoryFulfillmentStore();
     const port = livePort({
       createOrder: async () => {
@@ -416,8 +413,10 @@ describe('GATE LPA-04 fulfill recover', () => {
       },
     });
     const service = fulfillment(store, port);
-    await service.fulfill('order-1');
-    expect(store.unconfirmedMessages).toEqual(['Airalo insufficient balance (code 11). No second CREATE.']);
+    const first = await service.fulfill('order-1');
+    expect(first.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
+    expect(store.open.has('item-1')).toBe(false);
+    expect(store.unconfirmedMessages[0]).toContain('code 11');
     expect(store.unconfirmedMessages.join(' ')).not.toContain('LPA:1$');
 
     const validation = new MemoryFulfillmentStore();
@@ -429,6 +428,7 @@ describe('GATE LPA-04 fulfill recover', () => {
         },
       }),
     ).fulfill('order-1');
+    expect(validation.status).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
     expect(validation.unconfirmedMessages[0]).toContain('code 43');
     expect(validation.unconfirmedMessages[0]).toContain('field=package_id');
 
@@ -441,6 +441,7 @@ describe('GATE LPA-04 fulfill recover', () => {
         },
       }),
     ).fulfill('order-1');
+    expect(duplicate.status).toBe(FulfillmentStatus.NEED_MANUAL_REVIEW);
     expect(duplicate.unconfirmedMessages[0]).toContain('code 83');
     expect(duplicate.unconfirmedMessages[0]).toContain('Recover only');
   });

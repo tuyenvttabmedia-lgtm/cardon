@@ -27,7 +27,7 @@ describe('eSIM package spec from current catalogue', () => {
     expect(published.dataAllowanceLabel).toBe('3 GB');
     expect(published.validityLabel).toBe('7 ngày');
     expect(published.activationLabel).toMatch(/kết nối mạng lần đầu/);
-    expect(published.fairUsagePolicy).toBe('Keyon fair use 1GB/day');
+    expect(published.fairUsagePolicy).toBe('CardOn fair use 1GB/day');
     expect(published.catalogueLifecycle).toBe('PUBLISHED');
     expect(published.notice).toBe(CATALOGUE_CURRENT_NOTICE);
     expect(JSON.stringify(published)).not.toMatch(/remaining|expiry|created_at/i);

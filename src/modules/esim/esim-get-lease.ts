@@ -4,6 +4,9 @@ import { randomUUID } from 'crypto';
 
 export const ESIM_GET_LEASE_PREFIX = 'cardon:esim:get-lease:';
 
+/** Crash-recovery TTL. Longer than Airalo GET timeout (30s); NX still blocks concurrent GET. */
+export const ESIM_GET_LEASE_TTL_SEC = 5 * 60;
+
 export const ESIM_QUERY_CLAIM_LEASE_PRESENT =
   'QUERY GET lease is present. The HTTP GET may still be running. Leave the claim SENT.';
 
@@ -37,7 +40,7 @@ export interface EsimLeaseMeta {
 }
 
 export interface EsimLeaseRedis {
-  set(key: string, value: string, nx: 'NX'): Promise<string | null>;
+  set(key: string, value: string, nx: 'NX', exSeconds?: number): Promise<string | null>;
   get(key: string): Promise<string | null>;
   eval(script: string, numKeys: number, key: string, payload: string): Promise<unknown>;
 }
@@ -71,8 +74,12 @@ export function esimLeaseRedisFromQueue(queue: Queue): EsimLeaseRedis {
     return client;
   };
   return {
-    async set(key, value, nx) {
-      const result = await (await conn()).set(key, value, nx);
+    async set(key, value, nx, exSeconds) {
+      const client = await conn();
+      const result =
+        typeof exSeconds === 'number' && exSeconds > 0
+          ? await client.set(key, value, 'EX', exSeconds, nx)
+          : await client.set(key, value, nx);
       return result == null ? null : String(result);
     },
     async get(key) {
@@ -90,7 +97,7 @@ export class MemoryEsimLeaseRedis implements EsimLeaseRedis {
   failGet = false;
   failEval = false;
 
-  async set(key: string, value: string, nx: 'NX'): Promise<string | null> {
+  async set(key: string, value: string, nx: 'NX', _exSeconds?: number): Promise<string | null> {
     if (nx !== 'NX') {
       throw new Error('esim get lease SET must use NX');
     }
@@ -139,7 +146,12 @@ export class EsimGetLease {
     });
     let result: string | null;
     try {
-      result = await this.redis.set(esimGetLeaseKey(id), payload, 'NX');
+      result = await this.redis.set(
+        esimGetLeaseKey(id),
+        payload,
+        'NX',
+        ESIM_GET_LEASE_TTL_SEC,
+      );
     } catch {
       this.logger.warn(`esim get lease acquire unverified createAttempt=${id}`);
       return { ok: false, reason: 'unverified' };
@@ -180,7 +192,7 @@ export class EsimGetLease {
     }
     try {
       const value = await this.redis.get(esimGetLeaseKey(id));
-      return value == null || value === '' ? 'ABSENT' : 'PRESENT';
+      return value == null ? 'ABSENT' : 'PRESENT';
     } catch {
       return 'UNKNOWN';
     }

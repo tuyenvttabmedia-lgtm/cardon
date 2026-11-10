@@ -184,6 +184,7 @@ describe('EsimSepayPaymentService', () => {
     let providerTx: string | null = null;
     let expiresAt = order.paymentExpiresAt as Date | null;
     let created: Record<string, unknown> | null = null;
+    let gatewayResponse: Record<string, unknown> = {};
     let chain: Promise<unknown> = Promise.resolve();
     const row = (id: 'pay-1' | 'pay-2') => ({
       id,
@@ -198,22 +199,41 @@ describe('EsimSepayPaymentService', () => {
       expiresAt,
       paidAt: null,
       createdAt: new Date(),
-      gatewayResponse: {},
+      gatewayResponse: { ...gatewayResponse },
       order: { ...order, paymentStatus: orderStatus, paymentExpiresAt: expiresAt },
+      deletedAt: null,
     });
     const tx = {
       $executeRaw: jest.fn(),
       payment: {
-        findFirst: jest.fn(async (args: { where: Record<string, unknown>; select?: unknown }) => {
+        findFirst: jest.fn(async (args: { where: Record<string, unknown>; select?: Record<string, unknown> }) => {
           const where = args.where ?? {};
           if (where.gatewayTransactionId) return null;
-          if (where.status && typeof where.status === 'object') return null;
-          if (args.select) return { gatewayResponse: {} };
+          // createFromSnapshot open-payment probe uses status: { in: [...] } — no row yet.
+          if (where.status && typeof where.status === 'object' && 'in' in (where.status as object)) {
+            return created ? row('pay-1') : null;
+          }
+          if (where.status && typeof where.status === 'object') {
+            const statusFilter = where.status as { not?: PaymentRecordStatus };
+            if (statusFilter.not === PaymentRecordStatus.SUCCESS && paymentStatus === PaymentRecordStatus.SUCCESS) {
+              return null;
+            }
+          }
+          if (args.select) {
+            return {
+              gatewayResponse: { ...gatewayResponse },
+              amount: order.chargeAmount,
+            };
+          }
           if (where.paymentReference === 'ESIMSECOND' || where.id === 'pay-2') return row('pay-2');
           if (where.paymentReference && where.paymentReference !== row('pay-1').paymentReference) return null;
           return row('pay-1');
         }),
         create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          gatewayResponse =
+            data.gatewayResponse && typeof data.gatewayResponse === 'object'
+              ? { ...(data.gatewayResponse as Record<string, unknown>) }
+              : {};
           created = {
             ...row('pay-1'),
             ...data,
@@ -224,7 +244,24 @@ describe('EsimSepayPaymentService', () => {
           };
           return created;
         }),
-        updateMany: jest.fn(async ({ where, data }: { where: { id?: string; status?: string }; data: { status?: PaymentRecordStatus; gatewayTransactionId?: string } }) => {
+        update: jest.fn(async ({ data }: { data: { gatewayResponse?: Record<string, unknown> } }) => {
+          if (data.gatewayResponse && typeof data.gatewayResponse === 'object') {
+            gatewayResponse = { ...data.gatewayResponse };
+          }
+          return row('pay-1');
+        }),
+        updateMany: jest.fn(async ({ where, data }: {
+          where: { id?: string; status?: string | { not?: PaymentRecordStatus } };
+          data: {
+            status?: PaymentRecordStatus;
+            gatewayTransactionId?: string;
+            gatewayResponse?: Record<string, unknown>;
+          };
+        }) => {
+          if (data.gatewayResponse && typeof data.gatewayResponse === 'object') {
+            gatewayResponse = { ...data.gatewayResponse };
+            return { count: paymentStatus === PaymentRecordStatus.SUCCESS ? 0 : 1 };
+          }
           if (data.status === PaymentRecordStatus.SUCCESS) {
             if (where.id === 'pay-2') return { count: 0 };
             if (where.status === PaymentRecordStatus.PENDING && paymentStatus === PaymentRecordStatus.PENDING) {

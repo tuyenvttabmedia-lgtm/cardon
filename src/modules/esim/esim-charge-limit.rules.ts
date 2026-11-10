@@ -85,6 +85,9 @@ export function accountAgeHoursFromCreatedAt(
   return Math.max(0, (now.getTime() - date.getTime()) / 3_600_000);
 }
 
+/** Soft daily eSIM order count per account (VND SePay + USD PayPal). */
+export const ESIM_MAX_ORDERS_PER_ACCOUNT_PER_DAY = 5;
+
 export type EsimChargeLimitCheckInput = {
   chargeAmount: number | string;
   chargeCurrency: string;
@@ -93,6 +96,10 @@ export type EsimChargeLimitCheckInput = {
   /** PayPal path only — account age for new-account cap. null = treat as new (fail-closed). */
   accountAgeHours?: number | null;
   quantity?: number;
+  /** Paid eSIM orders today for this account (UTC day). */
+  ordersPaidToday?: number;
+  /** Paid eSIM USD volume today (PayPal path). */
+  usdPaidToday?: number;
 };
 
 export type EsimChargeLimitOk = {
@@ -160,7 +167,22 @@ export function evaluateEsimChargeLimit(input: EsimChargeLimitCheckInput): EsimC
     };
   }
 
+  const ordersPaidToday =
+    typeof input.ordersPaidToday === 'number' && Number.isFinite(input.ordersPaidToday)
+      ? Math.max(0, input.ordersPaidToday)
+      : 0;
+
   if (currency === 'VND') {
+    if (ordersPaidToday + 1 > ESIM_MAX_ORDERS_PER_ACCOUNT_PER_DAY) {
+      return {
+        ok: false,
+        reason: 'ESIM_ORDER_AMOUNT_LIMIT',
+        chargeAmount: amount,
+        chargeCurrency: 'VND',
+        configuredLimit: ESIM_MAX_ORDERS_PER_ACCOUNT_PER_DAY,
+        effectiveLimit: ESIM_MAX_ORDERS_PER_ACCOUNT_PER_DAY,
+      };
+    }
     const configured = input.maxVnd;
     if (configured <= 0) {
       return { ok: true, effectiveLimit: null };
@@ -183,15 +205,22 @@ export function evaluateEsimChargeLimit(input: EsimChargeLimitCheckInput): EsimC
       maxUsdSetting: input.maxUsd,
       accountAgeHours: input.accountAgeHours,
     });
+    const usdPaidToday =
+      typeof input.usdPaidToday === 'number' && Number.isFinite(input.usdPaidToday)
+        ? Math.max(0, input.usdPaidToday)
+        : 0;
     const paypal = evaluatePaypalEsimLimits({
       quantity: input.quantity ?? 1,
       amountUsd: amount,
-      // Phase A: do not pretend daily counters are live. Pass zeros; do not rely on them for safety.
-      ordersPaidToday: 0,
-      usdPaidToday: 0,
+      ordersPaidToday,
+      usdPaidToday,
       accountAgeHours: input.accountAgeHours ?? null,
       config: {
         maxUsdPerOrder: overallCap,
+        maxOrdersPerAccountPerDay: Math.min(
+          DEFAULT_PAYPAL_ESIM_LIMITS.maxOrdersPerAccountPerDay,
+          ESIM_MAX_ORDERS_PER_ACCOUNT_PER_DAY,
+        ),
       },
     });
     if (!paypal.ok) {

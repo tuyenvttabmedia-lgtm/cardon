@@ -9,14 +9,17 @@ export class EsimQueueProducer {
 
   constructor(@InjectQueue(ESIM_QUEUE) private readonly queue: Queue) {}
 
-  /** Stable job id. Database openGuard is the real duplicate guard. */
+  /**
+   * Stable job id while waiting/active. Completed/failed jobs are removed so
+   * SePay/PayPal can re-enqueue after a Redis blip (DB openGuard still dedupes CREATE).
+   */
   async enqueueFulfillment(orderId: string): Promise<string> {
     const jobId = `esim-fulfill-${orderId}`;
     try {
       const job = await this.queue.add(
         ESIM_QUEUE_JOB.FULFILL,
         { orderId },
-        { jobId, attempts: 1 },
+        { jobId, attempts: 1, removeOnComplete: true, removeOnFail: true },
       );
       this.logger.log(`Enqueued esim_queue jobId=${job.id} orderId=${orderId}`);
       return String(job.id);

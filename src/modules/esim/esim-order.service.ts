@@ -8,7 +8,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma, UserRole } from '@prisma/client';
+import { OrderPaymentStatus, Prisma, ProductVariantType, UserRole } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { ErrorCode } from '../../common/constants/error-codes.constants';
 import { AppHttpException } from '../../common/exceptions/app-http.exception';
@@ -116,6 +116,14 @@ export class EsimOrderService {
           : 'eSIM live provider is disabled',
       );
     }
+    // Never charge real money for mock LPA in production customer checkout.
+    if (
+      mode === 'mock' &&
+      !adminTest &&
+      this.configService.get<string>('APP_ENV') === 'production'
+    ) {
+      throw new BadRequestException('eSIM live provider is disabled');
+    }
 
     const item = dto.items[0];
     const variant = await this.variantRepository.findActiveById(item.variantId);
@@ -189,6 +197,10 @@ export class EsimOrderService {
     if (customerIntl && (!sellAmount.gt(0) || !customerPaid.gt(0) || !providerCost.gt(0))) {
       throw new BadRequestException('eSIM price rejected: INVALID_PRICE');
     }
+    // Never sell below provider cost (+ fee) on customer checkout.
+    if (!adminTest && profit.lt(0)) {
+      throw new BadRequestException('eSIM price rejected: NEGATIVE_MARGIN');
+    }
     const vndSnapshot = buildEsimVndPriceSnapshot({
       sellAmount,
       chargeAmount: customerPaid,
@@ -241,7 +253,7 @@ export class EsimOrderService {
       const limitChargeCurrency = adminTestCharge
         ? adminTestCharge.currency
         : priceSnapshot.chargeCurrency;
-      this.assertEsimChargeWithinLimit({
+      await this.assertEsimChargeWithinLimit({
         userId: user.id,
         market,
         gateway: paymentMethod.gatewayCode,
@@ -379,19 +391,20 @@ export class EsimOrderService {
    * Phase A — reject oversized eSIM charges before financial txn / order rows.
    * Uses server charge snapshot (or admin-test sandbox USD), never client-declared amounts.
    */
-  private assertEsimChargeWithinLimit(input: {
+  private async assertEsimChargeWithinLimit(input: {
     userId: string;
     market: EsimMarket;
     gateway: string;
     chargeAmount: number | string;
     chargeCurrency: string;
     accountAgeHours: number | null;
-  }): void {
+  }): Promise<void> {
     const system = this.settingsStore.resolveSystemConfig();
     const limits = resolveEsimChargeLimitConfig({
       esimMaxChargeAmountVnd: system.esimMaxChargeAmountVnd,
       esimMaxChargeAmountUsd: system.esimMaxChargeAmountUsd,
     });
+    const velocity = await this.readEsimPaidVelocityToday(input.userId);
     const result = evaluateEsimChargeLimit({
       chargeAmount: input.chargeAmount,
       chargeCurrency: input.chargeCurrency,
@@ -399,6 +412,8 @@ export class EsimOrderService {
       maxUsd: limits.maxUsd,
       accountAgeHours: input.accountAgeHours,
       quantity: 1,
+      ordersPaidToday: velocity.ordersPaidToday,
+      usdPaidToday: velocity.usdPaidToday,
     });
     if (result.ok) {
       return;
@@ -426,6 +441,38 @@ export class EsimOrderService {
       ESIM_ORDER_AMOUNT_LIMIT_MESSAGE,
       HttpStatus.BAD_REQUEST,
     );
+  }
+
+  private async readEsimPaidVelocityToday(userId: string): Promise<{
+    ordersPaidToday: number;
+    usdPaidToday: number;
+  }> {
+    if (!this.prisma?.order?.findMany) {
+      return { ordersPaidToday: 0, usdPaidToday: 0 };
+    }
+    const start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    try {
+      const rows = await this.prisma.order.findMany({
+        where: {
+          userId,
+          ...ACTIVE_ORDER_WHERE,
+          paymentStatus: OrderPaymentStatus.PAID,
+          createdAt: { gte: start },
+          orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+        },
+        select: { chargeCurrency: true, chargeAmount: true },
+      });
+      let usdPaidToday = 0;
+      for (const row of rows) {
+        if ((row.chargeCurrency ?? '').toUpperCase() !== 'USD' || row.chargeAmount == null) continue;
+        const amount = Number(row.chargeAmount.toString());
+        if (Number.isFinite(amount) && amount > 0) usdPaidToday += amount;
+      }
+      return { ordersPaidToday: rows.length, usdPaidToday };
+    } catch {
+      return { ordersPaidToday: 0, usdPaidToday: 0 };
+    }
   }
 
   private async lockEsimOrderCreate(

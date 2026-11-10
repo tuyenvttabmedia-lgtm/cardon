@@ -104,17 +104,18 @@ describe('LPA-16K17-A+C query-open recovery', () => {
     expect(store.open.has('item-1')).toBe(true);
   });
 
-  it('5. NEED_MANUAL_REVIEW does not call provider or CREATE', async () => {
+  it('5. NEED_MANUAL_REVIEW with stored ref may QUERY GET but never CREATE', async () => {
     const store = new MemoryStore();
     seedOpenRef(store);
     store.status = FulfillmentStatus.NEED_MANUAL_REVIEW;
-    const port = livePort({});
+    const port = livePort({
+      getInstallDetails: async () => ({ orderReference: '104159', installSecret: FIXTURE }),
+    });
     const result = await service(store, port).queryOpenCreateRecovery('order-1');
-    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.NEED_MANUAL_REVIEW);
-    expect(result.queried).toBe(false);
     expect(result.created).toBe(false);
     expect(port.createOrder).not.toHaveBeenCalled();
-    expect(port.getInstallDetails).not.toHaveBeenCalled();
+    expect(port.getInstallDetails).toHaveBeenCalled();
+    expect(result.queried).toBe(true);
   });
 
   it('6. COMPLETED with profile is a no-op', async () => {

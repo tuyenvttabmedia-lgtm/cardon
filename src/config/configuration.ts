@@ -173,6 +173,13 @@ export default () => ({
     clientId: process.env.AIRALO_CLIENT_ID ?? '',
     clientSecret: process.env.AIRALO_CLIENT_SECRET ?? '',
     accountMode: process.env.AIRALO_ACCOUNT_MODE === 'production' ? 'production' : 'sandbox',
+    /** Shared secret appended as ?token= on low-data webhook opt-in URL. */
+    webhookSecret: process.env.AIRALO_WEBHOOK_SECRET?.trim() || '',
+    /** Prefer DNS-only host for Airalo probes (bypasses CF bot fight). */
+    webhookPublicBaseUrl:
+      process.env.AIRALO_WEBHOOK_PUBLIC_BASE_URL?.trim() ||
+      process.env.APP_PUBLIC_URL?.trim() ||
+      '',
   },
   paypal: {
     /** Feature flag. Default off. Cards/topup never read this. */

@@ -132,10 +132,11 @@ export class EsimSepayPaymentService {
         const checkoutFormFields = buildEsimSepayCheckoutForm(fields, config.merchantSecret);
         const gatewayResponse = {
           integrationMode: 'esim_payment_gateway',
-          environment: 'sandbox',
+          environment: config.environment,
           checkoutUrl: config.checkoutUrl,
           checkoutFormFields,
           displayMode: 'redirect',
+          fulfillmentQueued: false,
         } satisfies Prisma.InputJsonObject;
         const created = await tx.payment.create({
           data: {
@@ -287,7 +288,7 @@ export class EsimSepayPaymentService {
       providerTransactionId,
     });
     if (settlement === 'SETTLED') {
-      await this.fulfillmentDispatchService.dispatchOrderFulfillment(payment.orderId);
+      await this.enqueueAfterCommit(payment.orderId, payment.id);
       await this.notificationService.notifyPaymentSuccess(payment.orderId);
       return {
         paymentReference: payment.paymentReference,
@@ -296,6 +297,8 @@ export class EsimSepayPaymentService {
       };
     }
     if (settlement === 'DUPLICATE') {
+      // Re-dispatch if prior enqueue failed after settle (fulfillmentQueued cleared).
+      await this.enqueueAfterCommit(payment.orderId, payment.id);
       return {
         paymentReference: payment.paymentReference,
         status: PaymentRecordStatus.SUCCESS,
@@ -307,18 +310,22 @@ export class EsimSepayPaymentService {
       where: { id: payment.id, deletedAt: null },
     });
     if (latest?.status === PaymentRecordStatus.SUCCESS) {
+      await this.enqueueAfterCommit(payment.orderId, payment.id);
       return {
         paymentReference: payment.paymentReference,
         status: PaymentRecordStatus.SUCCESS,
         synced: false,
       };
     }
+    if (settlement === 'EXPIRED' || settlement === 'LOST') {
+      await this.noteReconciliation(payment.id, providerTransactionId, settlement);
+    }
     this.logger.warn(`eSIM SePay sync ${settlement} invoice=${payment.paymentReference}`);
     return {
       paymentReference: payment.paymentReference,
       status: latest?.status ?? payment.status,
       synced: false,
-      ...(settlement === 'EXPIRED' ? { manualReview: true } : {}),
+      ...(settlement === 'EXPIRED' || settlement === 'LOST' ? { manualReview: true } : {}),
     };
   }
 
@@ -349,7 +356,7 @@ export class EsimSepayPaymentService {
       amount: new Decimal(payment.amount.toString()),
     });
     if (!decision.ok || !decision.providerTransactionId) {
-      await this.recordMismatch(payment.id, decision.reason);
+      await this.recordMismatch(payment.id, decision.reason, decision.providerTransactionId);
       this.logger.warn(`eSIM SePay IPN mismatch ${decision.reason} invoice=${payment.paymentReference}`);
       return { success: true, outcome: 'IGNORED', reason: decision.reason };
     }
@@ -360,7 +367,10 @@ export class EsimSepayPaymentService {
       providerTransactionId: decision.providerTransactionId,
     });
     if (settlement !== 'SETTLED') {
-      if (settlement !== 'DUPLICATE') {
+      if (settlement === 'DUPLICATE') {
+        await this.enqueueAfterCommit(payment.orderId, payment.id);
+      } else {
+        await this.noteReconciliation(payment.id, decision.providerTransactionId, settlement);
         this.logger.warn(`eSIM SePay IPN ${settlement} invoice=${payment.paymentReference}`);
       }
       return {
@@ -369,7 +379,7 @@ export class EsimSepayPaymentService {
         reason: settlement,
       };
     }
-    await this.fulfillmentDispatchService.dispatchOrderFulfillment(payment.orderId);
+    await this.enqueueAfterCommit(payment.orderId, payment.id);
     await this.notificationService.notifyPaymentSuccess(payment.orderId);
     return { success: true, outcome: 'SETTLED' };
   }
@@ -394,22 +404,103 @@ export class EsimSepayPaymentService {
     }
   }
 
-  private async recordMismatch(paymentId: string, reason: string): Promise<void> {
+  private async recordMismatch(
+    paymentId: string,
+    reason: string,
+    providerTransactionId?: string,
+  ): Promise<void> {
     const current = await this.prisma.payment.findFirst({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
-      select: { gatewayResponse: true },
+      select: { gatewayResponse: true, amount: true },
     });
     if (!current) return;
-    const previous =
-      current.gatewayResponse && typeof current.gatewayResponse === 'object' && !Array.isArray(current.gatewayResponse)
-        ? current.gatewayResponse
-        : {};
+    const previous = readGateway(current.gatewayResponse);
+    const amount = new Decimal(current.amount.toString()).toFixed(0);
     await this.prisma.payment.updateMany({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
       data: {
         gatewayResponse: {
           ...previous,
           settlementMismatch: reason,
+          reconciliationRequired: true,
+          reconciliationReason: reason,
+          manualReview: true,
+          lateWebhookAt: new Date().toISOString(),
+          lateWebhookEvidence: {
+            amount,
+            ...(providerTransactionId ? { providerTransactionId } : {}),
+            reason,
+          },
+        } as Prisma.InputJsonObject,
+      },
+    });
+  }
+
+  /** Claim enqueue once; clear flag if Redis/dispatch fails so sync/IPN can retry. */
+  private async enqueueAfterCommit(orderId: string, paymentId: string): Promise<void> {
+    const claimed = await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findFirst({
+        where: { id: paymentId, deletedAt: null },
+      });
+      if (!payment || payment.status !== PaymentRecordStatus.SUCCESS) return false;
+      const raw = readGateway(payment.gatewayResponse);
+      if (raw.fulfillmentQueued === true) return false;
+      await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          gatewayResponse: { ...raw, fulfillmentQueued: true } as Prisma.InputJsonObject,
+        },
+      });
+      return true;
+    });
+    if (!claimed) return;
+    try {
+      await this.fulfillmentDispatchService.dispatchOrderFulfillment(orderId);
+    } catch (error) {
+      const payment = await this.prisma.payment.findFirst({
+        where: { id: paymentId, deletedAt: null },
+      });
+      const raw = readGateway(payment?.gatewayResponse);
+      await this.prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          gatewayResponse: {
+            ...raw,
+            fulfillmentQueued: false,
+            fulfillmentDispatchFailed: true,
+          } as Prisma.InputJsonObject,
+        },
+      });
+      throw error;
+    }
+  }
+
+  private async noteReconciliation(
+    paymentId: string,
+    providerTransactionId: string,
+    reason: 'EXPIRED' | 'LOST' | string,
+  ): Promise<void> {
+    const current = await this.prisma.payment.findFirst({
+      where: { id: paymentId, deletedAt: null },
+    });
+    if (!current || current.status === PaymentRecordStatus.SUCCESS) return;
+    const previous = readGateway(current.gatewayResponse);
+    const amount = new Decimal(current.amount.toString()).toFixed(0);
+    await this.prisma.payment.updateMany({
+      where: { id: paymentId, status: { not: PaymentRecordStatus.SUCCESS }, deletedAt: null },
+      data: {
+        gatewayResponse: {
+          ...previous,
+          providerTransactionId,
+          reconciliationRequired: true,
+          reconciliationReason: reason,
+          manualReview: true,
+          lateWebhookAt: new Date().toISOString(),
+          lateWebhookEvidence: {
+            amount,
+            providerTransactionId,
+            reason,
+          },
         } as Prisma.InputJsonObject,
       },
     });
@@ -507,4 +598,9 @@ function readInvoice(payload: unknown): string | undefined {
   if (!payload || typeof payload !== 'object') return undefined;
   const order = (payload as { order?: { order_invoice_number?: unknown } }).order;
   return typeof order?.order_invoice_number === 'string' ? order.order_invoice_number : undefined;
+}
+
+function readGateway(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }

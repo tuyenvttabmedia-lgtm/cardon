@@ -267,7 +267,7 @@ export class EsimPublicCatalogService {
 }
 
 function hideSupplierBrand(value: string): string {
-  return value.replace(/Airalo/gi, 'Keyon');
+  return value.replace(/Airalo/gi, 'CardOn');
 }
 
 function hideSupplierTokens(values: string[] | undefined): string[] {

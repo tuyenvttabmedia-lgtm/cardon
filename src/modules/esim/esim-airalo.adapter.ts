@@ -96,12 +96,15 @@ export class AiraloRequestError extends Error {
 
 const DEFAULT_BASE_URL = 'https://partners-api.airalo.com';
 
+const AIRALO_FETCH_TIMEOUT_MS = 30_000;
+
 export class FetchAiraloTransport implements AiraloHttpTransport {
   async send(request: AiraloHttpRequest): Promise<AiraloHttpResponse> {
     const response = await fetch(request.url, {
       method: request.method,
       headers: request.headers,
       body: request.body,
+      signal: AbortSignal.timeout(AIRALO_FETCH_TIMEOUT_MS),
     });
     return { status: response.status, body: await response.text() };
   }

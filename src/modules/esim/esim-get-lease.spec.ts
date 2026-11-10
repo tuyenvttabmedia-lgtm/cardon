@@ -13,17 +13,24 @@ const root = join(__dirname, '../../..');
 const meta = { orderId: 'order-1', orderItemId: 'item-1', queryAttemptId: 'query-1' };
 
 describe('LPA-16K27B Redis GET lease helper', () => {
-  it('acquires with SET NX and no TTL steal', async () => {
+  it('acquires with SET NX + crash-recovery TTL (no short steal)', async () => {
     const source = readFileSync(join(root, 'src/modules/esim/esim-get-lease.ts'), 'utf8');
-    expect(source).toContain("set(esimGetLeaseKey(id), payload, 'NX')");
-    expect(source).not.toMatch(/\bEX\b|\bPX\b|\bEXAT\b|\bPXAT\b/);
-    expect(source).not.toContain('steal');
+    expect(source).toContain('ESIM_GET_LEASE_TTL_SEC');
+    expect(source).toMatch(/set\(\s*esimGetLeaseKey\(id\),\s*payload,\s*'NX',\s*ESIM_GET_LEASE_TTL_SEC/);
+    expect(source).not.toMatch(/\bsteal\b/);
     const redis = new MemoryEsimLeaseRedis();
+    const setSpy = jest.spyOn(redis, 'set');
     const lease = new EsimGetLease(redis);
     const first = await lease.acquire('attempt-1', meta);
     const second = await lease.acquire('attempt-1', meta);
     expect(first.ok).toBe(true);
     expect(second).toEqual({ ok: false, reason: 'conflict' });
+    expect(setSpy).toHaveBeenCalledWith(
+      esimGetLeaseKey('attempt-1'),
+      expect.any(String),
+      'NX',
+      300,
+    );
     expect(redis.store.has(esimGetLeaseKey('attempt-1'))).toBe(true);
     expect(JSON.parse([...redis.store.values()][0] as string).token).toEqual(
       expect.stringMatching(/^[0-9a-f-]{36}$/),

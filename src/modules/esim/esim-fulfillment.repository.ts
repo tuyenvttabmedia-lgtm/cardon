@@ -1,5 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { EsimAttemptOutcome, EsimProviderMode, FulfillmentStatus, OrderEventType, Prisma } from '@prisma/client';
+import {
+  EsimAttemptOutcome,
+  EsimProviderMode,
+  FulfillmentStatus,
+  OrderEventType,
+  OrderPaymentStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { persistAdminTestFulfillmentSkip } from './esim-admin-test.rules';
 import { randomUUID } from 'crypto';
@@ -52,6 +59,17 @@ export class EsimFulfillmentRepository {
       );
   }
 
+  async getOrderPaymentFulfillment(orderId: string): Promise<{
+    paymentStatus: OrderPaymentStatus;
+    fulfillmentStatus: FulfillmentStatus;
+  } | null> {
+    const row = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { paymentStatus: true, fulfillmentStatus: true },
+    });
+    return row ?? null;
+  }
+
   async getOrderFulfillmentStatus(orderId: string): Promise<FulfillmentStatus | null> {
     const row = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -60,10 +78,18 @@ export class EsimFulfillmentRepository {
     return row?.fulfillmentStatus ?? null;
   }
 
-  /** Conditional PENDING → PROCESSING. Existing PROCESSING is not this worker's claim. */
+  /**
+   * Conditional PENDING|WAITING_ADMIN_RETRY → PROCESSING.
+   * WAITING_ADMIN_RETRY is allowed only after a definite no-CREATE failure released openGuard.
+   */
   async claimFirstCreate(orderId: string): Promise<boolean> {
     const updated = await this.prisma.order.updateMany({
-      where: { id: orderId, fulfillmentStatus: FulfillmentStatus.PENDING },
+      where: {
+        id: orderId,
+        fulfillmentStatus: {
+          in: [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY],
+        },
+      },
       data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
     });
     return updated.count === 1;
@@ -143,7 +169,10 @@ export class EsimFulfillmentRepository {
         AND length(btrim(c.provider_reference)) > 0
         AND length(c.provider_reference) <= 128
         AND q.provider_mode = CAST('LIVE' AS "EsimProviderMode")
-        AND o.fulfillment_status = CAST('PROCESSING' AS "FulfillmentStatus")
+        AND o.fulfillment_status IN (
+          CAST('PROCESSING' AS "FulfillmentStatus"),
+          CAST('NEED_MANUAL_REVIEW' AS "FulfillmentStatus")
+        )
         AND p.id IS NULL
         AND NOT EXISTS (
           SELECT 1
@@ -157,6 +186,126 @@ export class EsimFulfillmentRepository {
       LIMIT ${limit}
     `);
     return rows.map((row) => row.order_id);
+  }
+
+  /**
+   * PAID + PENDING eSIM orders older than `olderThanMs` with no open CREATE guard.
+   * Safe to re-enqueue: claimFirstCreate + openGuard still dedupe CREATE.
+   */
+  async listPaidPendingStuckOrderIds(olderThanMs = 5 * 60_000, take = 20): Promise<string[]> {
+    const limit =
+      typeof take === 'number' && Number.isFinite(take)
+        ? Math.min(20, Math.max(1, Math.trunc(take)))
+        : 20;
+    const cutoff = new Date(Date.now() - Math.max(60_000, olderThanMs));
+    const rows = await this.prisma.$queryRaw<Array<{ order_id: string }>>(Prisma.sql`
+      SELECT o.id AS order_id
+      FROM orders AS o
+      INNER JOIN order_items AS oi ON oi.order_id = o.id
+      INNER JOIN product_variants AS pv ON pv.id = oi.variant_id
+      INNER JOIN esim_order_quotes AS q ON q.order_item_id = oi.id
+      LEFT JOIN esim_profiles AS p ON p.order_item_id = oi.id
+      WHERE o.deleted_at IS NULL
+        AND o.payment_status = CAST('PAID' AS "OrderPaymentStatus")
+        AND o.fulfillment_status = CAST('PENDING' AS "FulfillmentStatus")
+        AND pv.type = CAST('ESIM' AS "ProductVariantType")
+        AND p.id IS NULL
+        AND o.updated_at <= ${cutoff}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM esim_provider_attempts AS c
+          WHERE c.order_item_id = oi.id
+            AND c.operation = CAST('CREATE' AS "EsimAttemptOperation")
+            AND c.open_guard = oi.id
+        )
+      ORDER BY o.updated_at ASC, o.id ASC
+      LIMIT ${limit}
+    `);
+    return rows.map((row) => row.order_id);
+  }
+
+  /**
+   * Definite no-CREATE (request never accepted / never left this host).
+   * Releases openGuard so admin/cron can enqueue a fresh CREATE.
+   */
+  async markDefiniteNoCreate(
+    attemptId: string,
+    orderItemId: string,
+    errorMessage: string,
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const profile = await tx.esimProfile.findUnique({
+        where: { orderItemId },
+        select: { id: true },
+      });
+      if (profile) return;
+      const item = await tx.orderItem.findUnique({
+        where: { id: orderItemId },
+        select: { orderId: true },
+      });
+      if (!item) return;
+      const order = await tx.order.findUnique({
+        where: { id: item.orderId },
+        select: { fulfillmentStatus: true },
+      });
+      if (!order || order.fulfillmentStatus === FulfillmentStatus.COMPLETED) return;
+      const attempt = await tx.esimProviderAttempt.findUnique({
+        where: { id: attemptId },
+        select: { outcome: true, providerReference: true },
+      });
+      if (attempt?.outcome === EsimAttemptOutcome.PROFILE_SAVED) return;
+      // Never release a CREATE that already stored a provider reference.
+      if (attempt?.providerReference && attempt.providerReference.trim()) {
+        await tx.esimProviderAttempt.update({
+          where: { id: attemptId },
+          data: {
+            outcome: EsimAttemptOutcome.UNCONFIRMED,
+            errorCode: 'UNCONFIRMED',
+            errorMessage: errorMessage.trim().slice(0, 240) || 'Outcome unclear. No second CREATE.',
+            safeResponseMeta: { outcome: 'unconfirmed' },
+          },
+        });
+        await tx.order.updateMany({
+          where: {
+            id: item.orderId,
+            fulfillmentStatus: {
+              in: [
+                FulfillmentStatus.PENDING,
+                FulfillmentStatus.PROCESSING,
+                FulfillmentStatus.WAITING_ADMIN_RETRY,
+                FulfillmentStatus.NEED_MANUAL_REVIEW,
+              ],
+            },
+          },
+          data: { fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW },
+        });
+        return;
+      }
+      await tx.esimProviderAttempt.update({
+        where: { id: attemptId },
+        data: {
+          outcome: EsimAttemptOutcome.REJECTED_DEFINITIVE,
+          openGuard: null,
+          completedAt: new Date(),
+          errorCode: 'DEFINITE_NO_CREATE',
+          errorMessage: errorMessage.trim().slice(0, 240) || 'Definite no CREATE. Admin may retry.',
+          safeResponseMeta: { outcome: 'definite_no_create', retryable: true },
+        },
+      });
+      await tx.order.updateMany({
+        where: {
+          id: item.orderId,
+          fulfillmentStatus: {
+            in: [
+              FulfillmentStatus.PENDING,
+              FulfillmentStatus.PROCESSING,
+              FulfillmentStatus.NEED_MANUAL_REVIEW,
+            ],
+          },
+        },
+        data: { fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY },
+      });
+    });
   }
 
   async insertOpenCreate(

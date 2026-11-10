@@ -84,10 +84,33 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
     }
   }
 
+  // Customer sales in production must never run on mock LPA or unarmed live HTTP.
+  if (isEnabledFlag(env.ESIM_ENABLED)) {
+    if (env.ESIM_PROVIDER_MODE !== 'live') {
+      errors.push('ESIM_PROVIDER_MODE=live is required when ESIM_ENABLED=true in production');
+    }
+    if (!isEnabledFlag(env.ESIM_LIVE_ARM)) {
+      errors.push('ESIM_LIVE_ARM=true is required when ESIM_ENABLED=true in production');
+    }
+    if (!env.AIRALO_CLIENT_ID || !env.AIRALO_CLIENT_SECRET) {
+      errors.push(
+        'AIRALO_CLIENT_ID and AIRALO_CLIENT_SECRET are required when ESIM_ENABLED=true in production',
+      );
+    }
+    if (env.AIRALO_ACCOUNT_MODE !== 'production') {
+      errors.push(
+        'AIRALO_ACCOUNT_MODE=production is required when ESIM_ENABLED=true in production',
+      );
+    }
+    if (!env.AIRALO_WEBHOOK_SECRET || String(env.AIRALO_WEBHOOK_SECRET).trim().length < 16) {
+      errors.push(
+        'AIRALO_WEBHOOK_SECRET (min 16 chars) is required when ESIM_ENABLED=true in production',
+      );
+    }
+  }
+
   const esimLiveArmed =
-    isEnabledFlag(env.ESIM_ENABLED) &&
-    env.ESIM_PROVIDER_MODE === 'live' &&
-    isEnabledFlag(env.ESIM_LIVE_ARM);
+    env.ESIM_PROVIDER_MODE === 'live' && isEnabledFlag(env.ESIM_LIVE_ARM);
   if (esimLiveArmed && (!env.AIRALO_CLIENT_ID || !env.AIRALO_CLIENT_SECRET)) {
     errors.push(
       'AIRALO_CLIENT_ID and AIRALO_CLIENT_SECRET are required when eSIM live arm is on',
