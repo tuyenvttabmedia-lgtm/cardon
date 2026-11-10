@@ -1,4 +1,8 @@
 import type { CmsThemeSettings } from '@/types/api';
+import {
+  resolveWorkingHoursEn,
+  sanitizeCompanyChromeLabel,
+} from '@/lib/company-chrome';
 import { normalizeContactChannels } from '@/lib/contact-channels';
 
 type MenuItem = {
@@ -147,28 +151,40 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       ? theme.mobileNav
       : DEFAULT_MOBILE_NAV
     ).map(normalizeMobileNavItem),
-    companyInfo: {
-      ...theme.companyInfo,
-      companyName: theme.companyInfo?.companyName ?? '',
-      taxCode: theme.companyInfo?.taxCode ?? '',
-      address: theme.companyInfo?.address ?? '',
-      hotline: theme.companyInfo?.hotline ?? '',
-      email: theme.companyInfo?.email ?? '',
-      workingHours: theme.companyInfo?.workingHours ?? '',
-      description: theme.companyInfo?.description ?? '',
-      descriptionEn: theme.companyInfo?.descriptionEn ?? '',
-      addressEn: theme.companyInfo?.addressEn ?? '',
-      taxLabelEn: theme.companyInfo?.taxLabelEn?.trim() ?? '',
-      addressLabelEn: theme.companyInfo?.addressLabelEn?.trim() ?? '',
-      emailLabelEn: theme.companyInfo?.emailLabelEn?.trim() ?? '',
-      hotlineLabelEn: theme.companyInfo?.hotlineLabelEn?.trim() ?? '',
-      hoursLabelEn: theme.companyInfo?.hoursLabelEn?.trim() ?? '',
-      boCongThuongEnabled: theme.companyInfo?.boCongThuongEnabled === true,
-      boCongThuongImageUrl: theme.companyInfo?.boCongThuongImageUrl ?? '',
-      boCongThuongLinkUrl: theme.companyInfo?.boCongThuongLinkUrl ?? '',
-      googleMapEnabled: theme.companyInfo?.googleMapEnabled === true,
-      googleMapEmbedUrl: theme.companyInfo?.googleMapEmbedUrl ?? '',
-    },
+    companyInfo: (() => {
+      const taxCode = theme.companyInfo?.taxCode ?? '';
+      const address = theme.companyInfo?.address ?? '';
+      const hotline = theme.companyInfo?.hotline ?? '';
+      const email = theme.companyInfo?.email ?? '';
+      const workingHours = theme.companyInfo?.workingHours ?? '';
+      const workingHoursEn = resolveWorkingHoursEn(
+        theme.companyInfo?.workingHoursEn,
+        theme.companyInfo?.hoursLabelEn,
+      );
+      return {
+        ...theme.companyInfo,
+        companyName: theme.companyInfo?.companyName ?? '',
+        taxCode,
+        address,
+        hotline,
+        email,
+        workingHours,
+        workingHoursEn,
+        description: theme.companyInfo?.description ?? '',
+        descriptionEn: theme.companyInfo?.descriptionEn ?? '',
+        addressEn: theme.companyInfo?.addressEn ?? '',
+        taxLabelEn: sanitizeCompanyChromeLabel(theme.companyInfo?.taxLabelEn, taxCode),
+        addressLabelEn: sanitizeCompanyChromeLabel(theme.companyInfo?.addressLabelEn, address),
+        emailLabelEn: sanitizeCompanyChromeLabel(theme.companyInfo?.emailLabelEn, email),
+        hotlineLabelEn: sanitizeCompanyChromeLabel(theme.companyInfo?.hotlineLabelEn, hotline),
+        hoursLabelEn: sanitizeCompanyChromeLabel(theme.companyInfo?.hoursLabelEn, workingHours),
+        boCongThuongEnabled: theme.companyInfo?.boCongThuongEnabled === true,
+        boCongThuongImageUrl: theme.companyInfo?.boCongThuongImageUrl ?? '',
+        boCongThuongLinkUrl: theme.companyInfo?.boCongThuongLinkUrl ?? '',
+        googleMapEnabled: theme.companyInfo?.googleMapEnabled === true,
+        googleMapEmbedUrl: theme.companyInfo?.googleMapEmbedUrl ?? '',
+      };
+    })(),
     contactChannels: normalizeContactChannels(theme.contactChannels),
     homeBackgrounds: {
       homeHeroBg: theme.homeBackgrounds?.homeHeroBg ?? '',

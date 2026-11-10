@@ -12,6 +12,10 @@ import { customerFacingError } from '@/lib/i18n/customer-error';
 import { contactApi } from '@/services/api-client';
 import { FaqSection } from '@/components/faq/FaqSection';
 import {
+  resolveWorkingHoursEn,
+  sanitizeCompanyChromeLabel,
+} from '@/lib/company-chrome';
+import {
   CONTACT_CHANNEL_META,
   resolveContactChannelLabel,
   resolveContactChannelValue,
@@ -44,7 +48,18 @@ export function ContactPageClient({
   const visibleChannels = contactChannels.filter(
     (channel) => channel.enabled && (channel.value.trim() || channel.valueEn?.trim()),
   );
-  const workingHours = companyInfo.workingHours?.trim() || '';
+  const workingHoursVi = companyInfo.workingHours?.trim() || '';
+  const workingHoursEn = resolveWorkingHoursEn(
+    companyInfo.workingHoursEn,
+    companyInfo.hoursLabelEn,
+  );
+  const workingHours =
+    locale === 'en' && workingHoursEn ? workingHoursEn : workingHoursVi;
+  const hoursTitle =
+    locale === 'en'
+      ? sanitizeCompanyChromeLabel(companyInfo.hoursLabelEn, workingHoursVi) ||
+        t('contact.hours')
+      : t('contact.hours');
   const mapAddress =
     locale === 'en' && companyInfo.addressEn?.trim()
       ? companyInfo.addressEn.trim()
@@ -83,11 +98,7 @@ export function ContactPageClient({
                   🕒
                 </span>
                 <div>
-                  <p className="text-sm font-semibold text-cardon-navy">
-                    {locale === 'en' && companyInfo.hoursLabelEn?.trim()
-                      ? companyInfo.hoursLabelEn.trim()
-                      : t('contact.hours')}
-                  </p>
+                  <p className="text-sm font-semibold text-cardon-navy">{hoursTitle}</p>
                   <p className="text-sm text-cardon-gray">{workingHours}</p>
                 </div>
               </li>

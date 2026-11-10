@@ -326,6 +326,7 @@ export interface CmsThemeSettings {
     hotline?: string;
     email?: string;
     workingHours?: string;
+    workingHoursEn?: string;
     description?: string;
     descriptionEn?: string;
     taxLabelEn?: string;

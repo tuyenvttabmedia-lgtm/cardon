@@ -1,3 +1,4 @@
+import { sanitizeCompanyChromeLabel } from '../company-chrome';
 import type { Locale } from './locale';
 import { isMessageKey, translate, type MessageKey } from './messages';
 
@@ -66,7 +67,8 @@ export function presentFooterLink(
 ): string {
   const value =
     locale === 'en' && link.valueEn?.trim() ? link.valueEn.trim() : (link.label ?? '').trim();
-  const customEn = locale === 'en' ? link.valueLabelEn?.trim() : '';
+  const customEn =
+    locale === 'en' ? sanitizeCompanyChromeLabel(link.valueLabelEn, value) : undefined;
   if (link.valueLabelKey && isMessageKey(link.valueLabelKey)) {
     const prefix = customEn || translate(locale, link.valueLabelKey as MessageKey);
     return `${prefix}: ${value}`;

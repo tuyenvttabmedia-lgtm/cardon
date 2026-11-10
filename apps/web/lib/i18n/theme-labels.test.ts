@@ -166,6 +166,30 @@ describe('footer labels', () => {
     const addr = bilingualAddress.links.find((link) => link.label === 'Hà Nội, Việt Nam');
     expect(addr && presentFooterLink('vi', addr)).toBe('Địa chỉ: Hà Nội, Việt Nam');
     expect(addr && presentFooterLink('en', addr)).toBe('Office: Hanoi, Vietnam');
+
+    // Mistaken pastes into *LabelEn must not duplicate as "value: value".
+    const mistaken = buildCompanyFooterColumn({
+      taxCode: '0111555889',
+      taxLabelEn: '0111555889',
+      email: 'support.cardon@gmail.com',
+      emailLabelEn: 'support.cardon@gmail.com',
+      hotline: '0984877066',
+      hotlineLabelEn: '0984877066',
+      workingHours: '08:00 - 22:00 (T2-CN)',
+      hoursLabelEn: '08:00 - 22:00 (Mon–Sun)',
+    });
+    expect(presentFooterLink('en', mistaken.links.find((l) => l.label === '0111555889')!)).toBe(
+      'Tax ID: 0111555889',
+    );
+    expect(
+      presentFooterLink('en', mistaken.links.find((l) => l.label === 'support.cardon@gmail.com')!),
+    ).toBe('Email: support.cardon@gmail.com');
+    expect(presentFooterLink('en', mistaken.links.find((l) => l.label === '0984877066')!)).toBe(
+      'Hotline: 0984877066',
+    );
+    expect(
+      presentFooterLink('en', mistaken.links.find((l) => l.label === '08:00 - 22:00 (T2-CN)')!),
+    ).toBe('Working hours: 08:00 - 22:00 (Mon–Sun)');
   });
 
   it('keeps company facts and shows a separate description per locale', () => {
