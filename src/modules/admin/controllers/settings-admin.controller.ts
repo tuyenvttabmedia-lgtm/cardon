@@ -303,6 +303,11 @@ export class SettingsAdminController {
     return this.settingsAdminService.importAiraloCatalogue();
   }
 
+  @Post('provider/airalo/opt-in-low-data')
+  optInAiraloLowData() {
+    return this.settingsAdminService.optInAiraloLowDataWebhook();
+  }
+
   @Patch('provider/airalo/packages/:id')
   setAiraloPackageLifecycle(
     @Param('id', ParseUUIDPipe) id: string,

@@ -18,8 +18,8 @@ export class EsimAiraloCatalogueCronService implements OnModuleInit, OnModuleDes
   ) {}
 
   onModuleInit(): void {
-    if (!this.armed()) {
-      this.logger.log('Airalo package sync cron skipped (ESIM not live-armed)');
+    if (!this.syncArmed()) {
+      this.logger.log('Airalo package sync cron skipped (need ESIM_PROVIDER_MODE=live + ESIM_LIVE_ARM)');
       return;
     }
     this.firstRun = setTimeout(() => void this.sync(), FIRST_RUN_DELAY_MS);
@@ -33,7 +33,7 @@ export class EsimAiraloCatalogueCronService implements OnModuleInit, OnModuleDes
   }
 
   async sync(): Promise<void> {
-    if (this.running || !this.armed()) return;
+    if (this.running || !this.syncArmed()) return;
     this.running = true;
     try {
       const summary = await this.catalogue.importFromAiralo();
@@ -48,9 +48,12 @@ export class EsimAiraloCatalogueCronService implements OnModuleInit, OnModuleDes
     }
   }
 
-  private armed(): boolean {
+  /**
+   * Catalogue sync is ops/Airalo checklist hourly sync — not customer sales.
+   * Keep ESIM_ENABLED / customerEsimEnabled off while still refreshing packages.
+   */
+  private syncArmed(): boolean {
     return (
-      this.config.get<boolean>('esim.enabled') === true &&
       this.config.get<string>('esim.providerMode') === 'live' &&
       this.config.get<boolean>('esim.liveArm') === true
     );

@@ -298,7 +298,7 @@ describe('GATE LPA-05 token lifecycle', () => {
     }
   });
 
-  it('refreshes the token and retries GET once on 401, but never retries POST /v2/orders', async () => {
+  it('refreshes the token and retries GET and POST once on 401', async () => {
     let tokenCalls = 0;
     let packageCalls = 0;
     let orderCalls = 0;
@@ -332,7 +332,8 @@ describe('GATE LPA-05 token lifecycle', () => {
     await expect(
       armedAdapter(orders).createOrder({ items: [{ bundleName: 'japan-1gb-7days', quantity: 1 }] }),
     ).rejects.toBeInstanceOf(AiraloRequestError);
-    expect(orderCalls).toBe(1);
+    // First POST 401 → re-auth → second POST still 401 → throw (no infinite retry).
+    expect(orderCalls).toBe(2);
   });
 
   it('prefers a real expires_in and refreshes 60s early without using the 24h fallback', async () => {

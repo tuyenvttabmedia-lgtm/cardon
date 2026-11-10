@@ -228,11 +228,11 @@ export class EsimFulfillmentService {
         queryAttemptId: claimed.attemptId,
       },
       async () => {
-        const installSecret = await this.readInstallFromProvider({
+        const install = await this.readInstallFromProvider({
           ...ids,
           fallback: reference,
         });
-        if (!installSecret) {
+        if (!install.installSecret) {
           return {
             queried: true,
             stored: false,
@@ -244,8 +244,9 @@ export class EsimFulfillmentService {
             orderId,
             quote.orderItemId,
             openCreate.attemptId,
-            installSecret,
+            install.installSecret,
             false,
+            install.iccid,
           );
           return {
             queried: true,
@@ -550,8 +551,9 @@ export class EsimFulfillmentService {
         providerOrderCode: result.providerOrderCode,
       });
       let installSecret = this.cleanInstallSecret(result.installSecret);
+      let iccid = this.cleanIccid(result.iccid);
       this.logger.log(
-        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)}`,
+        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)} hasIccid=${Boolean(iccid)}`,
       );
       if (!reference && !ids.numericId && !ids.orderCode) {
         await this.repository.markUnconfirmed(inserted.attemptId, quote.orderItemId);
@@ -596,7 +598,8 @@ export class EsimFulfillmentService {
             }).catch(() => undefined);
             this.logger.log(`fulfillLive order=${orderId} skipped=get_lease_${leased.kind}`);
           } else {
-            installSecret = leased.value;
+            installSecret = leased.value.installSecret;
+            iccid = iccid ?? leased.value.iccid;
             await this.repository.closeQueryAttempt({
               attemptId: queryClaim.attemptId,
               failed: !installSecret,
@@ -608,7 +611,14 @@ export class EsimFulfillmentService {
         return review;
       }
       // Await so saveProfile rejection stays in this catch (no second CREATE).
-      return await this.storeInstallSecret(orderId, quote.orderItemId, inserted.attemptId, installSecret, true);
+      return await this.storeInstallSecret(
+        orderId,
+        quote.orderItemId,
+        inserted.attemptId,
+        installSecret,
+        true,
+        iccid,
+      );
     } catch (error) {
       await this.repository.markUnconfirmed(
         inserted.attemptId,
@@ -635,8 +645,8 @@ export class EsimFulfillmentService {
       created: false,
     };
     try {
-      const installSecret = await this.readInstallFromProvider(ids);
-      if (!installSecret) {
+      const install = await this.readInstallFromProvider(ids);
+      if (!install.installSecret) {
         await this.repository.markUnconfirmed(
           attemptId,
           quote.orderItemId,
@@ -645,7 +655,14 @@ export class EsimFulfillmentService {
         return review;
       }
       // Await so saveProfile rejection stays in this catch (no second CREATE).
-      return await this.storeInstallSecret(orderId, quote.orderItemId, attemptId, installSecret, false);
+      return await this.storeInstallSecret(
+        orderId,
+        quote.orderItemId,
+        attemptId,
+        install.installSecret,
+        false,
+        install.iccid,
+      );
     } catch (error) {
       await this.repository.markUnconfirmed(
         attemptId,
@@ -690,8 +707,8 @@ export class EsimFulfillmentService {
     numericId?: string;
     orderCode?: string;
     fallback?: string;
-  }): Promise<string | undefined> {
-    if (!this.provider.getInstallDetails) return undefined;
+  }): Promise<{ installSecret?: string; iccid?: string }> {
+    if (!this.provider.getInstallDetails) return {};
     const lookups = [ids.numericId, ids.orderCode, ids.fallback].filter(
       (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index,
     );
@@ -699,12 +716,13 @@ export class EsimFulfillmentService {
       try {
         const details = await this.provider.getInstallDetails(lookup);
         const secret = this.cleanInstallSecret(details.installSecret);
-        if (secret) return secret;
+        const iccid = this.cleanIccid(details.iccid);
+        if (secret) return { installSecret: secret, iccid };
       } catch {
         // GET 422 is not proof the order was never created. Try the next identifier.
       }
     }
-    return undefined;
+    return {};
   }
 
   private resolveAiraloIds(
@@ -722,12 +740,19 @@ export class EsimFulfillmentService {
     };
   }
 
+  private cleanIccid(value: string | null | undefined): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
+  }
+
   private async storeInstallSecret(
     orderId: string,
     orderItemId: string,
     attemptId: string,
     installSecret: string,
     created: boolean,
+    iccid?: string,
   ): Promise<EsimFulfillmentResult> {
     const testData = isEsimTestSecret(installSecret) || installSecret.includes(ESIM_TEST_MARKER);
     try {
@@ -735,6 +760,7 @@ export class EsimFulfillmentService {
         orderItemId,
         attemptId,
         installSecretEnc: this.encryption.encrypt(installSecret),
+        iccid: this.cleanIccid(iccid),
         testData,
         source: 'airalo',
       });

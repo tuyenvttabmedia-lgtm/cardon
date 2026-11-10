@@ -118,6 +118,47 @@ export class NotificationService {
     );
   }
 
+  async notifyEsimLowData(
+    orderId: string,
+    options?: { remaining?: string; iccidSuffix?: string },
+  ) {
+    const order = await this.repository.findOrderForEmail(orderId);
+    if (!order) {
+      return;
+    }
+    const email = this.resolveOrderEmail(order);
+    const dayKey = new Date().toISOString().slice(0, 10);
+    if (email) {
+      await this.producer.enqueueEsimLowData(orderId, email, {
+        remaining: options?.remaining,
+        dayKey,
+      });
+    }
+    if (order.user?.id) {
+      await this.notifyCustomerInApp({
+        userId: order.user.id,
+        type: CUSTOMER_NOTIFICATION_TYPE.ESIM_LOW_DATA,
+        title: 'eSIM sắp hết data',
+        body: options?.remaining
+          ? `Đơn ${order.orderCode} còn khoảng ${options.remaining}. Mở tài khoản để top-up.`
+          : `Đơn ${order.orderCode} sắp hết data. Mở tài khoản để top-up.`,
+        metadata: {
+          orderId,
+          orderCode: order.orderCode,
+          remaining: options?.remaining,
+          iccidSuffix: options?.iccidSuffix,
+        },
+        jobId: `user-esim-low-data-${orderId}-${dayKey}`,
+      });
+    }
+    await this.orderEvents.record(
+      orderId,
+      OrderEventType.EMAIL_SENT,
+      'Email eSIM low-data đã được gửi',
+      { email, remaining: options?.remaining, iccidSuffix: options?.iccidSuffix },
+    );
+  }
+
   async notifyCardDelivery(orderId: string) {
     const order = await this.repository.findOrderForEmail(orderId);
     if (!order) {

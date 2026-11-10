@@ -196,15 +196,21 @@ export class EsimFulfillmentRepository {
     orderItemId: string;
     attemptId: string;
     installSecretEnc: string;
+    iccid?: string | null;
     testData?: boolean;
     source?: 'airalo' | 'mock';
   }): Promise<void> {
+    const iccid =
+      typeof input.iccid === 'string' && input.iccid.trim().length >= 10
+        ? input.iccid.trim().slice(0, 32)
+        : null;
     await this.prisma.$transaction(async (tx) => {
       await tx.esimProfile.create({
         data: {
           orderItemId: input.orderItemId,
           attemptId: input.attemptId,
           installSecretEnc: input.installSecretEnc,
+          ...(iccid ? { iccid } : {}),
         },
       });
       const current = await tx.esimProviderAttempt.findUnique({

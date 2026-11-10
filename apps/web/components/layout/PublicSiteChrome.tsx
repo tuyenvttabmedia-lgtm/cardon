@@ -15,7 +15,9 @@ export function PublicSiteChrome({ children }: { children: React.ReactNode }) {
   return (
     <div
       className={cn(
-        'flex min-h-screen flex-col overflow-x-hidden',
+        // Do not put overflow-x-hidden on this wrapper — it breaks header `position: sticky`
+        // (desktop nav disappears while scrolling product/checkout pages).
+        'flex min-h-screen flex-col',
         esimDetail && 'max-md:pb-[calc(9rem+env(safe-area-inset-bottom))]',
       )}
     >

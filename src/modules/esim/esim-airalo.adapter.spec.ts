@@ -6,6 +6,8 @@ import {
   AiraloRequestError,
   EsimAiraloAdapter,
   parseAiraloCataloguePage,
+  parseAiraloTopupPackages,
+  readAiraloIccid,
   readAiraloInstallSecret,
   readAiraloOrderStatus,
   unwrapAiraloOrder,
@@ -14,16 +16,25 @@ import {
 const CLIENT_ID = 'test-client-id';
 const CLIENT_SECRET = 'test-client-secret-not-real';
 
-function memoryTransport(handlers: Record<string, { status: number; body: string }>): AiraloHttpTransport {
+function memoryTransport(
+  handlers: Record<string, { status: number; body: string } | Array<{ status: number; body: string }>>,
+): AiraloHttpTransport {
+  type Hit = { status: number; body: string };
+  const queues = new Map<string, Hit[]>();
+  const sticky = new Map<string, Hit>();
+  for (const [key, value] of Object.entries(handlers)) {
+    if (Array.isArray(value)) queues.set(key, [...value]);
+    else sticky.set(key, value);
+  }
   return {
     async send(request) {
       const path = new URL(request.url).pathname;
       const key = `${request.method} ${path}`;
-      const hit = handlers[key];
-      if (!hit) {
-        return { status: 404, body: JSON.stringify({ meta: { message: `missing ${key}` } }) };
-      }
-      return hit;
+      const queue = queues.get(key);
+      if (queue && queue.length > 0) return queue.shift() as Hit;
+      const fixed = sticky.get(key);
+      if (fixed) return fixed;
+      return { status: 404, body: JSON.stringify({ meta: { message: `missing ${key}` } }) };
     },
   };
 }
@@ -72,7 +83,7 @@ describe('EsimAiraloAdapter', () => {
             code: 'ORD-991',
             currency: 'USD',
             price: 4.5,
-            sims: [{ lpa: 'LPA:1$smdp.example$MATCH', iccid: '890000' }],
+            sims: [{ lpa: 'LPA:1$smdp.example$MATCH', iccid: '8901234567890123456' }],
           },
           meta: { message: 'success' },
         }),
@@ -100,7 +111,68 @@ describe('EsimAiraloAdapter', () => {
       currency: 'USD',
       total: 4.5,
       installSecret: 'LPA:1$smdp.example$MATCH',
+      iccid: '8901234567890123456',
     });
+  });
+
+  it('retries POST once after 401 token expiry', async () => {
+    const transport = memoryTransport({
+      'POST /v2/token': [
+        {
+          status: 200,
+          body: JSON.stringify({ data: { access_token: 'stale', expires_in: 3600 } }),
+        },
+        {
+          status: 200,
+          body: JSON.stringify({ data: { access_token: 'fresh', expires_in: 3600 } }),
+        },
+      ],
+      'POST /v2/orders': [
+        { status: 401, body: JSON.stringify({ meta: { message: 'expired' } }) },
+        {
+          status: 200,
+          body: JSON.stringify({
+            data: {
+              id: 1,
+              code: 'ORD-1',
+              sims: [{ qrcode: 'LPA:1$smdp.example$A', iccid: '8901234567890123456' }],
+            },
+          }),
+        },
+      ],
+    });
+    const adapter = new EsimAiraloAdapter(undefined, {
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      httpEnabled: true,
+      transport,
+    });
+    await expect(
+      adapter.createOrder({ items: [{ bundleName: 'pkg', quantity: 1 }] }),
+    ).resolves.toMatchObject({
+      orderReference: 'ORD-1',
+      installSecret: 'LPA:1$smdp.example$A',
+      iccid: '8901234567890123456',
+    });
+  });
+
+  it('parses top-up packages and validates ICCID helpers', () => {
+    expect(readAiraloIccid({ iccid: '8901234567890123456' })).toBe('8901234567890123456');
+    expect(readAiraloIccid({ iccid: 'short' })).toBeUndefined();
+    expect(
+      parseAiraloTopupPackages({
+        data: [{ id: 'jp-topup-1gb', title: '1GB top-up', amount: 1024, day: 7, price: 2.5, currency: 'USD' }],
+      }),
+    ).toEqual([
+      {
+        providerPackageId: 'jp-topup-1gb',
+        title: '1GB top-up',
+        dataAmountMb: 1024,
+        validityDays: 7,
+        price: 2.5,
+        currency: 'USD',
+      },
+    ]);
   });
 
   it('builds LPA from qrcode or lpa+matching_id, not the SM-DP host alone', () => {

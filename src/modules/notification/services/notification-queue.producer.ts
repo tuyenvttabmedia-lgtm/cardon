@@ -112,6 +112,23 @@ export class NotificationQueueProducer {
     );
   }
 
+  enqueueEsimLowData(
+    orderId: string,
+    email: string,
+    options?: { remaining?: string; dayKey?: string },
+  ) {
+    const dayKey = options?.dayKey ?? new Date().toISOString().slice(0, 10);
+    return this.enqueue(
+      {
+        channel: NOTIFICATION_CHANNEL.EMAIL,
+        template: EMAIL_TEMPLATE.ESIM_LOW_DATA,
+        recipientEmail: email,
+        payload: { orderId, remaining: options?.remaining },
+      },
+      `email-esim-low-data-${orderId}-${dayKey}`,
+    );
+  }
+
   enqueueTopupDelivery(orderId: string, email: string, isData: boolean) {
     return this.enqueue(
       {

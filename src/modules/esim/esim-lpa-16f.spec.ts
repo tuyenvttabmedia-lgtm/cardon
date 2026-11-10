@@ -37,6 +37,7 @@ describe('LPA-16F admin reveal fail-closed', () => {
       { revealInstallSecret } as never,
       {} as never,
       {} as never,
+      {} as never,
       { record } as never,
     );
     const result = await controller.reveal(
@@ -73,6 +74,7 @@ describe('LPA-16F admin reveal fail-closed', () => {
       } as never,
       {} as never,
       {} as never,
+      {} as never,
       { record: jest.fn().mockRejectedValue(new Error('audit down')) } as never,
     );
     await expect(
@@ -87,6 +89,7 @@ describe('LPA-16F admin reveal fail-closed', () => {
     const revealInstallSecret = jest.fn();
     const controller = new EsimOpsAdminController(
       { revealInstallSecret } as never,
+      {} as never,
       {} as never,
       {} as never,
       { record: jest.fn() } as never,

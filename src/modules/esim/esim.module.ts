@@ -20,15 +20,21 @@ import { EsimMockAdapter } from './esim-mock.adapter';
 import { EsimOrderService } from './esim-order.service';
 import { ESIM_PROVIDER_PORT } from './esim-provider.port';
 import { EsimController } from './esim.controller';
+import { EsimAiraloWebhookController } from './esim-airalo-webhook.controller';
 import { EsimWorker } from './esim.worker';
 import { EsimAiraloProviderBootstrap } from './esim-airalo-provider.bootstrap';
 import { EsimAiraloCatalogueRepository } from './esim-airalo-catalogue.repository';
 import { EsimAiraloCatalogueService } from './esim-airalo-catalogue.service';
 import { EsimAiraloCatalogueCronService } from './esim-airalo-catalogue.cron';
+import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
+import { EsimTopupService } from './esim-topup.service';
 import { EsimQueryOpenCronService } from './esim-query-open.cron';
 
 const workers = shouldRegisterWorkers() ? [EsimWorker, EsimQueryOpenCronService] : [];
 const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
+const httpControllers = shouldRegisterHttp()
+  ? [EsimController, EsimAiraloWebhookController]
+  : [EsimController];
 
 @Module({
   imports: [
@@ -39,7 +45,7 @@ const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
     SettingsModule,
     forwardRef(() => NotificationModule),
   ],
-  controllers: [EsimController],
+  controllers: httpControllers,
   providers: [
     EsimOrderService,
     EsimFulfillmentRepository,
@@ -66,6 +72,8 @@ const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
     { provide: ESIM_PROVIDER_PORT, useExisting: EsimAiraloAdapter },
     EsimAccountService,
     EsimAdminService,
+    EsimAiraloWebhookService,
+    EsimTopupService,
     EsimAiraloProviderBootstrap,
     EsimAiraloCatalogueRepository,
     EsimAiraloCatalogueService,
@@ -79,6 +87,7 @@ const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
     EsimQueueModule,
     EsimAiraloAdapter,
     EsimAiraloCatalogueService,
+    EsimTopupService,
   ],
 })
 export class EsimModule {}
