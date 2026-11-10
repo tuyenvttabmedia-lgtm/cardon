@@ -258,8 +258,9 @@ export default function AppearancePage() {
             <div>
               <h2 className="font-semibold">Thông tin công ty (Cột 1 footer)</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                MST / hotline / email dùng chung hai ngôn ngữ. Nhãn tiếng Anh chỉ đổi chữ trước dấu hai chấm (vd. Tax
-                ID), không phải nội dung. Mô tả và địa chỉ có bản tiếng Anh riêng.
+                MST / hotline / email dùng chung hai ngôn ngữ. Ô «Tiêu đề EN» chỉ là chữ ngắn trước dấu hai chấm
+                (Tax ID / Hotline / Email) — không dán số, email hay giờ vào đó. Địa chỉ và giờ làm việc có ô nội dung
+                tiếng Anh riêng.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -317,6 +318,7 @@ export default function AppearancePage() {
                   }
                 />
                 <EnglishLabelField
+                  placeholder="Tax ID"
                   value={form.companyInfo?.taxLabelEn ?? ''}
                   onChange={(taxLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, taxLabelEn } })
@@ -334,12 +336,15 @@ export default function AppearancePage() {
                   }
                 />
                 <EnglishLabelField
+                  placeholder="Hotline"
                   value={form.companyInfo?.hotlineLabelEn ?? ''}
                   onChange={(hotlineLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, hotlineLabelEn } })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Một số điện thoại. Nhãn để trống thì dùng Hotline / catalog.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Một số điện thoại. Để trống tiêu đề EN thì dùng Hotline.
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <Label>Địa chỉ (tiếng Việt)</Label>
@@ -369,13 +374,14 @@ export default function AppearancePage() {
                   />
                 </div>
                 <EnglishLabelField
+                  placeholder="Address"
                   value={form.companyInfo?.addressLabelEn ?? ''}
                   onChange={(addressLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, addressLabelEn } })
                   }
                 />
                 <p className="mt-1 text-xs text-slate-500">
-                  Nhãn tiếng Anh chỉ là chữ &quot;Address&quot; trước nội dung — không dán cả địa chỉ vào ô nhãn.
+                  Tiêu đề EN chỉ là chữ &quot;Address&quot; — bản dịch địa chỉ nằm ở ô nội dung phía trên.
                 </p>
               </div>
               <div>
@@ -390,15 +396,16 @@ export default function AppearancePage() {
                   }
                 />
                 <EnglishLabelField
+                  placeholder="Email"
                   value={form.companyInfo?.emailLabelEn ?? ''}
                   onChange={(emailLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, emailLabelEn } })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Một địa chỉ email. Nhãn để trống thì dùng Email.</p>
+                <p className="mt-1 text-xs text-slate-500">Một địa chỉ email. Để trống tiêu đề EN thì dùng Email.</p>
               </div>
               <div>
-                <Label>Thời gian làm việc</Label>
+                <Label>Thời gian làm việc (tiếng Việt)</Label>
                 <Input
                   className="mt-1"
                   placeholder="08:00 - 22:00 (T2-CN)"
@@ -410,13 +417,33 @@ export default function AppearancePage() {
                     })
                   }
                 />
+                <div className="mt-2">
+                  <Label>
+                    Thời gian làm việc (tiếng Anh){' '}
+                    <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+                  </Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="08:00 - 22:00 (Mon–Sun)"
+                    value={form.companyInfo?.workingHoursEn ?? ''}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        companyInfo: { ...form.companyInfo, workingHoursEn: e.target.value },
+                      })
+                    }
+                  />
+                </div>
                 <EnglishLabelField
+                  placeholder="Hours"
                   value={form.companyInfo?.hoursLabelEn ?? ''}
                   onChange={(hoursLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, hoursLabelEn } })
                   }
                 />
-                <p className="mt-1 text-xs text-slate-500">Giá trị giờ làm việc giữ nguyên. Nhãn để trống thì dùng catalog.</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Tiêu đề EN chỉ là &quot;Hours&quot;. Bản dịch giờ (Mon–Sun) nhập ở ô nội dung tiếng Anh.
+                </p>
               </div>
             </div>
           </Card>
@@ -864,16 +891,24 @@ export default function AppearancePage() {
   );
 }
 
-function EnglishLabelField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function EnglishLabelField({
+  value,
+  onChange,
+  placeholder = 'Tax ID',
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+}) {
   return (
     <div className="mt-2">
       <Label>
-        Nhãn trường (EN){' '}
+        Tiêu đề trước dấu : (EN){' '}
         <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
       </Label>
       <Input
         className="mt-1"
-        placeholder="Vd. Tax ID / Address — không dán nội dung dài"
+        placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

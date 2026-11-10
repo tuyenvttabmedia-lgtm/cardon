@@ -1,3 +1,7 @@
+import {
+  resolveWorkingHoursEn,
+  sanitizeCompanyChromeLabel,
+} from './company-chrome';
 import { translate } from './i18n/messages';
 import type { Locale } from './i18n/locale';
 
@@ -29,8 +33,10 @@ export type CompanyInfo = {
   address?: string;
   /** Shown with the catalog email label. The address value is not translated. */
   email?: string;
-  /** Shown with the catalog hours label. The hours value is not translated. */
+  /** Vietnamese working hours value. */
   workingHours?: string;
+  /** Optional English working hours value (e.g. Mon–Sun). */
+  workingHoursEn?: string;
   /** Shown with the catalog hotline label. The number is not translated. */
   hotline?: string;
   /** Optional English labels for footer column 1 chrome (MST / Address / …). */
@@ -91,44 +97,51 @@ export function buildCompanyFooterColumn(company: CompanyInfo): FooterColumn {
     links.push({ label: company.companyName.trim(), href: '/gioi-thieu' });
   }
   if (company.taxCode?.trim()) {
+    const tax = company.taxCode.trim();
     links.push({
-      label: company.taxCode.trim(),
+      label: tax,
       href: '/gioi-thieu',
       valueLabelKey: 'footer.tax',
-      valueLabelEn: optionalLabel(company.taxLabelEn),
+      valueLabelEn: sanitizeCompanyChromeLabel(company.taxLabelEn, tax),
     });
   }
   if (company.address?.trim() || company.addressEn?.trim()) {
+    const address = company.address?.trim() || company.addressEn!.trim();
     links.push({
-      label: company.address?.trim() || company.addressEn!.trim(),
+      label: address,
       valueEn: optionalLabel(company.addressEn),
       href: '/lien-he',
       valueLabelKey: 'contact.address',
-      valueLabelEn: optionalLabel(company.addressLabelEn),
+      valueLabelEn: sanitizeCompanyChromeLabel(company.addressLabelEn, address),
     });
   }
   if (company.email?.trim()) {
+    const email = company.email.trim();
     links.push({
-      label: company.email.trim(),
-      href: `mailto:${company.email.trim()}`,
+      label: email,
+      href: `mailto:${email}`,
       valueLabelKey: 'footer.email',
-      valueLabelEn: optionalLabel(company.emailLabelEn),
+      valueLabelEn: sanitizeCompanyChromeLabel(company.emailLabelEn, email),
     });
   }
   if (company.hotline?.trim()) {
+    const hotline = company.hotline.trim();
     links.push({
-      label: company.hotline.trim(),
-      href: `tel:${company.hotline.replace(/\s/g, '')}`,
+      label: hotline,
+      href: `tel:${hotline.replace(/\s/g, '')}`,
       valueLabelKey: 'footer.hotline',
-      valueLabelEn: optionalLabel(company.hotlineLabelEn),
+      valueLabelEn: sanitizeCompanyChromeLabel(company.hotlineLabelEn, hotline),
     });
   }
-  if (company.workingHours?.trim()) {
+  if (company.workingHours?.trim() || company.workingHoursEn?.trim()) {
+    const hours = company.workingHours?.trim() || company.workingHoursEn!.trim();
+    const hoursEn = resolveWorkingHoursEn(company.workingHoursEn, company.hoursLabelEn);
     links.push({
-      label: company.workingHours.trim(),
+      label: hours,
+      valueEn: hoursEn,
       href: '/lien-he',
       valueLabelKey: 'contact.hours',
-      valueLabelEn: optionalLabel(company.hoursLabelEn),
+      valueLabelEn: sanitizeCompanyChromeLabel(company.hoursLabelEn, hours),
     });
   }
   if (links.length === 0 && !company.description?.trim() && !company.descriptionEn?.trim()) {

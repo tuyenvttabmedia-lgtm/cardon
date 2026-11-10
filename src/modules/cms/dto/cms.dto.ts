@@ -498,6 +498,7 @@ export class UpdateCmsThemeDto {
     hotline?: string;
     email?: string;
     workingHours?: string;
+    workingHoursEn?: string;
     description?: string;
     descriptionEn?: string;
     taxLabelEn?: string;
