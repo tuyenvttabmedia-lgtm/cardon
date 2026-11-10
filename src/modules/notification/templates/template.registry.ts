@@ -49,6 +49,12 @@ function renderEnglishEmail(
         html: `<p>Your eSIM for order ${escapeHtml(String(data.orderCode ?? ''))} is ready.</p><p><a href="${escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'))}">Open install instructions</a></p><p>This email does not include the install code.</p>`,
         text: `eSIM for order ${String(data.orderCode ?? '')} is ready. Open your account. This email does not include the install code.`,
       };
+    case 'ESIM_LOW_DATA':
+      return {
+        subject: `Low data on your eSIM — order ${String(data.orderCode ?? '')}`,
+        html: `<p>Your eSIM for order ${escapeHtml(String(data.orderCode ?? ''))} is running low on data${data.remaining ? ` (about ${escapeHtml(String(data.remaining))} left)` : ''}.</p><p><a href="${escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'))}">Open your account to top up</a></p>`,
+        text: `Low data on eSIM order ${String(data.orderCode ?? '')}. Top up in your account: ${String(data.accountUrl ?? '/tai-khoan/esim')}`,
+      };
     case 'ORDER_SUCCESS':
       return {
         subject: `Order ${String(data.orderCode ?? '')} confirmed`,
@@ -194,6 +200,18 @@ export function renderEmailTemplate(
         subject: `Mã cài eSIM đã sẵn sàng — đơn ${String(data.orderCode ?? '')}`,
         html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng.</p><p>Mở tài khoản CardOn để xem mã QR và hướng dẫn cài: <a href="${accountUrl}">${accountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
         text: `Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng. Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
+      };
+    }
+    case 'ESIM_LOW_DATA': {
+      const accountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
+      const remaining =
+        data.remaining != null && String(data.remaining).trim()
+          ? ` (còn khoảng ${escapeHtml(String(data.remaining))})`
+          : '';
+      return {
+        subject: `eSIM sắp hết data — đơn ${String(data.orderCode ?? '')}`,
+        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đang sắp hết data${remaining}.</p><p>Mở tài khoản để xem gói top-up: <a href="${accountUrl}">${accountUrl}</a></p>`,
+        text: `eSIM đơn ${String(data.orderCode ?? '')} sắp hết data. Top-up trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}`,
       };
     }
     case 'AGENT_APPROVED': {

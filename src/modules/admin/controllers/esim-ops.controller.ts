@@ -22,6 +22,7 @@ import { RolesGuard } from '../../auth/guards/roles.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { EsimAdminService } from '../../esim/esim-admin.service';
 import { EsimOrderService } from '../../esim/esim-order.service';
+import { EsimTopupService } from '../../esim/esim-topup.service';
 import { canAdminViewPin } from '../entities/card-pin.util';
 import { ADMIN_AUDIT_ACTIONS } from '../entities/admin.constants';
 import { AdminEsimTestOrderDto, EsimOpsAttemptQueryDto, EsimOpsDashboardQueryDto, EsimOpsOrderQueryDto, EsimOpsPaymentQueryDto } from '../dto/esim-ops.dto';
@@ -35,6 +36,7 @@ export class EsimOpsAdminController {
     private readonly esimAdmin: EsimAdminService,
     private readonly orderService: AdminOrderService,
     private readonly esimOrders: EsimOrderService,
+    private readonly esimTopups: EsimTopupService,
     private readonly adminAudit: AdminAuditService,
   ) {}
 
@@ -153,5 +155,38 @@ export class EsimOpsAdminController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.orderService.retryFulfillment(user.id, id);
+  }
+
+  @Get('orders/:id/topups')
+  @Permissions('orders.read')
+  listTopups(@Param('id', ParseUUIDPipe) id: string) {
+    return this.esimTopups.listForOrder(id);
+  }
+
+  @Post('orders/:id/topups')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @Permissions('orders.manage')
+  async submitTopup(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { packageId?: string },
+    @Req() req: Request,
+  ) {
+    const result = await this.esimTopups.submitForOrder(id, String(body?.packageId ?? ''));
+    await this.adminAudit.record(
+      user.id,
+      ADMIN_AUDIT_ACTIONS.ADMIN_ESIM_TOPUP_SUBMITTED,
+      AuditTargetType.ORDER,
+      id,
+      {
+        packageId: result.packageId,
+        iccidSuffix: result.iccid.slice(-6),
+        providerOrderId: result.providerOrderId,
+        status: result.status,
+      },
+      extractClientIp(req) ?? undefined,
+    );
+    return result;
   }
 }

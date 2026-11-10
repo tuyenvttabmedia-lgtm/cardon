@@ -295,12 +295,8 @@ export class EsimAiraloAdapter implements EsimProviderPort {
       body,
     });
     const pathname = path.split('?')[0];
-    if (
-      response.status === 401 &&
-      method === 'GET' &&
-      pathname !== '/v2/token' &&
-      !retriedAuth
-    ) {
+    // Re-auth on expired bearer for any verb (Airalo checklist: handle token expiry).
+    if (response.status === 401 && pathname !== '/v2/token' && !retriedAuth) {
       this.clearTokenCache();
       return this.send(method, path, body, contentType, true);
     }
@@ -403,9 +399,11 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     const orderReference = providerOrderCode || providerOrderId;
     const sims = Array.isArray(data.sims) ? data.sims : [];
     let installSecret: string | undefined;
+    let iccid: string | undefined;
     for (const sim of sims) {
-      installSecret = readAiraloInstallSecret(sim);
-      if (installSecret) break;
+      if (!installSecret) installSecret = readAiraloInstallSecret(sim);
+      if (!iccid) iccid = readAiraloIccid(sim);
+      if (installSecret && iccid) break;
     }
     return {
       orderReference,
@@ -415,8 +413,97 @@ export class EsimAiraloAdapter implements EsimProviderPort {
       currency: typeof data.currency === 'string' ? data.currency : undefined,
       total: typeof data.price === 'number' ? data.price : undefined,
       installSecret,
+      iccid,
     };
   }
+
+  /** GET /v2/sims/{iccid}/topups — packages that can top up this eSIM. */
+  async listTopupPackages(iccid: string): Promise<AiraloTopupPackage[]> {
+    const trimmed = iccid.trim();
+    if (!trimmed) throw new AiraloRequestError('Airalo ICCID is required');
+    const body = await this.send('GET', `/v2/sims/${encodeURIComponent(trimmed)}/topups?limit=100`);
+    return parseAiraloTopupPackages(body);
+  }
+
+  /** POST /v2/orders/topups — partner-credit top-up (sandbox E2E / ops). */
+  async submitTopupOrder(input: { packageId: string; iccid: string; description?: string }): Promise<EsimOrderResult> {
+    const packageId = input.packageId.trim();
+    const iccid = input.iccid.trim();
+    if (!packageId) throw new AiraloRequestError('Airalo top-up package_id is required');
+    if (!iccid) throw new AiraloRequestError('Airalo ICCID is required');
+    const body = new FormData();
+    body.set('package_id', packageId);
+    body.set('iccid', iccid);
+    if (input.description?.trim()) body.set('description', input.description.trim());
+    return this.send('POST', '/v2/orders/topups', body).then((parsed) => this.readOrder(parsed));
+  }
+
+  /** POST /v2/notifications/opt-in — low-data webhook (HEAD+POST URL required). */
+  async optInLowDataWebhook(webhookUrl: string): Promise<{ type: string; contactPoint: string }> {
+    const url = webhookUrl.trim();
+    if (!url.startsWith('https://')) {
+      throw new AiraloRequestError('Airalo low-data webhook_url must be https');
+    }
+    const body = JSON.stringify({ type: 'webhook_low_data', webhook_url: url });
+    const parsed = await this.send('POST', '/v2/notifications/opt-in', body);
+    const data =
+      parsed && typeof parsed === 'object'
+        ? (parsed as { data?: { notification?: { type?: unknown; contact_point?: unknown } } }).data
+            ?.notification
+        : undefined;
+    return {
+      type: typeof data?.type === 'string' ? data.type : 'webhook_low_data',
+      contactPoint:
+        typeof data?.contact_point === 'string' && data.contact_point.trim()
+          ? data.contact_point.trim()
+          : url,
+    };
+  }
+}
+
+export interface AiraloTopupPackage {
+  providerPackageId: string;
+  title: string;
+  dataAmountMb: number | null;
+  validityDays: number | null;
+  price: number | null;
+  currency: string | null;
+}
+
+export function readAiraloIccid(sim: unknown): string | undefined {
+  if (!sim || typeof sim !== 'object') return undefined;
+  const value = (sim as { iccid?: unknown }).iccid;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
+}
+
+export function parseAiraloTopupPackages(body: unknown): AiraloTopupPackage[] {
+  const raw =
+    body && typeof body === 'object' && Array.isArray((body as { data?: unknown }).data)
+      ? ((body as { data: unknown[] }).data)
+      : Array.isArray(body)
+        ? body
+        : [];
+  const out: AiraloTopupPackage[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const record = row as Record<string, unknown>;
+    const id = stringOrEmpty(record.id ?? record.slug ?? record.package_id);
+    if (!id) continue;
+    const amount = Number(record.amount ?? record.data ?? record.data_amount);
+    const day = Number(record.day ?? record.days ?? record.validity);
+    const price = Number(record.price ?? record.net_price);
+    out.push({
+      providerPackageId: id,
+      title: stringOrEmpty(record.title ?? record.name) || id,
+      dataAmountMb: Number.isFinite(amount) ? Math.round(amount) : null,
+      validityDays: Number.isFinite(day) ? Math.round(day) : null,
+      price: Number.isFinite(price) ? price : null,
+      currency: typeof record.currency === 'string' ? record.currency : null,
+    });
+  }
+  return out;
 }
 
 /**

@@ -168,6 +168,7 @@ export class NotificationDispatchService {
       EMAIL_TEMPLATE.ESIM_READY,
       EMAIL_TEMPLATE.ESIM_TEST_READY,
       EMAIL_TEMPLATE.ESIM_SANDBOX_READY,
+      EMAIL_TEMPLATE.ESIM_LOW_DATA,
     ]);
 
     if (!orderId || !orderTemplates.has(template as never)) {

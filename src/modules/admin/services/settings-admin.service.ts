@@ -182,6 +182,24 @@ export class SettingsAdminService {
     return this.airaloCatalogue.importFromAiralo();
   }
 
+  /**
+   * Register CardOn low-data webhook URL with Airalo (POST /v2/notifications/opt-in).
+   * Endpoint must answer HEAD+POST 200 at /api/v1/webhooks/airalo/low-data.
+   */
+  async optInAiraloLowDataWebhook() {
+    const view = this.settingsStore.getAiraloAdminView();
+    if (view.configured !== true) {
+      throw new BadRequestException('Chưa có Airalo client_id / client_secret');
+    }
+    const publicUrl = (
+      this.settingsStore.resolveSystemConfig().publicUrl ||
+      'https://cardon.vn'
+    ).replace(/\/$/, '');
+    const webhookUrl = `${publicUrl}/api/v1/webhooks/airalo/low-data`;
+    const result = await this.airalo.optInLowDataWebhook(webhookUrl);
+    return { ...result, webhookUrl };
+  }
+
   setAiraloPackageLifecycle(id: string, dto: UpdateAiraloPackageLifecycleDto) {
     return this.airaloCatalogue.setLifecycle(id, dto.lifecycle as EsimCatalogLifecycle);
   }

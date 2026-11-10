@@ -38,6 +38,8 @@ export interface EsimOrderResult {
   total?: number;
   /** LPA install string built from SM-DP+ address and matching id. No PIN or PUK. */
   installSecret?: string;
+  /** Airalo SIM ICCID when present on the order/sim payload. */
+  iccid?: string;
 }
 
 export interface EsimProviderPort {
