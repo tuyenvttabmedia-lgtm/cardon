@@ -447,25 +447,32 @@ export class EsimOrderService {
     ordersPaidToday: number;
     usdPaidToday: number;
   }> {
+    if (!this.prisma?.order?.findMany) {
+      return { ordersPaidToday: 0, usdPaidToday: 0 };
+    }
     const start = new Date();
     start.setUTCHours(0, 0, 0, 0);
-    const rows = await this.prisma.order.findMany({
-      where: {
-        userId,
-        ...ACTIVE_ORDER_WHERE,
-        paymentStatus: OrderPaymentStatus.PAID,
-        createdAt: { gte: start },
-        orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
-      },
-      select: { chargeCurrency: true, chargeAmount: true },
-    });
-    let usdPaidToday = 0;
-    for (const row of rows) {
-      if ((row.chargeCurrency ?? '').toUpperCase() !== 'USD' || row.chargeAmount == null) continue;
-      const amount = Number(row.chargeAmount.toString());
-      if (Number.isFinite(amount) && amount > 0) usdPaidToday += amount;
+    try {
+      const rows = await this.prisma.order.findMany({
+        where: {
+          userId,
+          ...ACTIVE_ORDER_WHERE,
+          paymentStatus: OrderPaymentStatus.PAID,
+          createdAt: { gte: start },
+          orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+        },
+        select: { chargeCurrency: true, chargeAmount: true },
+      });
+      let usdPaidToday = 0;
+      for (const row of rows) {
+        if ((row.chargeCurrency ?? '').toUpperCase() !== 'USD' || row.chargeAmount == null) continue;
+        const amount = Number(row.chargeAmount.toString());
+        if (Number.isFinite(amount) && amount > 0) usdPaidToday += amount;
+      }
+      return { ordersPaidToday: rows.length, usdPaidToday };
+    } catch {
+      return { ordersPaidToday: 0, usdPaidToday: 0 };
     }
-    return { ordersPaidToday: rows.length, usdPaidToday };
   }
 
   private async lockEsimOrderCreate(

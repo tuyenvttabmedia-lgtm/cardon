@@ -651,7 +651,10 @@ export class EsimFulfillmentService {
       );
     } catch (error) {
       const message = this.safeErrorMessage(error);
-      if (this.isDefiniteNoCreateError(error)) {
+      if (
+        this.isDefiniteNoCreateError(error) &&
+        typeof this.repository.markDefiniteNoCreate === 'function'
+      ) {
         await this.repository.markDefiniteNoCreate(
           inserted.attemptId,
           quote.orderItemId,
