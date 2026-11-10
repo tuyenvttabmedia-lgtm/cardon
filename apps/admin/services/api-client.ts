@@ -1132,7 +1132,7 @@ export const faqAdminApi = {
   listCategories() {
     return apiRequest<FaqCategory[]>('/admin/faq/categories');
   },
-  createCategory(body: Partial<FaqCategory> & { name: string }) {
+  createCategory(body: Partial<FaqCategory> & { name: string; nameEn?: string }) {
     return apiRequest<FaqCategory>('/admin/faq/categories', { method: 'POST', body });
   },
   updateCategory(id: string, body: Partial<FaqCategory>) {
@@ -1167,7 +1167,9 @@ export const faqAdminApi = {
   create(body: {
     categoryId: string;
     question: string;
+    questionEn?: string;
     answer: string;
+    answerEn?: string;
     slug?: string;
     featured?: boolean;
     sortOrder?: number;
@@ -1181,7 +1183,9 @@ export const faqAdminApi = {
     body: Partial<{
       categoryId: string;
       question: string;
+      questionEn: string;
       answer: string;
+      answerEn: string;
       slug: string;
       featured: boolean;
       sortOrder: number;

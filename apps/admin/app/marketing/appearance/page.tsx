@@ -258,7 +258,8 @@ export default function AppearancePage() {
             <div>
               <h2 className="font-semibold">Thông tin công ty (Cột 1 footer)</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Tên pháp nhân, MST, địa chỉ, hotline và email giữ một giá trị. Nhãn tiếng Anh để trống thì trang dùng nhãn sẵn có. Mô tả có bản tiếng Việt và tiếng Anh.
+                MST / hotline / email dùng chung hai ngôn ngữ. Nhãn tiếng Anh chỉ đổi chữ trước dấu hai chấm (vd. Tax
+                ID), không phải nội dung. Mô tả và địa chỉ có bản tiếng Anh riêng.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -306,7 +307,7 @@ export default function AppearancePage() {
                 />
               </div>
               <div>
-                <Label>Mã số thuế</Label>
+                <Label>Mã số thuế (giá trị)</Label>
                 <Input
                   className="mt-1"
                   placeholder="MST"
@@ -323,7 +324,7 @@ export default function AppearancePage() {
                 />
               </div>
               <div>
-                <Label>Hotline</Label>
+                <Label>Hotline (giá trị)</Label>
                 <Input
                   className="mt-1"
                   placeholder="0984…"
@@ -341,7 +342,7 @@ export default function AppearancePage() {
                 <p className="mt-1 text-xs text-slate-500">Một số điện thoại. Nhãn để trống thì dùng Hotline / catalog.</p>
               </div>
               <div className="sm:col-span-2">
-                <Label>Địa chỉ</Label>
+                <Label>Địa chỉ (tiếng Việt)</Label>
                 <Input
                   className="mt-1"
                   placeholder="Địa chỉ trụ sở"
@@ -350,12 +351,32 @@ export default function AppearancePage() {
                     setForm({ ...form, companyInfo: { ...form.companyInfo, address: e.target.value } })
                   }
                 />
+                <div className="mt-2">
+                  <Label>
+                    Địa chỉ (tiếng Anh){' '}
+                    <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+                  </Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="English address"
+                    value={form.companyInfo?.addressEn ?? ''}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        companyInfo: { ...form.companyInfo, addressEn: e.target.value },
+                      })
+                    }
+                  />
+                </div>
                 <EnglishLabelField
                   value={form.companyInfo?.addressLabelEn ?? ''}
                   onChange={(addressLabelEn) =>
                     setForm({ ...form, companyInfo: { ...form.companyInfo, addressLabelEn } })
                   }
                 />
+                <p className="mt-1 text-xs text-slate-500">
+                  Nhãn tiếng Anh chỉ là chữ &quot;Address&quot; trước nội dung — không dán cả địa chỉ vào ô nhãn.
+                </p>
               </div>
               <div>
                 <Label>Email</Label>
@@ -496,7 +517,8 @@ export default function AppearancePage() {
             <div>
               <h2 className="font-semibold">Kênh liên hệ (trang /lien-he)</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ — 5 kênh cố định. Nhãn để trống thì dùng nhãn sẵn có. Giá trị và liên kết không đổi theo ngôn ngữ.
+                Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ. Nhãn = tiêu đề dòng; nội dung = giá trị bên
+                dưới. Email / số điện thoại dùng chung. Địa chỉ có thêm bản tiếng Anh riêng.
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -521,33 +543,63 @@ export default function AppearancePage() {
                         Hiện
                       </label>
                     </div>
-                    <Input
-                      placeholder={vi.appearance.label}
-                      value={channel.label ?? ''}
-                      onChange={(e) => {
-                        const contactChannels = [...(form.contactChannels ?? [])];
-                        contactChannels[i] = { ...contactChannels[i], label: e.target.value };
-                        setForm({ ...form, contactChannels });
-                      }}
-                    />
-                    <Input
-                      placeholder={vi.appearance.labelEn}
-                      value={channel.labelEn ?? ''}
-                      onChange={(e) => {
-                        const contactChannels = [...(form.contactChannels ?? [])];
-                        contactChannels[i] = { ...contactChannels[i], labelEn: e.target.value };
-                        setForm({ ...form, contactChannels });
-                      }}
-                    />
-                    <Input
-                      placeholder="Nội dung hiển thị"
-                      value={channel.value}
-                      onChange={(e) => {
-                        const contactChannels = [...(form.contactChannels ?? [])];
-                        contactChannels[i] = { ...contactChannels[i], value: e.target.value };
-                        setForm({ ...form, contactChannels });
-                      }}
-                    />
+                    <div>
+                      <Label>{vi.appearance.label}</Label>
+                      <Input
+                        className="mt-1"
+                        placeholder="Để trống = nhãn sẵn có"
+                        value={channel.label ?? ''}
+                        onChange={(e) => {
+                          const contactChannels = [...(form.contactChannels ?? [])];
+                          contactChannels[i] = { ...contactChannels[i], label: e.target.value };
+                          setForm({ ...form, contactChannels });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>{vi.appearance.labelEn}</Label>
+                      <Input
+                        className="mt-1"
+                        placeholder="Chỉ tiêu đề EN, không dán nội dung"
+                        value={channel.labelEn ?? ''}
+                        onChange={(e) => {
+                          const contactChannels = [...(form.contactChannels ?? [])];
+                          contactChannels[i] = { ...contactChannels[i], labelEn: e.target.value };
+                          setForm({ ...form, contactChannels });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Nội dung (VI / dùng chung)</Label>
+                      <Input
+                        className="mt-1"
+                        placeholder="Giá trị hiển thị"
+                        value={channel.value}
+                        onChange={(e) => {
+                          const contactChannels = [...(form.contactChannels ?? [])];
+                          contactChannels[i] = { ...contactChannels[i], value: e.target.value };
+                          setForm({ ...form, contactChannels });
+                        }}
+                      />
+                    </div>
+                    {channel.key === 'address' ? (
+                      <div>
+                        <Label>
+                          Nội dung tiếng Anh{' '}
+                          <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+                        </Label>
+                        <Input
+                          className="mt-1"
+                          placeholder="English address"
+                          value={channel.valueEn ?? ''}
+                          onChange={(e) => {
+                            const contactChannels = [...(form.contactChannels ?? [])];
+                            contactChannels[i] = { ...contactChannels[i], valueEn: e.target.value };
+                            setForm({ ...form, contactChannels });
+                          }}
+                        />
+                      </div>
+                    ) : null}
                     {channel.key !== 'address' ? (
                       <Input
                         placeholder="mailto: / tel: / https://…"
@@ -816,10 +868,15 @@ function EnglishLabelField({ value, onChange }: { value: string; onChange: (valu
   return (
     <div className="mt-2">
       <Label>
-        {vi.appearance.labelEn}{' '}
+        Nhãn trường (EN){' '}
         <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
       </Label>
-      <Input className="mt-1" value={value} onChange={(e) => onChange(e.target.value)} />
+      <Input
+        className="mt-1"
+        placeholder="Vd. Tax ID / Address — không dán nội dung dài"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </div>
   );
 }

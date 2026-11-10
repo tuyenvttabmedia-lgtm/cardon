@@ -62,14 +62,16 @@ export function resolveThemeDescription(
 
 export function presentFooterLink(
   locale: Locale,
-  link: ThemeLabel & { valueLabelKey?: string; valueLabelEn?: string },
+  link: ThemeLabel & { valueLabelKey?: string; valueLabelEn?: string; valueEn?: string },
 ): string {
+  const value =
+    locale === 'en' && link.valueEn?.trim() ? link.valueEn.trim() : (link.label ?? '').trim();
   const customEn = locale === 'en' ? link.valueLabelEn?.trim() : '';
   if (link.valueLabelKey && isMessageKey(link.valueLabelKey)) {
     const prefix = customEn || translate(locale, link.valueLabelKey as MessageKey);
-    return `${prefix}: ${link.label}`;
+    return `${prefix}: ${value}`;
   }
-  if (customEn) return `${customEn}: ${link.label}`;
+  if (customEn) return `${customEn}: ${value}`;
   return resolveMenuLabel(locale, link);
 }
 

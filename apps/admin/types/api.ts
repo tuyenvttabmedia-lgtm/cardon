@@ -1963,6 +1963,7 @@ export interface CmsThemeSettings {
     companyName?: string;
     taxCode?: string;
     address?: string;
+    addressEn?: string;
     hotline?: string;
     email?: string;
     workingHours?: string;
@@ -1983,6 +1984,7 @@ export interface CmsThemeSettings {
     key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';
     enabled?: boolean;
     value?: string;
+    valueEn?: string;
     href?: string;
     label?: string;
     labelEn?: string;
@@ -2069,6 +2071,7 @@ export type LegacyCmsFaqItem = CmsFaqItem;
 export interface FaqCategory {
   id: string;
   name: string;
+  nameEn?: string | null;
   slug: string;
   description: string | null;
   icon: string | null;
@@ -2083,7 +2086,9 @@ export interface FaqItem {
   id: string;
   categoryId: string;
   question: string;
+  questionEn?: string | null;
   answer: string;
+  answerEn?: string | null;
   slug: string;
   featured: boolean;
   sortOrder: number;

@@ -188,9 +188,12 @@ export class FaqRepository {
       matchesViSearch(
         query,
         row.question,
+        row.questionEn ?? '',
         stripHtmlForSearch(row.answer),
+        stripHtmlForSearch(row.answerEn ?? ''),
         row.slug,
         row.category.name,
+        row.category.nameEn ?? '',
         row.category.slug,
       ),
     );
@@ -200,7 +203,9 @@ export class FaqRepository {
     id?: string;
     categoryId: string;
     question: string;
+    questionEn?: string | null;
     answer: string;
+    answerEn?: string | null;
     slug: string;
     featured: boolean;
     sortOrder?: number;
@@ -222,7 +227,9 @@ export class FaqRepository {
           ...(data.id ? { id: data.id } : {}),
           categoryId: data.categoryId,
           question: data.question,
+          questionEn: data.questionEn ?? null,
           answer: data.answer,
+          answerEn: data.answerEn ?? null,
           slug: data.slug,
           featured: data.featured,
           sortOrder,
@@ -241,7 +248,9 @@ export class FaqRepository {
     data: {
       categoryId?: string;
       question?: string;
+      questionEn?: string | null;
       answer?: string;
+      answerEn?: string | null;
       slug?: string;
       featured?: boolean;
       sortOrder?: number;
@@ -264,7 +273,9 @@ export class FaqRepository {
         data: {
           categoryId: data.categoryId,
           question: data.question,
+          questionEn: data.questionEn,
           answer: data.answer,
+          answerEn: data.answerEn,
           slug: data.slug,
           featured: data.featured,
           sortOrder: data.sortOrder,

@@ -2581,6 +2581,7 @@ enum FaqCategoryStatus {
 model FaqCategory {
   id          String            @id @default(uuid()) @db.Uuid
   name        String            @db.VarChar(128)
+  nameEn      String?           @map("name_en") @db.VarChar(128)
   slug        String            @unique @db.VarChar(128)
   description String?           @db.VarChar(512)
   icon        String?           @db.VarChar(32)
@@ -2599,7 +2600,9 @@ model Faq {
   id         String    @id @default(uuid()) @db.Uuid
   categoryId String    @map("category_id") @db.Uuid
   question   String    @db.VarChar(500)
+  questionEn String?   @map("question_en") @db.VarChar(500)
   answer     String    @db.Text
+  answerEn   String?   @map("answer_en") @db.Text
   slug       String    @unique @db.VarChar(255)
   featured   Boolean   @default(false)
   sortOrder  Int       @default(0) @map("sort_order")

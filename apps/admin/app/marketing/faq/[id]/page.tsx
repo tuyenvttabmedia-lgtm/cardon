@@ -39,8 +39,10 @@ export default function FaqEditPage() {
 
   const [categoryId, setCategoryId] = useState('');
   const [question, setQuestion] = useState('');
+  const [questionEn, setQuestionEn] = useState('');
   const [slug, setSlug] = useState('');
   const [answer, setAnswer] = useState(EMPTY_ANSWER);
+  const [answerEn, setAnswerEn] = useState(EMPTY_ANSWER);
   const [featured, setFeatured] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
   const [status, setStatus] = useState<'DRAFT' | 'ACTIVE' | 'INACTIVE'>('DRAFT');
@@ -50,8 +52,10 @@ export default function FaqEditPage() {
   const prepareNewFaqForm = useCallback((keepCategoryId?: string) => {
     const catId = keepCategoryId ?? categoryId ?? categories[0]?.id ?? '';
     setQuestion('');
+    setQuestionEn('');
     setSlug('');
     setAnswer(EMPTY_ANSWER);
+    setAnswerEn(EMPTY_ANSWER);
     setFeatured(false);
     setStatus('DRAFT');
     setPositions([]);
@@ -79,8 +83,10 @@ export default function FaqEditPage() {
         const item = await faqAdminApi.get(params.id);
         setCategoryId(item.categoryId);
         setQuestion(item.question);
+        setQuestionEn(item.questionEn ?? '');
         setSlug(item.slug);
         setAnswer(item.answer);
+        setAnswerEn(item.answerEn?.trim() ? item.answerEn : EMPTY_ANSWER);
         setFeatured(item.featured);
         setSortOrder(item.sortOrder);
         setStatus(item.status);
@@ -125,7 +131,9 @@ export default function FaqEditPage() {
     const basePayload = {
       categoryId,
       question: question.trim(),
+      questionEn: questionEn.trim() || undefined,
       answer,
+      answerEn: answerEn.replace(/<[^>]+>/g, '').trim() ? answerEn : undefined,
       slug: slug.trim() || slugifyVi(question),
       featured,
       status: publishStatus,
@@ -216,11 +224,19 @@ export default function FaqEditPage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_280px]">
           <Card className="space-y-4 p-4">
             <div>
-              <label className="text-xs text-slate-500">Câu hỏi</label>
+              <label className="text-xs text-slate-500">Câu hỏi (tiếng Việt)</label>
               <Input
                 id="faq-question-input"
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Câu hỏi (tiếng Anh, tùy chọn)</label>
+              <Input
+                value={questionEn}
+                onChange={(e) => setQuestionEn(e.target.value)}
+                placeholder="English question — để trống thì /en hiện bản Việt"
               />
             </div>
             <div>
@@ -234,8 +250,12 @@ export default function FaqEditPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Câu trả lời</label>
-              <FaqLiteEditor key={formKey} value={answer} onChange={setAnswer} />
+              <label className="text-xs text-slate-500">Câu trả lời (tiếng Việt)</label>
+              <FaqLiteEditor key={`${formKey}-vi`} value={answer} onChange={setAnswer} />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500">Câu trả lời (tiếng Anh, tùy chọn)</label>
+              <FaqLiteEditor key={`${formKey}-en`} value={answerEn} onChange={setAnswerEn} />
             </div>
           </Card>
 

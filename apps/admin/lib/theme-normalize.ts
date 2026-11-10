@@ -157,6 +157,7 @@ export function normalizeThemeSettings(theme: CmsThemeSettings): CmsThemeSetting
       workingHours: theme.companyInfo?.workingHours ?? '',
       description: theme.companyInfo?.description ?? '',
       descriptionEn: theme.companyInfo?.descriptionEn ?? '',
+      addressEn: theme.companyInfo?.addressEn ?? '',
       taxLabelEn: theme.companyInfo?.taxLabelEn?.trim() ?? '',
       addressLabelEn: theme.companyInfo?.addressLabelEn?.trim() ?? '',
       emailLabelEn: theme.companyInfo?.emailLabelEn?.trim() ?? '',

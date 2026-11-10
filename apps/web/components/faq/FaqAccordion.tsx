@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useT } from '@/components/i18n/LocaleProvider';
 import { SafeFaqHtml } from '@/components/SafeFaqHtml';
 import { cn } from '@/lib/utils';
 
@@ -28,13 +29,15 @@ export function FaqAccordion({
   /** Homepage uses separate cards in two columns. Other pages keep one list. */
   layout?: 'stack' | 'split';
 }) {
+  const t = useT();
+  const heading = title === 'Câu hỏi thường gặp' ? t('home.faqTitle') : title;
   const [openId, setOpenId] = useState<string | null>(null);
 
   if (items.length === 0) return null;
 
   return (
     <section className={cn('space-y-4', className)}>
-      {title ? <h2 className="text-xl font-bold text-cardon-navy">{title}</h2> : null}
+      {heading ? <h2 className="text-xl font-bold text-cardon-navy">{heading}</h2> : null}
       <div
         className={
           layout === 'split'
@@ -68,7 +71,7 @@ export function FaqAccordion({
                       href={`/tro-giup/${item.categorySlug}/${item.slug}`}
                       className="mt-3 inline-block text-xs font-semibold text-cardon-blue hover:underline"
                     >
-                      Xem liên kết chia sẻ →
+                      {t('faq.shareLink')}
                     </Link>
                   )}
                 </div>

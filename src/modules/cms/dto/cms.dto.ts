@@ -494,6 +494,7 @@ export class UpdateCmsThemeDto {
     companyName?: string;
     taxCode?: string;
     address?: string;
+    addressEn?: string;
     hotline?: string;
     email?: string;
     workingHours?: string;
@@ -516,6 +517,7 @@ export class UpdateCmsThemeDto {
     key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';
     enabled?: boolean;
     value?: string;
+    valueEn?: string;
     href?: string;
     label?: string;
     labelEn?: string;

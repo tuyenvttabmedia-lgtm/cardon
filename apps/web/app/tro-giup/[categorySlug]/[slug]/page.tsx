@@ -12,7 +12,7 @@ type Props = {
 export async function generateMetadata({ params }: Props) {
   const { categorySlug, slug } = await params;
   const locale = await readRequestLocale();
-  const data = await getFaqDetail(categorySlug, slug);
+  const data = await getFaqDetail(categorySlug, slug, locale);
   if (!data?.faq) {
     return buildMetadata({
       title: 'Trợ giúp — CardOn.vn',
@@ -34,7 +34,8 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function FaqDetailPage({ params }: Props) {
   const { categorySlug, slug } = await params;
-  const data = await getFaqDetail(categorySlug, slug);
+  const locale = await readRequestLocale();
+  const data = await getFaqDetail(categorySlug, slug, locale);
   if (!data?.faq) notFound();
 
   return <FaqDetailPageClient data={data} />;

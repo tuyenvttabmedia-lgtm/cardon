@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { useT } from '@/components/i18n/LocaleProvider';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
 import { fetchFaqsClient, type PublicFaqItem } from '@/lib/cms-api';
 
@@ -45,17 +45,18 @@ export function FaqSection({
   icon?: ReactNode;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const heading = title === 'Câu hỏi thường gặp' ? t('home.faqTitle') : title;
   const [items, setItems] = useState<FaqItem[]>(() => (initialItems ?? []).map(mapItem).slice(0, limit));
   const [loaded, setLoaded] = useState(initialItems != null);
 
   useEffect(() => {
     if (initialItems != null) return;
-    void fetchFaqsClient({ featured, position, limit })
+    void fetchFaqsClient({ featured, position, limit, locale })
       .then((result) => setItems((result?.items ?? []).map(mapItem)))
       .catch(() => setItems([]))
       .finally(() => setLoaded(true));
-  }, [featured, position, limit, initialItems]);
+  }, [featured, position, limit, initialItems, locale]);
 
   if (!loaded) return null;
   if (items.length === 0) {
@@ -87,7 +88,7 @@ export function FaqSection({
           {viewAll}
         </div>
       ) : null}
-      <FaqAccordion items={items} title={viewAllPlacement === 'header' ? '' : title} layout={layout} />
+      <FaqAccordion items={items} title={viewAllPlacement === 'header' ? '' : heading} layout={layout} />
       {viewAllPlacement === 'below' && viewAll ? <div className="mt-4 text-center">{viewAll}</div> : null}
     </div>
   );

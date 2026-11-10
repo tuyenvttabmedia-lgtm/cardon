@@ -6,6 +6,8 @@ export interface ContactChannel {
   key: ContactChannelKey;
   enabled: boolean;
   value: string;
+  /** Optional English value (e.g. address). Empty keeps `value` on /en. */
+  valueEn?: string;
   href?: string;
   /** Optional Vietnamese label. Empty keeps the built-in label. */
   label?: string;
@@ -13,12 +15,15 @@ export interface ContactChannel {
   labelEn?: string;
 }
 
-export const CONTACT_CHANNEL_META: Record<ContactChannelKey, { label: string; icon: string }> = {
-  email: { label: 'Email', icon: '✉️' },
+export const CONTACT_CHANNEL_META: Record<
+  ContactChannelKey,
+  { label: string; icon: string; labelKey?: 'contact.address' | 'contact.email' | 'contact.hours' }
+> = {
+  email: { label: 'Email', icon: '✉️', labelKey: 'contact.email' },
   hotline: { label: 'Hotline', icon: '📞' },
   zalo: { label: 'Zalo', icon: '💬' },
   fanpage: { label: 'Fanpage', icon: '📘' },
-  address: { label: 'Địa chỉ', icon: '📍' },
+  address: { label: 'Địa chỉ', icon: '📍', labelKey: 'contact.address' },
 };
 
 export const DEFAULT_CONTACT_CHANNELS: ContactChannel[] = [
@@ -49,6 +54,7 @@ export function normalizeContactChannels(
         : (saved?.href ?? defaults.href)?.trim() || defaults.href;
     const label = saved?.label?.trim();
     const labelEn = saved?.labelEn?.trim();
+    const valueEn = saved?.valueEn?.trim();
     return {
       key,
       enabled: saved?.enabled !== false,
@@ -56,6 +62,7 @@ export function normalizeContactChannels(
       href,
       ...(label ? { label } : {}),
       ...(labelEn ? { labelEn } : {}),
+      ...(valueEn ? { valueEn } : {}),
     };
   });
 }
@@ -67,6 +74,14 @@ export function resolveContactChannelLabel(
 ): string {
   if (locale === 'en') return channel.labelEn?.trim() || fallback;
   return channel.label?.trim() || fallback;
+}
+
+export function resolveContactChannelValue(
+  channel: Pick<ContactChannel, 'value' | 'valueEn'>,
+  locale: 'vi' | 'en',
+): string {
+  if (locale === 'en' && channel.valueEn?.trim()) return channel.valueEn.trim();
+  return channel.value.trim();
 }
 
 export type SpeedDialActionId = 'hotline' | 'zalo' | 'messenger';

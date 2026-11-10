@@ -6,10 +6,12 @@ export type FooterLink = {
   href: string;
   labelEn?: string;
   navKey?: string;
-  /** Chrome label for a raw company value. The value itself stays in `label`. */
+  /** Chrome label for a raw company value. The value itself stays in `label` / `valueEn`. */
   valueLabelKey?: string;
   /** Optional English chrome label. Empty keeps the catalog label. */
   valueLabelEn?: string;
+  /** Optional English value for bilingual company facts (e.g. address). */
+  valueEn?: string;
 };
 
 export type FooterColumn = {
@@ -31,12 +33,14 @@ export type CompanyInfo = {
   workingHours?: string;
   /** Shown with the catalog hotline label. The number is not translated. */
   hotline?: string;
-  /** Optional English labels for footer column 1. Values stay in the fields above. */
+  /** Optional English labels for footer column 1 chrome (MST / Address / …). */
   taxLabelEn?: string;
   addressLabelEn?: string;
   emailLabelEn?: string;
   hotlineLabelEn?: string;
   hoursLabelEn?: string;
+  /** Optional English address value. Empty keeps the Vietnamese address on /en. */
+  addressEn?: string;
   /** Optional company blurb. `description` is Vietnamese, `descriptionEn` is English. */
   description?: string;
   descriptionEn?: string;
@@ -94,10 +98,12 @@ export function buildCompanyFooterColumn(company: CompanyInfo): FooterColumn {
       valueLabelEn: optionalLabel(company.taxLabelEn),
     });
   }
-  if (company.address?.trim()) {
+  if (company.address?.trim() || company.addressEn?.trim()) {
     links.push({
-      label: company.address.trim(),
+      label: company.address?.trim() || company.addressEn!.trim(),
+      valueEn: optionalLabel(company.addressEn),
       href: '/lien-he',
+      valueLabelKey: 'contact.address',
       valueLabelEn: optionalLabel(company.addressLabelEn),
     });
   }
