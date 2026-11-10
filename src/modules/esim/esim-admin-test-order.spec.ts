@@ -264,6 +264,7 @@ describe('admin-only eSIM test order', () => {
       {} as never,
       {} as never,
       { createAdminTest } as never,
+      {} as never,
       { record } as never,
     );
     const result = await controller.createTestOrder(
