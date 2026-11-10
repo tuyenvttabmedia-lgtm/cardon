@@ -8,7 +8,6 @@ describe('GET /esim/offers response contract', () => {
         listStorefront: async () => ({ salesOpen: false, offers: [] }),
       } as never,
       {} as never,
-      {} as never,
     );
     const body = await controller.offers();
 
