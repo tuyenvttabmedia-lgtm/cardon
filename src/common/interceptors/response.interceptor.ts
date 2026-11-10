@@ -14,13 +14,13 @@ export interface ApiSuccessResponse<T = unknown> {
 }
 
 @Injectable()
-export class ResponseInterceptor<T>
-  implements NestInterceptor<T, ApiSuccessResponse<T>>
-{
-  intercept(
-    _context: ExecutionContext,
-    next: CallHandler<T>,
-  ): Observable<ApiSuccessResponse<T>> {
+export class ResponseInterceptor<T> implements NestInterceptor {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    const request = context.switchToHttp().getRequest<{ method?: string }>();
+    // HEAD must stay body-less (Airalo low-data webhook validation fails on Content-Length).
+    if (String(request?.method || '').toUpperCase() === 'HEAD') {
+      return next.handle();
+    }
     return next.handle().pipe(
       map((data) => ({
         success: true as const,

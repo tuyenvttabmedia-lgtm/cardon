@@ -191,10 +191,14 @@ export class SettingsAdminService {
     if (view.configured !== true) {
       throw new BadRequestException('Chưa có Airalo client_id / client_secret');
     }
-    const publicUrl = (
+    let publicUrl = (
       this.settingsStore.resolveSystemConfig().publicUrl ||
       'https://cardon.vn'
     ).replace(/\/$/, '');
+    // Airalo requires https; normalize misconfigured http publicUrl on prod hosts.
+    if (publicUrl.startsWith('http://')) {
+      publicUrl = `https://${publicUrl.slice('http://'.length)}`;
+    }
     const webhookUrl = `${publicUrl}/api/v1/webhooks/airalo/low-data`;
     const result = await this.airalo.optInLowDataWebhook(webhookUrl);
     return { ...result, webhookUrl };
