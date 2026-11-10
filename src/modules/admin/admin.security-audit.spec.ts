@@ -31,9 +31,10 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { AdminController } from './controllers/admin.controller';
+import { SystemHealthController } from './controllers/system-health.controller';
 import { CloseEsimQueryClaimDto } from './dto/admin.dto';
 import { assertAdminAgentResponseSafe, mapAdminAgent } from './entities/admin-agent.mapper';
-import { ADMIN_AUDIT_ACTIONS, ADMIN_PAGINATION_MAX } from './entities/admin.constants';
+import { ADMIN_AUDIT_ACTIONS, ADMIN_PAGINATION_MAX, ADMIN_PERMISSIONS } from './entities/admin.constants';
 import { resolveAdminPagination } from './utils/admin-pagination.util';
 import { AdminAgentService } from './services/admin-agent.service';
 import { AdminOrderService } from './services/admin-order.service';
@@ -82,6 +83,7 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
     'agents.credit',
     'agents.manage',
     'admin.dashboard',
+    'system.health.read',
     'audit.view',
     'payments.review',
   ],
@@ -89,6 +91,13 @@ const ROLE_PERMISSION_MATRIX: Record<string, string[]> = {
 
 const ADMIN_ENDPOINT_PERMISSIONS: Record<string, string[]> = {
   'GET /admin/dashboard': ['admin.dashboard'],
+  'GET /admin/system/health': ['system.health.read'],
+  'GET /admin/system/health/status': ['system.health.read'],
+  'GET /admin/system/health/report': ['settings.manage'],
+  'POST /admin/system/health/run': ['settings.manage'],
+  'POST /admin/system/health/autofix': ['settings.manage'],
+  'GET /admin/system/health/export/json': ['settings.manage'],
+  'GET /admin/system/health/export/pdf': ['settings.manage'],
   'GET /admin/orders': ['orders.read'],
   'GET /admin/esim-ops/health': ['orders.read'],
   'GET /admin/esim-ops/dashboard': ['orders.read'],
@@ -182,9 +191,14 @@ describe('Phase 4A.1 — CHECK 1: Permission enforcement', () => {
     ).toBe(true);
   });
 
-  it('ADMIN has admin module permissions except refund.reconcile-only endpoints', () => {
+  it('ADMIN has admin module permissions except refund.reconcile-only / settings.manage endpoints', () => {
     for (const [endpoint, required] of Object.entries(ADMIN_ENDPOINT_PERMISSIONS)) {
       if (required.every((code) => code === 'refund.reconcile')) {
+        expect(roleCanAccess('ADMIN', required)).toBe(false);
+        continue;
+      }
+      // ADMIN has dashboard + health summary read, but not settings.manage scan/autofix/export.
+      if (required.every((code) => code === 'settings.manage')) {
         expect(roleCanAccess('ADMIN', required)).toBe(false);
         continue;
       }
@@ -193,6 +207,55 @@ describe('Phase 4A.1 — CHECK 1: Permission enforcement', () => {
         allowed: true,
       });
     }
+  });
+
+  it('ADMIN can read health summary but cannot scan/autofix/export', () => {
+    expect(roleCanAccess('ADMIN', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/system/health'])).toBe(
+      true,
+    );
+    expect(
+      roleCanAccess('ADMIN', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/system/health/status']),
+    ).toBe(true);
+    expect(
+      roleCanAccess('ADMIN', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/system/health/run']),
+    ).toBe(false);
+    expect(
+      roleCanAccess('ADMIN', ADMIN_ENDPOINT_PERMISSIONS['POST /admin/system/health/autofix']),
+    ).toBe(false);
+    expect(
+      roleCanAccess('ADMIN', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/system/health/export/json']),
+    ).toBe(false);
+  });
+
+  it('SUPPORT cannot read health summary without system.health.read', () => {
+    expect(roleCanAccess('SUPPORT', ADMIN_ENDPOINT_PERMISSIONS['GET /admin/system/health'])).toBe(
+      false,
+    );
+  });
+
+  it('SystemHealthController wires system.health.read for summary/status only', () => {
+    expect(Reflect.getMetadata(PATH_METADATA, SystemHealthController)).toBe('admin/system/health');
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.getHealth)).toEqual([
+      ADMIN_PERMISSIONS.SYSTEM_HEALTH_READ,
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.getStatus)).toEqual([
+      ADMIN_PERMISSIONS.SYSTEM_HEALTH_READ,
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.getReport)).toEqual([
+      'settings.manage',
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.runScan)).toEqual([
+      'settings.manage',
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.autoFix)).toEqual([
+      'settings.manage',
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.exportJson)).toEqual([
+      'settings.manage',
+    ]);
+    expect(Reflect.getMetadata(PERMISSIONS_KEY, SystemHealthController.prototype.exportPdf)).toEqual([
+      'settings.manage',
+    ]);
   });
 
   it('PermissionsGuard denies when role lacks permission', async () => {

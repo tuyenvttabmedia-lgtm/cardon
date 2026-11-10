@@ -174,9 +174,19 @@ export default function SystemHealthPage() {
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <Card>
               <p className="text-sm text-slate-500">Production Readiness</p>
-              <p className="mt-1 text-2xl font-bold">{summary.productionLabel ?? 'Production Ready'}</p>
-              <p className="mt-2 text-4xl font-bold">{summary.healthScore}%</p>
-              <Badge tone={SEVERITY_TONE[summary.status]}>{summary.status.toUpperCase()}</Badge>
+              <p className="mt-1 text-2xl font-bold">
+                {summary.scanAvailable
+                  ? summary.productionLabel || '—'
+                  : 'Chưa quét'}
+              </p>
+              <p className="mt-2 text-4xl font-bold">
+                {typeof summary.healthScore === 'number' ? `${summary.healthScore}%` : '—'}
+              </p>
+              {summary.status ? (
+                <Badge tone={SEVERITY_TONE[summary.status]}>{summary.status.toUpperCase()}</Badge>
+              ) : (
+                <Badge tone="neutral">Chưa quét</Badge>
+              )}
             </Card>
             <Card>
               <p className="text-sm text-slate-500">Last Scan</p>

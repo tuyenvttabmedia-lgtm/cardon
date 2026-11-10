@@ -42,6 +42,7 @@ import {
   AdminUpdateAgentDto,
   ResolvePaymentReviewDto,
 } from '../dto/admin.dto';
+import { DashboardQueryDto } from '../dto/dashboard-query.dto';
 import {
   AdminRefundRequestQueryDto,
   CompleteRefundAttemptDto,
@@ -81,8 +82,8 @@ export class AdminController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @Permissions(ADMIN_PERMISSIONS.DASHBOARD)
-  getDashboard() {
-    return this.dashboardService.getDashboard();
+  getDashboard(@Query() query: DashboardQueryDto) {
+    return this.dashboardService.getDashboard(query.period);
   }
 
   @Get('orders/summary')

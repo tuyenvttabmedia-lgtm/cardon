@@ -103,21 +103,33 @@ export function StatCard({
   href?: string;
   className?: string;
 }) {
-  const body = (
-    <Card interactive className={cn('group relative h-full overflow-hidden', className)}>
-      <span className="absolute inset-y-4 left-0 w-0.5 rounded-r bg-admin-400 opacity-0 transition-opacity group-hover:opacity-100" />
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className={cn('mt-2 text-2xl font-bold tracking-tight', STAT_TONES[tone])}>{value}</p>
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
-    </Card>
+  // Single interactive surface (Link or div) — avoids Link>div nesting that
+  // made mobile tap targets unreliable in Visual QA C2.
+  const shellClass = cn(
+    'group relative block h-full overflow-hidden rounded-xl border border-slate-200/80 bg-white p-6 text-left shadow-panel',
+    href &&
+      'transition-all duration-200 hover:-translate-y-0.5 hover:border-admin-200 hover:shadow-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-admin-500/40 focus-visible:ring-offset-2',
+    className,
   );
 
-  if (!href) return body;
-  return (
-    <Link href={href} className="block h-full">
-      {body}
-    </Link>
+  const body = (
+    <>
+      <span className="pointer-events-none absolute inset-y-4 left-0 w-0.5 rounded-r bg-admin-400 opacity-0 transition-opacity group-hover:opacity-100" />
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <p className={cn('mt-2 text-2xl font-bold tracking-tight', STAT_TONES[tone])}>{value}</p>
+      {hint ? <p className="mt-1 text-xs text-slate-400">{hint}</p> : null}
+    </>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className={shellClass}>
+        {body}
+      </Link>
+    );
+  }
+
+  return <div className={shellClass}>{body}</div>;
 }
 
 export function LoadingState({ message = 'Đang tải...' }: { message?: string }) {

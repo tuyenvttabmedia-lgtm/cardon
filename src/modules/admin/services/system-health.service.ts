@@ -59,14 +59,17 @@ export class SystemHealthService {
 
   async getSummary() {
     const report = this.lastReport;
+    const scanAvailable = Boolean(report?.runAt);
     const categoryDomain = report?.domains.find((d) => d.domain === 'category_integrity');
     const systemVersion = await this.systemVersion.collect();
     this.maintenanceAvailability.applyScheduledTransitions();
     const maintenance = this.maintenanceAvailability.getPublicStatus();
     return {
-      healthScore: report?.healthScore ?? 100,
-      productionLabel: report?.productionLabel ?? productionReadinessLabel(100, 0),
-      status: report?.status ?? ('ok' as IntegritySeverity),
+      scanAvailable,
+      // No prior scan: do not invent «100% / Production Ready» (cockpit FE shows «Chưa quét»).
+      healthScore: scanAvailable ? (report?.healthScore ?? null) : null,
+      productionLabel: scanAvailable ? (report?.productionLabel ?? null) : null,
+      status: scanAvailable ? (report?.status ?? null) : null,
       runAt: report?.runAt ?? null,
       lastScanAt: report?.runAt ?? null,
       scanning: this.scanState.running,
@@ -74,7 +77,11 @@ export class SystemHealthService {
       maintenance,
       categoryIntegrity: {
         status: categoryDomain?.status ?? ('ok' as IntegritySeverity),
-        label: categoryDomain?.status === 'ok' ? 'Healthy' : 'Needs Repair',
+        label: !scanAvailable
+          ? 'Chưa quét'
+          : categoryDomain?.status === 'ok'
+            ? 'Healthy'
+            : 'Needs Repair',
       },
       systemVersion,
       versionMismatch: systemVersion.versionMismatch,

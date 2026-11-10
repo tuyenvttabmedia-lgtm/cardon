@@ -5,17 +5,21 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditTargetType, UserStatus } from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../../database/prisma.service';
 import { NotificationService } from '../../notification/services/notification.service';
 import { BCRYPT_ROUNDS } from '../../auth/auth.constants';
 import { TokenService } from '../../auth/token.service';
-import { AdminCustomerQueryDto, AdminCustomerDetailQueryDto, AdminUpdateCustomerDto } from '../dto/admin-operation.dto';
+import {
+  AdminCustomerQueryDto,
+  AdminCustomerDetailQueryDto,
+  AdminUpdateCustomerDto,
+} from '../dto/admin-operation.dto';
 import { ADMIN_AUDIT_ACTIONS } from '../entities/admin.constants';
 import { AdminRepository } from '../repositories/admin.repository';
 import { AdminAuditService } from './admin-audit.service';
+import { vietnamDayBounds } from '../../../common/utils/vietnam-time.util';
 
 @Injectable()
 export class AdminCustomerService {
@@ -29,9 +33,20 @@ export class AdminCustomerService {
   ) {}
 
   listCustomers(query: AdminCustomerQueryDto) {
+    let createdFrom: Date | undefined;
+    let createdToExclusive: Date | undefined;
+    if (query.createdFrom) {
+      createdFrom = vietnamDayBounds(query.createdFrom).start;
+    }
+    if (query.createdTo) {
+      createdToExclusive = vietnamDayBounds(query.createdTo).endExclusive;
+    }
+
     return this.repository.findCustomers({
       q: query.q,
       status: query.status,
+      createdFrom,
+      createdToExclusive,
       skip: query.skip,
       take: query.take,
     });
@@ -40,25 +55,65 @@ export class AdminCustomerService {
   async getCustomer(id: string, query: AdminCustomerDetailQueryDto = {}) {
     const orderSkip = query.orderSkip ?? 0;
     const orderTake = query.orderTake ?? 10;
-    const customer = await this.repository.findCustomerById(id, orderSkip, orderTake);
+    const loginEventSkip = query.loginEventSkip ?? 0;
+    const loginEventTake = query.loginEventTake ?? 10;
+
+    const customer = await this.repository.findCustomerById(
+      id,
+      orderSkip,
+      orderTake,
+    );
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
 
-    const [spendingAgg] = await Promise.all([
-      this.repository.sumCustomerPaidTotal(id),
+    const [kpis, loginEvents] = await Promise.all([
+      this.repository.aggregateCustomerOrderKpis(id),
+      this.repository.findCustomerLoginAuditEvents(
+        id,
+        loginEventSkip,
+        loginEventTake,
+      ),
     ]);
 
-    const totalSpending = spendingAgg._sum.totalAmount ?? new Decimal(0);
     const { orders, _count, ...profile } = customer;
 
     return {
       profile,
-      orders,
+      orders: orders.map((order) => ({
+        id: order.id,
+        orderCode: order.orderCode,
+        totalAmount: order.totalAmount,
+        paymentStatus: order.paymentStatus,
+        fulfillmentStatus: order.fulfillmentStatus,
+        createdAt: order.createdAt,
+        productSummary: formatOrderProductSummary(order.orderItems),
+      })),
       ordersTotal: _count.orders,
       orderSkip,
       orderTake,
-      totalSpending: totalSpending.toFixed(2),
+      kpis: {
+        totalOrders: kpis.totalOrders,
+        successfulOrders: kpis.successfulOrders,
+        failedOrCancelledOrders: kpis.failedOrCancelledOrders,
+        refundedOrders: kpis.refundedOrders,
+        totalPaidAmount: kpis.totalPaidAmount.toFixed(2),
+      },
+      /** Compat alias for older admin clients — same as kpis.totalPaidAmount (PAID order sum). */
+      totalSpending: kpis.totalPaidAmount.toFixed(2),
+      loginEvents: {
+        source: 'audit_logs' as const,
+        note: 'Best-effort auth events from audit_logs; not an official Customer Login History table.',
+        items: loginEvents.items.map((row) => ({
+          id: row.id,
+          action: row.action,
+          ipAddress: row.ipAddress,
+          createdAt: row.createdAt,
+        })),
+        total: loginEvents.total,
+        skip: loginEvents.skip,
+        take: loginEvents.take,
+      },
     };
   }
 
@@ -202,4 +257,19 @@ export class AdminCustomerService {
       message: 'Password reset link generated',
     };
   }
+}
+
+function formatOrderProductSummary(
+  items: Array<{
+    quantity: number;
+    variant: { name: string; product: { name: string } };
+  }>,
+): string {
+  if (!items.length) return '—';
+  return items
+    .map((item) => {
+      const label = `${item.variant.product.name} · ${item.variant.name}`;
+      return item.quantity > 1 ? `${label} ×${item.quantity}` : label;
+    })
+    .join('; ');
 }

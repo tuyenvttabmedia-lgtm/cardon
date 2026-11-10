@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   AgentStatus,
+  AuditTargetType,
   FulfillmentStatus,
   OrderPaymentStatus,
   PaymentGatewayCode,
@@ -10,81 +11,115 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import {
+  vietnamCalendarDate,
+  vietnamDayBounds,
+} from '../../../common/utils/vietnam-time.util';
 import { PrismaService } from '../../../database/prisma.service';
 import { ACTIVE_ORDER_WHERE } from '../../order/entities/order.constants';
-import {
-  EXCLUDE_ADMIN_TEST_ORDERS,
-  EXCLUDE_ADMIN_TEST_PAYMENTS,
-} from '../../order/entities/commercial-order.where';
-import { isPersistedAdminTest } from '../../esim/esim-admin-test.rules';
+import { EXCLUDE_ADMIN_TEST_ORDERS } from '../../order/entities/commercial-order.where';
 import { ACTIVE_PAYMENT_WHERE } from '../../payment/entities/payment.constants';
 import { resolveAdminPagination } from '../utils/admin-pagination.util';
 import { AdminOrderQueryDto } from '../dto/admin.dto';
 import { buildAdminOrderWhere } from '../utils/admin-order-filter.util';
-import { vietnamCalendarDate, vietnamDayBounds } from '../../../common/utils/vietnam-time.util';
-
-function startOfToday(): Date {
-  return vietnamDayBounds(vietnamCalendarDate()).start;
-}
+import {
+  resolveDashboardPeriodRange,
+  type DashboardPeriodPreset,
+} from '../entities/dashboard-period';
+import { dashboardRetailOrderWhere } from '../entities/dashboard-retail-scope';
 
 @Injectable()
 export class AdminRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getDashboardStats() {
-    const today = startOfToday();
+  async getDashboardStats(periodRaw?: string | null) {
+    const range = resolveDashboardPeriodRange(periodRaw);
+    const { fromInclusive, toExclusive } = range;
+    const periodFilter = { gte: fromInclusive, lt: toExclusive };
+
+    const retailPaidInPeriod: Prisma.OrderWhereInput = dashboardRetailOrderWhere({
+      paymentStatus: OrderPaymentStatus.PAID,
+      payments: {
+        some: {
+          ...ACTIVE_PAYMENT_WHERE,
+          status: PaymentRecordStatus.SUCCESS,
+          paidAt: periodFilter,
+        },
+      },
+    });
+
+    const retailCreatedInPeriod: Prisma.OrderWhereInput = dashboardRetailOrderWhere({
+      createdAt: periodFilter,
+    });
+
+    const retailPaymentOrderScope: Prisma.OrderWhereInput = dashboardRetailOrderWhere();
 
     const [
-      todayOrders,
-      todayPaidOrders,
-      successfulPayments,
-      failedPayments,
-      pendingFulfillment,
+      businessAgg,
+      paidOrderCount,
+      createdOrderCount,
+      successAttemptCount,
+      failedAttemptCount,
+      pendingDelivery,
+      processing,
+      waitingAdminRetry,
+      needManualReview,
       providerErrors,
       agentStats,
     ] = await Promise.all([
-      this.prisma.order.count({
-        where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS, createdAt: { gte: today } },
-      }),
-      this.prisma.order.findMany({
-        where: {
-          ...ACTIVE_ORDER_WHERE,
-          ...EXCLUDE_ADMIN_TEST_ORDERS,
-          paymentStatus: OrderPaymentStatus.PAID,
-          createdAt: { gte: today },
+      this.prisma.order.aggregate({
+        where: retailPaidInPeriod,
+        _sum: {
+          sellAmount: true,
+          providerCost: true,
+          paymentFeeAmount: true,
         },
-        select: { totalAmount: true, clientTrace: true },
       }),
+      this.prisma.order.count({ where: retailPaidInPeriod }),
+      this.prisma.order.count({ where: retailCreatedInPeriod }),
       this.prisma.payment.count({
         where: {
           ...ACTIVE_PAYMENT_WHERE,
-          ...EXCLUDE_ADMIN_TEST_PAYMENTS,
           status: PaymentRecordStatus.SUCCESS,
-          paidAt: { gte: today },
+          paidAt: periodFilter,
+          order: retailPaymentOrderScope,
         },
       }),
       this.prisma.payment.count({
         where: {
           ...ACTIVE_PAYMENT_WHERE,
           status: PaymentRecordStatus.FAILED,
-          updatedAt: { gte: today },
+          updatedAt: periodFilter,
+          order: retailPaymentOrderScope,
         },
       }),
       this.prisma.order.count({
-        where: {
-          ...ACTIVE_ORDER_WHERE,
-          fulfillmentStatus: {
-            in: [
-              FulfillmentStatus.PENDING,
-              FulfillmentStatus.PROCESSING,
-              FulfillmentStatus.WAITING_ADMIN_RETRY,
-            ],
-          },
-        },
+        where: dashboardRetailOrderWhere({
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.PENDING,
+        }),
+      }),
+      this.prisma.order.count({
+        where: dashboardRetailOrderWhere({
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.PROCESSING,
+        }),
+      }),
+      this.prisma.order.count({
+        where: dashboardRetailOrderWhere({
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+        }),
+      }),
+      this.prisma.order.count({
+        where: dashboardRetailOrderWhere({
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+        }),
       }),
       this.prisma.providerLog.count({
         where: {
-          createdAt: { gte: today },
+          createdAt: periodFilter,
           status: ProviderTransactionStatus.FAILED,
         },
       }),
@@ -95,31 +130,61 @@ export class AdminRepository {
       }),
     ]);
 
-    const todayRevenue = todayPaidOrders.reduce((sum, row) => {
-      if (isPersistedAdminTest(row.clientTrace)) return sum;
-      return sum.add(row.totalAmount);
-    }, new Decimal(0));
+    const revenue = businessAgg._sum.sellAmount ?? new Decimal(0);
+    const providerCost = businessAgg._sum.providerCost ?? new Decimal(0);
+    const gatewayFee = businessAgg._sum.paymentFeeAmount ?? new Decimal(0);
+    const profit = revenue.sub(providerCost).sub(gatewayFee);
 
     const agentsByStatus = Object.fromEntries(
       agentStats.map((row) => [row.status, row._count.id]),
     );
 
+    const agentStatistics = {
+      total: agentStats.reduce((sum, row) => sum + row._count.id, 0),
+      active: agentsByStatus[AgentStatus.ACTIVE] ?? 0,
+      pendingKyc: agentsByStatus[AgentStatus.PENDING_KYC] ?? 0,
+      suspended: agentsByStatus[AgentStatus.SUSPENDED] ?? 0,
+      rejected: agentsByStatus[AgentStatus.REJECTED] ?? 0,
+    };
+
+    const backlog = {
+      pendingDelivery,
+      processing,
+      waitingAdminRetry,
+      needManualReview,
+    };
+
     return {
-      todayRevenue: todayRevenue.toFixed(2),
-      ordersCount: todayOrders,
-      successfulPayments,
-      failedPayments,
-      pendingFulfillment,
-      providerErrors,
-      agentStatistics: {
-        total: agentStats.reduce((sum, row) => sum + row._count.id, 0),
-        active: agentsByStatus[AgentStatus.ACTIVE] ?? 0,
-        pendingKyc: agentsByStatus[AgentStatus.PENDING_KYC] ?? 0,
-        suspended: agentsByStatus[AgentStatus.SUSPENDED] ?? 0,
-        rejected: agentsByStatus[AgentStatus.REJECTED] ?? 0,
+      period: {
+        preset: range.preset satisfies DashboardPeriodPreset,
+        dateFrom: range.dateFrom,
+        dateTo: range.dateTo,
+        timezone: range.timezone,
       },
-      currency: 'VND' as const,
       asOf: new Date().toISOString(),
+      currency: 'VND' as const,
+      business: {
+        revenue: revenue.toFixed(2),
+        profit: profit.toFixed(2),
+        providerCost: providerCost.toFixed(2),
+        gatewayFee: gatewayFee.toFixed(2),
+        paidOrderCount,
+        createdOrderCount,
+      },
+      payments: {
+        successAttemptCount,
+        failedAttemptCount,
+      },
+      backlog,
+      providerErrors,
+      providerErrorsScope: 'SYSTEM' as const,
+      agentStatistics,
+      // Legacy fields for pre-C2 frontend (same period aggregates).
+      todayRevenue: revenue.toFixed(2),
+      ordersCount: createdOrderCount,
+      successfulPayments: successAttemptCount,
+      failedPayments: failedAttemptCount,
+      pendingFulfillment: pendingDelivery + processing + waitingAdminRetry,
     };
   }
 
@@ -456,43 +521,69 @@ export class AdminRepository {
     });
   }
 
-  findCustomers(filters: {
+  private buildCustomerListWhere(filters: {
     q?: string;
     status?: UserStatus;
-    skip?: number;
-    take?: number;
-  }) {
+    createdFrom?: Date;
+    createdToExclusive?: Date;
+  }): Prisma.UserWhereInput {
     const where: Prisma.UserWhereInput = {
       role: 'CUSTOMER',
       deletedAt: null,
     };
     if (filters.status) where.status = filters.status;
+    if (filters.createdFrom || filters.createdToExclusive) {
+      where.createdAt = {};
+      if (filters.createdFrom) where.createdAt.gte = filters.createdFrom;
+      if (filters.createdToExclusive) where.createdAt.lt = filters.createdToExclusive;
+    }
     if (filters.q) {
       const q = filters.q.trim();
+      const uuidLike =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          q,
+        );
       where.OR = [
+        ...(uuidLike ? [{ id: q }] : []),
         { email: { contains: q, mode: 'insensitive' } },
         { phone: { contains: q, mode: 'insensitive' } },
         { username: { contains: q, mode: 'insensitive' } },
         { fullName: { contains: q, mode: 'insensitive' } },
       ];
     }
+    return where;
+  }
+
+  async findCustomers(filters: {
+    q?: string;
+    status?: UserStatus;
+    createdFrom?: Date;
+    createdToExclusive?: Date;
+    skip?: number;
+    take?: number;
+  }) {
+    const where = this.buildCustomerListWhere(filters);
     const pagination = resolveAdminPagination(filters.skip, filters.take);
-    return this.prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        username: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        status: true,
-        lastLoginAt: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: 'desc' },
-      skip: pagination.skip,
-      take: pagination.take,
-    });
+    const [items, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          lastLoginAt: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+    return { items, total, skip: pagination.skip, take: pagination.take };
   }
 
   findCustomerById(id: string, orderSkip = 0, orderTake = 10) {
@@ -510,8 +601,9 @@ export class AdminRepository {
         acceptedTermsAt: true,
         lastLoginAt: true,
         createdAt: true,
+        updatedAt: true,
         orders: {
-          where: ACTIVE_ORDER_WHERE,
+          where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS },
           select: {
             id: true,
             orderCode: true,
@@ -519,6 +611,18 @@ export class AdminRepository {
             paymentStatus: true,
             fulfillmentStatus: true,
             createdAt: true,
+            orderItems: {
+              select: {
+                quantity: true,
+                variant: {
+                  select: {
+                    name: true,
+                    product: { select: { name: true } },
+                  },
+                },
+              },
+              take: 3,
+            },
           },
           orderBy: { createdAt: 'desc' },
           skip: pagination.skip,
@@ -526,24 +630,127 @@ export class AdminRepository {
         },
         _count: {
           select: {
-            orders: { where: ACTIVE_ORDER_WHERE },
+            orders: { where: { ...ACTIVE_ORDER_WHERE, ...EXCLUDE_ADMIN_TEST_ORDERS } },
           },
         },
       },
     });
   }
 
+  private customerOrderBaseWhere(userId: string): Prisma.OrderWhereInput {
+    return {
+      userId,
+      ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
+    };
+  }
+
+  /**
+   * Order KPIs counted on distinct Order rows (prisma order.count), never payment attempts.
+   * - successful = PAID + COMPLETED
+   * - failedOrCancelled = FAILED/EXPIRED payment OR fulfillment FAILED; excludes REFUNDED
+   * - refunded = paymentStatus REFUNDED (own bucket)
+   */
+  async aggregateCustomerOrderKpis(userId: string) {
+    const base = this.customerOrderBaseWhere(userId);
+    const [
+      totalOrders,
+      successfulOrders,
+      failedOrCancelledOrders,
+      refundedOrders,
+      paidAgg,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: base }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.PAID,
+          fulfillmentStatus: FulfillmentStatus.COMPLETED,
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          NOT: { paymentStatus: OrderPaymentStatus.REFUNDED },
+          OR: [
+            {
+              paymentStatus: {
+                in: [OrderPaymentStatus.FAILED, OrderPaymentStatus.EXPIRED],
+              },
+            },
+            { fulfillmentStatus: FulfillmentStatus.FAILED },
+          ],
+        },
+      }),
+      this.prisma.order.count({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.REFUNDED,
+        },
+      }),
+      this.prisma.order.aggregate({
+        where: {
+          ...base,
+          paymentStatus: OrderPaymentStatus.PAID,
+        },
+        _sum: { totalAmount: true },
+      }),
+    ]);
+
+    return {
+      totalOrders,
+      successfulOrders,
+      failedOrCancelledOrders,
+      refundedOrders,
+      totalPaidAmount: paidAgg._sum.totalAmount ?? new Decimal(0),
+    };
+  }
+
   sumCustomerPaidTotal(userId: string) {
     return this.prisma.order.aggregate({
       where: {
-        userId,
-        deletedAt: null,
-        paymentStatus: 'PAID',
-        ...ACTIVE_ORDER_WHERE,
-        ...EXCLUDE_ADMIN_TEST_ORDERS,
+        ...this.customerOrderBaseWhere(userId),
+        paymentStatus: OrderPaymentStatus.PAID,
       },
       _sum: { totalAmount: true },
     });
+  }
+
+  /**
+   * Best-effort auth events from audit_logs (customer self-actor pattern in AuthService).
+   * AuthService writes LOGIN_* with adminId=targetId=customerId — exclude admin lock/unlock
+   * (different actions) and staff logins (different targetId).
+   * Not a dedicated Customer Login History table.
+   */
+  async findCustomerLoginAuditEvents(
+    customerId: string,
+    skip = 0,
+    take = 10,
+  ) {
+    const pagination = resolveAdminPagination(skip, take);
+    const where: Prisma.AuditLogWhereInput = {
+      targetType: AuditTargetType.USER,
+      targetId: customerId,
+      adminId: customerId,
+      action: { in: ['LOGIN_SUCCESS', 'LOGIN_FAILED'] },
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.auditLog.findMany({
+        where,
+        select: {
+          id: true,
+          action: true,
+          ipAddress: true,
+          createdAt: true,
+          metadata: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.take,
+      }),
+      this.prisma.auditLog.count({ where }),
+    ]);
+    return { items, total, skip: pagination.skip, take: pagination.take };
   }
 
   findStaffUsers(filters: { skip?: number; take?: number }) {

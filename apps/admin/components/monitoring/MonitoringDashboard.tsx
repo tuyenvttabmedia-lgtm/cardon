@@ -56,8 +56,13 @@ export function MonitoringDashboard() {
             .getHealth()
             .then((h) => {
               if (cancelled) return;
-              setHealthScore(h.healthScore);
-              setHealthLabel(h.productionLabel ?? vi.monitoringHub.healthReady);
+              const scanned = Boolean(h.scanAvailable && typeof h.healthScore === 'number');
+              setHealthScore(scanned ? h.healthScore : null);
+              setHealthLabel(
+                scanned
+                  ? h.productionLabel || vi.monitoringHub.healthReady
+                  : 'Chưa quét',
+              );
             })
             .catch(() => {
               if (!cancelled) {

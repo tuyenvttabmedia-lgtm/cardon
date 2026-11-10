@@ -1,7 +1,9 @@
+import { OrderChannel, ProductVariantType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { FinanceRepository } from './repositories/finance.repository';
 import { AdminRepository } from '../admin/repositories/admin.repository';
 import { EXCLUDE_ADMIN_TEST_ORDERS } from '../order/entities/commercial-order.where';
+import { dashboardRetailOrderWhere } from '../admin/entities/dashboard-retail-scope';
 
 const dateFrom = new Date('2026-11-01T00:00:00.000Z');
 const dateTo = new Date('2026-11-05T00:00:00.000Z');
@@ -91,16 +93,16 @@ describe('commercial totals exclude boolean adminTest orders', () => {
     expect(settlement.sections[0].totalVolume).toBe('150000.00');
   });
 
-  it('asks the database for boolean true only', async () => {
+  it('asks the database to drop boolean adminTest true without dropping missing keys', async () => {
     const { repo, prisma } = repository();
     await repo.sumGatewayFees(dateFrom, dateTo);
     await repo.findB2cCompletedOrderItemsForVat(dateFrom, dateTo);
-    expect(whereOf(prisma.order.aggregate).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
-    expect((whereOf(prisma.orderItem.findMany).order as { NOT: unknown }).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
+    expect(whereOf(prisma.order.aggregate)).toEqual(
+      expect.objectContaining(EXCLUDE_ADMIN_TEST_ORDERS),
+    );
+    expect(whereOf(prisma.orderItem.findMany).order).toEqual(
+      expect.objectContaining(EXCLUDE_ADMIN_TEST_ORDERS),
+    );
   });
 });
 
@@ -115,7 +117,13 @@ describe('admin dashboard revenue skips boolean admin tests', () => {
       order: {
         count: jest.fn(async () => 2),
         findMany: jest.fn(async () => paid),
-        aggregate: jest.fn(async () => ({ _sum: { sellAmount: new Decimal('150000'), providerCost: new Decimal(0), paymentFeeAmount: new Decimal(0) } })),
+        aggregate: jest.fn(async () => ({
+          _sum: {
+            sellAmount: new Decimal('150000'),
+            providerCost: new Decimal(0),
+            paymentFeeAmount: new Decimal(0),
+          },
+        })),
       },
       payment: { count: jest.fn(async () => 1) },
       providerLog: { count: jest.fn(async () => 0) },
@@ -125,10 +133,17 @@ describe('admin dashboard revenue skips boolean admin tests', () => {
     const stats = await repo.getDashboardStats();
     expect(stats.todayRevenue).toBe('150000.00');
     expect(stats.ordersCount).toBe(2);
-    expect(whereOf(prisma.order.count).NOT).toEqual({
-      clientTrace: { path: ['adminTest'], equals: true },
-    });
-    expect(whereOf(prisma.payment.count).order).toEqual(EXCLUDE_ADMIN_TEST_ORDERS);
+    expect(whereOf(prisma.order.aggregate)).toEqual(
+      expect.objectContaining({
+        ...EXCLUDE_ADMIN_TEST_ORDERS,
+        channel: OrderChannel.B2C,
+        NOT: {
+          orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+        },
+      }),
+    );
+    // B5/D1 payment attempts reuse the same retail order scope helper.
+    expect(whereOf(prisma.payment.count).order).toEqual(dashboardRetailOrderWhere());
     expect(paid[1].clientTrace).toEqual({ adminTest: true });
   });
 });

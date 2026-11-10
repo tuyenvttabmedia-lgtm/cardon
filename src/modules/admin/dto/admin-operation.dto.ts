@@ -33,6 +33,16 @@ export class AdminCustomerQueryDto {
   @IsEnum(UserStatus)
   status?: UserStatus;
 
+  /** Vietnam calendar day `YYYY-MM-DD` (inclusive start). */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  createdFrom?: string;
+
+  /** Vietnam calendar day `YYYY-MM-DD` (inclusive end). */
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  createdTo?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -60,6 +70,19 @@ export class AdminCustomerDetailQueryDto {
   @Min(1)
   @Max(ADMIN_PAGINATION_MAX)
   orderTake?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  loginEventSkip?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(ADMIN_PAGINATION_MAX)
+  loginEventTake?: number;
 }
 
 export class AdminUpdateCustomerDto {

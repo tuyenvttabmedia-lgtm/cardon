@@ -151,6 +151,13 @@ export function canAccessNavItem(
 
 
 
+  // Explicit role allowlist (e.g. staff/config) applies to every role including SUPER_ADMIN.
+  if (item.roles && !item.roles.includes(role)) return false;
+
+  // SUPER_ADMIN sees the full operational menu once role gates pass. Do not let
+  // visibleForRoles (used to slim SUPPORT/ACCOUNTANT menus) hide Payments etc.
+  if (role === 'SUPER_ADMIN') return true;
+
   if (item.visibleForRoles && !item.visibleForRoles.includes(role)) {
 
     return false;
@@ -158,10 +165,6 @@ export function canAccessNavItem(
   }
 
 
-
-  if (item.roles && !item.roles.includes(role)) return false;
-
-  if (role === 'SUPER_ADMIN') return true;
 
   if (item.permission) return permissions.includes(item.permission);
 

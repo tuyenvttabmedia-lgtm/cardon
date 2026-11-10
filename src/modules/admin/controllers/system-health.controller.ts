@@ -14,6 +14,7 @@ import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
+import { ADMIN_PERMISSIONS } from '../entities/admin.constants';
 import type { IntegritySeverity } from '../entities/system-health.types';
 import { SystemHealthService } from '../services/system-health.service';
 
@@ -24,13 +25,13 @@ export class SystemHealthController {
   constructor(private readonly healthService: SystemHealthService) {}
 
   @Get()
-  @Permissions('settings.manage')
+  @Permissions(ADMIN_PERMISSIONS.SYSTEM_HEALTH_READ)
   async getHealth() {
     return this.healthService.getSummary();
   }
 
   @Get('status')
-  @Permissions('settings.manage')
+  @Permissions(ADMIN_PERMISSIONS.SYSTEM_HEALTH_READ)
   getStatus() {
     return this.healthService.getScanState();
   }

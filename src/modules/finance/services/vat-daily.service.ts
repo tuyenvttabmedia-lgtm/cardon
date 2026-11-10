@@ -68,7 +68,11 @@ export class VatDailyService {
       } else {
         groups.set(key, {
           sku: item.variant.sku,
-          name: item.variant.name,
+          name: esaleInvoiceGoodsName({
+            productSlug: item.variant.product.slug,
+            faceValue: face,
+            fallbackName: item.variant.name,
+          }),
           productLine: line,
           vatRate,
           faceValue: face,

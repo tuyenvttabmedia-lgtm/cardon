@@ -5,7 +5,7 @@ import { AdminRepository } from '../repositories/admin.repository';
 export class AdminDashboardService {
   constructor(private readonly repository: AdminRepository) {}
 
-  getDashboard() {
-    return this.repository.getDashboardStats();
+  getDashboard(period?: string | null) {
+    return this.repository.getDashboardStats(period);
   }
 }
