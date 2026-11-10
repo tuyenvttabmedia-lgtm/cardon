@@ -48,7 +48,7 @@ function withPortalHeader(response: NextResponse): NextResponse {
   return response;
 }
 
-const PLATFORM_STATUS_TTL_MS = 20_000;
+const PLATFORM_STATUS_TTL_MS = 90_000;
 
 type PlatformMode = 'OFF' | 'MAINTENANCE' | 'EMERGENCY';
 

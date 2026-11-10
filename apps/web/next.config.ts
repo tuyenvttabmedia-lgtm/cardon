@@ -6,11 +6,13 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   transpilePackages: ['@cardon/build-info'],
   outputFileTracingRoot: path.join(__dirname, '../..'),
+  compress: true,
+  poweredByHeader: false,
   images: {
-    deviceSizes: [640, 828, 1080, 1200, 1920],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [32, 48, 64, 96, 128, 256, 384],
-    formats: ['image/webp'],
-    minimumCacheTTL: 60 * 60 * 24,
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       { protocol: 'https', hostname: 'qr.sepay.vn' },
       { protocol: 'https', hostname: '**.sepay.vn' },
@@ -19,6 +21,28 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'cardon.vn', pathname: '/uploads/**' },
       { protocol: 'https', hostname: 'www.cardon.vn', pathname: '/uploads/**' },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      {
+        source: '/images/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+        ],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+    ];
   },
   async redirects() {
     return [

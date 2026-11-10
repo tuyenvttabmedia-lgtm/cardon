@@ -89,7 +89,7 @@ export function listBlogPosts(params?: {
   if (params?.take != null) q.set('take', String(params.take));
   if (params?.locale) q.set('locale', params.locale);
   const qs = q.toString();
-  return cmsFetch<PublicBlogPost[]>(`/cms/blog/posts${qs ? `?${qs}` : ''}`, 0);
+  return cmsFetch<PublicBlogPost[]>(`/cms/blog/posts${qs ? `?${qs}` : ''}`, 120);
 }
 
 export function getCmsPage(slug: string, locale?: Locale) {
@@ -427,22 +427,45 @@ export interface CmsBanner {
   sortOrder: number;
 }
 
+/** Server theme — ISR so homepage TTFB is not blocked on no-store. */
 export function getThemeSettings() {
-  return fetchThemeSettingsClient();
+  return cmsFetch<CmsThemeSettings>('/cms/theme', 60);
 }
 
-/** Client-side theme fetch — bypass CDN/browser cache after admin saves. */
+const THEME_CLIENT_TTL_MS = 60_000;
+let themeClientCache: { at: number; data: CmsThemeSettings | null } | null = null;
+let themeClientInflight: Promise<CmsThemeSettings | null> | null = null;
+
+/**
+ * Client theme fetch — one in-flight request shared by Header/Footer/Nav/Home,
+ * with a short memory cache so hydrate does not fan out 5–6 identical XHRs.
+ */
 export async function fetchThemeSettingsClient(): Promise<CmsThemeSettings | null> {
-  try {
-    const res = await fetch(`${getApiBaseUrl()}/cms/theme`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) return null;
-    const payload = (await res.json()) as ApiSuccess<CmsThemeSettings>;
-    return payload.data;
-  } catch {
-    return null;
+  const now = Date.now();
+  if (themeClientCache && now - themeClientCache.at < THEME_CLIENT_TTL_MS) {
+    return themeClientCache.data;
   }
+  if (themeClientInflight) return themeClientInflight;
+
+  themeClientInflight = (async () => {
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/cms/theme`, {
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) return themeClientCache?.data ?? null;
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) return themeClientCache?.data ?? null;
+      const payload = (await res.json()) as ApiSuccess<CmsThemeSettings>;
+      themeClientCache = { at: Date.now(), data: payload.data };
+      return payload.data;
+    } catch {
+      return themeClientCache?.data ?? null;
+    } finally {
+      themeClientInflight = null;
+    }
+  })();
+
+  return themeClientInflight;
 }
 
 export function getSiteConfig() {
@@ -485,5 +508,5 @@ export interface PublicCmsSeoSettings {
 }
 
 export function getGlobalSeoSettings() {
-  return cmsFetch<PublicCmsSeoSettings>('/cms/seo-settings', 0);
+  return cmsFetch<PublicCmsSeoSettings>('/cms/seo-settings', 120);
 }
