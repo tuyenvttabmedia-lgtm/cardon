@@ -108,13 +108,16 @@ body {
     pointer-events: none;
   }
 
-  /* Soft rim into body gray: left/right + bottom. Intersect keeps center opaque. */
+  /*
+   * Photo strip only (aspect of the CMS banner). Never height:100% here — on hub
+   * pages in-flow copy would stretch the beach/game art behind the whole block.
+   */
   .home-hero-banner .home-hero-media {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    aspect-ratio: 2068 / 550;
     pointer-events: none;
     -webkit-mask-image:
       linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
@@ -134,26 +137,51 @@ body {
   }
 
   /*
-   * Home desktop (PSI ~1350px): height ONLY from spacer. Copy overlays so
-   * font/theme hydration cannot grow the section (CLS ~0.42 was stacked copy).
-   * Hubs keep in-flow copy — they pack more chips/points than the photo box.
+   * Desktop home + hubs: fixed photo box (same as homepage). Copy overlays;
+   * hub spacer off so chips/points sit in the banner, not under a second tall strip.
    */
   @media (min-width: 1024px) {
-    .home-hero-banner:not(.home-hero-banner--hub) {
+    .home-hero-banner {
       overflow: hidden;
+      aspect-ratio: 2068 / 550;
     }
 
-    .home-hero-banner:not(.home-hero-banner--hub) > .site-container {
+    .home-hero-banner--hub > .home-hero-spacer {
+      display: none;
+    }
+
+    .home-hero-banner:not(.home-hero-banner--hub) > .home-hero-spacer {
+      /* Home keeps spacer for CLS; section aspect matches it. */
+      display: block;
+    }
+
+    .home-hero-banner > .site-container {
       position: absolute;
       inset: 0;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       padding-top: 1rem;
       padding-bottom: 1.5rem;
+    }
+
+    .home-hero-banner .home-hero-media {
+      height: 100%;
+      aspect-ratio: auto;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .home-hero-banner > .site-container {
+      align-items: center;
     }
   }
 
   @media (min-width: 1900px) {
+    .home-hero-banner {
+      height: 500px;
+      aspect-ratio: auto;
+    }
+
     .home-hero-spacer {
       aspect-ratio: auto;
       height: 500px;
@@ -172,8 +200,8 @@ body {
   }
 
   /*
-   * Hub pages share home spacing + mask. Clip only so the absolute photo cannot
-   * paint into the checkout card; the mask still softens L/R/bottom into gray.
+   * Hub pages: clip so the absolute photo cannot paint into the checkout card;
+   * the mask still softens L/R/bottom into gray.
    */
   .home-hero-banner--hub {
     overflow: hidden;
