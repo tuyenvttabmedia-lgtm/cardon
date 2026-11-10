@@ -55,7 +55,8 @@ export function CardonHomePage({
   const { homeBackgrounds } = useThemeSettings();
   const [query, setQuery] = useState('');
   const normalized = query.trim().toLowerCase();
-  const heroBg = homeBackgrounds.homeHeroBg || initialHeroBg;
+  // Prefer SSR CMS hero: hook defaults always fill homeHeroBg, so `|| initial` never wins.
+  const heroBg = initialHeroBg || homeBackgrounds.homeHeroBg;
 
   const gameProducts = products.filter((product) => product.homeService === 'GAME_CARD').slice(0, 8);
   const phoneProducts = products.filter((product) => product.homeService === 'PHONE_CARD').slice(0, 4);
