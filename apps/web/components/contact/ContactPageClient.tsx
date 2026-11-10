@@ -14,6 +14,7 @@ import { FaqSection } from '@/components/faq/FaqSection';
 import {
   CONTACT_CHANNEL_META,
   resolveContactChannelLabel,
+  resolveContactChannelValue,
   type ContactChannel,
   type ContactChannelKey,
 } from '@/lib/contact-channels';
@@ -40,8 +41,14 @@ export function ContactPageClient({
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
 
-  const visibleChannels = contactChannels.filter((channel) => channel.enabled && channel.value.trim());
+  const visibleChannels = contactChannels.filter(
+    (channel) => channel.enabled && (channel.value.trim() || channel.valueEn?.trim()),
+  );
   const workingHours = companyInfo.workingHours?.trim() || '';
+  const mapAddress =
+    locale === 'en' && companyInfo.addressEn?.trim()
+      ? companyInfo.addressEn.trim()
+      : companyInfo.address?.trim() || '';
   const quickActions = visibleChannels.filter(
     (c): c is ContactChannel & { href: string } =>
       Boolean(c.href) && (c.key === 'hotline' || c.key === 'zalo' || c.key === 'fanpage' || c.key === 'email'),
@@ -196,9 +203,7 @@ export function ContactPageClient({
         <section className="mt-8 overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-card">
           <div className="border-b border-cardon-border px-5 py-4 md:px-6">
             <h2 className="text-lg font-bold text-cardon-navy">{t('contact.mapTitle')}</h2>
-            {companyInfo.address?.trim() ? (
-              <p className="mt-1 text-sm text-cardon-gray">{companyInfo.address.trim()}</p>
-            ) : null}
+            {mapAddress ? <p className="mt-1 text-sm text-cardon-gray">{mapAddress}</p> : null}
           </div>
           <div className="relative aspect-[16/10] w-full bg-zinc-100 md:aspect-[21/9]">
             <iframe
@@ -261,6 +266,7 @@ function ContactChannelItem({ channel }: { channel: ContactChannel }) {
   const meta = CONTACT_CHANNEL_META[channel.key];
   const fallback = channel.key === 'address' ? t('contact.address') : meta.label;
   const label = resolveContactChannelLabel(channel, locale, fallback);
+  const value = resolveContactChannelValue(channel, locale);
 
   return (
     <li className="flex gap-3">
@@ -276,10 +282,10 @@ function ContactChannelItem({ channel }: { channel: ContactChannel }) {
             target={channel.href.startsWith('http') ? '_blank' : undefined}
             rel={channel.href.startsWith('http') ? 'noreferrer' : undefined}
           >
-            {channel.value}
+            {value}
           </a>
         ) : (
-          <p className="break-words text-sm text-cardon-gray">{channel.value}</p>
+          <p className="break-words text-sm text-cardon-gray">{value}</p>
         )}
       </div>
     </li>

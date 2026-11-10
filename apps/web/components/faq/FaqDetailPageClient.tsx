@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { SafeFaqHtml } from '@/components/SafeFaqHtml';
 import { FaqSchema } from '@/components/seo/FaqSchema';
 import type { PublicFaqDetail } from '@/lib/cms-api';
 
 export function FaqDetailPageClient({ data }: { data: PublicFaqDetail }) {
+  const t = useT();
+  const { locale } = useLocale();
   const { faq, related } = data;
+  const showFallback = locale === 'en' && faq.fallback;
 
   return (
     <div className="page-shell py-8">
@@ -14,17 +18,21 @@ export function FaqDetailPageClient({ data }: { data: PublicFaqDetail }) {
 
       <nav className="mb-4 text-sm text-cardon-gray">
         <Link href="/" className="hover:text-cardon-blue">
-          Trang chủ
+          {t('nav.home')}
         </Link>
         <span className="mx-2">›</span>
         <Link href="/tro-giup" className="hover:text-cardon-blue">
-          Trợ giúp
+          {t('faq.help')}
         </Link>
         <span className="mx-2">›</span>
         <Link href={`/tro-giup?category=${faq.category.slug}`} className="hover:text-cardon-blue">
           {faq.category.name}
         </Link>
       </nav>
+
+      {showFallback ? (
+        <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
+      ) : null}
 
       <article className="rounded-2xl border border-cardon-border bg-white p-6 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-wide text-cardon-blue">{faq.category.name}</p>
@@ -34,7 +42,7 @@ export function FaqDetailPageClient({ data }: { data: PublicFaqDetail }) {
 
       {related.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-4 text-lg font-bold text-cardon-navy">Câu hỏi liên quan</h2>
+          <h2 className="mb-4 text-lg font-bold text-cardon-navy">{t('faq.related')}</h2>
           <ul className="divide-y divide-cardon-border rounded-2xl border border-cardon-border bg-white">
             {related.map((item) => (
               <li key={item.id}>
@@ -52,7 +60,7 @@ export function FaqDetailPageClient({ data }: { data: PublicFaqDetail }) {
 
       <div className="mt-8">
         <Link href="/tro-giup" className="text-sm font-semibold text-cardon-blue hover:underline">
-          ← Quay lại Trung tâm trợ giúp
+          {t('faq.backHub')}
         </Link>
       </div>
     </div>

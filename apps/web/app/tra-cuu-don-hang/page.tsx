@@ -6,10 +6,14 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import { OrderDeliveryContent } from '@/components/order/OrderDeliveryContent';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { customerFacingError } from '@/lib/i18n/customer-error';
 import { ApiClientError, orderApi } from '@/services/api-client';
 import type { OrderDeliveryResponse } from '@/types/api';
 
 export default function GuestOrderLookupPage() {
+  const t = useT();
+  const { locale } = useLocale();
   const [orderCode, setOrderCode] = useState('');
   const [email, setEmail] = useState('');
   const [result, setResult] = useState<OrderDeliveryResponse | null>(null);
@@ -25,14 +29,10 @@ export default function GuestOrderLookupPage() {
       const data = await orderApi.lookupDelivery(orderCode.trim(), email.trim());
       setResult(data);
     } catch (err) {
-      if (err instanceof ApiClientError) {
-        setError(
-          err.status === 404
-            ? 'Không tìm thấy đơn hàng. Kiểm tra lại mã đơn và email đã dùng khi mua.'
-            : err.message,
-        );
+      if (err instanceof ApiClientError && err.status === 404) {
+        setError(t('order.lookupNotFound'));
       } else {
-        setError(err instanceof Error ? err.message : 'Không tra cứu được đơn hàng');
+        setError(customerFacingError(locale, err) || t('order.lookupFail'));
       }
     } finally {
       setLoading(false);
@@ -45,18 +45,15 @@ export default function GuestOrderLookupPage() {
         <div>
           <p className="text-sm text-cardon-gray">
             <Link href="/" className="text-cardon-blue hover:underline">
-              Trang chủ
+              {t('nav.home')}
             </Link>
             {' / '}
-            Tra cứu đơn hàng
+            {t('order.lookupTitle')}
           </p>
           <h1 className="mt-2 text-2xl font-bold text-cardon-navy sm:text-3xl">
-            Tra cứu đơn hàng
+            {t('order.lookupTitle')}
           </h1>
-          <p className="mt-2 text-sm text-cardon-gray">
-            Nhập mã đơn (dạng <span className="font-mono">ORD-…</span>) và email đã dùng khi mua
-            hàng. Giới hạn 5 lần / 15 phút.
-          </p>
+          <p className="mt-2 text-sm text-cardon-gray">{t('order.lookupHint')}</p>
         </div>
 
         <form
@@ -64,7 +61,7 @@ export default function GuestOrderLookupPage() {
           className="rounded-2xl border border-cardon-border bg-white p-4 shadow-card sm:p-6"
         >
           <label className="block text-sm font-medium text-cardon-navy">
-            Mã đơn hàng
+            {t('order.lookupCode')}
             <Input
               className="mt-1"
               value={orderCode}
@@ -75,7 +72,7 @@ export default function GuestOrderLookupPage() {
             />
           </label>
           <label className="mt-4 block text-sm font-medium text-cardon-navy">
-            Email
+            {t('order.lookupEmail')}
             <Input
               className="mt-1"
               type="email"
@@ -87,17 +84,17 @@ export default function GuestOrderLookupPage() {
             />
           </label>
           <Button className="btn-checkout mt-5 w-full" type="submit" disabled={loading} size="lg">
-            {loading ? 'Đang tra cứu...' : 'Tra cứu'}
+            {loading ? t('order.lookupLoading') : t('order.lookupSubmit')}
           </Button>
           {error && (
             <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
           )}
           <p className="mt-4 text-sm text-cardon-gray">
-            Đã có tài khoản?{' '}
+            {t('order.lookupHasAccount')}{' '}
             <Link href="/login" className="font-semibold text-cardon-blue hover:underline">
-              Đăng nhập
+              {t('nav.login')}
             </Link>{' '}
-            để xem lịch sử đơn trong tài khoản.
+            {t('order.lookupAccountHint')}
           </p>
         </form>
 
@@ -108,7 +105,7 @@ export default function GuestOrderLookupPage() {
               orderId={result.order.id}
               guestEmail={email.trim()}
               backHref="/tra-cuu-don-hang"
-              backLabel="← Tra cứu đơn khác"
+              backLabel={t('order.lookupAnother')}
             />
           </div>
         )}

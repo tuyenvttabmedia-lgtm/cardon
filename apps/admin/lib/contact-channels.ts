@@ -6,6 +6,7 @@ export interface ContactChannel {
   key: ContactChannelKey;
   enabled: boolean;
   value: string;
+  valueEn?: string;
   href?: string;
   label?: string;
   labelEn?: string;
@@ -47,6 +48,7 @@ export function normalizeContactChannels(
         : (saved?.href ?? defaults.href)?.trim() || defaults.href;
     const label = saved?.label?.trim();
     const labelEn = saved?.labelEn?.trim();
+    const valueEn = saved?.valueEn?.trim();
     return {
       key,
       enabled: saved?.enabled !== false,
@@ -54,6 +56,7 @@ export function normalizeContactChannels(
       href,
       ...(label ? { label } : {}),
       ...(labelEn ? { labelEn } : {}),
+      ...(valueEn ? { valueEn } : {}),
     };
   });
 }

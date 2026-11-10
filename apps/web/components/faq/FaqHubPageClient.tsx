@@ -14,13 +14,14 @@ import {
 
 const PAGE_SIZE = 20;
 
-function mapItem(row: PublicFaqItem): FaqItem {
+function mapItem(row: PublicFaqItem): FaqItem & { fallback?: boolean } {
   return {
     id: row.id,
     question: row.question,
     answer: row.answer,
     slug: row.slug,
     categorySlug: row.category.slug,
+    fallback: row.fallback,
   };
 }
 
@@ -30,7 +31,7 @@ export function FaqHubPageClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [categories, setCategories] = useState<PublicFaqCategory[]>([]);
-  const [items, setItems] = useState<FaqItem[]>([]);
+  const [items, setItems] = useState<Array<FaqItem & { fallback?: boolean }>>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [categorySlug, setCategorySlug] = useState(searchParams.get('category') ?? '');
@@ -61,8 +62,8 @@ export function FaqHubPageClient() {
   }, [query]);
 
   useEffect(() => {
-    void listFaqCategoriesClient().then((rows) => setCategories(rows ?? []));
-  }, []);
+    void listFaqCategoriesClient(locale).then((rows) => setCategories(rows ?? []));
+  }, [locale]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,6 +74,7 @@ export function FaqHubPageClient() {
         position: position || undefined,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
+        locale,
       });
       setItems((result?.items ?? []).map(mapItem));
       setTotal(result?.total ?? 0);
@@ -82,12 +84,12 @@ export function FaqHubPageClient() {
     } finally {
       setLoading(false);
     }
-  }, [categorySlug, page, position, query]);
+  }, [categorySlug, locale, page, position, query]);
 
   useEffect(() => {
     if (composingRef.current) return;
-    const t = setTimeout(() => void load(), query ? 300 : 0);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => void load(), query ? 300 : 0);
+    return () => clearTimeout(timer);
   }, [load, query]);
 
   useEffect(() => {
@@ -95,6 +97,7 @@ export function FaqHubPageClient() {
   }, [categorySlug, query, position]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const showFallbackNotice = locale === 'en' && items.some((item) => item.fallback);
 
   const sidebarCategories = useMemo(
     () => [{ id: 'all', name: t('common.all'), slug: '', sortOrder: -1 }, ...categories],
@@ -120,15 +123,13 @@ export function FaqHubPageClient() {
         <span className="mx-2">›</span>
         <span className="text-cardon-navy">{t('faq.help')}</span>
       </nav>
-      {locale === 'en' ? (
+      {showFallbackNotice ? (
         <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
       ) : null}
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">Trung tâm trợ giúp</h1>
-        <p className="mt-2 text-sm text-cardon-gray">
-          Giải đáp thắc mắc về mua thẻ, nạp cước, data 4G/5G và thanh toán tại CardOn.vn
-        </p>
+        <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{t('faq.hubTitle')}</h1>
+        <p className="mt-2 text-sm text-cardon-gray">{t('faq.hubBody')}</p>
         <input
           ref={searchInputRef}
           type="search"
@@ -151,7 +152,9 @@ export function FaqHubPageClient() {
 
       <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
         <aside className="space-y-1">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cardon-gray">Danh mục</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-cardon-gray">
+            {t('faq.categories')}
+          </p>
           {sidebarCategories.map((cat) => {
             const active = cat.slug === categorySlug;
             return (
@@ -171,12 +174,12 @@ export function FaqHubPageClient() {
 
         <div>
           {loading ? (
-            <p className="text-sm text-cardon-gray">Đang tải...</p>
+            <p className="text-sm text-cardon-gray">{t('common.loading')}</p>
           ) : items.length === 0 ? (
             <div className="rounded-2xl border border-cardon-border bg-white p-8 text-center">
-              <p className="text-sm text-cardon-gray">Không tìm thấy câu hỏi phù hợp.</p>
+              <p className="text-sm text-cardon-gray">{t('faq.empty')}</p>
               <Link href="/lien-he" className="mt-4 inline-block text-sm font-semibold text-cardon-blue hover:underline">
-                Liên hệ hỗ trợ →
+                {t('faq.contactSupport')}
               </Link>
             </div>
           ) : (
@@ -190,10 +193,10 @@ export function FaqHubPageClient() {
                     onClick={() => setPage((p) => Math.max(1, p - 1))}
                     className="rounded-lg border border-cardon-border px-3 py-1.5 text-sm disabled:opacity-40"
                   >
-                    ← Trước
+                    {t('faq.prev')}
                   </button>
                   <span className="text-sm text-cardon-gray">
-                    Trang {page} / {totalPages}
+                    {t('faq.pageOf')} {page} / {totalPages}
                   </span>
                   <button
                     type="button"
@@ -201,7 +204,7 @@ export function FaqHubPageClient() {
                     onClick={() => setPage((p) => p + 1)}
                     className="rounded-lg border border-cardon-border px-3 py-1.5 text-sm disabled:opacity-40"
                   >
-                    Sau →
+                    {t('faq.next')}
                   </button>
                 </div>
               )}

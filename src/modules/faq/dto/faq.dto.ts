@@ -10,6 +10,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -82,6 +83,10 @@ export class ListFaqPublicQueryDto {
   position?: string;
 
   @IsOptional()
+  @IsIn(['vi', 'en'])
+  locale?: 'vi' | 'en';
+
+  @IsOptional()
   @Transform(({ value }) => parseOptionalBoolean(value))
   @IsBoolean()
   featured?: boolean;
@@ -104,6 +109,11 @@ export class CreateFaqCategoryDto {
   @MinLength(1)
   @MaxLength(128)
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  nameEn?: string;
 
   @IsOptional()
   @IsString()
@@ -140,6 +150,11 @@ export class UpdateFaqCategoryDto {
   @IsOptional()
   @IsString()
   @MaxLength(128)
+  nameEn?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
   slug?: string;
 
   @IsOptional()
@@ -171,10 +186,20 @@ export class CreateFaqDto {
   @MaxLength(500)
   question!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  questionEn?: string;
+
   @IsString()
   @MinLength(3)
   @MaxLength(10000)
   answer!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  answerEn?: string;
 
   @IsOptional()
   @IsString()
@@ -213,9 +238,19 @@ export class UpdateFaqDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
+  questionEn?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(3)
   @MaxLength(10000)
   answer?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  answerEn?: string;
 
   @IsOptional()
   @IsString()

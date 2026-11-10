@@ -418,6 +418,7 @@ export class CmsRepository {
         companyName?: string;
         taxCode?: string;
         address?: string;
+        addressEn?: string;
         hotline?: string;
         email?: string;
         workingHours?: string;

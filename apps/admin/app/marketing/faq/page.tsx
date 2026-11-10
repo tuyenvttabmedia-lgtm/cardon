@@ -354,12 +354,17 @@ function FaqCategoriesPanel({
 }) {
   const toast = useToast();
   const [name, setName] = useState('');
+  const [nameEn, setNameEn] = useState('');
 
   async function addCategory() {
     if (!name.trim()) return;
     try {
-      await faqAdminApi.createCategory({ name: name.trim() });
+      await faqAdminApi.createCategory({
+        name: name.trim(),
+        nameEn: nameEn.trim() || undefined,
+      });
       setName('');
+      setNameEn('');
       toast.success('Đã thêm danh mục');
       onChanged();
     } catch (err) {
@@ -384,15 +389,21 @@ function FaqCategoriesPanel({
 
   return (
     <Card className="space-y-4 p-4">
-      <div className="flex gap-2">
-        <Input placeholder="Tên danh mục mới" value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <Input placeholder="Tên danh mục (VI)" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input
+          placeholder="Tên EN (tùy chọn)"
+          value={nameEn}
+          onChange={(e) => setNameEn(e.target.value)}
+        />
         <Button onClick={() => void addCategory()}>Thêm</Button>
       </div>
       <ul className="divide-y">
         {categories.map((cat) => (
           <li key={cat.id} className="flex items-center justify-between py-2 text-sm">
             <span>
-              <strong>{cat.name}</strong>{' '}
+              <strong>{cat.name}</strong>
+              {cat.nameEn ? <span className="text-slate-500"> / {cat.nameEn}</span> : null}{' '}
               <span className="text-slate-400">/{cat.slug}</span> — {cat.faqCount} FAQ
             </span>
             <Button size="sm" variant="danger" onClick={() => void removeCategory(cat.id, cat.faqCount)}>

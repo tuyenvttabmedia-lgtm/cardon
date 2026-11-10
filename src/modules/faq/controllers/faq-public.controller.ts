@@ -8,8 +8,8 @@ export class FaqPublicController {
 
   @Get('faq/categories')
   @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
-  listCategories() {
-    return this.faqService.listCategoriesPublic();
+  listCategories(@Query('locale') locale?: string) {
+    return this.faqService.listCategoriesPublic(locale === 'en' ? 'en' : 'vi');
   }
 
   @Get('faqs/sitemap')
@@ -20,8 +20,12 @@ export class FaqPublicController {
 
   @Get('faqs/:categorySlug/:slug')
   @Header('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
-  getFaqDetail(@Param('categorySlug') categorySlug: string, @Param('slug') slug: string) {
-    return this.faqService.getPublicFaqDetail(categorySlug, slug);
+  getFaqDetail(
+    @Param('categorySlug') categorySlug: string,
+    @Param('slug') slug: string,
+    @Query('locale') locale?: string,
+  ) {
+    return this.faqService.getPublicFaqDetail(categorySlug, slug, locale === 'en' ? 'en' : 'vi');
   }
 
   @Get(['faqs', 'faq'])

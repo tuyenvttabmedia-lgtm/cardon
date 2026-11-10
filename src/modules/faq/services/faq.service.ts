@@ -21,7 +21,12 @@ import {
   LegacyCmsFaqItem,
 } from '../entities/faq.constants';
 import { sanitizeFaqHtml, wrapPlainAnswer } from '../entities/faq-html-safety';
-import { mapFaqAdmin, mapFaqCategoryAdmin, mapFaqPublic } from '../entities/faq.mapper';
+import {
+  mapFaqAdmin,
+  mapFaqCategoryAdmin,
+  mapFaqCategoryPublic,
+  mapFaqPublic,
+} from '../entities/faq.mapper';
 import { FaqRepository } from '../repositories/faq.repository';
 import { CmsWebRevalidateService } from '../../cms/services/cms-web-revalidate.service';
 
@@ -38,16 +43,9 @@ export class FaqService {
     return this.repository.findCategories(true).then((rows) => rows.map(mapFaqCategoryAdmin));
   }
 
-  listCategoriesPublic() {
+  listCategoriesPublic(locale: 'vi' | 'en' = 'vi') {
     return this.repository.findCategories(false).then((rows) =>
-      rows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        slug: row.slug,
-        description: row.description,
-        icon: row.icon,
-        sortOrder: row.sortOrder,
-      })),
+      rows.map((row) => mapFaqCategoryPublic(row, locale)),
     );
   }
 
@@ -55,6 +53,7 @@ export class FaqService {
     const slug = await this.ensureUniqueCategorySlug(dto.slug?.trim() || slugifyVi(dto.name));
     const row = await this.repository.createCategory({
       name: dto.name.trim(),
+      nameEn: dto.nameEn?.trim() || null,
       slug,
       description: dto.description?.trim() || null,
       icon: dto.icon?.trim() || null,
@@ -78,6 +77,7 @@ export class FaqService {
 
     const row = await this.repository.updateCategory(id, {
       name: dto.name?.trim(),
+      nameEn: dto.nameEn !== undefined ? dto.nameEn.trim() || null : undefined,
       slug,
       description: dto.description !== undefined ? dto.description.trim() || null : undefined,
       icon: dto.icon !== undefined ? dto.icon.trim() || null : undefined,
@@ -139,10 +139,14 @@ export class FaqService {
     const slug = await this.ensureUniqueFaqSlug(dto.slug?.trim() || slugifyVi(dto.question));
     const answer = sanitizeFaqHtml(wrapPlainAnswer(dto.answer));
 
+    const answerEn =
+      dto.answerEn !== undefined ? sanitizeFaqHtml(wrapPlainAnswer(dto.answerEn)) : null;
     const row = await this.repository.createFaq({
       categoryId: dto.categoryId,
       question: dto.question.trim(),
+      questionEn: dto.questionEn?.trim() || null,
       answer,
+      answerEn,
       slug,
       featured: dto.featured ?? false,
       status: dto.status ?? FaqStatus.DRAFT,
@@ -171,11 +175,19 @@ export class FaqService {
       dto.answer !== undefined
         ? sanitizeFaqHtml(wrapPlainAnswer(dto.answer))
         : undefined;
+    const answerEn =
+      dto.answerEn !== undefined
+        ? dto.answerEn.trim()
+          ? sanitizeFaqHtml(wrapPlainAnswer(dto.answerEn))
+          : null
+        : undefined;
 
     const row = await this.repository.updateFaq(id, {
       categoryId: dto.categoryId,
       question: dto.question?.trim(),
+      questionEn: dto.questionEn !== undefined ? dto.questionEn.trim() || null : undefined,
       answer,
+      answerEn,
       slug,
       featured: dto.featured,
       sortOrder: dto.sortOrder,
@@ -225,6 +237,7 @@ export class FaqService {
 
   listFaqsPublic(query: ListFaqPublicQueryDto & { legacyCategory?: string }) {
     const resolved = this.resolvePublicQuery(query);
+    const locale = query.locale === 'en' ? 'en' : 'vi';
     const limit = Math.min(resolved.limit ?? 20, 100);
     const skip = resolved.offset ?? 0;
 
@@ -238,14 +251,18 @@ export class FaqService {
         take: limit,
       })
       .then(({ items, total }) => ({
-        items: items.map(mapFaqPublic),
+        items: items.map((item) => mapFaqPublic(item, locale)),
         total,
         offset: skip,
         limit,
       }));
   }
 
-  async getPublicFaqDetail(categorySlug: string, faqSlug: string) {
+  async getPublicFaqDetail(
+    categorySlug: string,
+    faqSlug: string,
+    locale: 'vi' | 'en' = 'vi',
+  ) {
     const row = await this.repository.findPublicFaqBySlugs(categorySlug, faqSlug);
     if (!row) throw new NotFoundException('FAQ không tồn tại');
     await this.repository.incrementViewCount(row.id);
@@ -257,11 +274,11 @@ export class FaqService {
     });
 
     return {
-      faq: mapFaqPublic(row),
+      faq: mapFaqPublic(row, locale),
       related: related.items
         .filter((item) => item.id !== row.id)
         .slice(0, 5)
-        .map(mapFaqPublic),
+        .map((item) => mapFaqPublic(item, locale)),
     };
   }
 

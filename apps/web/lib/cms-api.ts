@@ -151,6 +151,7 @@ export interface PublicFaqCategory {
   description?: string | null;
   icon?: string | null;
   sortOrder: number;
+  fallback?: boolean;
 }
 
 export interface PublicFaqItem {
@@ -164,6 +165,8 @@ export interface PublicFaqItem {
   category: PublicFaqCategory;
   positions: string[];
   updatedAt?: string;
+  locale?: Locale;
+  fallback?: boolean;
 }
 
 export interface PublicFaqListResult {
@@ -178,13 +181,15 @@ export interface PublicFaqDetail {
   related: PublicFaqItem[];
 }
 
-export function listFaqCategories() {
-  return cmsFetch<PublicFaqCategory[]>('/cms/faq/categories', 60);
+export function listFaqCategories(locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicFaqCategory[]>(`/cms/faq/categories${qs}`, 60);
 }
 
-export async function listFaqCategoriesClient(): Promise<PublicFaqCategory[] | null> {
+export async function listFaqCategoriesClient(locale?: Locale): Promise<PublicFaqCategory[] | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/cms/faq/categories`, { next: { revalidate: 60 } });
+    const qs = locale ? `?locale=${locale}` : '';
+    const res = await fetch(`${getApiBaseUrl()}/cms/faq/categories${qs}`, { next: { revalidate: 60 } });
     if (!res.ok) return null;
     const payload = (await res.json()) as ApiSuccess<PublicFaqCategory[]>;
     return payload.data ?? [];
@@ -200,6 +205,7 @@ export type FetchFaqsParams = {
   featured?: boolean;
   limit?: number;
   offset?: number;
+  locale?: Locale;
 };
 
 function buildFaqQuery(params: FetchFaqsParams): string {
@@ -208,6 +214,7 @@ function buildFaqQuery(params: FetchFaqsParams): string {
   if (params.category) sp.set('category', params.category);
   if (params.position) sp.set('position', params.position);
   if (params.featured) sp.set('featured', 'true');
+  if (params.locale) sp.set('locale', params.locale);
   if (params.limit != null) sp.set('limit', String(params.limit));
   if (params.offset != null && params.offset > 0) sp.set('offset', String(params.offset));
   const qs = sp.toString();
@@ -235,16 +242,19 @@ export async function fetchFaqsClient(
   }
 }
 
-export function getFaqDetail(categorySlug: string, slug: string) {
-  return cmsFetch<PublicFaqDetail>(`/cms/faqs/${categorySlug}/${slug}`, 60);
+export function getFaqDetail(categorySlug: string, slug: string, locale?: Locale) {
+  const qs = locale ? `?locale=${locale}` : '';
+  return cmsFetch<PublicFaqDetail>(`/cms/faqs/${categorySlug}/${slug}${qs}`, 60);
 }
 
 export async function fetchFaqDetailClient(
   categorySlug: string,
   slug: string,
+  locale?: Locale,
 ): Promise<PublicFaqDetail | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/cms/faqs/${categorySlug}/${slug}`, {
+    const qs = locale ? `?locale=${locale}` : '';
+    const res = await fetch(`${getApiBaseUrl()}/cms/faqs/${categorySlug}/${slug}${qs}`, {
       cache: 'no-store',
     });
     if (!res.ok) return null;
@@ -312,6 +322,7 @@ export interface CmsThemeSettings {
     companyName?: string;
     taxCode?: string;
     address?: string;
+    addressEn?: string;
     hotline?: string;
     email?: string;
     workingHours?: string;
@@ -332,6 +343,7 @@ export interface CmsThemeSettings {
     key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';
     enabled?: boolean;
     value?: string;
+    valueEn?: string;
     href?: string;
     label?: string;
     labelEn?: string;

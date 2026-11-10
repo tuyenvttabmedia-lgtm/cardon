@@ -153,11 +153,19 @@ describe('footer labels', () => {
     const hours = custom.links.find((link) => link.label === '8:00-17:00');
     expect(tax && presentFooterLink('vi', tax)).toBe('MST: 0101234567');
     expect(tax && presentFooterLink('en', tax)).toBe('Tax code: 0101234567');
-    expect(address && presentFooterLink('vi', address)).toBe('Hà Nội');
+    expect(address && presentFooterLink('vi', address)).toBe('Địa chỉ: Hà Nội');
     expect(address && presentFooterLink('en', address)).toBe('Address: Hà Nội');
     expect(hours && presentFooterLink('en', hours)).toBe('Hours: 8:00-17:00');
     expect(hours && presentFooterLink('vi', hours)).toBe('Thời gian làm việc: 8:00-17:00');
     expect(columns[0].links[1].label).not.toMatch(/^MST:/);
+    const bilingualAddress = buildCompanyFooterColumn({
+      address: 'Hà Nội, Việt Nam',
+      addressEn: 'Hanoi, Vietnam',
+      addressLabelEn: 'Office',
+    });
+    const addr = bilingualAddress.links.find((link) => link.label === 'Hà Nội, Việt Nam');
+    expect(addr && presentFooterLink('vi', addr)).toBe('Địa chỉ: Hà Nội, Việt Nam');
+    expect(addr && presentFooterLink('en', addr)).toBe('Office: Hanoi, Vietnam');
   });
 
   it('keeps company facts and shows a separate description per locale', () => {
