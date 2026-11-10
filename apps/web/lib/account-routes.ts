@@ -4,7 +4,10 @@ export const ACCOUNT_BASE = '/tai-khoan';
 export const ACCOUNT_PATHS = {
   profile: `${ACCOUNT_BASE}`,
   orders: `${ACCOUNT_BASE}/lich-su-giao-dich`,
-  cards: `${ACCOUNT_BASE}/the-da-mua`,
+  /** @deprecated Prefer gameCards / phoneCards — kept for legacy redirects. */
+  cards: `${ACCOUNT_BASE}/the-game`,
+  gameCards: `${ACCOUNT_BASE}/the-game`,
+  phoneCards: `${ACCOUNT_BASE}/the-dien-thoai`,
   esim: `${ACCOUNT_BASE}/esim`,
   topups: `${ACCOUNT_BASE}/nap-cuoc`,
   data: `${ACCOUNT_BASE}/nap-data`,
@@ -12,11 +15,13 @@ export const ACCOUNT_PATHS = {
   password: `${ACCOUNT_BASE}/doi-mat-khau`,
 } as const;
 
-export type AccountReturnFrom = 'orders' | 'cards' | 'topups' | 'data';
+export type AccountReturnFrom = 'orders' | 'cards' | 'gameCards' | 'phoneCards' | 'topups' | 'data';
 
 const RETURN_PATHS: Record<AccountReturnFrom, string> = {
   orders: ACCOUNT_PATHS.orders,
-  cards: ACCOUNT_PATHS.cards,
+  cards: ACCOUNT_PATHS.gameCards,
+  gameCards: ACCOUNT_PATHS.gameCards,
+  phoneCards: ACCOUNT_PATHS.phoneCards,
   topups: ACCOUNT_PATHS.topups,
   data: ACCOUNT_PATHS.data,
 };

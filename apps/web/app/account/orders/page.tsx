@@ -18,7 +18,7 @@ const TYPE_FILTERS: Array<{ id: OrderTypeFilter; label: string; requiresData?: b
   { id: 'CARD', label: 'Mua thẻ' },
   { id: 'TOPUP', label: 'Nạp cước' },
   { id: 'DATA', label: 'Nạp Data', requiresData: true },
-  { id: 'ESIM', label: 'eSIM' },
+  { id: 'ESIM', label: 'eSIM du lịch' },
 ];
 
 const STATUS_FILTERS: Array<{ id: OrderStatusFilter; label: string }> = [
@@ -145,7 +145,7 @@ export default function AccountOrdersPage() {
                     ? t('nav.topup')
                     : item.id === 'DATA'
                       ? t('nav.data')
-                      : 'eSIM'}
+                      : t('account.esim')}
             </button>
           ))}
         </div>

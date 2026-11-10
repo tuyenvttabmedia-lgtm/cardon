@@ -198,7 +198,12 @@ export class AccountService {
     }));
   }
 
-  async listPurchasedCards(userId: string, skip = 0, take = 15) {
+  async listPurchasedCards(
+    userId: string,
+    skip = 0,
+    take = 15,
+    homeService?: 'GAME_CARD' | 'PHONE_CARD',
+  ) {
     const resolvedTake = Math.min(Math.max(take, 1), 100);
     const resolvedSkip = Math.max(skip, 0);
     const where = {
@@ -209,6 +214,9 @@ export class AccountService {
           paymentStatus: OrderPaymentStatus.PAID,
           fulfillmentStatus: FulfillmentStatus.COMPLETED,
         },
+        ...(homeService
+          ? { variant: { product: { homeService } } }
+          : {}),
       },
     };
 

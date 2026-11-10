@@ -38,3 +38,9 @@ export class AccountListQueryDto {
   @Max(100)
   take?: number;
 }
+
+export class AccountCardsQueryDto extends AccountListQueryDto {
+  @IsOptional()
+  @IsIn(['GAME_CARD', 'PHONE_CARD'])
+  homeService?: 'GAME_CARD' | 'PHONE_CARD';
+}
