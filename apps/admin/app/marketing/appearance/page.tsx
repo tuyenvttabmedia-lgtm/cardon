@@ -265,7 +265,7 @@ export default function AppearancePage() {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Label>Tên công ty</Label>
+                <Label>Tên công ty (tiếng Việt)</Label>
                 <Input
                   className="mt-1"
                   placeholder="Công Ty TNHH …"
@@ -274,6 +274,23 @@ export default function AppearancePage() {
                     setForm({
                       ...form,
                       companyInfo: { ...form.companyInfo, companyName: e.target.value },
+                    })
+                  }
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label>
+                  Tên công ty (tiếng Anh){' '}
+                  <span className="font-normal text-slate-400">({vi.appearance.optionalEn})</span>
+                </Label>
+                <Input
+                  className="mt-1"
+                  placeholder="Keyon Solutions Co., Ltd."
+                  value={form.companyInfo?.companyNameEn ?? ''}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      companyInfo: { ...form.companyInfo, companyNameEn: e.target.value },
                     })
                   }
                 />

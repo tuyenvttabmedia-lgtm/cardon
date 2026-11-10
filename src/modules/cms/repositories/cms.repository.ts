@@ -416,6 +416,7 @@ export class CmsRepository {
       >(map[CMS_THEME_SETTING_KEYS.FOOTER_COLUMNS], []),
       companyInfo: coerceSettingJson<{
         companyName?: string;
+        companyNameEn?: string;
         taxCode?: string;
         address?: string;
         addressEn?: string;

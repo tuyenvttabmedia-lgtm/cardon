@@ -114,10 +114,15 @@ function FooterLinkGrid({
 export function Footer() {
   const pathname = usePathname();
   const t = useT();
+  const { locale } = useLocale();
   const { footerColumns, companyInfo, logoDesktop, homeBackgrounds } = useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
   const homeLogo = home ? resolveAssetUrl(logoDesktop) : null;
   const footerArt = home ? backgroundLayer(homeBackgrounds.siteFooterBg, 'center bottom', '100% auto') : undefined;
+  const copyrightName =
+    locale === 'en' && companyInfo.companyNameEn?.trim()
+      ? companyInfo.companyNameEn.trim()
+      : companyInfo.companyName?.trim() || SITE_NAME;
 
   useEffect(() => {
     console.log(`WEB_BUILD_VERSION=${WEB_BUILD_VERSION}`);
@@ -161,7 +166,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
-          © {new Date().getFullYear()} {companyInfo.companyName || SITE_NAME}. {t('footer.rights')}
+          © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </div>
       </div>
     </footer>
