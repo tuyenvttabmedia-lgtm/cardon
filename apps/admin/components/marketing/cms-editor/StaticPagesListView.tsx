@@ -34,7 +34,8 @@ const SPECIAL_PAGES: Array<{
   {
     slug: 'lien-he',
     title: 'Liên hệ',
-    description: 'Nội dung giới thiệu + kênh liên hệ (cấu hình ở Giao diện).',
+    description:
+      'Mẫu intro cms-block + form/kênh/map/FAQ từ code. Bản EN chỉnh ở tab Tiếng Anh (kênh ở Giao diện).',
     path: '/lien-he',
     layoutLabel: CMS_PAGE_LAYOUT_LABELS.ARTICLE,
   },
