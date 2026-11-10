@@ -82,6 +82,45 @@ describe('Production environment rules', () => {
     expect(() =>
       assertProductionEnv({
         ...base,
+        ESIM_ENABLED: 'true',
+        ESIM_PROVIDER_MODE: 'mock',
+        ESIM_LIVE_ARM: 'true',
+        AIRALO_CLIENT_ID: 'id',
+        AIRALO_CLIENT_SECRET: 'secret',
+        AIRALO_ACCOUNT_MODE: 'production',
+        AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
+      }),
+    ).toThrow(/ESIM_PROVIDER_MODE=live/);
+
+    expect(() =>
+      assertProductionEnv({
+        ...base,
+        ESIM_ENABLED: 'true',
+        ESIM_PROVIDER_MODE: 'live',
+        ESIM_LIVE_ARM: 'true',
+        AIRALO_CLIENT_ID: 'id',
+        AIRALO_CLIENT_SECRET: 'secret',
+        AIRALO_ACCOUNT_MODE: 'sandbox',
+        AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
+      }),
+    ).toThrow(/AIRALO_ACCOUNT_MODE=production/);
+
+    expect(() =>
+      assertProductionEnv({
+        ...base,
+        ESIM_ENABLED: 'true',
+        ESIM_PROVIDER_MODE: 'live',
+        ESIM_LIVE_ARM: 'true',
+        AIRALO_CLIENT_ID: 'id',
+        AIRALO_CLIENT_SECRET: 'secret',
+        AIRALO_ACCOUNT_MODE: 'production',
+        AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      assertProductionEnv({
+        ...base,
         PAYPAL_ESIM_ENABLED: 'true',
       }),
     ).toThrow(/PAYPAL_ESIM_ENABLED/);

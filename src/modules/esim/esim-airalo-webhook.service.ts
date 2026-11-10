@@ -17,9 +17,12 @@ export function readAiraloLowDataIccid(body: unknown): string | undefined {
   const raw = root.iccid ?? nested?.iccid ?? sim?.iccid;
   if (typeof raw !== 'string') return undefined;
   const trimmed = raw.trim();
-  return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
+  if (trimmed.length < 10 || trimmed.length > 32) return undefined;
+  if (!/^\d+$/.test(trimmed)) return undefined;
+  return trimmed;
 }
 
+/** Safe remaining fragment for customer-facing copy (blocks phishing injection). */
 export function readAiraloRemainingData(body: unknown): string | undefined {
   if (!body || typeof body !== 'object') return undefined;
   const root = body as Record<string, unknown>;
@@ -32,9 +35,13 @@ export function readAiraloRemainingData(body: unknown): string | undefined {
     nested?.remaining ??
     nested?.remaining_data ??
     nested?.data_remaining;
-  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw);
-  if (typeof raw === 'string' && raw.trim()) return raw.trim();
-  return undefined;
+  let value: string | undefined;
+  if (typeof raw === 'number' && Number.isFinite(raw)) value = String(raw);
+  else if (typeof raw === 'string' && raw.trim()) value = raw.trim();
+  if (!value) return undefined;
+  if (value.length > 24) return undefined;
+  if (!/^[\d.,\s%A-Za-z/]+$/.test(value)) return undefined;
+  return value;
 }
 
 /**
@@ -50,11 +57,11 @@ export class EsimAiraloWebhookService {
     @Optional() private readonly notifications?: NotificationService,
   ) {}
 
-  async handleLowData(body: unknown): Promise<{ ok: true; matched: boolean }> {
+  async handleLowData(body: unknown): Promise<void> {
     const iccid = readAiraloLowDataIccid(body);
     if (!iccid) {
       this.logger.warn('Airalo low-data webhook missing ICCID');
-      return { ok: true, matched: false };
+      return;
     }
     const profile = await this.prisma.esimProfile.findUnique({
       where: { iccid },
@@ -77,7 +84,7 @@ export class EsimAiraloWebhookService {
     });
     if (!profile?.orderItem?.order) {
       this.logger.warn(`Airalo low-data webhook unmatched ICCID suffix=${iccid.slice(-6)}`);
-      return { ok: true, matched: false };
+      return;
     }
     const order = profile.orderItem.order;
     const remaining = readAiraloRemainingData(body);
@@ -90,12 +97,11 @@ export class EsimAiraloWebhookService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Airalo low-data notify failed order=${order.orderCode}: ${message}`);
     }
-    return { ok: true, matched: true };
   }
 
   async findProfileOrderByIccid(iccid: string): Promise<{ orderId: string; orderCode: string } | null> {
     const trimmed = iccid.trim();
-    if (trimmed.length < 10) return null;
+    if (trimmed.length < 10 || !/^\d+$/.test(trimmed)) return null;
     const profile = await this.prisma.esimProfile.findFirst({
       where: { iccid: trimmed, orderItem: { order: ACTIVE_ORDER_WHERE } },
       select: {

@@ -39,7 +39,6 @@ describe('LPA-16K13 first-CREATE claim', () => {
     ['3. NEED_MANUAL_REVIEW', FulfillmentStatus.NEED_MANUAL_REVIEW],
     ['4. COMPLETED', FulfillmentStatus.COMPLETED],
     ['5. FAILED', FulfillmentStatus.FAILED],
-    ['6. WAITING_ADMIN_RETRY', FulfillmentStatus.WAITING_ADMIN_RETRY],
   ] as const)('%s does not CREATE', async (_name, status) => {
     const store = new MemoryStore();
     store.status = status;
@@ -51,6 +50,19 @@ describe('LPA-16K13 first-CREATE claim', () => {
     expect(result.fulfillmentStatus).toBe(status);
     expect(port.createOrder).not.toHaveBeenCalled();
     expect(store.creates).toHaveLength(0);
+  });
+
+  it('6. WAITING_ADMIN_RETRY without open guard may CREATE once (definite no-CREATE retry)', async () => {
+    const store = new MemoryStore();
+    store.status = FulfillmentStatus.WAITING_ADMIN_RETRY;
+    const port = livePort({
+      createOrder: async () => ({ orderReference: '104159', installSecret: FIXTURE }),
+    });
+    const result = await service(store, port).fulfill('order-1');
+    expect(result.created).toBe(true);
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.COMPLETED);
+    expect(port.createOrder).toHaveBeenCalledTimes(1);
+    expect(store.creates).toHaveLength(1);
   });
 
   it('7. late job after unclaimed recover does not CREATE', async () => {

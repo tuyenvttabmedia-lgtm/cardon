@@ -122,7 +122,8 @@ export class EsimAdminService {
 
   /**
    * QUERY/GET a stored Airalo CREATE, or mark manual review.
-   * Never opens POST /v2/orders. First CREATE stays on esim_queue fulfill.
+   * Never opens POST /v2/orders. First CREATE stays on esim_queue fulfill
+   * (admin-order retry / fulfill-stuck cron enqueue when retryable).
    */
   async recoverInstall(orderId: string): Promise<EsimFulfillmentResult> {
     const recover = this.fulfillmentService?.recoverExistingInstall?.bind(this.fulfillmentService);

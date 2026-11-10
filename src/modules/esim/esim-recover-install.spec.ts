@@ -56,15 +56,22 @@ class MemoryStore {
     }
     return this.status;
   }
+  paymentStatus: 'WAITING_PAYMENT' | 'PAID' = 'WAITING_PAYMENT';
   async claimFirstCreate() {
     if (this.failClaim) {
       throw new Error('claim write failed');
     }
-    if (this.status !== FulfillmentStatus.PENDING) {
+    if (
+      this.status !== FulfillmentStatus.PENDING &&
+      this.status !== FulfillmentStatus.WAITING_ADMIN_RETRY
+    ) {
       return false;
     }
     this.status = FulfillmentStatus.PROCESSING;
     return true;
+  }
+  async getOrderPaymentFulfillment() {
+    return { paymentStatus: this.paymentStatus, fulfillmentStatus: this.status };
   }
   async hasProfile(orderItemId: string) {
     return this.profiles.has(orderItemId);

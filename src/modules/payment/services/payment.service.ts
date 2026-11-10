@@ -604,6 +604,19 @@ export class PaymentService {
       };
     }
 
+    // eSIM SePay must not fall through to the retail webhook settlement path.
+    if (payment.productLane === 'ESIM' && gateway === PaymentGatewayCode.SEPAY) {
+      if (!this.esimSepayPaymentService) {
+        throw new BadRequestException('eSIM SePay checkout is not configured');
+      }
+      const settled = await this.esimSepayPaymentService.handleIpn(payload, headers);
+      return {
+        ok: true,
+        duplicate: settled.outcome === 'DUPLICATE',
+        paymentReference: payment.paymentReference,
+      };
+    }
+
     if (
       gateway === PaymentGatewayCode.PAYPAL &&
       verification.status === 'PENDING' &&

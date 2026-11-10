@@ -29,8 +29,11 @@ import { EsimAiraloCatalogueCronService } from './esim-airalo-catalogue.cron';
 import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
 import { EsimTopupService } from './esim-topup.service';
 import { EsimQueryOpenCronService } from './esim-query-open.cron';
+import { EsimFulfillStuckCronService } from './esim-fulfill-stuck.cron';
 
-const workers = shouldRegisterWorkers() ? [EsimWorker, EsimQueryOpenCronService] : [];
+const workers = shouldRegisterWorkers()
+  ? [EsimWorker, EsimQueryOpenCronService, EsimFulfillStuckCronService]
+  : [];
 const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
 const httpControllers = shouldRegisterHttp()
   ? [EsimController, EsimAiraloWebhookController]

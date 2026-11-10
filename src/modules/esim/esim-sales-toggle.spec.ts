@@ -40,6 +40,7 @@ describe('eSIM customer sales toggle', () => {
       {} as never,
       {} as never,
       {} as never,
+      { get: () => undefined } as never,
     );
     upsert.mockImplementation(async (_key: string, value: Record<string, unknown>) => {
       stored = value;
