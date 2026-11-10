@@ -71,6 +71,9 @@ x-backend-env: &backend-env
   ESIM_ENABLED: ${ESIM_ENABLED:-false}
   ESIM_PROVIDER_MODE: ${ESIM_PROVIDER_MODE:-mock}
   ESIM_LIVE_ARM: ${ESIM_LIVE_ARM:-false}
+  AIRALO_ACCOUNT_MODE: ${AIRALO_ACCOUNT_MODE:-sandbox}
+  AIRALO_WEBHOOK_SECRET: ${AIRALO_WEBHOOK_SECRET:-}
+  AIRALO_WEBHOOK_PUBLIC_BASE_URL: ${AIRALO_WEBHOOK_PUBLIC_BASE_URL:-}
   PAYPAL_ESIM_ENABLED: ${PAYPAL_ESIM_ENABLED:-false}
 
 services:
@@ -187,8 +190,10 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # service_started (not healthy): /health/ready requires worker heartbeat when
+      # WORKER_HEARTBEAT_REQUIRED=true — healthy would deadlock api↔worker recreate.
       api:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - cardon_uploads:/app/uploads
     networks:
