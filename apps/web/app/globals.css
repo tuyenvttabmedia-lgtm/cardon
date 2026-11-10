@@ -98,6 +98,22 @@ body {
     background-color: #f5f7fa;
   }
 
+  /*
+   * In-flow spacer reserves LCP photo height before paint (cuts CLS).
+   * Absolute .home-hero-media paints into this box.
+   */
+  .home-hero-spacer {
+    width: 100%;
+    aspect-ratio: 2068 / 550;
+    pointer-events: none;
+  }
+
+  @media (min-width: 1024px) {
+    .home-hero-spacer {
+      display: none;
+    }
+  }
+
   /* Soft rim into body gray: left/right + bottom. Intersect keeps center opaque. */
   .home-hero-banner .home-hero-media {
     position: absolute;
@@ -116,10 +132,10 @@ body {
     mask-composite: intersect;
   }
 
-  /* Below desktop: photo is a top strip — pad content to clear it (home + hubs). */
+  /* Below desktop: keep a small gap under the reserved photo before copy. */
   @media (max-width: 1023.98px) {
     .home-hero-banner > .site-container {
-      padding-top: calc(100% * 550 / 2068 + 20px);
+      padding-top: 1.25rem;
     }
   }
 
