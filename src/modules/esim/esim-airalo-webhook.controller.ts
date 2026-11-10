@@ -1,4 +1,4 @@
-import { Body, Controller, Head, HttpCode, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Head, HttpCode, Post, Res } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
@@ -6,7 +6,7 @@ import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
 /**
  * Public Airalo inbound webhooks.
  * Opt-in URL: https://cardon.vn/api/v1/webhooks/airalo/low-data
- * Airalo verifies with HEAD then sends POST usage alerts.
+ * Accessibility check uses HEAD/GET; alerts arrive as POST.
  */
 @Controller('webhooks/airalo')
 @SkipThrottle()
@@ -17,6 +17,13 @@ export class EsimAiraloWebhookController {
   headLowData(@Res() res: Response): void {
     // Empty 200 — no JSON envelope / Content-Length body (Airalo accessibility check).
     res.status(200).end();
+  }
+
+  /** Some Airalo/scanner probes use GET; must not 404 during opt-in validation. */
+  @Get('low-data')
+  @HttpCode(200)
+  getLowData() {
+    return { ok: true };
   }
 
   @Post('low-data')
