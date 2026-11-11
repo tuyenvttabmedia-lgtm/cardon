@@ -41,6 +41,7 @@ export function usePaymentMethods() {
             iconUrl: (item.iconUrl as string | null) ?? null,
             logoUrl: (item.logoUrl as string | null) ?? null,
             enabled: Boolean(item.enabled ?? true),
+            esimEnabled: item.esimEnabled === true,
             percentageFee: Number(item.percentageFee ?? 0),
             fixedFee: Number(item.fixedFee ?? 0),
             gatewayCode: (item.gatewayCode ?? item.gateway ?? 'SEPAY') as PaymentGatewayCode,

@@ -563,12 +563,15 @@ function MegaPayGatewayCard({
       <section className="space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/40 p-4">
         <h3 className="font-semibold">3 công tắc method</h3>
         <p className="text-sm text-slate-600">
-          Bật/tắt từng method trên checkout. Phí = % + cố định (đ/GD).
+          Bật/tắt từng method trên checkout bán lẻ. Phí = % + cố định (đ/GD). VNPAYQR / ZALOPAY
+          có thêm công tắc eSIM riêng — độc lập với bán lẻ.
         </p>
         {methodsError && <ErrorMessage message={methodsError} />}
         <div className="space-y-3">
           {orderedMethods.map((method) => {
             const meta = MEGAPAY_METHOD_META[method.methodCode];
+            const esimToggleable =
+              method.methodCode === 'VNPAYQR' || method.methodCode === 'ZALOPAY';
             return (
               <div
                 key={method.methodCode}
@@ -585,7 +588,22 @@ function MegaPayGatewayCard({
                         }
                       />
                       {method.displayName}
+                      <span className="text-xs font-normal text-slate-500">bán lẻ</span>
                     </label>
+                    {esimToggleable ? (
+                      <label className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+                        <input
+                          type="checkbox"
+                          checked={method.esimEnabled === true}
+                          onChange={(e) =>
+                            patchMegapayMethod(method.methodCode, {
+                              esimEnabled: e.target.checked,
+                            })
+                          }
+                        />
+                        eSIM
+                      </label>
+                    ) : null}
                     <code className="text-xs text-slate-500">{method.methodCode}</code>
                     {meta && (
                       <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">

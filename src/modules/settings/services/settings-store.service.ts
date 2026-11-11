@@ -31,6 +31,7 @@ import {
   StoredMaintenance,
   MaintenanceMode,
   AUDIT_LOG_RETENTION_DAYS_DEFAULT,
+  isEsimMegapayMethodCode,
 } from '../entities/settings.constants';
 import {
   DEFAULT_PAYMENT_GATEWAY,
@@ -412,6 +413,7 @@ export class SettingsStoreService implements OnModuleInit {
     iconUrl: string | null;
     logoUrl: string | null;
     enabled: boolean;
+    esimEnabled: boolean;
     percentageFee: number;
     fixedFee: number;
     gatewayCode: string;
@@ -422,7 +424,8 @@ export class SettingsStoreService implements OnModuleInit {
       description: method.description ?? '',
       iconUrl: method.iconUrl ?? null,
       logoUrl: method.logoUrl ?? null,
-      enabled: true,
+      enabled: method.enabled === true,
+      esimEnabled: this.isMethodEsimArmed(method),
       percentageFee: method.percentageFee,
       fixedFee: method.fixedFee,
       gatewayCode: method.gatewayCode,
@@ -436,25 +439,63 @@ export class SettingsStoreService implements OnModuleInit {
   resolvePaymentMethod(methodCode: string): StoredPaymentMethod | null {
     const normalized = normalizeMethodCode(methodCode);
     const match = this.resolvePublicPaymentMethods().find(
-      (method) => method.methodCode === normalized,
+      (method) => method.methodCode === normalized && method.enabled,
     );
     return match ?? null;
   }
 
+  /** eSIM order create — SePay retail-enabled, MegaPay VNPAYQR/ZALOPAY when esimEnabled. */
+  resolveEsimPaymentMethod(methodCode: string): StoredPaymentMethod | null {
+    const normalized = normalizeMethodCode(methodCode);
+    const match = this.resolvePublicPaymentMethods().find(
+      (method) => method.methodCode === normalized && this.isMethodEsimArmed(method),
+    );
+    return match ?? null;
+  }
+
+  /** MegaPay method codes armed for eSIM VN (gateway configured + esimEnabled). */
+  listEsimMegapayMethodCodes(): string[] {
+    return this.mergePaymentMethodsConfig()
+      .filter(
+        (method) =>
+          method.gatewayCode === 'MEGAPAY' &&
+          method.esimEnabled === true &&
+          isEsimMegapayMethodCode(method.methodCode) &&
+          this.isGatewayPubliclyEnabled(
+            SETTINGS_KEYS.PAYMENT_MEGAPAY,
+            () => this.isMegapayConfigured(),
+          ),
+      )
+      .map((method) => method.methodCode);
+  }
+
+  private isMethodEsimArmed(method: StoredPaymentMethod): boolean {
+    if (method.gatewayCode === 'SEPAY') return method.enabled === true;
+    if (method.gatewayCode === 'PAYPAL') return method.enabled === true;
+    if (method.gatewayCode === 'MEGAPAY') {
+      return method.esimEnabled === true && isEsimMegapayMethodCode(method.methodCode);
+    }
+    return false;
+  }
+
   private resolvePublicPaymentMethods(): StoredPaymentMethod[] {
+    const megapayOk = this.isGatewayPubliclyEnabled(
+      SETTINGS_KEYS.PAYMENT_MEGAPAY,
+      () => this.isMegapayConfigured(),
+    );
+    const sepayOk = this.isGatewayPubliclyEnabled(
+      SETTINGS_KEYS.PAYMENT_SEPAY,
+      () => this.isSepayConfigured(),
+    );
     const methods = this.mergePaymentMethodsConfig().filter((method) => {
-      if (!method.enabled) return false;
       if (method.gatewayCode === 'SEPAY') {
-        return this.isGatewayPubliclyEnabled(
-          SETTINGS_KEYS.PAYMENT_SEPAY,
-          () => this.isSepayConfigured(),
-        );
+        return method.enabled && sepayOk;
       }
       if (method.gatewayCode === 'MEGAPAY') {
-        return this.isGatewayPubliclyEnabled(
-          SETTINGS_KEYS.PAYMENT_MEGAPAY,
-          () => this.isMegapayConfigured(),
-        );
+        if (!megapayOk) return false;
+        // Retail-enabled OR eSIM-armed VNPAYQR/ZALOPAY (even when retail toggle is off).
+        if (method.enabled) return true;
+        return method.esimEnabled === true && isEsimMegapayMethodCode(method.methodCode);
       }
       return false;
     });

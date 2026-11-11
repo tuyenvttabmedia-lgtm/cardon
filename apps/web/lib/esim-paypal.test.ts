@@ -3,7 +3,8 @@ import { paymentMethodsForCheckout, paypalReturnPresentation } from './esim-payp
 
 const methods = [
   { methodCode: 'VIETQR', gatewayCode: 'SEPAY', enabled: true },
-  { methodCode: 'ZALOPAY', gatewayCode: 'MEGAPAY', enabled: true },
+  { methodCode: 'ZALOPAY', gatewayCode: 'MEGAPAY', enabled: true, esimEnabled: true },
+  { methodCode: 'VNPAYQR', gatewayCode: 'MEGAPAY', enabled: false, esimEnabled: false },
   { methodCode: 'PAYPAL', gatewayCode: 'PAYPAL', enabled: true },
 ];
 
@@ -14,14 +15,15 @@ describe('eSIM PayPal checkout visibility', () => {
     ]);
   });
 
-  it('allows SePay and PayPal for a Vietnam eSIM buyer, and hides PayPal on cards', () => {
-    expect(paymentMethodsForCheckout({ methods, isEsim: true, market: 'VN' }).map((m) => m.gatewayCode)).toEqual([
-      'SEPAY',
+  it('allows SePay, armed MegaPay, and PayPal for a Vietnam eSIM buyer, and hides PayPal on cards', () => {
+    expect(paymentMethodsForCheckout({ methods, isEsim: true, market: 'VN' }).map((m) => m.methodCode)).toEqual([
+      'VIETQR',
+      'ZALOPAY',
       'PAYPAL',
     ]);
     expect(
-      paymentMethodsForCheckout({ methods, isEsim: false, market: 'VN' }).map((m) => m.gatewayCode),
-    ).toEqual(['SEPAY', 'MEGAPAY']);
+      paymentMethodsForCheckout({ methods, isEsim: false, market: 'VN' }).map((m) => m.methodCode),
+    ).toEqual(['VIETQR', 'ZALOPAY']);
   });
 
   it('does not treat the PayPal return query as payment success', () => {

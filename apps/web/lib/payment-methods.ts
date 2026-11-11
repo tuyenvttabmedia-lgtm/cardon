@@ -7,6 +7,8 @@ export type PublicPaymentMethod = {
   iconUrl: string | null;
   logoUrl: string | null;
   enabled: boolean;
+  /** eSIM VN MegaPay arm — independent of retail `enabled`. */
+  esimEnabled?: boolean;
   percentageFee: number;
   fixedFee: number;
   gatewayCode: PaymentGatewayCode;

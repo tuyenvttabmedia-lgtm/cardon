@@ -509,6 +509,11 @@ export class PaymentMethodConfigDto {
   @IsBoolean()
   enabled!: boolean;
 
+  /** eSIM VN only — MegaPay VNPAYQR / ZALOPAY. Independent of retail `enabled`. */
+  @IsOptional()
+  @IsBoolean()
+  esimEnabled?: boolean;
+
   @IsNumber()
   @Min(0)
   percentageFee!: number;

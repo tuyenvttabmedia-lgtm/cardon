@@ -1,10 +1,13 @@
 import { evaluateEsimMarketPayment, gatewaysForEsimMarket } from './esim-market.rules';
 
 describe('evaluateEsimMarketPayment', () => {
-  it('allows VN + VND + SEPAY', () => {
+  it('allows VN + VND + SEPAY or MEGAPAY', () => {
     expect(
       evaluateEsimMarketPayment({ market: 'VN', currency: 'VND', gateway: 'SEPAY', homeService: 'ESIM' }),
     ).toEqual({ ok: true, market: 'VN', currency: 'VND', gateway: 'SEPAY' });
+    expect(
+      evaluateEsimMarketPayment({ market: 'VN', currency: 'VND', gateway: 'MEGAPAY', homeService: 'ESIM' }),
+    ).toEqual({ ok: true, market: 'VN', currency: 'VND', gateway: 'MEGAPAY' });
   });
 
   it('allows INTL + USD + PAYPAL', () => {
@@ -34,7 +37,7 @@ describe('evaluateEsimMarketPayment', () => {
   });
 
   it('lists gateways per market', () => {
-    expect(gatewaysForEsimMarket('VN')).toEqual(['SEPAY']);
+    expect(gatewaysForEsimMarket('VN')).toEqual(['SEPAY', 'MEGAPAY']);
     expect(gatewaysForEsimMarket('INTL')).toEqual(['PAYPAL']);
   });
 });

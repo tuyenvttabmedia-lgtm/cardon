@@ -56,6 +56,7 @@ import {
   type PaypalPlan,
 } from '../providers/paypal/paypal.rules';
 import { EsimPaypalPaymentService } from './esim-paypal-payment.service';
+import { EsimMegapayPaymentService } from './esim-megapay-payment.service';
 
 export interface WebhookHandlerResult {
   ok: true;
@@ -84,6 +85,8 @@ export class PaymentService {
     private readonly esimSepayPaymentService?: EsimSepayPaymentService,
     @Optional()
     private readonly esimPaypalPaymentService?: EsimPaypalPaymentService,
+    @Optional()
+    private readonly esimMegapayPaymentService?: EsimMegapayPaymentService,
   ) {}
 
   async createPayment(
@@ -177,6 +180,17 @@ export class PaymentService {
       }
       return this.esimPaypalPaymentService.createFromSnapshot({
         orderId: order.id,
+        idempotencyKey: idempotencyKey.trim(),
+        userId: user?.id,
+      });
+    }
+    if (esimOnly && dto.gateway === PaymentGatewayCode.MEGAPAY) {
+      if (!this.esimMegapayPaymentService) {
+        throw new BadRequestException('eSIM MegaPay checkout is not configured');
+      }
+      return this.esimMegapayPaymentService.createFromSnapshot({
+        orderId: order.id,
+        gateway: dto.gateway,
         idempotencyKey: idempotencyKey.trim(),
         userId: user?.id,
       });
@@ -617,6 +631,21 @@ export class PaymentService {
       };
     }
 
+    if (payment.productLane === 'ESIM' && gateway === PaymentGatewayCode.MEGAPAY) {
+      if (!this.esimMegapayPaymentService) {
+        throw new BadRequestException('eSIM MegaPay checkout is not configured');
+      }
+      const settled = await this.esimMegapayPaymentService.handleVerifiedWebhook({
+        paymentId: payment.id,
+        verification,
+      });
+      return {
+        ok: true,
+        duplicate: settled.outcome === 'DUPLICATE',
+        paymentReference: payment.paymentReference,
+      };
+    }
+
     if (
       gateway === PaymentGatewayCode.PAYPAL &&
       verification.status === 'PENDING' &&
@@ -839,6 +868,13 @@ export class PaymentService {
         throw new BadRequestException('eSIM SePay checkout is not configured');
       }
       return this.esimSepayPaymentService.sync(payment.id);
+    }
+
+    if (payment.productLane === 'ESIM' && payment.gateway === PaymentGatewayCode.MEGAPAY) {
+      if (!this.esimMegapayPaymentService) {
+        throw new BadRequestException('eSIM MegaPay checkout is not configured');
+      }
+      return this.esimMegapayPaymentService.sync(payment.id);
     }
 
     if (payment.productLane === 'ESIM' && payment.gateway === PaymentGatewayCode.PAYPAL) {
