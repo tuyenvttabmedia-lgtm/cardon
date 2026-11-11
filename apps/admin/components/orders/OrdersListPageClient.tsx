@@ -9,6 +9,7 @@ import { Badge, Card, ErrorMessage, statusTone } from '@/components/ui/Display';
 import { Button, Input, Label, Select } from '@/components/ui/Form';
 import { SectionNav } from '@/components/ui/Navigation';
 import { Table, THead, TBody, TR, TH, TD, TableEmpty, TableSkeleton } from '@/components/ui/Table';
+import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
 import {
   datePresetLabel,
@@ -31,12 +32,19 @@ const PAYMENT_FILTERS: { value: string; label: string }[] = [
 
 const DELIVERY_FILTERS: { value: string; label: string }[] = [
   { value: '', label: vi.app.all },
+  { value: 'AWAITING_DELIVERY', label: vi.orders.waitingDeliveryFilter },
   { value: 'WAITING_ADMIN_RETRY', label: vi.status.WAITING_ADMIN_RETRY },
   { value: 'PROCESSING', label: vi.status.PROCESSING },
   { value: 'DELIVERED', label: vi.status.COMPLETED },
   { value: 'FAILED', label: vi.status.FAILED },
   { value: 'NEED_SUPPORT', label: 'Cần hỗ trợ' },
 ];
+
+const RETRYABLE_FULFILLMENT = new Set([
+  'WAITING_ADMIN_RETRY',
+  'NEED_MANUAL_REVIEW',
+  'PENDING',
+]);
 
 const PRODUCT_TYPES = ['', 'CARD', 'TOPUP', 'DATA', 'ESIM'] as const;
 
@@ -227,12 +235,14 @@ function applyStatusQuick(quick: StatusQuick): Partial<ListState> {
         fulfillmentStatus: '',
       };
     case 'paid_pending':
+      // PENDING (chưa giao) + WAITING_ADMIN_RETRY (hết tiền NCC / cần giao lại).
+      // Không chỉ PENDING — regression UX so với nút «Đơn chờ giao» cũ.
       return {
         statusQuick: quick,
         exception: '',
         paymentFilter: 'PAID',
-        deliveryStatus: '',
-        fulfillmentStatus: 'PENDING',
+        deliveryStatus: 'AWAITING_DELIVERY',
+        fulfillmentStatus: '',
       };
     case 'processing':
       return {
@@ -307,13 +317,18 @@ function buildListParams(
   if (state.deliveryStatus) params.deliveryStatus = state.deliveryStatus;
   if (state.fulfillmentStatus) params.fulfillmentStatus = state.fulfillmentStatus;
 
-  if (state.datePreset === 'custom') {
-    if (state.fromDate) params.dateFrom = state.fromDate;
-    if (state.toDate) params.dateTo = state.toDate;
-  } else if (state.datePreset !== 'all') {
-    const range = resolveDatePreset(state.datePreset);
-    if (range.fromDate) params.dateFrom = range.fromDate;
-    if (range.toDate) params.dateTo = range.toDate;
+  // Exact-ish order-code search: don't hide hits behind KPI day window.
+  const qTrim = state.q.trim();
+  const looksLikeOrderCode = /^ORD[-_]/i.test(qTrim);
+  if (!looksLikeOrderCode) {
+    if (state.datePreset === 'custom') {
+      if (state.fromDate) params.dateFrom = state.fromDate;
+      if (state.toDate) params.dateTo = state.toDate;
+    } else if (state.datePreset !== 'all') {
+      const range = resolveDatePreset(state.datePreset);
+      if (range.fromDate) params.dateFrom = range.fromDate;
+      if (range.toDate) params.dateTo = range.toDate;
+    }
   }
 
   return params;
@@ -352,6 +367,7 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { can } = useAuth();
 
   const [state, setState] = useState<ListState>(() => stateFromSearchParams(searchParams));
   const [qDraft, setQDraft] = useState(() => searchParams.get('q') ?? '');
@@ -361,6 +377,8 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   // Sync from URL when browser back/forward changes query (after first paint).
   useEffect(() => {
@@ -472,6 +490,35 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
     setState({ ...DEFAULT_STATE });
   }
 
+  async function retryFromList(order: AdminOrderListItem) {
+    if (retryingId || !can('orders.retry')) return;
+    const ok = window.confirm(
+      `Giao lại đơn ${order.orderCode}?\nKhách trả: ${formatVnd(order.customerPaid)}\nTrạng thái giao: ${order.fulfillmentStatus}`,
+    );
+    if (!ok) return;
+    setRetryingId(order.id);
+    setActionMessage(null);
+    setError(null);
+    try {
+      const result = await adminApi.retryOrder(order.id);
+      const status = result?.fulfillmentStatus;
+      setActionMessage(
+        status && status !== 'COMPLETED'
+          ? `${order.orderCode}: giao lại xong (${status}) — chưa hoàn tất, kiểm tra chi tiết.`
+          : `${order.orderCode}: giao lại thành công`,
+      );
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof ApiClientError
+          ? err.message
+          : `Giao lại ${order.orderCode} thất bại`,
+      );
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
   const statusChips: { id: StatusQuick; label: string }[] = [
     { id: 'waiting_payment', label: 'Chờ thanh toán' },
     { id: 'paid_pending', label: 'Đã TT / chờ giao' },
@@ -539,7 +586,7 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
                 {
                   id: 'attention' as const,
                   label: 'Cần xử lý',
-                  hint: 'PAID + FAILED / WAITING_ADMIN_RETRY / NEED_MANUAL_REVIEW',
+                  hint: 'PAID + FAILED / WAITING_ADMIN_RETRY / NEED_MANUAL_REVIEW · mặc định: chờ admin retry',
                 },
               ] as const
             ).map((bucket) => (
@@ -633,7 +680,7 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
                 onChange={(e) => setQDraft(e.target.value)}
               />
               <p className="mt-1 text-[11px] text-slate-400">
-                Debounce 350ms. Đơn cũ ngoài kỳ KPI: chọn «Mọi thời gian» hoặc mở Exception Center.
+                Debounce 350ms. Gõ mã ORD-… sẽ bỏ kỳ KPI. Đơn chờ giao lại nằm tab «Đã TT / chờ giao» hoặc Exception «Cần xử lý».
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -778,6 +825,11 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
         </Card>
 
         {error && <ErrorMessage message={error} />}
+        {actionMessage ? (
+          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+            {actionMessage}
+          </p>
+        ) : null}
 
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
@@ -853,12 +905,26 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
                         {formatDateTime(o.createdAt)}
                       </TD>
                       <TD>
-                        <Link
-                          href={`/orders/${o.id}`}
-                          className="text-sm text-admin-600 hover:underline"
-                        >
-                          {vi.common.detail}
-                        </Link>
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {can('orders.retry') &&
+                          o.paymentStatus === 'PAID' &&
+                          RETRYABLE_FULFILLMENT.has(o.fulfillmentStatus) ? (
+                            <button
+                              type="button"
+                              disabled={retryingId === o.id || loading}
+                              onClick={() => void retryFromList(o)}
+                              className="text-sm font-medium text-amber-800 hover:underline disabled:opacity-50"
+                            >
+                              {retryingId === o.id ? '…' : vi.orders.retryFulfillment}
+                            </button>
+                          ) : null}
+                          <Link
+                            href={`/orders/${o.id}`}
+                            className="text-sm text-admin-600 hover:underline"
+                          >
+                            {vi.common.detail}
+                          </Link>
+                        </div>
                       </TD>
                     </TR>
                   ))

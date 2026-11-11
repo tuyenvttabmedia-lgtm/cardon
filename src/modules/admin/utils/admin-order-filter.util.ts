@@ -14,7 +14,9 @@ export type AdminDeliveryFilter =
   | 'DELIVERED'
   | 'FAILED'
   | 'NEED_SUPPORT'
-  | 'WAITING_ADMIN_RETRY';
+  | 'WAITING_ADMIN_RETRY'
+  /** PAID operational queue: not yet delivered, including admin retry. */
+  | 'AWAITING_DELIVERY';
 
 export type AdminPaymentFilter =
   | 'PENDING'
@@ -63,6 +65,9 @@ export function mapDeliveryFilter(
       return [FulfillmentStatus.NEED_MANUAL_REVIEW, FulfillmentStatus.WAITING_ADMIN_RETRY];
     case 'WAITING_ADMIN_RETRY':
       return FulfillmentStatus.WAITING_ADMIN_RETRY;
+    case 'AWAITING_DELIVERY':
+      // Quick filter «Đã TT / chờ giao»: PENDING (chưa gọi NCC) + WAITING_ADMIN_RETRY (hết tiền NCC…).
+      return [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY];
     default:
       return undefined;
   }

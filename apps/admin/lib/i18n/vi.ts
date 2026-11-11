@@ -92,7 +92,7 @@ export const vi = {
     REFUNDED: 'Đã hoàn tiền',
     PROCESSING: 'Đang xử lý',
     COMPLETED: 'Hoàn tất',
-    WAITING_ADMIN_RETRY: 'Chờ giao',
+    WAITING_ADMIN_RETRY: 'Chờ admin giao lại',
     NEED_MANUAL_REVIEW: 'Cần hỗ trợ thủ công',
     ACTIVE: 'Đang hoạt động',
     INACTIVE: 'Ngừng hoạt động',

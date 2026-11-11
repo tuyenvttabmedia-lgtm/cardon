@@ -45,10 +45,24 @@ export function statusTone(status: string): 'default' | 'success' | 'warning' | 
   if (['PAID', 'ACTIVE', 'APPROVED', 'SUCCESS', 'COMPLETED', 'ISSUED'].includes(status)) {
     return 'success';
   }
-  if (['PENDING', 'WAITING_PAYMENT', 'PROCESSING', 'PENDING_KYC', 'SUBMITTED', 'DRAFT'].includes(status)) {
+  if (
+    [
+      'PENDING',
+      'WAITING_PAYMENT',
+      'PROCESSING',
+      'PENDING_KYC',
+      'SUBMITTED',
+      'DRAFT',
+      'WAITING_ADMIN_RETRY',
+    ].includes(status)
+  ) {
     return 'warning';
   }
-  if (['FAILED', 'REJECTED', 'SUSPENDED', 'EXPIRED', 'VOID'].includes(status)) {
+  if (
+    ['FAILED', 'REJECTED', 'SUSPENDED', 'EXPIRED', 'VOID', 'NEED_MANUAL_REVIEW'].includes(
+      status,
+    )
+  ) {
     return 'danger';
   }
   return 'default';
