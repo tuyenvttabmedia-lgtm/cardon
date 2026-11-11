@@ -109,7 +109,7 @@ describe('INTL USD snapshot on eSIM create', () => {
       { listForVariant: jest.fn() } as never,
       {
         resolveSystemConfig: () => ({ customerEsimEnabled: true }),
-        getPublicPaymentMethods: () => [{ methodCode: gateway }],
+        getPublicPaymentMethods: () => [{ methodCode: gateway, esimEnabled: true }],
         resolvePaymentMethod: () => ({
           methodCode: gateway,
           displayName: gateway,
@@ -118,6 +118,15 @@ describe('INTL USD snapshot on eSIM create', () => {
           percentageFee: 0,
           fixedFee: 0,
         }),
+        resolveEsimPaymentMethod: () => ({
+          methodCode: gateway,
+          displayName: gateway,
+          gatewayCode: gateway,
+          settlementType: 'GATEWAY_SETTLEMENT',
+          percentageFee: 0,
+          fixedFee: 0,
+        }),
+        listEsimMegapayMethodCodes: () => [],
       } as never,
       { get: (key: string) => ({ 'esim.enabled': true, 'esim.providerMode': 'mock' })[key] } as never,
     );

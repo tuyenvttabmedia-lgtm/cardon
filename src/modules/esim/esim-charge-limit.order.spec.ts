@@ -116,6 +116,25 @@ describe('esim-order charge limit enforce (Phase A)', () => {
                 percentageFee: 0,
                 fixedFee: 0,
               },
+        resolveEsimPaymentMethod: (code?: string) =>
+          gateway === 'PAYPAL' || code === 'PAYPAL'
+            ? {
+                methodCode: 'PAYPAL',
+                displayName: 'PayPal',
+                gatewayCode: 'PAYPAL',
+                settlementType: 'GATEWAY_SETTLEMENT',
+                percentageFee: 0,
+                fixedFee: 0,
+              }
+            : {
+                methodCode: 'SEPAY',
+                displayName: 'SePay',
+                gatewayCode: 'SEPAY',
+                settlementType: 'BANK_TRANSFER',
+                percentageFee: 0,
+                fixedFee: 0,
+              },
+        listEsimMegapayMethodCodes: () => [],
         resolvePaypalConfig: () => ({
           esimEnabled: true,
           mode: 'sandbox',

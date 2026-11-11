@@ -180,7 +180,7 @@ describe('EsimOrderService create reuse', () => {
       { listForVariant: jest.fn() } as never,
       {
         resolveSystemConfig: () => ({ customerEsimEnabled: settingsEnabled }),
-        getPublicPaymentMethods: () => [{ methodCode: 'SEPAY' }],
+        getPublicPaymentMethods: () => [{ methodCode: 'SEPAY', esimEnabled: true }],
         resolvePaymentMethod: () => ({
           methodCode: 'SEPAY',
           displayName: 'SePay',
@@ -189,6 +189,15 @@ describe('EsimOrderService create reuse', () => {
           percentageFee: 0,
           fixedFee: 0,
         }),
+        resolveEsimPaymentMethod: () => ({
+          methodCode: 'SEPAY',
+          displayName: 'SePay',
+          gatewayCode: 'SEPAY',
+          settlementType: 'BANK_TRANSFER',
+          percentageFee: 0,
+          fixedFee: 0,
+        }),
+        listEsimMegapayMethodCodes: () => [],
       } as never,
       {
         get: (key: string) =>

@@ -46,6 +46,10 @@ describe('C-1 eSIM guards', () => {
         resolvePaymentMethod: () => {
           throw new Error('payment should not be resolved');
         },
+        resolveEsimPaymentMethod: () => {
+          throw new Error('payment should not be resolved');
+        },
+        listEsimMegapayMethodCodes: () => [],
       } as never,
       {
         get: (key: string) =>

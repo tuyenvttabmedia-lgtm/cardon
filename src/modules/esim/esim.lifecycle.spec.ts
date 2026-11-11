@@ -33,6 +33,10 @@ describe('B3.55 eSIM mock lifecycle', () => {
         resolvePaymentMethod: () => {
           throw new Error('payment should not be resolved');
         },
+        resolveEsimPaymentMethod: () => {
+          throw new Error('payment should not be resolved');
+        },
+        listEsimMegapayMethodCodes: () => [],
       } as never,
       { get: (key: string) => config[key] } as never,
     );

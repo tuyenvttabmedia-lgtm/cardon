@@ -1133,7 +1133,7 @@ describe('Phase A eSIM order boundaries', () => {
       } as never,
       {
         resolveSystemConfig: () => ({ customerEsimEnabled: true }),
-        getPublicPaymentMethods: () => [{ methodCode: 'SEPAY' }],
+        getPublicPaymentMethods: () => [{ methodCode: 'SEPAY', esimEnabled: true }],
         resolvePaymentMethod: () => ({
           methodCode: 'SEPAY',
           displayName: 'SePay',
@@ -1142,6 +1142,15 @@ describe('Phase A eSIM order boundaries', () => {
           percentageFee: 0,
           fixedFee: 0,
         }),
+        resolveEsimPaymentMethod: () => ({
+          methodCode: 'SEPAY',
+          displayName: 'SePay',
+          gatewayCode: 'SEPAY',
+          settlementType: 'BANK_TRANSFER',
+          percentageFee: 0,
+          fixedFee: 0,
+        }),
+        listEsimMegapayMethodCodes: () => [],
       } as never,
       {
         get: (key: string) => {

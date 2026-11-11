@@ -100,7 +100,7 @@ function orderServiceHarness(settingsEnabled: boolean) {
     { listForVariant: jest.fn() } as never,
     {
       resolveSystemConfig: () => ({ customerEsimEnabled: settingsEnabled }),
-      getPublicPaymentMethods: () => [{ methodCode: 'SEPAY' }],
+      getPublicPaymentMethods: () => [{ methodCode: 'SEPAY', esimEnabled: true }],
       resolvePaymentMethod: () => ({
         methodCode: 'SEPAY',
         displayName: 'SePay',
@@ -109,6 +109,15 @@ function orderServiceHarness(settingsEnabled: boolean) {
         percentageFee: 0,
         fixedFee: 0,
       }),
+      resolveEsimPaymentMethod: () => ({
+        methodCode: 'SEPAY',
+        displayName: 'SePay',
+        gatewayCode: 'SEPAY',
+        settlementType: 'BANK_TRANSFER',
+        percentageFee: 0,
+        fixedFee: 0,
+      }),
+      listEsimMegapayMethodCodes: () => [],
     } as never,
     { get: liveEnv } as never,
   );
@@ -404,6 +413,25 @@ describe('PayPal sandbox admin-test charge', () => {
                 percentageFee: 0,
                 fixedFee: 0,
               },
+        resolveEsimPaymentMethod: (code?: string) =>
+          code === 'PAYPAL'
+            ? {
+                methodCode: 'PAYPAL',
+                displayName: 'PayPal',
+                gatewayCode: 'PAYPAL',
+                settlementType: 'GATEWAY_SETTLEMENT',
+                percentageFee: 0,
+                fixedFee: 0,
+              }
+            : {
+                methodCode: 'VIETQR',
+                displayName: 'VietQR',
+                gatewayCode: 'SEPAY',
+                settlementType: 'BANK_TRANSFER',
+                percentageFee: 0,
+                fixedFee: 0,
+              },
+        listEsimMegapayMethodCodes: () => [],
         resolvePaypalConfig: () => ({
           esimEnabled: true,
           mode,
