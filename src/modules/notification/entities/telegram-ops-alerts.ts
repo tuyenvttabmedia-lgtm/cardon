@@ -77,12 +77,18 @@ export function formatAdminRetryTelegram(params: {
   fulfillmentStatus?: string;
   phone: string;
   telco: string;
+  /** Topup/DATA face amount, or card unit face value. */
   amount?: number;
+  quantity?: number;
+  productLabel?: string;
+  /** Order total / customer paid — always prefer this for money display. */
+  orderTotal?: number;
   failureCode: string;
   retCode?: number;
   retMsg: string;
   providerMessage: string;
-  totalAmount?: number;
+  /** Provider wallet debit from response — omit for LOW_BALANCE. */
+  providerDebited?: number;
   requestId: string;
   esaleId: string;
   attempt?: number;
@@ -92,10 +98,6 @@ export function formatAdminRetryTelegram(params: {
   const fulfill = fulfillmentStatusLabelVi(
     params.fulfillmentStatus ?? 'WAITING_ADMIN_RETRY',
   );
-  const amountPart =
-    params.amount != null && !Number.isNaN(params.amount)
-      ? ` · ${formatVndAmount(params.amount)}`
-      : '';
   const errorLabel = failureCodeLabelVi(params.failureCode);
   const detailBits = [
     params.retMsg && params.retMsg !== '—' ? params.retMsg : null,
@@ -108,18 +110,54 @@ export function formatAdminRetryTelegram(params: {
 
   const isTopup =
     params.variantType === 'TOPUP' || params.variantType === 'DATA';
+  const isCard = params.variantType === 'CARD';
+  const qty =
+    params.quantity != null && params.quantity > 0 ? params.quantity : 1;
   const action = isTopup
     ? '→ Đơn hàng → Giao lại (chỉ kiểm tra trạng thái, không nạp lại)'
     : '→ Đơn hàng → Giao lại / kiểm tra NCC';
+
+  const productBits: string[] = [];
+  if (params.productLabel && params.productLabel !== '—') {
+    productBits.push(params.productLabel);
+  }
+  if (isCard && qty > 1) {
+    productBits.push(`SL ${qty}`);
+  }
+  if (params.amount != null && !Number.isNaN(params.amount)) {
+    productBits.push(
+      isCard
+        ? `Mệnh giá ${formatVndAmount(params.amount)}`
+        : formatVndAmount(params.amount),
+    );
+  }
+
+  const contactLine = isTopup
+    ? `${params.phone} · ${params.telco}${
+        params.amount != null && !Number.isNaN(params.amount)
+          ? ` · ${formatVndAmount(params.amount)}`
+          : ''
+      }`
+    : productBits.length
+      ? productBits.join(' · ')
+      : null;
+
+  const showProviderDebit =
+    params.providerDebited != null &&
+    !Number.isNaN(params.providerDebited) &&
+    params.failureCode !== 'LOW_BALANCE';
 
   const lines = [
     `<b>CẦN GIAO LẠI</b>`,
     `${params.variantType} · ${params.orderCode}`,
     `${pay} · ${fulfill}`,
-    `${params.phone} · ${params.telco}${amountPart}`,
+    contactLine,
+    params.orderTotal != null && !Number.isNaN(params.orderTotal)
+      ? `Khách trả: ${formatVndAmount(params.orderTotal)}`
+      : null,
     `Lỗi: ${errorLabel}${errorDetail}`,
-    params.totalAmount != null
-      ? `Đã trừ ví NCC: ${formatVndAmount(params.totalAmount)}`
+    showProviderDebit
+      ? `Đã trừ ví NCC: ${formatVndAmount(params.providerDebited!)}`
       : null,
     `Mã NCC: ${params.esaleId}${params.attempt != null ? ` · Lần ${params.attempt}` : ''}`,
     action,

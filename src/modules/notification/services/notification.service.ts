@@ -462,9 +462,15 @@ export class NotificationService {
     )?.providerTransactions?.[0];
     const variantType = item?.variant?.type ?? 'UNKNOWN';
     const variantSku = item?.variant?.sku ?? item?.variant?.name ?? '—';
+    const productLabel =
+      item?.variant?.name ?? item?.variant?.sku ?? variantSku;
     const faceValue = item?.variant
       ? Number((item.variant as { faceValue?: unknown }).faceValue)
       : undefined;
+    const quantity = item?.quantity != null ? Number(item.quantity) : 1;
+    const orderTotalRaw = order?.customerPaid ?? order?.totalAmount;
+    const orderTotal =
+      orderTotalRaw != null ? Number(orderTotalRaw) : undefined;
     const phone =
       context?.phoneNumber ??
       order?.guestPhone ??
@@ -497,7 +503,8 @@ export class NotificationService {
       raw?.retMsg ?? context?.message ?? latestTxn?.errorMessage ?? '—';
     const providerCode = data?.providerCode;
     const providerMessage = data?.providerMessage?.trim() || '—';
-    const totalAmount = data?.totalAmount;
+    const providerDebited = data?.totalAmount;
+    // Prefer topup context amount; for CARD use unit face value (qty shown separately).
     const amount = context?.amount ?? data?.amount ?? faceValue;
     const telco = context?.telco ?? data?.provider ?? '—';
     const requestId = context?.requestId ?? latestTxn?.requestId ?? '—';
@@ -513,11 +520,16 @@ export class NotificationService {
       phone,
       telco,
       amount: amount != null && !Number.isNaN(amount) ? Number(amount) : undefined,
+      quantity: !Number.isNaN(quantity) ? quantity : 1,
+      productLabel,
+      orderTotal:
+        orderTotal != null && !Number.isNaN(orderTotal) ? orderTotal : undefined,
       failureCode,
       retCode: retCode != null ? Number(retCode) : undefined,
       retMsg,
       providerMessage,
-      totalAmount: totalAmount != null ? Number(totalAmount) : undefined,
+      providerDebited:
+        providerDebited != null ? Number(providerDebited) : undefined,
       requestId,
       esaleId,
       attempt: attempt != null ? Number(attempt) : undefined,
@@ -535,8 +547,11 @@ export class NotificationService {
       providerCode,
       phone,
       amount,
+      quantity,
+      productLabel,
+      orderTotal,
       telco,
-      totalAmount,
+      providerDebited,
       variantSku,
     };
     const jobBase = `operation-manual-${orderId}-${Date.now()}`;
