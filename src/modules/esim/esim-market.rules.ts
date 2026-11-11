@@ -5,7 +5,7 @@
 
 export type EsimMarket = 'VN' | 'INTL';
 
-export type EsimCheckoutGateway = 'SEPAY' | 'PAYPAL';
+export type EsimCheckoutGateway = 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
 
 export interface EsimMarketRuleInput {
   market: EsimMarket;
@@ -30,10 +30,13 @@ export function evaluateEsimMarketPayment(input: EsimMarketRuleInput): EsimMarke
     if (currency !== 'VND') {
       return { ok: false, reason: 'VN_REQUIRES_VND' };
     }
-    if (gateway !== 'SEPAY') {
-      return { ok: false, reason: 'VN_REQUIRES_SEPAY' };
+    if (gateway === 'SEPAY') {
+      return { ok: true, market: 'VN', currency: 'VND', gateway: 'SEPAY' };
     }
-    return { ok: true, market: 'VN', currency: 'VND', gateway: 'SEPAY' };
+    if (gateway === 'MEGAPAY') {
+      return { ok: true, market: 'VN', currency: 'VND', gateway: 'MEGAPAY' };
+    }
+    return { ok: false, reason: 'VN_REQUIRES_SEPAY_OR_MEGAPAY' };
   }
 
   if (input.market === 'INTL') {
@@ -50,7 +53,7 @@ export function evaluateEsimMarketPayment(input: EsimMarketRuleInput): EsimMarke
 }
 
 export function gatewaysForEsimMarket(market: EsimMarket): EsimCheckoutGateway[] {
-  return market === 'VN' ? ['SEPAY'] : ['PAYPAL'];
+  return market === 'VN' ? ['SEPAY', 'MEGAPAY'] : ['PAYPAL'];
 }
 
 /** Package destination, not the shopper's language, IP, or payment method. */

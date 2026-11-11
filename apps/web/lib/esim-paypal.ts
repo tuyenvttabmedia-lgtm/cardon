@@ -3,21 +3,27 @@ import type { PublicPaymentMethod } from '@/lib/payment-methods';
 /**
  * Card/topup never lists PayPal.
  * eSIM methods come from the server quote (buyer location), not this helper.
- * When still used for eSIM: Vietnam may see SePay and PayPal; a foreign buyer sees PayPal only.
+ * When still used for eSIM: Vietnam may see SePay, MegaPay (esimEnabled), and PayPal;
+ * a foreign buyer sees PayPal only.
  */
-export function paymentMethodsForCheckout<T extends { gatewayCode: string; enabled: boolean }>(input: {
+export function paymentMethodsForCheckout<
+  T extends { gatewayCode: string; enabled: boolean; esimEnabled?: boolean },
+>(input: {
   methods: T[];
   isEsim: boolean;
   market: 'VN' | 'INTL';
 }): T[] {
-  const enabled = input.methods.filter((method) => method.enabled);
   if (!input.isEsim) {
-    return enabled.filter((method) => method.gatewayCode !== 'PAYPAL');
+    return input.methods.filter((method) => method.enabled && method.gatewayCode !== 'PAYPAL');
   }
   if (input.market === 'INTL') {
-    return enabled.filter((method) => method.gatewayCode === 'PAYPAL');
+    return input.methods.filter((method) => method.enabled && method.gatewayCode === 'PAYPAL');
   }
-  return enabled.filter((method) => method.gatewayCode === 'SEPAY' || method.gatewayCode === 'PAYPAL');
+  return input.methods.filter((method) => {
+    if (method.gatewayCode === 'SEPAY' || method.gatewayCode === 'PAYPAL') return method.enabled;
+    if (method.gatewayCode === 'MEGAPAY') return method.esimEnabled === true;
+    return false;
+  });
 }
 
 export type PaypalReturnView = 'confirmed' | 'pending' | 'failed' | 'unconfirmed' | 'cancelled';

@@ -25,6 +25,7 @@ import { PaymentExpirationService } from './services/payment-expiration.service'
 import { PaymentService } from './services/payment.service';
 import { EsimSepayPaymentService } from './services/esim-sepay-payment.service';
 import { EsimPaypalPaymentService } from './services/esim-paypal-payment.service';
+import { EsimMegapayPaymentService } from './services/esim-megapay-payment.service';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { EsimPaypalPaymentService } from './services/esim-paypal-payment.service
     PaymentService,
     EsimSepayPaymentService,
     EsimPaypalPaymentService,
+    EsimMegapayPaymentService,
     PaymentAuditService,
     PaymentExpirationService,
     ExpirationCronService,

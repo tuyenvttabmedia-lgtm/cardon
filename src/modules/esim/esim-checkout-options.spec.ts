@@ -8,7 +8,7 @@ const usd = {
 };
 
 describe('eSIM checkout payment options', () => {
-  it('offers SePay VND only for a Vietnam plan', () => {
+  it('offers SePay VND only for a Vietnam plan when MegaPay is off', () => {
     const result = buildEsimCheckoutOptions({
       market: 'VN',
       referenceAmountVnd: '180000',
@@ -17,8 +17,25 @@ describe('eSIM checkout payment options', () => {
       sepayReady: true,
       paypalReady: true,
     });
-    expect(result.paymentOptions.map((row) => row.gateway)).toEqual(['SEPAY']);
+    expect(result.paymentOptions.map((row) => `${row.gateway}:${row.methodCode}`)).toEqual(['SEPAY:VIETQR']);
     expect(result.paymentOptions[0]).toMatchObject({ currency: 'VND', amount: '180000', fxRate: null });
+  });
+
+  it('adds MegaPay VNPAYQR/ZALOPAY for Vietnam when armed', () => {
+    const result = buildEsimCheckoutOptions({
+      market: 'VN',
+      referenceAmountVnd: '180000',
+      vndChargeAmount: '180000',
+      usd,
+      sepayReady: true,
+      paypalReady: true,
+      megapayMethodCodes: ['VNPAYQR', 'ZALOPAY'],
+    });
+    expect(result.paymentOptions.map((row) => `${row.gateway}:${row.methodCode}`)).toEqual([
+      'SEPAY:VIETQR',
+      'MEGAPAY:VNPAYQR',
+      'MEGAPAY:ZALOPAY',
+    ]);
   });
 
   it('offers PayPal USD only for an international plan and keeps the reference price', () => {
@@ -59,9 +76,11 @@ describe('eSIM checkout payment options', () => {
       usd,
       sepayReady: true,
       paypalReady: true,
+      megapayMethodCodes: ['VNPAYQR'],
     };
     expect(buildEsimBuyerCheckoutOptions({ ...shared, buyerMarket: 'VN' }).paymentOptions.map((row) => row.gateway)).toEqual([
       'SEPAY',
+      'MEGAPAY',
       'PAYPAL',
     ]);
     expect(buildEsimBuyerCheckoutOptions({ ...shared, buyerMarket: 'INTL' }).paymentOptions.map((row) => row.gateway)).toEqual([
@@ -69,7 +88,7 @@ describe('eSIM checkout payment options', () => {
     ]);
     expect(
       buildEsimBuyerCheckoutOptions({ ...shared, buyerMarket: 'VN', paypalReady: false }).paymentOptions.map((row) => row.gateway),
-    ).toEqual(['SEPAY']);
+    ).toEqual(['SEPAY', 'MEGAPAY']);
   });
 
   it('drops a gateway that is not configured', () => {
@@ -92,7 +111,21 @@ describe('eSIM checkout payment options', () => {
         sepayReady: false,
         paypalReady: true,
       }).unavailableReason,
-    ).toBe('SEPAY_UNAVAILABLE');
+    ).toBe('VND_UNAVAILABLE');
+  });
+
+  it('keeps MegaPay when SePay is down', () => {
+    const result = buildEsimCheckoutOptions({
+      market: 'VN',
+      referenceAmountVnd: '180000',
+      vndChargeAmount: '180000',
+      usd: null,
+      sepayReady: false,
+      paypalReady: false,
+      megapayMethodCodes: ['ZALOPAY'],
+    });
+    expect(result.unavailableReason).toBeNull();
+    expect(result.paymentOptions.map((row) => `${row.gateway}:${row.methodCode}`)).toEqual(['MEGAPAY:ZALOPAY']);
   });
 
   it('does not invent a USD amount when the FX snapshot cannot be built', () => {

@@ -38,6 +38,7 @@ import { readBrowserLocale } from '@/lib/i18n/locale';
 import {
   esimBuyerMarket,
   esimMarketForGateway,
+  esimOptionKey,
   esimOrderCreateBody,
   esimPayLabel,
   esimReferenceNote,
@@ -75,7 +76,7 @@ export default function CheckoutPageClient() {
   const maybeEsim = Boolean(variantId) && (!slug || Boolean(esimOffer));
   const [quote, setQuote] = useState<EsimQuoteView | null>(null);
   const [quoteState, setQuoteState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [selectedGateway, setSelectedGateway] = useState<'SEPAY' | 'PAYPAL' | null>(null);
+  const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(null);
   const [payPhase, setPayPhase] = useState<'order' | 'payment' | null>(null);
   const isEsim = Boolean(esimOffer) || maybeEsim;
   const vnOnlyBlocked = retailMarket === 'INTL' && !isEsim;
@@ -87,9 +88,14 @@ export default function CheckoutPageClient() {
   const methodsReady = !paymentMethodsLoading;
   const quotedOptions = filterEsimQuotedOptions(quote?.paymentOptions ?? [], allPaymentMethods, methodsReady);
   const selectedOption =
-    quotedOptions.find((option) => option.gateway === selectedGateway) ?? quotedOptions[0] ?? null;
+    quotedOptions.find((option) => esimOptionKey(option) === selectedOptionKey) ?? quotedOptions[0] ?? null;
   const esimMethod = selectedOption
-    ? allPaymentMethods.find((method) => method.enabled && method.gatewayCode === selectedOption.gateway) ?? null
+    ? allPaymentMethods.find((method) => {
+        if (method.methodCode.toUpperCase() !== selectedOption.methodCode.toUpperCase()) return false;
+        if (method.gatewayCode !== selectedOption.gateway) return false;
+        if (selectedOption.gateway === 'MEGAPAY') return method.esimEnabled === true;
+        return method.enabled;
+      }) ?? null
     : null;
   const buyerMarket = esimBuyerMarket(quote);
   const hasPaymentMethods = paymentMethods.length > 0;
@@ -171,7 +177,7 @@ export default function CheckoutPageClient() {
     if (!maybeEsim || !variantId) {
       setQuote(null);
       setQuoteState('idle');
-      setSelectedGateway(null);
+      setSelectedOptionKey(null);
       return;
     }
     let cancelled = false;
@@ -182,23 +188,30 @@ export default function CheckoutPageClient() {
         if (!response.ok || !body.data || !Array.isArray(body.data.paymentOptions)) {
           throw new Error('quote');
         }
-        return body.data;
+        const data = body.data;
+        data.paymentOptions = data.paymentOptions.map((option) => ({
+          ...option,
+          methodCode:
+            option.methodCode ||
+            (option.gateway === 'PAYPAL' ? 'PAYPAL' : option.gateway === 'SEPAY' ? 'VIETQR' : option.gateway),
+        }));
+        return data;
       })
       .then((data) => {
         if (cancelled) return;
         setQuote(data);
         setQuoteState('ready');
-        setSelectedGateway((prev) => {
-          const gateways = data.paymentOptions.map((option) => option.gateway);
-          if (prev && gateways.includes(prev)) return prev;
-          return data.paymentOptions[0]?.gateway ?? null;
+        setSelectedOptionKey((prev) => {
+          const keys = data.paymentOptions.map((option) => esimOptionKey(option));
+          if (prev && keys.includes(prev)) return prev;
+          return data.paymentOptions[0] ? esimOptionKey(data.paymentOptions[0]) : null;
         });
       })
       .catch(() => {
         if (!cancelled) {
           setQuote(null);
           setQuoteState('error');
-          setSelectedGateway(null);
+          setSelectedOptionKey(null);
         }
       });
     return () => {
@@ -208,10 +221,11 @@ export default function CheckoutPageClient() {
 
   useEffect(() => {
     if (!selectedOption) return;
-    if (selectedGateway !== selectedOption.gateway) {
-      setSelectedGateway(selectedOption.gateway);
+    const key = esimOptionKey(selectedOption);
+    if (selectedOptionKey !== key) {
+      setSelectedOptionKey(key);
     }
-  }, [selectedOption, selectedGateway]);
+  }, [selectedOption, selectedOptionKey]);
 
   const pricing = useMemo(
     () =>
@@ -299,6 +313,12 @@ export default function CheckoutPageClient() {
               payment: pay,
             }),
           );
+          return;
+        }
+        if (selectedOption.gateway === 'MEGAPAY') {
+          if (!pay.checkoutFormFields || !pay.checkoutClient || pay.displayMode === 'qr_inline') {
+            throw new Error(t('checkout.esimPayFailed'));
+          }
           return;
         }
         if (!isSepayPgCheckout(pay)) {
@@ -450,17 +470,24 @@ export default function CheckoutPageClient() {
             ) : (
               <div className="mt-4 space-y-3">
                 {quotedOptions.map((option) => {
-                  const selected = option.gateway === selectedOption?.gateway;
+                  const key = esimOptionKey(option);
+                  const selected = key === (selectedOption ? esimOptionKey(selectedOption) : null);
+                  const title =
+                    option.gateway === 'PAYPAL'
+                      ? t('checkout.esimPayPal')
+                      : option.gateway === 'MEGAPAY'
+                        ? option.methodCode === 'ZALOPAY'
+                          ? t('checkout.esimZaloPay')
+                          : t('checkout.esimVnPayQr')
+                        : t('checkout.esimSePay');
                   return (
                     <button
-                      key={option.gateway}
+                      key={key}
                       type="button"
-                      onClick={() => setSelectedGateway(option.gateway)}
+                      onClick={() => setSelectedOptionKey(key)}
                       className={`w-full rounded-xl border px-4 py-3 text-left ${selected ? 'border-cardon-blue bg-blue-50' : 'border-cardon-border bg-white'}`}
                     >
-                      <span className="block text-sm font-semibold text-cardon-navy">
-                        {option.gateway === 'PAYPAL' ? t('checkout.esimPayPal') : t('checkout.esimSePay')}
-                      </span>
+                      <span className="block text-sm font-semibold text-cardon-navy">{title}</span>
                       <span className="mt-1 block text-base font-bold text-cardon-navy">{esimPayLabel(locale, option)}</span>
                     </button>
                   );
@@ -487,6 +514,25 @@ export default function CheckoutPageClient() {
         {payment?.checkoutUrl && payment.checkoutFormFields && payment.gateway === 'SEPAY' && (
           <SepayPgCheckoutRedirect checkoutUrl={payment.checkoutUrl} checkoutFormFields={payment.checkoutFormFields} />
         )}
+        {payment?.checkoutFormFields &&
+          payment.checkoutClient &&
+          payment.gateway === 'MEGAPAY' &&
+          payment.displayMode !== 'qr_inline' && (
+            <MegapayPgCheckoutOpen
+              checkoutFormFields={payment.checkoutFormFields}
+              checkoutClient={payment.checkoutClient}
+              orderId={paidOrderMeta?.orderId ?? payment.orderId}
+              orderCode={paidOrderMeta?.orderCode}
+              email={paidOrderMeta?.email}
+              paymentReference={payment.paymentReference}
+              resumeHref={`/checkout?${new URLSearchParams({
+                slug: slug || product?.slug || '',
+                variantId: variant.id,
+                quantity: '1',
+              }).toString()}`}
+              amount={payment.amount}
+            />
+          )}
       </PageContainer>
     );
   }

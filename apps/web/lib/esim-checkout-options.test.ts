@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   esimBuyerMarket,
   esimMarketForGateway,
+  esimOptionKey,
   esimOrderCreateBody,
   esimPayLabel,
   esimReferenceNote,
@@ -65,27 +66,32 @@ describe('eSIM checkout labels', () => {
     expect(esimPayLabel('en', selected)).not.toContain('VND');
   });
 
-  it('does not drop quote options while payment methods are still loading', () => {
+  it('filters quote options by enabled/esimEnabled methods', () => {
     const options = [
-      { gateway: 'SEPAY' },
-      { gateway: 'PAYPAL' },
+      { gateway: 'SEPAY', methodCode: 'VIETQR' },
+      { gateway: 'MEGAPAY', methodCode: 'VNPAYQR' },
+      { gateway: 'MEGAPAY', methodCode: 'ZALOPAY' },
+      { gateway: 'PAYPAL', methodCode: 'PAYPAL' },
     ];
     expect(filterEsimQuotedOptions(options, [], false)).toEqual([]);
     expect(
       filterEsimQuotedOptions(
         options,
         [
-          { enabled: true, gatewayCode: 'SEPAY' },
-          { enabled: true, gatewayCode: 'PAYPAL' },
+          { enabled: true, gatewayCode: 'SEPAY', methodCode: 'VIETQR' },
+          { enabled: false, esimEnabled: true, gatewayCode: 'MEGAPAY', methodCode: 'VNPAYQR' },
+          { enabled: true, esimEnabled: false, gatewayCode: 'MEGAPAY', methodCode: 'ZALOPAY' },
+          { enabled: true, gatewayCode: 'PAYPAL', methodCode: 'PAYPAL' },
         ],
         true,
-      ).map((row) => row.gateway),
-    ).toEqual(['SEPAY', 'PAYPAL']);
+      ).map((row) => esimOptionKey(row)),
+    ).toEqual(['SEPAY:VIETQR', 'MEGAPAY:VNPAYQR', 'PAYPAL:PAYPAL']);
   });
 
   it('maps the gateway to the order market and prefers buyerMarket on the quote', () => {
     expect(esimMarketForGateway('PAYPAL')).toBe('INTL');
     expect(esimMarketForGateway('SEPAY')).toBe('VN');
+    expect(esimMarketForGateway('MEGAPAY')).toBe('VN');
     expect(esimBuyerMarket({ market: 'VN', buyerMarket: 'INTL' })).toBe('INTL');
     expect(esimBuyerMarket({ market: 'VN' })).toBe('VN');
   });

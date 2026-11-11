@@ -231,6 +231,25 @@ describe('C3 eSIM charge limit zero-row (PostgreSQL)', () => {
                 percentageFee: 0,
                 fixedFee: 0,
               },
+        resolveEsimPaymentMethod: () =>
+          input.gateway === 'PAYPAL'
+            ? {
+                methodCode: 'PAYPAL',
+                displayName: 'PayPal',
+                gatewayCode: 'PAYPAL',
+                settlementType: 'GATEWAY_SETTLEMENT',
+                percentageFee: 0,
+                fixedFee: 0,
+              }
+            : {
+                methodCode: 'SEPAY',
+                displayName: 'SePay',
+                gatewayCode: 'SEPAY',
+                settlementType: 'BANK_TRANSFER',
+                percentageFee: 0,
+                fixedFee: 0,
+              },
+        listEsimMegapayMethodCodes: () => [],
         resolvePaypalConfig: () => ({
           esimEnabled: true,
           mode: 'sandbox',

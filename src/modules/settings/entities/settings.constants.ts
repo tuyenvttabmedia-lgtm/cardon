@@ -82,7 +82,13 @@ export interface StoredPaymentMethod {
   iconUrl?: string | null;
   logoUrl?: string | null;
   settlementType: PaymentSettlementType;
+  /** Retail card/topup checkout. */
   enabled: boolean;
+  /**
+   * eSIM VN lane only (MegaPay VNPAYQR / ZALOPAY). Independent of `enabled`
+   * so retail can stay VietQR-only while eSIM offers wallet/QR.
+   */
+  esimEnabled?: boolean;
   percentageFee: number;
   fixedFee: number;
 }
@@ -122,6 +128,7 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
     enabled: true,
+    esimEnabled: false,
     percentageFee: 1.5,
     fixedFee: 1100,
   },
@@ -135,6 +142,7 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
     enabled: true,
+    esimEnabled: false,
     percentageFee: 0.77,
     fixedFee: 0,
   },
@@ -147,10 +155,19 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     logoUrl: null,
     settlementType: 'GATEWAY_SETTLEMENT',
     enabled: true,
+    esimEnabled: false,
     percentageFee: 0.77,
     fixedFee: 0,
   },
 ];
+
+/** MegaPay methods that may be armed for eSIM VN (not DEPOSIT_CODE / VA). */
+export const ESIM_MEGAPAY_METHOD_CODES = ['VNPAYQR', 'ZALOPAY'] as const;
+export type EsimMegapayMethodCode = (typeof ESIM_MEGAPAY_METHOD_CODES)[number];
+
+export function isEsimMegapayMethodCode(code: string): code is EsimMegapayMethodCode {
+  return (ESIM_MEGAPAY_METHOD_CODES as readonly string[]).includes(code.trim().toUpperCase());
+}
 
 /** @deprecated eSIM Go API token. Kept for cleanup / audit of old settings only. */
 export interface StoredProviderEsimGo {

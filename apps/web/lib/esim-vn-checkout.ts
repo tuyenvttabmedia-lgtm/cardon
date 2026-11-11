@@ -1,23 +1,30 @@
 import { isInlineQrPayment, isSepayPgCheckout, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
 import { readBrowserLocale } from '@/lib/i18n/locale';
-import { enabledMethods, type PublicPaymentMethod } from '@/lib/payment-methods';
+import type { PublicPaymentMethod } from '@/lib/payment-methods';
 import { getApiBaseUrl, generateIdempotencyKey } from '@/lib/utils';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
 import type { Payment, PaymentGatewayCode } from '@/types/api';
 
-/** Vietnam eSIM lane: SePay only (legacy QR or Payment Gateway). Cards/topup MegaPay and PayPal INTL are out of scope. */
+/** Vietnam eSIM lane: SePay + MegaPay when esimEnabled. PayPal INTL stays on the quote path. */
 export function filterEsimVnPaymentMethods(methods: PublicPaymentMethod[]): PublicPaymentMethod[] {
-  return enabledMethods(methods).filter((method) => method.gatewayCode === 'SEPAY');
+  return methods.filter((method) => {
+    if (method.gatewayCode === 'SEPAY') return method.enabled;
+    if (method.gatewayCode === 'MEGAPAY') {
+      const code = method.methodCode.toUpperCase();
+      return method.esimEnabled === true && (code === 'VNPAYQR' || code === 'ZALOPAY');
+    }
+    return false;
+  });
 }
 
 export function preferEsimVnMethodCode(methods: PublicPaymentMethod[]): string | null {
-  const sepay = filterEsimVnPaymentMethods(methods);
-  if (sepay.length === 0) return null;
-  const preferred = sepay.find((method) => {
+  const available = filterEsimVnPaymentMethods(methods);
+  if (available.length === 0) return null;
+  const preferred = available.find((method) => {
     const code = method.methodCode.toUpperCase();
-    return code.includes('QR') || code === 'BANK_QR' || code === 'VIETQR' || code === 'DEPOSIT_CODE';
+    return code === 'VIETQR' || code.includes('QR') || code === 'BANK_QR' || code === 'DEPOSIT_CODE';
   });
-  return (preferred ?? sepay[0]).methodCode;
+  return (preferred ?? available[0]).methodCode;
 }
 
 export async function fetchPublicPaymentMethods(): Promise<PublicPaymentMethod[]> {
@@ -36,6 +43,7 @@ export async function fetchPublicPaymentMethods(): Promise<PublicPaymentMethod[]
       iconUrl: (item.iconUrl as string | null) ?? null,
       logoUrl: (item.logoUrl as string | null) ?? null,
       enabled: Boolean(item.enabled ?? true),
+      esimEnabled: item.esimEnabled === true,
       percentageFee: Number(item.percentageFee ?? 0),
       fixedFee: Number(item.fixedFee ?? 0),
       gatewayCode: (item.gatewayCode ?? item.gateway ?? 'SEPAY') as PaymentGatewayCode,
@@ -103,8 +111,10 @@ export async function startEsimVnCheckout(
     locale: readBrowserLocale(),
   });
 
+  const method = methods.find((row) => row.methodCode === paymentMethodCode);
+  const gateway = (method?.gatewayCode ?? 'SEPAY') as PaymentGatewayCode;
   const pay = await paymentApi.create(
-    { orderId: order.id, gateway: 'SEPAY' },
+    { orderId: order.id, gateway },
     generateIdempotencyKey(),
   );
 

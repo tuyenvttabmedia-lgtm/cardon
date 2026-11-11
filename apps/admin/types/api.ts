@@ -2256,6 +2256,8 @@ export interface PaymentMethodConfig {
   logoUrl?: string | null;
   settlementType: 'DIRECT_TO_MERCHANT' | 'GATEWAY_SETTLEMENT';
   enabled: boolean;
+  /** eSIM VN — MegaPay VNPAYQR / ZALOPAY. Independent of retail `enabled`. */
+  esimEnabled?: boolean;
   percentageFee: number;
   fixedFee: number;
 }

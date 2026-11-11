@@ -38,6 +38,7 @@ export function normalizeStoredPaymentMethod(
     logoUrl: raw.logoUrl ?? null,
     settlementType: normalizeSettlementType(raw.settlementType, gatewayCode),
     enabled: Boolean(raw.enabled),
+    esimEnabled: raw.esimEnabled === true,
     percentageFee: Number(raw.percentageFee ?? 0),
     fixedFee: Number(raw.fixedFee ?? 0),
   };

@@ -523,13 +523,13 @@ export class EsimOrderService {
     );
   }
 
-  /** Gateway picks the snapshot. A confirmed foreign connection cannot open a Vietnam SePay charge. */
+  /** Gateway picks the snapshot. A confirmed foreign connection cannot open a Vietnam VND charge. */
   private marketForSelectedGateway(gatewayCode: string, countryCode?: string | null): EsimMarket {
     const gateway = gatewayCode.trim().toUpperCase();
     if (gateway === 'PAYPAL') return 'INTL';
-    if (gateway === 'SEPAY') {
+    if (gateway === 'SEPAY' || gateway === 'MEGAPAY') {
       if (resolveRetailMarket(countryCode) === 'INTL') {
-        throw new BadRequestException('eSIM SePay is only available for a Vietnam connection');
+        throw new BadRequestException('eSIM VND checkout is only available for a Vietnam connection');
       }
       return 'VN';
     }
@@ -649,6 +649,7 @@ export class EsimOrderService {
       usd,
       sepayReady,
       paypalReady,
+      megapayMethodCodes: this.settingsStore.listEsimMegapayMethodCodes(),
     });
     const selectedOption = options.paymentOptions[0] ?? null;
     return {
@@ -723,15 +724,19 @@ export class EsimOrderService {
 
   private resolvePaymentMethod(code?: string) {
     if (code?.trim()) {
-      const method = this.settingsStore.resolvePaymentMethod(code);
-      if (!method) {
+      const method =
+        this.settingsStore.resolveEsimPaymentMethod(code) ??
+        this.settingsStore.resolvePaymentMethod(code);
+      if (!method || !this.settingsStore.resolveEsimPaymentMethod(method.methodCode)) {
         throw new BadRequestException('Payment method is not available');
       }
       return method;
     }
-    const methods = this.settingsStore.getPublicPaymentMethods();
+    const methods = this.settingsStore
+      .getPublicPaymentMethods()
+      .filter((method) => method.esimEnabled);
     const fallback = methods[0]
-      ? this.settingsStore.resolvePaymentMethod(methods[0].methodCode)
+      ? this.settingsStore.resolveEsimPaymentMethod(methods[0].methodCode)
       : undefined;
     if (!fallback) {
       throw new BadRequestException('No payment methods are available');

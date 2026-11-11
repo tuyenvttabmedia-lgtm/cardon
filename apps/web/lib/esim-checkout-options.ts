@@ -1,7 +1,8 @@
 import { formatLocaleVnd } from '@/lib/i18n/locale';
 
 export interface EsimQuotedOption {
-  gateway: 'SEPAY' | 'PAYPAL';
+  gateway: 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
+  methodCode: string;
   currency: 'VND' | 'USD';
   amount: string;
   referenceCurrency: 'VND';
@@ -26,15 +27,28 @@ export interface EsimQuoteView {
   unavailableReason: string | null;
 }
 
-/** Keep quote options that still have an enabled public method with the same gateway. */
-export function filterEsimQuotedOptions<T extends { gateway: string }, M extends { enabled: boolean; gatewayCode: string }>(
-  options: T[],
-  methods: M[],
-  methodsReady: boolean,
-): T[] {
+export function esimOptionKey(option: Pick<EsimQuotedOption, 'gateway' | 'methodCode'>): string {
+  return `${option.gateway}:${option.methodCode}`;
+}
+
+/** Keep quote options that still have an armed public method for the same gateway/method. */
+export function filterEsimQuotedOptions<
+  T extends { gateway: string; methodCode?: string },
+  M extends { enabled: boolean; gatewayCode: string; methodCode?: string; esimEnabled?: boolean },
+>(options: T[], methods: M[], methodsReady: boolean): T[] {
   if (!methodsReady) return [];
   return options.filter((option) =>
-    methods.some((method) => method.enabled && method.gatewayCode === option.gateway),
+    methods.some((method) => {
+      if (method.gatewayCode !== option.gateway) return false;
+      if (option.gateway === 'MEGAPAY') {
+        if (method.esimEnabled !== true) return false;
+        if (option.methodCode && method.methodCode) {
+          return method.methodCode.toUpperCase() === option.methodCode.toUpperCase();
+        }
+        return true;
+      }
+      return method.enabled === true;
+    }),
   );
 }
 
@@ -43,7 +57,7 @@ export function esimBuyerMarket(quote: Pick<EsimQuoteView, 'buyerMarket' | 'mark
 }
 
 /** Snapshot market follows the chosen gateway, not the page language. */
-export function esimMarketForGateway(gateway: 'SEPAY' | 'PAYPAL'): 'VN' | 'INTL' {
+export function esimMarketForGateway(gateway: 'SEPAY' | 'MEGAPAY' | 'PAYPAL'): 'VN' | 'INTL' {
   return gateway === 'PAYPAL' ? 'INTL' : 'VN';
 }
 

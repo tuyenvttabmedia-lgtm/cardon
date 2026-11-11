@@ -1,9 +1,11 @@
 import { convertVndSellToUsd } from '../fx/fx-rate.rules';
 
-export type EsimCheckoutGateway = 'SEPAY' | 'PAYPAL';
+export type EsimCheckoutGateway = 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
 
 export interface EsimCheckoutOption {
   gateway: EsimCheckoutGateway;
+  /** Concrete method for fees / createPayment (VIETQR, VNPAYQR, ZALOPAY, PAYPAL). */
+  methodCode: string;
   currency: 'VND' | 'USD';
   amount: string;
   referenceCurrency: 'VND';
@@ -13,7 +15,11 @@ export interface EsimCheckoutOption {
   fxAsOf: string | null;
 }
 
-export type EsimCheckoutUnavailable = 'SEPAY_UNAVAILABLE' | 'PAYPAL_UNAVAILABLE' | 'FX_UNAVAILABLE';
+export type EsimCheckoutUnavailable =
+  | 'SEPAY_UNAVAILABLE'
+  | 'PAYPAL_UNAVAILABLE'
+  | 'FX_UNAVAILABLE'
+  | 'VND_UNAVAILABLE';
 
 /**
  * One gateway per package market. Language does not add a currency.
@@ -27,27 +33,20 @@ export function buildEsimCheckoutOptions(input: {
   usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null;
   sepayReady: boolean;
   paypalReady: boolean;
+  megapayMethodCodes?: string[];
 }): { paymentOptions: EsimCheckoutOption[]; unavailableReason: EsimCheckoutUnavailable | null } {
   const referenceAmount = input.referenceAmountVnd;
   if (input.market === 'VN') {
-    if (!input.sepayReady || !input.vndChargeAmount) {
-      return { paymentOptions: [], unavailableReason: 'SEPAY_UNAVAILABLE' };
+    const options = buildVndOptions({
+      referenceAmount,
+      vndChargeAmount: input.vndChargeAmount,
+      sepayReady: input.sepayReady,
+      megapayMethodCodes: input.megapayMethodCodes ?? [],
+    });
+    if (options.length === 0) {
+      return { paymentOptions: [], unavailableReason: 'VND_UNAVAILABLE' };
     }
-    return {
-      unavailableReason: null,
-      paymentOptions: [
-        {
-          gateway: 'SEPAY',
-          currency: 'VND',
-          amount: input.vndChargeAmount,
-          referenceCurrency: 'VND',
-          referenceAmount,
-          fxRate: null,
-          fxRateId: null,
-          fxAsOf: null,
-        },
-      ],
-    };
+    return { unavailableReason: null, paymentOptions: options };
   }
   if (!input.paypalReady) {
     return { paymentOptions: [], unavailableReason: 'PAYPAL_UNAVAILABLE' };
@@ -60,6 +59,7 @@ export function buildEsimCheckoutOptions(input: {
     paymentOptions: [
       {
         gateway: 'PAYPAL',
+        methodCode: 'PAYPAL',
         currency: 'USD',
         amount: input.usd.amount,
         referenceCurrency: 'VND',
@@ -74,8 +74,8 @@ export function buildEsimCheckoutOptions(input: {
 
 /**
  * Buyer location chooses which pairs are offered. The package country does not.
- * Vietnam (and an unknown edge, which the storefront treats as Vietnam) can pay
- * SePay VND or PayPal USD. A confirmed foreign country gets PayPal USD only.
+ * Vietnam can pay SePay VND, MegaPay VNPAYQR/ZALOPAY (when armed), or PayPal USD.
+ * A confirmed foreign country gets PayPal USD only.
  */
 export function buildEsimBuyerCheckoutOptions(input: {
   buyerMarket: 'VN' | 'INTL';
@@ -84,25 +84,20 @@ export function buildEsimBuyerCheckoutOptions(input: {
   usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null;
   sepayReady: boolean;
   paypalReady: boolean;
+  megapayMethodCodes?: string[];
 }): { paymentOptions: EsimCheckoutOption[]; unavailableReason: EsimCheckoutUnavailable | null } {
   const referenceAmount = input.referenceAmountVnd;
-  const sepay: EsimCheckoutOption | null =
-    input.sepayReady && input.vndChargeAmount
-      ? {
-          gateway: 'SEPAY',
-          currency: 'VND',
-          amount: input.vndChargeAmount,
-          referenceCurrency: 'VND',
-          referenceAmount,
-          fxRate: null,
-          fxRateId: null,
-          fxAsOf: null,
-        }
-      : null;
+  const vndOptions = buildVndOptions({
+    referenceAmount,
+    vndChargeAmount: input.vndChargeAmount,
+    sepayReady: input.sepayReady,
+    megapayMethodCodes: input.megapayMethodCodes ?? [],
+  });
   const paypal: EsimCheckoutOption | null =
     input.paypalReady && input.usd?.amount && input.usd.fxRate
       ? {
           gateway: 'PAYPAL',
+          methodCode: 'PAYPAL',
           currency: 'USD',
           amount: input.usd.amount,
           referenceCurrency: 'VND',
@@ -117,11 +112,57 @@ export function buildEsimBuyerCheckoutOptions(input: {
     if (!paypal) return { paymentOptions: [], unavailableReason: 'FX_UNAVAILABLE' };
     return { paymentOptions: [paypal], unavailableReason: null };
   }
-  const paymentOptions = [sepay, paypal].filter((option): option is EsimCheckoutOption => option !== null);
+  const paymentOptions = [...vndOptions, ...(paypal ? [paypal] : [])];
   if (paymentOptions.length > 0) return { paymentOptions, unavailableReason: null };
-  if (!input.sepayReady && !input.paypalReady) return { paymentOptions: [], unavailableReason: 'SEPAY_UNAVAILABLE' };
-  if (!input.paypalReady || !input.usd) return { paymentOptions: [], unavailableReason: input.paypalReady ? 'FX_UNAVAILABLE' : 'PAYPAL_UNAVAILABLE' };
-  return { paymentOptions: [], unavailableReason: 'SEPAY_UNAVAILABLE' };
+  if (!input.sepayReady && !(input.megapayMethodCodes?.length) && !input.paypalReady) {
+    return { paymentOptions: [], unavailableReason: 'VND_UNAVAILABLE' };
+  }
+  if (!input.paypalReady || !input.usd) {
+    return {
+      paymentOptions: [],
+      unavailableReason: input.paypalReady ? 'FX_UNAVAILABLE' : 'PAYPAL_UNAVAILABLE',
+    };
+  }
+  return { paymentOptions: [], unavailableReason: 'VND_UNAVAILABLE' };
+}
+
+function buildVndOptions(input: {
+  referenceAmount: string;
+  vndChargeAmount: string;
+  sepayReady: boolean;
+  megapayMethodCodes: string[];
+}): EsimCheckoutOption[] {
+  if (!input.vndChargeAmount) return [];
+  const options: EsimCheckoutOption[] = [];
+  if (input.sepayReady) {
+    options.push({
+      gateway: 'SEPAY',
+      methodCode: 'VIETQR',
+      currency: 'VND',
+      amount: input.vndChargeAmount,
+      referenceCurrency: 'VND',
+      referenceAmount: input.referenceAmount,
+      fxRate: null,
+      fxRateId: null,
+      fxAsOf: null,
+    });
+  }
+  for (const methodCode of input.megapayMethodCodes) {
+    const code = methodCode.trim().toUpperCase();
+    if (code !== 'VNPAYQR' && code !== 'ZALOPAY') continue;
+    options.push({
+      gateway: 'MEGAPAY',
+      methodCode: code,
+      currency: 'VND',
+      amount: input.vndChargeAmount,
+      referenceCurrency: 'VND',
+      referenceAmount: input.referenceAmount,
+      fxRate: null,
+      fxRateId: null,
+      fxAsOf: null,
+    });
+  }
+  return options;
 }
 
 /** Shelf price for an international plan. Uses the checkout FX rate, not the Airalo import rate. */

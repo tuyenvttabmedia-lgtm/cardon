@@ -97,6 +97,7 @@ export class SettingsAdminService {
           logoUrl: m.logoUrl ?? null,
           settlementType: m.settlementType,
           enabled: m.enabled,
+          esimEnabled: m.esimEnabled === true,
           percentageFee: m.percentageFee,
           fixedFee: m.fixedFee,
         })),
