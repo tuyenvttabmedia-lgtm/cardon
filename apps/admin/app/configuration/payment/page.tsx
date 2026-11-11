@@ -34,6 +34,25 @@ function isProductionWebhookOnLocal(url?: string): boolean {
   return runningLocal && /cardon\.vn/i.test(url ?? '');
 }
 
+/** Writable SePay fields only — never PUT read-only view flags (pgConfigured, source, …). */
+function sepaySaveBody(form: PaymentGatewaySettings): Partial<PaymentGatewaySettings> {
+  return {
+    enabled: form.enabled,
+    environment: form.environment,
+    paymentMethod: form.paymentMethod,
+    merchantId: form.merchantId,
+    secretKey: form.secretKey,
+    ipnSecret: form.ipnSecret,
+    apiKey: form.apiKey,
+    webhookSecret: form.webhookSecret,
+    bankAccount: form.bankAccount,
+    bankCode: form.bankCode,
+    accountName: form.accountName,
+    qrTemplate: form.qrTemplate,
+    webhookUrl: form.webhookUrl,
+  };
+}
+
 /** SePay gateway form (VietQR HMAC + optional Payment Gateway). */
 function SepayGatewayForm({
   title,
@@ -56,7 +75,7 @@ function SepayGatewayForm({
     setSaving(true);
     setSaveError(null);
     try {
-      await onSave(form);
+      await onSave(sepaySaveBody(form));
     } catch (err) {
       setSaveError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     } finally {
@@ -170,10 +189,26 @@ function SepayGatewayForm({
           </div>
         </div>
         <div className="md:col-span-2 rounded-lg border border-slate-200 p-4">
-          <h3 className="font-medium">Payment Gateway — eSIM</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-medium">Payment Gateway — eSIM</h3>
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-medium ${
+                form.pgConfigured
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-slate-100 text-slate-600'
+              }`}
+            >
+              {form.pgConfigured ? 'Đủ credential eSIM' : 'Thiếu Merchant / Secret / IPN Secret'}
+            </span>
+          </div>
           <p className="mt-1 text-sm text-slate-500">
-            Merchant, Merchant Secret và IPN Secret không dùng cho nạp đại lý.
-            IPN: <code>/api/v1/payments/ipn/esim/sepay</code>. Lên live không cần tunnel.
+            Map từ SePay → tab Thông tin đơn vị (Mã đơn vị + Secret Key) và tab IPN (Secret Key).
+            Không dùng cho nạp đại lý.
+          </p>
+          <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            IPN URL trên SePay cho eSIM phải là{' '}
+            <code className="break-all">https://cardon.vn/api/v1/payments/ipn/esim/sepay</code>
+            {' '}(Auth = Secret Key). Đường <code>/webhook/sepay</code> chỉ dành VietQR / nạp đại lý.
           </p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
@@ -189,7 +224,8 @@ function SepayGatewayForm({
                 <option value="production">{vi.app.production}</option>
               </Select>
               <p className="mt-1 text-xs text-slate-500">
-                Sandbox gọi <code>pay-sandbox.sepay.vn</code>. Production gọi <code>pay.sepay.vn</code>.
+                <code>SP-LIVE-…</code> → Production (<code>pay.sepay.vn</code>).{' '}
+                <code>SP-TEST-…</code> → Sandbox (<code>pay-sandbox.sepay.vn</code>).
               </p>
             </div>
             <div>
@@ -211,41 +247,55 @@ function SepayGatewayForm({
                 <option value="BANK_TRANSFER">BANK_TRANSFER</option>
                 <option value="NAPAS_BANK_TRANSFER">NAPAS_BANK_TRANSFER</option>
               </Select>
+              <p className="mt-1 text-xs text-slate-500">Thường dùng BANK_TRANSFER (chuyển khoản).</p>
             </div>
             <div>
-              <Label>Merchant ID (PG)</Label>
+              <Label>Merchant ID (PG) — Mã đơn vị SePay</Label>
               <Input
                 className="mt-1"
                 value={form.merchantId ?? ''}
                 onChange={(e) => setForm({ ...form, merchantId: e.target.value })}
-                placeholder="SP-TEST-…"
+                placeholder="SP-LIVE-…"
               />
             </div>
             <div>
-              <Label>Merchant Secret Key (PG)</Label>
+              <Label>Merchant Secret Key (PG) — Secret Key đơn vị</Label>
               <Input
                 className="mt-1 font-mono"
                 type="password"
                 value={form.secretKey ?? ''}
                 onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-                placeholder="********"
+                placeholder="Dán secret mới (để trống nếu giữ nguyên)"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Tab Thông tin đơn vị. SePay chỉ hiện một lần — mất thì bấm Tạo lại trên SePay rồi dán vào đây.
+              </p>
             </div>
-            <div>
-              <Label>IPN Secret Key</Label>
+            <div className="md:col-span-2">
+              <Label>IPN Secret Key — Secret Key tab IPN</Label>
               <Input
                 className="mt-1 font-mono"
                 type="password"
                 value={form.ipnSecret ?? ''}
                 onChange={(e) => setForm({ ...form, ipnSecret: e.target.value })}
-                placeholder="IPN secret"
+                placeholder="Dán IPN secret (để trống nếu giữ nguyên)"
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Khác Merchant Secret. Auth Type trên SePay phải là Secret Key.
+              </p>
             </div>
             {(form.environment ?? 'production') === 'production' &&
             /^SP-TEST/i.test(form.merchantId ?? '') ? (
               <p className="md:col-span-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
                 Merchant <code>SP-TEST-…</code> là sandbox nhưng môi trường đang là Production.
                 Đổi môi trường sang Sandbox để checkout qua <code>pay-sandbox.sepay.vn</code>.
+              </p>
+            ) : null}
+            {(form.environment ?? 'production') === 'sandbox' &&
+            /^SP-LIVE/i.test(form.merchantId ?? '') ? (
+              <p className="md:col-span-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                Merchant <code>SP-LIVE-…</code> là production nhưng môi trường đang là Sandbox.
+                Đổi sang Production.
               </p>
             ) : null}
           </div>
@@ -322,7 +372,21 @@ function MegaPayGatewayCard({
     setSaving(true);
     setSaveError(null);
     try {
-      await onSaveGateway(form);
+      await onSaveGateway({
+        enabled: form.enabled,
+        merchantId: form.merchantId,
+        secretKey: form.secretKey,
+        endpoint: form.endpoint,
+        returnUrl: form.returnUrl,
+        callbackUrl: form.callbackUrl,
+        bankCode: form.bankCode,
+        notifyPublicKey: form.notifyPublicKey,
+        pgEncodeKey: form.pgEncodeKey,
+        pgMerchantId: form.pgMerchantId,
+        pgRefundPassword: form.pgRefundPassword,
+        pgEnvironment: form.pgEnvironment,
+        reqDomain: form.reqDomain,
+      });
       onSaved();
     } catch (err) {
       setSaveError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
