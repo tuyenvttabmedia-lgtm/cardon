@@ -150,6 +150,7 @@ function buildHarness(stored: Record<string, unknown>) {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
     { get: () => undefined } as never,
   );
   return {
