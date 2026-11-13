@@ -5,6 +5,7 @@ import {
   AiraloHttpTransport,
   AiraloRequestError,
   EsimAiraloAdapter,
+  parseAiraloBalance,
   parseAiraloCataloguePage,
   parseAiraloTopupPackages,
   readAiraloIccid,
@@ -39,7 +40,65 @@ function memoryTransport(
   };
 }
 
+describe('parseAiraloBalance', () => {
+  it('reads availableBalance object shape from docs', () => {
+    expect(
+      parseAiraloBalance({
+        data: {
+          balances: {
+            name: 'balance',
+            availableBalance: { amount: 3000, currency: 'USD' },
+          },
+        },
+      }),
+    ).toEqual({ name: 'balance', amount: 3000, currency: 'USD' });
+  });
+
+  it('accepts empty balances array as zero', () => {
+    expect(parseAiraloBalance({ data: { balances: [] } })).toEqual({
+      name: 'balance',
+      amount: 0,
+      currency: 'USD',
+    });
+  });
+});
+
 describe('EsimAiraloAdapter', () => {
+  it('getBalance calls GET /v2/balance', async () => {
+    const transport = memoryTransport({
+      'POST /v2/token': {
+        status: 200,
+        body: JSON.stringify({
+          data: { token_type: 'Bearer', expires_in: 3600, access_token: 'tok' },
+          meta: { message: 'success' },
+        }),
+      },
+      'GET /v2/balance': {
+        status: 200,
+        body: JSON.stringify({
+          data: {
+            balances: {
+              name: 'balance',
+              availableBalance: { amount: 3000, currency: 'USD' },
+            },
+          },
+          meta: { message: 'success' },
+        }),
+      },
+    });
+    const adapter = new EsimAiraloAdapter(undefined, {
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      httpEnabled: true,
+      transport,
+    });
+    await expect(adapter.getBalance()).resolves.toEqual({
+      name: 'balance',
+      amount: 3000,
+      currency: 'USD',
+    });
+  });
+
   it('blocks HTTP when not armed', async () => {
     const adapter = new EsimAiraloAdapter(undefined, {
       clientId: CLIENT_ID,

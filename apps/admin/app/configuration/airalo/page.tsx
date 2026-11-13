@@ -36,6 +36,7 @@ export default function SettingsAiraloPage() {
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
   const [catalogueHint, setCatalogueHint] = useState<string | null>(null);
+  const [balanceHint, setBalanceHint] = useState<string | null>(null);
   const [importSummary, setImportSummary] = useState<AiraloImportSummary | null>(null);
   const [catalogue, setCatalogue] = useState<AiraloCatalogueView | null>(null);
   const [lifecycleFilter, setLifecycleFilter] = useState<EsimCatalogLifecycle | 'ALL'>('PUBLISHED');
@@ -53,6 +54,13 @@ export default function SettingsAiraloPage() {
         setBaseUrl(next.baseUrl ?? '');
         setUsdVndRate(String(next.usdVndRate ?? 26000));
         setAccountMode(next.accountMode === 'production' ? 'production' : 'sandbox');
+        if (next.balance != null && Number.isFinite(Number(next.balance))) {
+          const currency = next.balanceCurrency ?? 'USD';
+          const synced = next.lastBalanceSyncedAt
+            ? ` · cập nhật ${new Date(next.lastBalanceSyncedAt).toLocaleString('vi-VN')}`
+            : '';
+          setBalanceHint(`Số dư: ${Number(next.balance).toLocaleString('en-US')} ${currency}${synced}`);
+        }
       })
       .catch((err) => setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed));
     loadCatalogue().catch(() => undefined);
@@ -112,6 +120,32 @@ export default function SettingsAiraloPage() {
       const result = await settingsAdminApi.testAiraloCatalogue();
       const names = result.names.length > 0 ? result.names.join(', ') : 'Catalogue trống';
       setCatalogueHint(`API v2: ${result.count} gói. ${names}`);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkBalance() {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await settingsAdminApi.checkAiraloBalance();
+      const warn = result.lowBalance ? ' · thấp hơn ngưỡng cảnh báo' : '';
+      setBalanceHint(
+        `Số dư: ${result.balance.toLocaleString('en-US')} ${result.currency}${warn} · ${new Date(result.lastCheckedAt).toLocaleString('vi-VN')}`,
+      );
+      setForm((prev) =>
+        prev
+          ? {
+              ...prev,
+              balance: result.balance,
+              balanceCurrency: result.currency,
+              lastBalanceSyncedAt: result.lastCheckedAt,
+            }
+          : prev,
+      );
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     } finally {
@@ -256,11 +290,20 @@ export default function SettingsAiraloPage() {
               type="button"
               variant="secondary"
               disabled={busy || !form.configured}
+              onClick={() => void checkBalance()}
+            >
+              Kiểm tra số dư
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy || !form.configured}
               onClick={() => void importCatalogue()}
             >
               Cập nhật catalogue
             </Button>
           </div>
+          {balanceHint && <p className="text-sm text-slate-700">{balanceHint}</p>}
           {catalogueHint && <p className="text-sm text-slate-700">{catalogueHint}</p>}
           {importSummary && (
             <p className="text-sm text-slate-700">

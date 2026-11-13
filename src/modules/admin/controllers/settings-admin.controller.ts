@@ -293,6 +293,11 @@ export class SettingsAdminController {
     return this.settingsAdminService.testAiraloCatalogue();
   }
 
+  @Post('provider/airalo/check-balance')
+  checkAiraloBalance() {
+    return this.settingsAdminService.checkAiraloBalance();
+  }
+
   @Get('provider/airalo/catalogue')
   listAiraloCatalogue() {
     return this.settingsAdminService.listAiraloCatalogue();

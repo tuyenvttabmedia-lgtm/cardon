@@ -49,6 +49,7 @@ import {
   UpdateTurnstileSettingsDto,
 } from '../dto/settings.dto';
 import { EsimAiraloAdapter } from '../../esim/esim-airalo.adapter';
+import { EsimAiraloBalanceService } from '../../esim/esim-airalo-balance.service';
 import { EsimAiraloCatalogueService } from '../../esim/esim-airalo-catalogue.service';
 import { AdminAuditService } from './admin-audit.service';
 
@@ -66,6 +67,7 @@ export class SettingsAdminService {
     private readonly smtpProvider: SmtpEmailProvider,
     private readonly airalo: EsimAiraloAdapter,
     private readonly airaloCatalogue: EsimAiraloCatalogueService,
+    private readonly airaloBalance: EsimAiraloBalanceService,
     private readonly config: ConfigService,
   ) {}
 
@@ -127,8 +129,15 @@ export class SettingsAdminService {
     throw new BadRequestException('eSIM Go đã ngừng dùng. Dùng kiểm tra catalogue Airalo.');
   }
 
-  getProviderAiralo() {
-    return this.settingsStore.getAiraloAdminView();
+  async getProviderAiralo() {
+    const view = this.settingsStore.getAiraloAdminView();
+    const cached = await this.airaloBalance.readCachedBalance();
+    return {
+      ...view,
+      balance: cached.balance,
+      balanceCurrency: cached.currency,
+      lastBalanceSyncedAt: cached.lastCheckedAt,
+    };
   }
 
   async updateProviderAiralo(adminId: string, dto: UpdateProviderAiraloDto) {
@@ -175,6 +184,14 @@ export class SettingsAdminService {
       const message = error instanceof Error ? error.message : 'Airalo catalogue request failed';
       throw new BadRequestException(message);
     }
+  }
+
+  async checkAiraloBalance() {
+    const view = this.settingsStore.getAiraloAdminView();
+    if (view.configured !== true) {
+      throw new BadRequestException('Chưa có Airalo client_id / client_secret');
+    }
+    return this.airaloBalance.syncBalance();
   }
 
   listAiraloCatalogue() {

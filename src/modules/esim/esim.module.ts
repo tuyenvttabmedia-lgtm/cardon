@@ -26,6 +26,8 @@ import { EsimAiraloProviderBootstrap } from './esim-airalo-provider.bootstrap';
 import { EsimAiraloCatalogueRepository } from './esim-airalo-catalogue.repository';
 import { EsimAiraloCatalogueService } from './esim-airalo-catalogue.service';
 import { EsimAiraloCatalogueCronService } from './esim-airalo-catalogue.cron';
+import { EsimAiraloBalanceService } from './esim-airalo-balance.service';
+import { EsimAiraloBalanceCronService } from './esim-airalo-balance.cron';
 import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
 import { EsimTopupService } from './esim-topup.service';
 import { EsimQueryOpenCronService } from './esim-query-open.cron';
@@ -34,7 +36,9 @@ import { EsimFulfillStuckCronService } from './esim-fulfill-stuck.cron';
 const workers = shouldRegisterWorkers()
   ? [EsimWorker, EsimQueryOpenCronService, EsimFulfillStuckCronService]
   : [];
-const httpCrons = shouldRegisterHttp() ? [EsimAiraloCatalogueCronService] : [];
+const httpCrons = shouldRegisterHttp()
+  ? [EsimAiraloCatalogueCronService, EsimAiraloBalanceCronService]
+  : [];
 const httpControllers = shouldRegisterHttp()
   ? [EsimController, EsimAiraloWebhookController]
   : [EsimController];
@@ -80,6 +84,7 @@ const httpControllers = shouldRegisterHttp()
     EsimAiraloProviderBootstrap,
     EsimAiraloCatalogueRepository,
     EsimAiraloCatalogueService,
+    EsimAiraloBalanceService,
     ...httpCrons,
     ...workers,
   ],
@@ -90,6 +95,7 @@ const httpControllers = shouldRegisterHttp()
     EsimQueueModule,
     EsimAiraloAdapter,
     EsimAiraloCatalogueService,
+    EsimAiraloBalanceService,
     EsimTopupService,
   ],
 })

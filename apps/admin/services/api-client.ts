@@ -1366,6 +1366,16 @@ export const settingsAdminApi = {
       { method: 'POST' },
     );
   },
+  checkAiraloBalance() {
+    return apiRequest<{
+      balance: number;
+      currency: string;
+      name: string;
+      lastCheckedAt: string;
+      lowBalance: boolean;
+      status: string;
+    }>('/admin/settings/provider/airalo/check-balance', { method: 'POST' });
+  },
   getFxRates() {
     return apiRequest<{
       current: FxRateView | null;
