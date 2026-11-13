@@ -420,6 +420,15 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     };
   }
 
+  /**
+   * GET /v2/balance — partner credit (read-only, not billable).
+   * @see https://developers.partners.airalo.com/get-balance-11883045e0
+   */
+  async getBalance(): Promise<AiraloBalance> {
+    const body = await this.send('GET', '/v2/balance');
+    return parseAiraloBalance(body);
+  }
+
   /** GET /v2/sims/{iccid}/topups — packages that can top up this eSIM. */
   async listTopupPackages(iccid: string): Promise<AiraloTopupPackage[]> {
     const trimmed = iccid.trim();
@@ -464,6 +473,12 @@ export class EsimAiraloAdapter implements EsimProviderPort {
   }
 }
 
+export interface AiraloBalance {
+  name: string;
+  amount: number;
+  currency: string;
+}
+
 export interface AiraloTopupPackage {
   providerPackageId: string;
   title: string;
@@ -471,6 +486,48 @@ export interface AiraloTopupPackage {
   validityDays: number | null;
   price: number | null;
   currency: string | null;
+}
+
+export function parseAiraloBalance(body: unknown): AiraloBalance {
+  const root =
+    body && typeof body === 'object' ? (body as { data?: unknown }).data : undefined;
+  const balances =
+    root && typeof root === 'object'
+      ? (root as { balances?: unknown }).balances
+      : undefined;
+  // Docs show object; some accounts may return an empty array.
+  if (Array.isArray(balances)) {
+    if (balances.length === 0) {
+      return { name: 'balance', amount: 0, currency: 'USD' };
+    }
+    const first = balances[0];
+    return readAiraloBalanceEntry(first);
+  }
+  if (balances && typeof balances === 'object') {
+    return readAiraloBalanceEntry(balances);
+  }
+  throw new AiraloRequestError('Airalo balance response was empty');
+}
+
+function readAiraloBalanceEntry(entry: unknown): AiraloBalance {
+  const row = entry && typeof entry === 'object' ? (entry as Record<string, unknown>) : {};
+  const available =
+    row.availableBalance && typeof row.availableBalance === 'object'
+      ? (row.availableBalance as Record<string, unknown>)
+      : {};
+  const amount = Number(available.amount);
+  const currency =
+    typeof available.currency === 'string' && available.currency.trim()
+      ? available.currency.trim().toUpperCase()
+      : 'USD';
+  if (!Number.isFinite(amount)) {
+    throw new AiraloRequestError('Airalo balance amount was invalid');
+  }
+  return {
+    name: typeof row.name === 'string' && row.name.trim() ? row.name.trim() : 'balance',
+    amount,
+    currency,
+  };
 }
 
 export function readAiraloIccid(sim: unknown): string | undefined {

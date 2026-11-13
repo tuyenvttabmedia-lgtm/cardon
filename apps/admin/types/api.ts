@@ -2349,6 +2349,9 @@ export interface ProviderAiraloSettings extends SettingsSourceView {
   clientSecret?: string;
   usdVndRate?: number;
   accountMode?: 'sandbox' | 'production';
+  balance?: number | null;
+  balanceCurrency?: string;
+  lastBalanceSyncedAt?: string | null;
 }
 
 export type EsimCatalogLifecycle =
