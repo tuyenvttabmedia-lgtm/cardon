@@ -166,6 +166,12 @@ function BrandColumn({
   );
 }
 
+/** CMS badge PNG is 230×86 with ~10px transparent left padding. */
+const BCT_BADGE_NATIVE_W = 230;
+const BCT_BADGE_NATIVE_H = 86;
+const BCT_BADGE_CROP_LEFT = 10;
+const BCT_BADGE_VISIBLE_W = BCT_BADGE_NATIVE_W - BCT_BADGE_CROP_LEFT;
+
 function BoCongThuongBadge({
   company,
   className,
@@ -182,17 +188,27 @@ function BoCongThuongBadge({
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn('block w-fit max-w-full', className)}
+      className={cn(
+        // Crop transparent left padding at the PNG's native ratio so blue badge flush-left with links
+        'relative block w-full max-w-[216px] overflow-hidden',
+        className,
+      )}
+      style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
       aria-label={badge.alt}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- CMS PNG; keep native pixels (no CSS scale/crop blur) */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- CMS PNG; crop padding without soft CSS scale */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        width={230}
-        height={86}
+        width={BCT_BADGE_NATIVE_W}
+        height={BCT_BADGE_NATIVE_H}
         decoding="async"
-        className="block h-auto w-auto max-w-full"
+        className="absolute top-0 max-w-none"
+        style={{
+          height: '100%',
+          width: `${(BCT_BADGE_NATIVE_W / BCT_BADGE_VISIBLE_W) * 100}%`,
+          left: `${(-BCT_BADGE_CROP_LEFT / BCT_BADGE_VISIBLE_W) * 100}%`,
+        }}
       />
     </a>
   );
