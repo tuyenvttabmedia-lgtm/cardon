@@ -62,7 +62,20 @@ function FooterHref({
   );
 }
 
-function FooterColumnLinks({ col }: { col: FooterColumn }) {
+function isAboutCardonColumn(col: FooterColumn): boolean {
+  const title = `${col.title ?? ''} ${col.titleEn ?? ''}`.toLowerCase();
+  return title.includes('về cardon') || title.includes('ve cardon') || title.includes('about cardon');
+}
+
+function FooterColumnLinks({
+  col,
+  companyInfo,
+  showBoCongThuong,
+}: {
+  col: FooterColumn;
+  companyInfo?: CompanyInfo;
+  showBoCongThuong?: boolean;
+}) {
   const { locale } = useLocale();
   const title = resolveThemeTitle(locale, col);
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
@@ -82,17 +95,18 @@ function FooterColumnLinks({ col }: { col: FooterColumn }) {
           );
         })}
       </ul>
+      {showBoCongThuong && companyInfo ? (
+        <BoCongThuongBadge company={companyInfo} className="mt-5" />
+      ) : null}
     </div>
   );
 }
 
 function BrandColumn({
   col,
-  companyInfo,
   logoSrc,
 }: {
   col: FooterColumn;
-  companyInfo: CompanyInfo;
   logoSrc?: string | null;
 }) {
   const { locale } = useLocale();
@@ -148,7 +162,6 @@ function BrandColumn({
           );
         })}
       </ul>
-      <BoCongThuongBadge company={companyInfo} className="mt-5" />
     </div>
   );
 }
@@ -182,7 +195,13 @@ function BoCongThuongBadge({
   );
 }
 
-function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
+function FooterAccordions({
+  columns,
+  companyInfo,
+}: {
+  columns: FooterColumn[];
+  companyInfo: CompanyInfo;
+}) {
   const { locale } = useLocale();
   const [open, setOpen] = useState<string | null>(null);
 
@@ -192,6 +211,7 @@ function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
         const title = resolveThemeTitle(locale, col);
         const key = `${col.title}-${title}`;
         const isOpen = open === key;
+        const showBadge = isAboutCardonColumn(col);
         return (
           <div key={key} className="border-b border-white/10">
             <button
@@ -218,18 +238,21 @@ function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
               </svg>
             </button>
             {isOpen ? (
-              <ul className="space-y-2.5 pb-4 text-sm">
-                {col.links.map((link) => {
-                  const label = presentFooterLink(locale, link);
-                  return (
-                    <li key={`${col.title}-${link.href}-${link.label}`}>
-                      <FooterHref href={link.href} className={footerLinkClass}>
-                        {label}
-                      </FooterHref>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="pb-4">
+                <ul className="space-y-2.5 text-sm">
+                  {col.links.map((link) => {
+                    const label = presentFooterLink(locale, link);
+                    return (
+                      <li key={`${col.title}-${link.href}-${link.label}`}>
+                        <FooterHref href={link.href} className={footerLinkClass}>
+                          {label}
+                        </FooterHref>
+                      </li>
+                    );
+                  })}
+                </ul>
+                {showBadge ? <BoCongThuongBadge company={companyInfo} className="mt-5" /> : null}
+              </div>
             ) : null}
           </div>
         );
@@ -336,6 +359,8 @@ export function Footer() {
 
   const brandColumn = footerColumns[0];
   const linkColumns = footerColumns.slice(1);
+  const aboutLinkIndex = linkColumns.findIndex(isAboutCardonColumn);
+  const boCongThuongColumnIndex = aboutLinkIndex >= 0 ? aboutLinkIndex : 0;
 
   useEffect(() => {
     console.log(`WEB_BUILD_VERSION=${WEB_BUILD_VERSION}`);
@@ -365,10 +390,10 @@ export function Footer() {
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
-                <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
+                <BrandColumn col={brandColumn} logoSrc={homeLogo} />
               </div>
             ) : null}
-            <FooterAccordions columns={linkColumns} />
+            <FooterAccordions columns={linkColumns} companyInfo={companyInfo} />
           </div>
 
           {/* Desktop: multi-column grid */}
@@ -382,12 +407,14 @@ export function Footer() {
                   : 'lg:grid-cols-2',
             )}
           >
-            {brandColumn ? (
-              <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
-            ) : null}
+            {brandColumn ? <BrandColumn col={brandColumn} logoSrc={homeLogo} /> : null}
             {linkColumns.map((col, index) => (
               <div key={`${col.title}-${index}`} className="min-w-0">
-                <FooterColumnLinks col={col} />
+                <FooterColumnLinks
+                  col={col}
+                  companyInfo={companyInfo}
+                  showBoCongThuong={index === boCongThuongColumnIndex}
+                />
               </div>
             ))}
           </div>
