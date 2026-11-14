@@ -92,10 +92,11 @@ const ACTION_ICON: Record<SpeedDialActionId, () => ReactElement> = {
   messenger: IconMessenger,
 };
 
+/** Brand colors for icon + label (đỏ đô / Zalo / Facebook). */
 const ACTION_TONE: Record<SpeedDialActionId, string> = {
-  hotline: 'text-cardon-blue',
-  zalo: 'text-[#0068ff]',
-  messenger: 'text-[#1877f2]',
+  hotline: 'text-[#8B1A2B]',
+  zalo: 'text-[#0068FF]',
+  messenger: 'text-[#1877F2]',
 };
 
 function SpeedDialActionButton({
@@ -122,7 +123,7 @@ function SpeedDialActionButton({
       title={label}
       onClick={onNavigate}
       className={cn(
-        'inline-flex min-h-10 items-center gap-2 rounded-full border border-cardon-border bg-white py-2 pl-2.5 pr-3 text-[13px] font-semibold text-cardon-navy shadow-card transition duration-200 ease-out',
+        'inline-flex min-h-10 items-center gap-2 rounded-full border border-cardon-border bg-white py-2 pl-2.5 pr-3 text-[13px] font-semibold shadow-card transition duration-200 ease-out',
         'hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cardon-blue',
         open
           ? 'pointer-events-auto translate-y-0 scale-100 opacity-100'
@@ -132,7 +133,7 @@ function SpeedDialActionButton({
       style={{ transitionDelay: open ? `${index * 45}ms` : '0ms' }}
     >
       <Icon />
-      <span className="text-cardon-navy">{label}</span>
+      <span>{label}</span>
     </a>
   );
 }

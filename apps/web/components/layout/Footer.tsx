@@ -96,57 +96,68 @@ function FooterColumnLinks({
         })}
       </ul>
       {showBoCongThuong && companyInfo ? (
-        <BoCongThuongBadge company={companyInfo} className="mt-[35px]" />
+        <BoCongThuongBadge company={companyInfo} variant="desktop" className="mt-[35px]" />
       ) : null}
     </div>
+  );
+}
+
+function FooterBrandLogo({ logoSrc }: { logoSrc?: string | null }) {
+  if (!logoSrc) {
+    return <p className="text-lg font-semibold text-white">{SITE_NAME}</p>;
+  }
+  const optimized = optimizerImageSrc(logoSrc) ?? logoSrc;
+  return (
+    <Link
+      href="/"
+      className="relative inline-block h-8 w-[min(180px,48vw)] shrink-0 sm:h-9 sm:w-[200px]"
+    >
+      {isOptimizableImageSrc(optimized) ? (
+        <Image
+          src={optimized}
+          alt="CardOn.vn"
+          fill
+          sizes="(max-width: 640px) 180px, 200px"
+          quality={60}
+          className="object-contain object-left"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- remote non-optimizer logo
+        <img
+          src={logoSrc}
+          alt="CardOn.vn"
+          width={200}
+          height={36}
+          className="h-full w-full object-contain object-left"
+        />
+      )}
+    </Link>
   );
 }
 
 function BrandColumn({
   col,
   logoSrc,
+  logoAccessory,
 }: {
   col: FooterColumn;
   logoSrc?: string | null;
+  /** Optional node rendered on the same row as the logo (mobile BCT badge). */
+  logoAccessory?: ReactNode;
 }) {
   const { locale } = useLocale();
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
   return (
     <div className="min-w-0">
-      {logoSrc ? (
-        <Link
-          href="/"
-          className="relative mb-4 inline-block h-8 w-[min(180px,48vw)] sm:h-9 sm:w-[200px]"
-        >
-          {(() => {
-            const optimized = optimizerImageSrc(logoSrc) ?? logoSrc;
-            if (isOptimizableImageSrc(optimized)) {
-              return (
-                <Image
-                  src={optimized}
-                  alt="CardOn.vn"
-                  fill
-                  sizes="(max-width: 640px) 180px, 200px"
-                  quality={60}
-                  className="object-contain object-left"
-                />
-              );
-            }
-            return (
-              // eslint-disable-next-line @next/next/no-img-element -- remote non-optimizer logo
-              <img
-                src={logoSrc}
-                alt="CardOn.vn"
-                width={200}
-                height={36}
-                className="h-full w-full object-contain object-left"
-              />
-            );
-          })()}
-        </Link>
-      ) : (
-        <p className="mb-3 text-lg font-semibold text-white">{SITE_NAME}</p>
-      )}
+      <div
+        className={cn(
+          'mb-4',
+          logoAccessory ? 'flex items-center justify-between gap-3' : undefined,
+        )}
+      >
+        <FooterBrandLogo logoSrc={logoSrc} />
+        {logoAccessory}
+      </div>
       {description ? (
         <p className="max-w-md text-sm leading-relaxed text-white/70">{description}</p>
       ) : null}
@@ -175,9 +186,12 @@ const BCT_BADGE_VISIBLE_W = BCT_BADGE_NATIVE_W - BCT_BADGE_CROP_LEFT;
 function BoCongThuongBadge({
   company,
   className,
+  variant = 'desktop',
 }: {
   company: CompanyInfo;
   className?: string;
+  /** desktop: fixed max width; mobile: match footer logo height (h-8). */
+  variant?: 'desktop' | 'mobile';
 }) {
   const { locale } = useLocale();
   const badge = resolveBoCongThuongBadge(company, locale);
@@ -189,9 +203,11 @@ function BoCongThuongBadge({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        // Clip left PNG pad only; size via height so the seal stays circular (never set both w+h)
-        // Slightly smaller than native crop width; callers add top offset
-        'relative block w-full max-w-[186px] overflow-hidden',
+        // Clip left PNG pad; size by one axis so aspect stays true (no stretch)
+        'relative block overflow-hidden',
+        variant === 'mobile'
+          ? 'h-8 w-auto shrink-0 sm:h-9'
+          : 'w-full max-w-[176px]',
         className,
       )}
       style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
@@ -213,13 +229,7 @@ function BoCongThuongBadge({
   );
 }
 
-function FooterAccordions({
-  columns,
-  companyInfo,
-}: {
-  columns: FooterColumn[];
-  companyInfo: CompanyInfo;
-}) {
+function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
   const { locale } = useLocale();
   const [open, setOpen] = useState<string | null>(null);
 
@@ -229,7 +239,6 @@ function FooterAccordions({
         const title = resolveThemeTitle(locale, col);
         const key = `${col.title}-${title}`;
         const isOpen = open === key;
-        const showBadge = isAboutCardonColumn(col);
         return (
           <div key={key} className="border-b border-white/10">
             <button
@@ -269,7 +278,6 @@ function FooterAccordions({
                     );
                   })}
                 </ul>
-                {showBadge ? <BoCongThuongBadge company={companyInfo} className="mt-[35px]" /> : null}
               </div>
             ) : null}
           </div>
@@ -403,14 +411,18 @@ export function Footer() {
 
       <div className="border-t border-white/10 bg-[#111827]">
         <div className="site-container py-10 lg:py-12">
-          {/* Mobile: brand + Keyon-style accordion */}
+          {/* Mobile: brand + BCT beside logo + Keyon-style accordion */}
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
-                <BrandColumn col={brandColumn} logoSrc={logoFooter} />
+                <BrandColumn
+                  col={brandColumn}
+                  logoSrc={logoFooter}
+                  logoAccessory={<BoCongThuongBadge company={companyInfo} variant="mobile" />}
+                />
               </div>
             ) : null}
-            <FooterAccordions columns={linkColumns} companyInfo={companyInfo} />
+            <FooterAccordions columns={linkColumns} />
           </div>
 
           {/* Desktop: multi-column grid */}
