@@ -12,7 +12,6 @@ import {
   type FooterColumn,
 } from '@/lib/footer-config';
 import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
-import { backgroundLayer } from '@/lib/home-backgrounds';
 import { SITE_NAME, cn } from '@/lib/utils';
 import { stripLocalePrefix } from '@/lib/i18n/locale';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
@@ -149,7 +148,7 @@ function BrandColumn({
           );
         })}
       </ul>
-      <BoCongThuongBadge company={companyInfo} className="mt-4 lg:hidden" />
+      <BoCongThuongBadge company={companyInfo} className="mt-5" />
     </div>
   );
 }
@@ -170,14 +169,14 @@ function BoCongThuongBadge({
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn('inline-block max-w-[148px] opacity-90 transition hover:opacity-100', className)}
+      className={cn('inline-block max-w-[180px] opacity-90 transition hover:opacity-100', className)}
       aria-label={badge.alt}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL; keep intrinsic aspect ratio */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        className="h-11 w-auto max-w-[168px] object-contain object-left sm:h-12 sm:max-w-[180px]"
+        className="h-auto w-auto max-w-full object-contain object-left"
       />
     </a>
   );
@@ -255,16 +254,15 @@ function FooterBottomBar({
     '';
   const fanpage = contactChannels.find((c) => c.key === 'fanpage' && c.enabled);
   const zalo = contactChannels.find((c) => c.key === 'zalo' && c.enabled);
-  const badge = resolveBoCongThuongBadge(companyInfo);
 
   return (
     <div className="border-t border-white/10">
-      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-6">
         <span className="shrink-0 text-xs leading-none text-white/50">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </span>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-center">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-end">
           <nav
             aria-label="Liên hệ nhanh"
             className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5"
@@ -319,14 +317,6 @@ function FooterBottomBar({
             </div>
           )}
         </div>
-
-        {badge ? (
-          <div className="hidden flex-wrap items-center gap-3 lg:flex lg:justify-end" aria-label="Chứng nhận">
-            <BoCongThuongBadge company={companyInfo} />
-          </div>
-        ) : (
-          <span className="hidden lg:block" aria-hidden />
-        )}
       </div>
     </div>
   );
@@ -336,13 +326,9 @@ export function Footer() {
   const pathname = usePathname();
   const t = useT();
   const { locale } = useLocale();
-  const { footerColumns, companyInfo, logoDesktop, homeBackgrounds, contactChannels } =
-    useThemeSettings();
+  const { footerColumns, companyInfo, logoDesktop, contactChannels } = useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
   const homeLogo = home ? resolveAssetUrl(logoDesktop) : null;
-  const footerArt = home
-    ? backgroundLayer(homeBackgrounds.siteFooterBg, 'center bottom', '100% auto')
-    : undefined;
   const copyrightName =
     locale === 'en' && companyInfo.companyNameEn?.trim()
       ? companyInfo.companyNameEn.trim()
@@ -356,10 +342,7 @@ export function Footer() {
   }, []);
 
   return (
-    <footer
-      className={`mt-auto border-t border-cardon-border pb-20 text-white md:pb-0 ${home ? 'bg-[#021a4a]' : 'bg-cardon-navy'}`}
-      style={footerArt}
-    >
+    <footer className="mt-auto border-t border-cardon-border bg-cardon-navy pb-20 text-white md:pb-0">
       {home ? null : (
         <div className="site-container grid gap-6 py-8 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST_ITEMS.map((item) => (
@@ -376,7 +359,7 @@ export function Footer() {
         </div>
       )}
 
-      <div className={`border-t border-white/10 ${home ? 'bg-transparent' : 'bg-[#152d6b]'}`}>
+      <div className="border-t border-white/10 bg-[#152d6b]">
         <div className="site-container py-10 lg:py-12">
           {/* Mobile: brand + Keyon-style accordion */}
           <div className="lg:hidden">
@@ -405,9 +388,6 @@ export function Footer() {
             {linkColumns.map((col, index) => (
               <div key={`${col.title}-${index}`} className="min-w-0">
                 <FooterColumnLinks col={col} />
-                {index === linkColumns.length - 1 ? (
-                  <BoCongThuongBadge company={companyInfo} className="mt-4" />
-                ) : null}
               </div>
             ))}
           </div>
