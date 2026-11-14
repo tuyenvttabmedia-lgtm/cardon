@@ -4,13 +4,13 @@
  */
 .cms-prose {
   --cms-prose-body: #6b7280;
-  --cms-prose-heading: #1e3a8a;
-  --cms-prose-link: #005bea;
+  --cms-prose-heading: #111827;
+  --cms-prose-link: #02603f;
   --cms-prose-border: #e5e7eb;
   --cms-prose-code-bg: #f3f4f6;
   --cms-prose-pre-bg: #0f172a;
   --cms-prose-pre-text: #e2e8f0;
-  --cms-prose-quote-border: #005bea;
+  --cms-prose-quote-border: #02603f;
   --cms-prose-quote-bg: #f8fafc;
 
   max-width: none;
