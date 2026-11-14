@@ -287,6 +287,46 @@ function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
   );
 }
 
+function FooterSocialIcons({
+  fanpageHref,
+  zaloHref,
+  className,
+}: {
+  fanpageHref?: string;
+  zaloHref?: string;
+  className?: string;
+}) {
+  if (!fanpageHref && !zaloHref) return null;
+  return (
+    <div className={cn('flex items-center gap-2', className)} aria-label="Mạng xã hội">
+      {fanpageHref ? (
+        <a
+          href={fanpageHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] transition hover:bg-[#1877F2]/25"
+          aria-label="Facebook"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
+          </svg>
+        </a>
+      ) : null}
+      {zaloHref ? (
+        <a
+          href={zaloHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#0068FF]/40 bg-[#0068FF]/15 text-[10px] font-bold text-[#0068FF] transition hover:bg-[#0068FF]/25"
+          aria-label="Zalo"
+        >
+          Zalo
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 function FooterBottomBar({
   copyrightName,
   companyInfo,
@@ -307,9 +347,10 @@ function FooterBottomBar({
   return (
     <div className="border-t border-white/10">
       <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-6">
-        {/* Mobile: BCT sits under the rule below “Hỗ trợ”, above copyright row */}
-        <div className="flex justify-end lg:hidden">
+        {/* Mobile: BCT left + FB/Zalo beside it, under the rule below “Hỗ trợ” */}
+        <div className="flex items-center justify-start gap-3 lg:hidden">
           <BoCongThuongBadge company={companyInfo} variant="mobile" />
+          <FooterSocialIcons fanpageHref={fanpage?.href} zaloHref={zalo?.href} />
         </div>
 
         <span className="shrink-0 text-xs leading-none text-white/50">
@@ -342,34 +383,11 @@ function FooterBottomBar({
             </Link>
           </nav>
 
-          {(fanpage?.href || zalo?.href) && (
-            <div className="flex items-center gap-2" aria-label="Mạng xã hội">
-              {fanpage?.href ? (
-                <a
-                  href={fanpage.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] transition hover:bg-[#1877F2]/25"
-                  aria-label="Facebook"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
-                  </svg>
-                </a>
-              ) : null}
-              {zalo?.href ? (
-                <a
-                  href={zalo.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#0068FF]/40 bg-[#0068FF]/15 text-[10px] font-bold text-[#0068FF] transition hover:bg-[#0068FF]/25"
-                  aria-label="Zalo"
-                >
-                  Zalo
-                </a>
-              ) : null}
-            </div>
-          )}
+          <FooterSocialIcons
+            fanpageHref={fanpage?.href}
+            zaloHref={zalo?.href}
+            className="hidden lg:flex"
+          />
         </div>
       </div>
     </div>
