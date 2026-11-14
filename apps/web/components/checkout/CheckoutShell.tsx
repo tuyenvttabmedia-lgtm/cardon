@@ -733,11 +733,11 @@ function CheckoutShellInner({
 
               {mode !== 'CARD' && (
                 <div>
-                  <label className="text-sm font-semibold text-cardon-navy">
-                    {mode === 'TOPUP' ? t('checkout.phone') : t('checkout.phoneShort')}
-                  </label>
+                  <StepTitle
+                    n={1}
+                    title={mode === 'TOPUP' ? t('checkout.phone') : t('checkout.phoneShort')}
+                  />
                   <Input
-                    className="mt-2"
                     type="tel"
                     value={phone}
                     onChange={(e) => {
@@ -754,8 +754,8 @@ function CheckoutShellInner({
 
               {mode !== 'CARD' && (
                 <div>
-                  <p className="text-sm font-semibold text-cardon-navy">Chọn nhà mạng</p>
-                  <CatalogSelectorGrid className="mt-3">
+                  <StepTitle n={2} title={t('checkout.chooseCarrier')} />
+                  <CatalogSelectorGrid>
                     {carriers.map((c) => {
                       const selected = carrierId === c.id;
                       const available = telcoProducts.some((p) => matchCarrier(p, c.id));
@@ -779,12 +779,8 @@ function CheckoutShellInner({
 
               <section>
                 {mode === 'CARD' && <StepTitle n={2} title={t('product.denom')} />}
-                {mode === 'TOPUP' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.denom')}</p>
-                )}
-                {mode === 'DATA' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.dataPlan')}</p>
-                )}
+                {mode === 'TOPUP' && <StepTitle n={3} title={t('product.denom')} />}
+                {mode === 'DATA' && <StepTitle n={3} title={t('product.dataPlan')} />}
 
                 {variantOptions.length === 0 ? (
                   <p className="text-sm text-cardon-gray">

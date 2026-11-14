@@ -47,23 +47,12 @@ export function ArticleBuySuggestions() {
         </div>
       ) : null}
 
-      <ul className="mt-3 space-y-1.5 border-t border-cardon-border pt-3 text-sm">
-        <li>
-          <Link href={CARD_GAME_PATH} className="font-semibold text-cardon-blue hover:underline">
-            {t('nav.game')} →
-          </Link>
-        </li>
-        <li>
-          <Link href={CARD_PHONE_PATH} className="font-semibold text-cardon-blue hover:underline">
-            {t('nav.phone')} →
-          </Link>
-        </li>
-        <li>
-          <Link href="/nap-cuoc" className="font-semibold text-cardon-blue hover:underline">
-            {t('nav.topup')} →
-          </Link>
-        </li>
-      </ul>
+      <Link
+        href={CARD_GAME_PATH}
+        className="mt-3 flex w-full items-center justify-center rounded-xl bg-cardon-blue px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-cardon-blue/90"
+      >
+        {t('product.buy')}
+      </Link>
     </section>
   );
 }

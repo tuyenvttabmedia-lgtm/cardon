@@ -96,7 +96,7 @@ function FooterColumnLinks({
         })}
       </ul>
       {showBoCongThuong && companyInfo ? (
-        <BoCongThuongBadge company={companyInfo} className="mt-5" />
+        <BoCongThuongBadge company={companyInfo} className="mt-[35px]" />
       ) : null}
     </div>
   );
@@ -190,7 +190,8 @@ function BoCongThuongBadge({
       rel="noopener noreferrer"
       className={cn(
         // Clip left PNG pad only; size via height so the seal stays circular (never set both w+h)
-        'relative block w-full max-w-[216px] overflow-hidden',
+        // Slightly smaller than native crop width; callers add top offset
+        'relative block w-full max-w-[186px] overflow-hidden',
         className,
       )}
       style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
@@ -268,7 +269,7 @@ function FooterAccordions({
                     );
                   })}
                 </ul>
-                {showBadge ? <BoCongThuongBadge company={companyInfo} className="mt-5" /> : null}
+                {showBadge ? <BoCongThuongBadge company={companyInfo} className="mt-[35px]" /> : null}
               </div>
             ) : null}
           </div>

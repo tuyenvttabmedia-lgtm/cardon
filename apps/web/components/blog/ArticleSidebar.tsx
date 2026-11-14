@@ -41,9 +41,9 @@ export function ArticleSidebar({
 }) {
   return (
     <aside className="space-y-4 lg:sticky lg:top-[88px]">
-      <ArticleBuySuggestions />
       <PostLinks title="Bài viết liên quan" posts={related.slice(0, 5)} basePath={blogBasePath} />
       <PostLinks title="Bài viết mới" posts={latest.slice(0, 5)} basePath={blogBasePath} />
+      <ArticleBuySuggestions />
     </aside>
   );
 }

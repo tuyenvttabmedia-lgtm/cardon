@@ -11,6 +11,10 @@ const inter = Inter({ subsets: ['latin', 'vietnamese'], variable: '--font-geist-
 export const metadata: Metadata = {
   title: 'CardOn Quản trị',
   description: 'Bảng điều khiển quản trị CardOn.vn',
+  icons: {
+    icon: '/images/cardon-icon.png',
+    apple: '/images/cardon-icon.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
