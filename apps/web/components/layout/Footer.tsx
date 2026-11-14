@@ -366,9 +366,10 @@ export function Footer() {
   const pathname = usePathname();
   const t = useT();
   const { locale } = useLocale();
-  const { footerColumns, companyInfo, logoDesktop, contactChannels } = useThemeSettings();
+  const { footerColumns, companyInfo, contactChannels } = useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
-  const homeLogo = home ? resolveAssetUrl(logoDesktop) : null;
+  // Wordmark with light "Card" + green "On" for the dark brand footer surface.
+  const homeLogo = home ? '/images/cardon-logo-on-dark.png' : null;
   const copyrightName =
     locale === 'en' && companyInfo.companyNameEn?.trim()
       ? companyInfo.companyNameEn.trim()

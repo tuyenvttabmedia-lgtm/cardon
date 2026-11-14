@@ -250,7 +250,7 @@ function StatusBadge({ children, tone }: { children: React.ReactNode; tone: 'blu
     <span
       className={cn(
         'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-        tone === 'blue' ? 'bg-blue-50 text-cardon-blue' : 'bg-cardon-light text-cardon-gray',
+        tone === 'blue' ? 'bg-brand-50 text-cardon-blue' : 'bg-cardon-light text-cardon-gray',
       )}
     >
       {children}

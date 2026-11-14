@@ -93,7 +93,7 @@ const ACTION_ICON: Record<SpeedDialActionId, () => ReactElement> = {
 };
 
 const ACTION_TONE: Record<SpeedDialActionId, string> = {
-  hotline: 'text-cardon-orange',
+  hotline: 'text-cardon-blue',
   zalo: 'text-[#0068ff]',
   messenger: 'text-[#1877f2]',
 };
@@ -217,7 +217,7 @@ export function ContactSpeedDial() {
         aria-controls={listId}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          'grid h-[52px] w-[52px] place-items-center rounded-full bg-cardon-orange text-white shadow-[0_12px_28px_rgba(234,88,12,0.35)] transition',
+          'grid h-[52px] w-[52px] place-items-center rounded-full bg-cardon-blue text-white shadow-[0_12px_28px_rgba(7,155,73,0.35)] transition',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cardon-blue',
           open ? 'scale-95' : 'speed-dial-nudge hover:scale-105',
         )}

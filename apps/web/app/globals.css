@@ -213,7 +213,7 @@ body {
   }
 
   .btn-checkout {
-    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cardon-blue to-cardon-orange px-6 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 disabled:opacity-50;
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cardon-blue to-[#056B33] px-6 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 disabled:opacity-50;
   }
 
   .step-badge {

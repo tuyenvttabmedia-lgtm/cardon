@@ -118,7 +118,7 @@ export function ContactPageClient({
                   href={channel.href}
                   target={channel.href.startsWith('http') ? '_blank' : undefined}
                   rel={channel.href.startsWith('http') ? 'noreferrer' : undefined}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-cardon-border bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-cardon-navy transition hover:border-cardon-blue hover:bg-blue-50 hover:text-cardon-blue"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-cardon-border bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-cardon-navy transition hover:border-cardon-blue hover:bg-brand-50 hover:text-cardon-blue"
                 >
                   <span aria-hidden>{CONTACT_CHANNEL_META[channel.key].icon}</span>
                   {channel.key === 'hotline'
@@ -286,7 +286,7 @@ function ContactChannelItem({ channel }: { channel: ContactChannel }) {
 
   return (
     <li className="flex gap-3">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-lg">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-lg">
         {meta.icon}
       </span>
       <div className="min-w-0">

@@ -130,7 +130,7 @@ export function NotificationBell({ className }: { className?: string }) {
                   key={n.id}
                   className={cn(
                     'border-b px-4 py-3 text-sm last:border-b-0',
-                    !n.readAt && 'bg-blue-50/50',
+                    !n.readAt && 'bg-brand-50/50',
                   )}
                 >
                   {href ? (

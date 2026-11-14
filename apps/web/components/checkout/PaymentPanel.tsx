@@ -68,8 +68,8 @@ function CompactPaymentMethodCard({
       className={cn(
         'relative flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-all duration-200',
         selected
-          ? 'border-cardon-blue bg-blue-50'
-          : 'border-gray-200 bg-white hover:border-cardon-blue/40 hover:bg-blue-50/40',
+          ? 'border-cardon-blue bg-brand-50'
+          : 'border-gray-200 bg-white hover:border-cardon-blue/40 hover:bg-brand-50/40',
       )}
     >
       {selected && (

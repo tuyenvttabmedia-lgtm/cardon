@@ -237,7 +237,7 @@ export default function AccountSupportPage() {
                       'rounded-xl px-3 py-2 text-sm',
                       m.authorType === 'STAFF'
                         ? 'ml-4 bg-cardon-light text-cardon-navy'
-                        : 'mr-4 bg-blue-50 text-blue-900',
+                        : 'mr-4 bg-brand-50 text-cardon-navy',
                     )}
                   >
                     <p className="text-[10px] font-semibold uppercase opacity-70">

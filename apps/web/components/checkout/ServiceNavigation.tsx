@@ -76,10 +76,10 @@ const itemBaseClass =
   'flex w-full min-h-[52px] items-start gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all duration-200 sm:min-h-[48px] sm:items-center sm:justify-center sm:gap-1 sm:rounded-full sm:px-4 sm:py-2.5 sm:text-center';
 
 const itemActiveClass =
-  'bg-gradient-to-r from-cardon-blue to-blue-600 text-white shadow-md shadow-blue-200/60 sm:scale-[1.02]';
+  'bg-gradient-to-r from-cardon-blue to-[#056B33] text-white shadow-md shadow-emerald-200/60 sm:scale-[1.02]';
 
 const itemIdleClass =
-  'border border-gray-100 bg-white text-cardon-navy hover:border-cardon-blue/30 hover:bg-blue-50 sm:border-0';
+  'border border-gray-100 bg-white text-cardon-navy hover:border-cardon-blue/30 hover:bg-brand-50 sm:border-0';
 
 const MOBILE_GRID_COLS: Record<number, string> = {
   1: 'grid-cols-1',

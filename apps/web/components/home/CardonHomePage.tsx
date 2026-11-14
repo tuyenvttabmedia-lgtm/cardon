@@ -201,7 +201,7 @@ export function CardonHomePage({
           image={homeBackgrounds.homeCategoryPhoneCardBg}
           position="right center"
           size="auto 100%"
-          wash="#e7f3ff"
+          wash="#ecfdf3"
         />
         <CategoryCard
           title={t('nav.topup')}
@@ -359,7 +359,7 @@ function SectionHeading({
 
 const CATEGORY_TONE = {
   violet: 'bg-[#f0e8ff] text-[#7c3aed]',
-  sky: 'bg-[#e7f3ff] text-cardon-blue',
+  sky: 'bg-[#ecfdf3] text-cardon-blue',
   emerald: 'bg-[#e5f8f0] text-cardon-green',
   amber: 'bg-[#fff4ea] text-[#d97706]',
 } as const;

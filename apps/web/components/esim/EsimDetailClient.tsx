@@ -473,7 +473,7 @@ export function EsimDetailClient({
                     }
                     className={`flex h-full flex-col rounded-xl border-2 bg-white p-3 transition-all duration-200 sm:p-4 ${
                       active
-                        ? 'scale-[1.01] border-cardon-blue bg-blue-50 shadow-sm'
+                        ? 'scale-[1.01] border-cardon-blue bg-brand-50 shadow-sm'
                         : 'border-gray-100 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md'
                     }`}
                   >

@@ -485,7 +485,7 @@ export default function CheckoutPageClient() {
                       key={key}
                       type="button"
                       onClick={() => setSelectedOptionKey(key)}
-                      className={`w-full rounded-xl border px-4 py-3 text-left ${selected ? 'border-cardon-blue bg-blue-50' : 'border-cardon-border bg-white'}`}
+                      className={`w-full rounded-xl border px-4 py-3 text-left ${selected ? 'border-cardon-blue bg-brand-50' : 'border-cardon-border bg-white'}`}
                     >
                       <span className="block text-sm font-semibold text-cardon-navy">{title}</span>
                       <span className="mt-1 block text-base font-bold text-cardon-navy">{esimPayLabel(locale, option)}</span>

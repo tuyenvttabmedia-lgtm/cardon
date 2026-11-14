@@ -10,11 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         cardon: {
-          navy: '#1E3A8A',
-          primary: '#1E3A8A',
-          blue: '#005BEA',
+          // Brand primary from logo green (#079B49); navy = deep brand for surfaces/type.
+          navy: '#055A2C',
+          primary: '#079B49',
+          blue: '#079B49',
           orange: '#FF7A00',
-          green: '#00B889',
+          green: '#079B49',
           bg: '#F5F7FA',
           dark: '#0F172A',
           gray: '#6B7280',
@@ -23,12 +24,12 @@ const config: Config = {
           danger: '#EF4444',
         },
         brand: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          500: '#FF7A00',
-          600: '#FF7A00',
-          700: '#1E3A8A',
-          900: '#1E3A8A',
+          50: '#ecfdf3',
+          100: '#d1fae0',
+          500: '#079B49',
+          600: '#068a41',
+          700: '#055A2C',
+          900: '#043f1f',
         },
       },
       fontFamily: {

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 const INTERACTION =
   'transition-all duration-200 hover:-translate-y-px hover:shadow-md disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none';
 
-const SELECTED = 'border-cardon-blue bg-blue-50 scale-[1.01] shadow-sm';
+const SELECTED = 'border-cardon-blue bg-brand-50 scale-[1.01] shadow-sm';
 const UNSELECTED = 'border-gray-100 bg-white hover:border-cardon-blue/40';
 
 function SelectedCheckBadge() {
