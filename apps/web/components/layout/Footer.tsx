@@ -189,24 +189,22 @@ function BoCongThuongBadge({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        // Crop transparent left padding at the PNG's native ratio so blue badge flush-left with links
+        // Clip left PNG pad only; size via height so the seal stays circular (never set both w+h)
         'relative block w-full max-w-[216px] overflow-hidden',
         className,
       )}
       style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
       aria-label={badge.alt}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- CMS PNG; crop padding without soft CSS scale */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- CMS PNG; preserve native aspect */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
         width={BCT_BADGE_NATIVE_W}
         height={BCT_BADGE_NATIVE_H}
         decoding="async"
-        className="absolute top-0 max-w-none"
+        className="absolute top-0 h-full w-auto max-w-none"
         style={{
-          height: '100%',
-          width: `${(BCT_BADGE_NATIVE_W / BCT_BADGE_VISIBLE_W) * 100}%`,
           left: `${(-BCT_BADGE_CROP_LEFT / BCT_BADGE_VISIBLE_W) * 100}%`,
         }}
       />
