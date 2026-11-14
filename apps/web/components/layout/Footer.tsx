@@ -182,14 +182,18 @@ function BoCongThuongBadge({
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn('inline-block max-w-[180px] opacity-90 transition hover:opacity-100', className)}
+      className={cn(
+        // Crop transparent left padding in the CMS PNG so the blue badge flush-left with column links
+        'block w-[min(100%,169px)] max-w-full overflow-hidden opacity-90 transition hover:opacity-100',
+        className,
+      )}
       aria-label={badge.alt}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL; keep intrinsic aspect ratio */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        className="h-auto w-auto max-w-full object-contain object-left"
+        className="block h-auto w-[180px] max-w-none -ml-2"
       />
     </a>
   );
