@@ -385,7 +385,7 @@ export function Footer() {
   }, []);
 
   return (
-    <footer className="mt-auto border-t border-cardon-border bg-cardon-navy pb-20 text-white md:pb-0">
+    <footer className="mt-auto border-t border-cardon-border bg-[#0B0F0C] pb-20 text-white md:pb-0">
       {home ? null : (
         <div className="site-container grid gap-6 py-8 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST_ITEMS.map((item) => (
@@ -402,7 +402,7 @@ export function Footer() {
         </div>
       )}
 
-      <div className="border-t border-white/10 bg-[#152d6b]">
+      <div className="border-t border-white/10 bg-[#111827]">
         <div className="site-container py-10 lg:py-12">
           {/* Mobile: brand + Keyon-style accordion */}
           <div className="lg:hidden">
