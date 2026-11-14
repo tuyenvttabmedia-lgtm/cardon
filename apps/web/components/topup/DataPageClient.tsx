@@ -48,7 +48,7 @@ export function DataPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[] 
         limit={10}
         showViewAll
         viewAllHref="/tro-giup?position=data"
-        className="mt-6 pb-28 md:pb-0"
+        className="mt-6"
         initialItems={initialFaqs}
       />
     </>

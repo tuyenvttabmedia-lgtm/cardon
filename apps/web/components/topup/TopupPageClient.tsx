@@ -40,7 +40,7 @@ export function TopupPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[]
         limit={10}
         showViewAll
         viewAllHref="/tro-giup?position=topup"
-        className="mt-6 pb-28 md:pb-0"
+        className="mt-6"
         initialItems={initialFaqs}
       />
     </>

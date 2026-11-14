@@ -38,7 +38,7 @@ export function MobileMenu({
         aria-label={t('nav.closeMenu')}
         onClick={onClose}
       />
-      <div className="fixed right-3 top-16 z-[60] w-max max-w-[calc(100%-1.5rem)] lg:hidden">
+      <div className="fixed right-3 top-16 z-[60] w-[50vw] max-w-[calc(100%-1.5rem)] lg:hidden">
         <div className="overflow-hidden rounded-xl border border-cardon-border bg-white shadow-xl">
           <nav className="flex flex-col py-1">
             {items.map((item) => (
@@ -46,7 +46,7 @@ export function MobileMenu({
                 key={`${item.href}-${item.label}`}
                 href={item.href}
                 onClick={onClose}
-                className="whitespace-nowrap px-4 py-2.5 text-sm font-medium text-cardon-navy hover:bg-cardon-light"
+                className="px-4 py-2.5 text-sm font-medium text-cardon-navy hover:bg-cardon-light"
               >
                 {resolveMenuLabel(locale, item)}
               </Link>
