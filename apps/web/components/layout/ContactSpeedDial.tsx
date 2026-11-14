@@ -188,15 +188,15 @@ export function ContactSpeedDial() {
       className={cn(
         'fixed right-4 z-[60] flex flex-col items-end gap-2.5 md:right-8',
         esimDetail
-          ? 'bottom-[calc(9.25rem+env(safe-area-inset-bottom))] md:bottom-8'
+          ? 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))] md:bottom-8'
           : pathname === '/esim'
-            ? 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-6 lg:bottom-8'
+            ? 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-6 lg:bottom-8'
             : purchaseSurface
-              ? /* Sit just above sticky pay bar (bottom 4.25rem + ~3.25rem bar + gap). */
-                'bottom-[calc(8.25rem+env(safe-area-inset-bottom))] lg:bottom-8'
+              ? /* Sit just above sticky pay bar (bottom-16 nav + ~3.25rem bar + gap). */
+                'bottom-[calc(8.5rem+env(safe-area-inset-bottom))] lg:bottom-8'
               : pathname === '/'
-                ? 'bottom-[calc(6.75rem+env(safe-area-inset-bottom))] md:bottom-8'
-                : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] md:bottom-8',
+                ? 'bottom-[calc(7rem+env(safe-area-inset-bottom))] md:bottom-8'
+                : 'bottom-[calc(5.75rem+env(safe-area-inset-bottom))] md:bottom-8',
       )}
     >
       <div id={listId} className="flex flex-col items-end gap-2" aria-hidden={!open}>

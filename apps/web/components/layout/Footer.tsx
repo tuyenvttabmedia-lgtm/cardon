@@ -307,6 +307,11 @@ function FooterBottomBar({
   return (
     <div className="border-t border-white/10">
       <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-6">
+        {/* Mobile: BCT sits under the rule below “Hỗ trợ”, above copyright row */}
+        <div className="flex justify-end lg:hidden">
+          <BoCongThuongBadge company={companyInfo} variant="mobile" />
+        </div>
+
         <span className="shrink-0 text-xs leading-none text-white/50">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </span>
@@ -344,7 +349,7 @@ function FooterBottomBar({
                   href={fanpage.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] transition hover:bg-[#1877F2]/25"
                   aria-label="Facebook"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -357,7 +362,7 @@ function FooterBottomBar({
                   href={zalo.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[10px] font-bold text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#0068FF]/40 bg-[#0068FF]/15 text-[10px] font-bold text-[#0068FF] transition hover:bg-[#0068FF]/25"
                   aria-label="Zalo"
                 >
                   Zalo
@@ -411,15 +416,11 @@ export function Footer() {
 
       <div className="border-t border-white/10 bg-[#111827]">
         <div className="site-container py-10 lg:py-12">
-          {/* Mobile: brand + BCT beside logo + Keyon-style accordion */}
+          {/* Mobile: brand + Keyon-style accordion (BCT is in FooterBottomBar) */}
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
-                <BrandColumn
-                  col={brandColumn}
-                  logoSrc={logoFooter}
-                  logoAccessory={<BoCongThuongBadge company={companyInfo} variant="mobile" />}
-                />
+                <BrandColumn col={brandColumn} logoSrc={logoFooter} />
               </div>
             ) : null}
             <FooterAccordions columns={linkColumns} />

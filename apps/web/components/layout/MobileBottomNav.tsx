@@ -35,26 +35,29 @@ function MobileNavItem({
   onClick?: () => void;
 }) {
   const className = cn(
-    'relative flex h-[3.75rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 px-0.5',
+    'relative flex h-16 w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 transition-colors',
+    'active:bg-cardon-light/60',
   );
   const content = (
     <>
-      {active && (
-        <span className="absolute top-0 left-1/2 h-[3px] w-6 -translate-x-1/2 rounded-full bg-cardon-blue" />
-      )}
+      {active ? (
+        <span className="absolute top-0 left-1/2 h-[3px] w-7 -translate-x-1/2 rounded-full bg-cardon-blue" />
+      ) : null}
       <span
         aria-hidden
         className={cn(
-          'flex h-[20px] w-[20px] shrink-0 items-center justify-center text-[20px] leading-none',
-          active ? 'text-cardon-blue' : 'text-cardon-gray',
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[22px] leading-none transition',
+          active
+            ? 'bg-cardon-blue/10 text-cardon-blue shadow-sm shadow-cardon-blue/10'
+            : 'text-slate-500 grayscale-[0.35]',
         )}
       >
         {icon}
       </span>
       <span
         className={cn(
-          'w-full max-w-full px-0.5 text-center text-[9px] leading-[1.15] break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden',
-          active ? 'font-semibold text-cardon-blue' : 'font-medium text-cardon-gray',
+          'w-full max-w-full px-0.5 text-center text-[10px] leading-tight break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2] overflow-hidden tracking-tight',
+          active ? 'font-bold text-cardon-blue' : 'font-medium text-slate-500',
         )}
       >
         {label}
@@ -115,7 +118,7 @@ function MobileAccountSheet({
       />
       <div
         ref={ref}
-        className="fixed bottom-[4.5rem] left-3 right-3 z-[56] overflow-hidden rounded-xl border border-cardon-border bg-white shadow-xl md:hidden"
+        className="fixed bottom-[4.75rem] left-3 right-3 z-[56] overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-xl md:hidden"
       >
         {isAuthenticated ? (
           <div className="py-1">
@@ -182,8 +185,15 @@ export function MobileBottomNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-cardon-border bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        <ul className="mx-auto flex h-[3.75rem] max-w-site items-stretch justify-between gap-0 px-0.5">
+      <nav
+        className={cn(
+          'fixed bottom-0 left-0 right-0 z-50 md:hidden',
+          'border-t border-slate-200/90 bg-white',
+          'pb-[env(safe-area-inset-bottom)]',
+          'shadow-[0_-10px_28px_rgba(15,23,42,0.08)]',
+        )}
+      >
+        <ul className="mx-auto flex h-16 max-w-site items-stretch justify-between gap-0 px-1">
           {visible.map((item) => {
             const active = navItemActive(pathname, item.url);
             const isAccount = isAccountItem(item.url, item.requireLogin);
