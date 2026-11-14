@@ -366,10 +366,8 @@ export function Footer() {
   const pathname = usePathname();
   const t = useT();
   const { locale } = useLocale();
-  const { footerColumns, companyInfo, contactChannels } = useThemeSettings();
+  const { footerColumns, companyInfo, contactChannels, logoFooter } = useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
-  // Wordmark with light "Card" + green "On" for the dark brand footer surface.
-  const homeLogo = home ? '/images/cardon-logo-on-dark.png' : null;
   const copyrightName =
     locale === 'en' && companyInfo.companyNameEn?.trim()
       ? companyInfo.companyNameEn.trim()
@@ -408,7 +406,7 @@ export function Footer() {
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
-                <BrandColumn col={brandColumn} logoSrc={homeLogo} />
+                <BrandColumn col={brandColumn} logoSrc={logoFooter} />
               </div>
             ) : null}
             <FooterAccordions columns={linkColumns} companyInfo={companyInfo} />
@@ -425,7 +423,7 @@ export function Footer() {
                   : 'lg:grid-cols-2',
             )}
           >
-            {brandColumn ? <BrandColumn col={brandColumn} logoSrc={homeLogo} /> : null}
+            {brandColumn ? <BrandColumn col={brandColumn} logoSrc={logoFooter} /> : null}
             {linkColumns.map((col, index) => (
               <div key={`${col.title}-${index}`} className="min-w-0">
                 <FooterColumnLinks

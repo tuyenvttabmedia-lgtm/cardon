@@ -13,6 +13,7 @@ export const CMS_SEO_SETTING_KEYS = {
 export const CMS_THEME_SETTING_KEYS = {
   LOGO_DESKTOP: 'cms.theme.logo_desktop',
   LOGO_MOBILE: 'cms.theme.logo_mobile',
+  LOGO_FOOTER: 'cms.theme.logo_footer',
   FAVICON: 'cms.theme.favicon',
   OG_DEFAULT_IMAGE: 'cms.theme.og_default_image',
   HEADER_MENU: 'cms.theme.header_menu',

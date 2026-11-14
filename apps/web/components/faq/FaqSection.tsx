@@ -16,6 +16,26 @@ function mapItem(row: PublicFaqItem): FaqItem {
   };
 }
 
+function FaqHeading({
+  heading,
+  icon,
+  trailing,
+}: {
+  heading: string;
+  icon?: ReactNode;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="flex items-center gap-2.5 text-xl font-bold text-cardon-navy md:text-2xl">
+        {icon ? <span className="inline-flex shrink-0 text-cardon-blue">{icon}</span> : null}
+        {heading}
+      </h2>
+      {trailing}
+    </div>
+  );
+}
+
 export function FaqSection({
   featured,
   position,
@@ -78,17 +98,6 @@ export function FaqSection({
   }, [featured, position, limit, initialItems, locale]);
 
   if (!loaded) return null;
-  if (items.length === 0) {
-    if (!emptyText) return null;
-    return (
-      <section className={className}>
-        <h2 className="text-xl font-bold text-cardon-navy">{heading}</h2>
-        <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
-          {emptyText}
-        </p>
-      </section>
-    );
-  }
 
   const viewAll = showViewAll ? (
     <Link href={viewAllHref} className="shrink-0 text-sm font-semibold text-cardon-blue hover:underline">
@@ -96,18 +105,34 @@ export function FaqSection({
     </Link>
   ) : null;
 
+  const externalHeading = Boolean(icon) || viewAllPlacement === 'header';
+
+  if (items.length === 0) {
+    if (!emptyText) return null;
+    return (
+      <section className={className}>
+        {externalHeading ? (
+          <FaqHeading heading={heading} icon={icon} />
+        ) : (
+          <h2 className="text-xl font-bold text-cardon-navy">{heading}</h2>
+        )}
+        <p className="mt-3 rounded-2xl border border-dashed border-cardon-border bg-white p-4 text-sm text-cardon-gray">
+          {emptyText}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <div className={className}>
-      {viewAllPlacement === 'header' ? (
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2.5 text-xl font-bold text-cardon-navy md:text-2xl">
-            {icon ? <span className="inline-flex shrink-0 text-cardon-blue">{icon}</span> : null}
-            {heading}
-          </h2>
-          {viewAll}
-        </div>
+      {externalHeading ? (
+        <FaqHeading
+          heading={heading}
+          icon={icon}
+          trailing={viewAllPlacement === 'header' ? viewAll : null}
+        />
       ) : null}
-      <FaqAccordion items={items} title={viewAllPlacement === 'header' ? '' : heading} layout={layout} />
+      <FaqAccordion items={items} title={externalHeading ? '' : heading} layout={layout} />
       {viewAllPlacement === 'below' && viewAll ? <div className="mt-4 text-center">{viewAll}</div> : null}
     </div>
   );

@@ -13,14 +13,9 @@ import type { CmsBanner } from '@/types/api';
 const POSITIONS: Array<{ value: string; label: string; hint: string }> = [
   {
     value: 'HOME_HERO',
-    label: 'HOME_HERO',
-    hint: 'Hero trang chủ / nạp thẻ / nạp cước — nhiều banner ACTIVE sẽ chạy slide (carousel), sắp xếp theo Sort order',
+    label: 'HOME_HERO (đang dùng)',
+    hint: 'Hero carousel trên trang chủ, thẻ game/ĐT, nạp cước, nạp data. Nhiều banner ACTIVE → slide theo Sort order.',
   },
-  { value: 'HOME_PROMOTION', label: 'HOME_PROMOTION', hint: 'Khuyến mãi trên trang chủ' },
-  { value: 'SIDEBAR', label: 'SIDEBAR', hint: 'Cột phụ trang chủ / danh mục' },
-  { value: 'MOBILE_HOME', label: 'MOBILE_HOME', hint: 'Banner mobile trang chủ' },
-  { value: 'HOME_SIDEBAR', label: 'HOME_SIDEBAR (legacy)', hint: 'Sidebar trang chủ' },
-  { value: 'CATEGORY_TOP', label: 'CATEGORY_TOP', hint: 'Đầu trang danh mục' },
 ];
 
 const emptyForm = {
@@ -113,8 +108,9 @@ export default function BannersPage() {
       <div className="space-y-6">
         <h1 className="admin-page-title">{vi.cms.bannersTitle}</h1>
         <p className="text-sm text-slate-500">
-          Vị trí <span className="font-medium text-slate-700">HOME_HERO</span>: tạo nhiều banner ACTIVE
-          (khác Sort order) để hiện slide mũi tên trên trang chủ / nạp thẻ / nạp cước.
+          Tab này điều khiển ảnh hero (slide) trên storefront. Chỉ vị trí{' '}
+          <span className="font-medium text-slate-700">HOME_HERO</span> đang được web đọc — tạo banner ACTIVE
+          kèm ảnh, sắp Sort order để đổi thứ tự slide.
         </p>
         <MarketingNav />
         {error && <ErrorMessage message={error} />}

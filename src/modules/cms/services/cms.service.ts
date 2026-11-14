@@ -517,6 +517,9 @@ export class CmsService {
     if (normalized.logoMobile !== undefined) {
       entries.push([CMS_THEME_SETTING_KEYS.LOGO_MOBILE, normalized.logoMobile]);
     }
+    if (normalized.logoFooter !== undefined) {
+      entries.push([CMS_THEME_SETTING_KEYS.LOGO_FOOTER, normalized.logoFooter]);
+    }
     if (normalized.favicon !== undefined) {
       entries.push([CMS_THEME_SETTING_KEYS.FAVICON, normalized.favicon]);
     }

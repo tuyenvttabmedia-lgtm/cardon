@@ -307,6 +307,8 @@ export async function fetchFaqClient(category?: string): Promise<PublicFaqItem[]
 export interface CmsThemeSettings {
   logoDesktop: string;
   logoMobile: string;
+  /** Wordmark for dark footer; empty falls back to bundled on-dark logo. */
+  logoFooter?: string;
   favicon: string;
   ogDefaultImage: string;
   headerMenu: Array<{ label: string; href: string; sortOrder?: number; labelEn?: string; navKey?: string }>;

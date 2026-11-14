@@ -19,7 +19,7 @@ export function generateMetadata(): Promise<Metadata> {
 
 export default async function TheGamePage() {
   const locale = await readRequestLocale();
-  const faqs = await listFaqs({ featured: true, limit: 10, locale });
+  const faqs = await listFaqs({ featured: true, limit: 5, locale });
   return (
     <Suspense fallback={<p className="text-cardon-gray">Đang tải...</p>}>
       <HomePageClient

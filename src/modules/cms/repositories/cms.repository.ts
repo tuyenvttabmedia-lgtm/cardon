@@ -397,6 +397,7 @@ export class CmsRepository {
     return {
       logoDesktop: coerceSettingString(map[CMS_THEME_SETTING_KEYS.LOGO_DESKTOP]),
       logoMobile: coerceSettingString(map[CMS_THEME_SETTING_KEYS.LOGO_MOBILE]),
+      logoFooter: coerceSettingString(map[CMS_THEME_SETTING_KEYS.LOGO_FOOTER]),
       favicon: coerceSettingString(map[CMS_THEME_SETTING_KEYS.FAVICON]),
       ogDefaultImage: coerceSettingString(map[CMS_THEME_SETTING_KEYS.OG_DEFAULT_IMAGE]),
       headerMenu: coerceSettingJson<

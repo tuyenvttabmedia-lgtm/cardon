@@ -1354,8 +1354,9 @@ export const vi = {
   },
   appearance: {
     title: 'Giao diện',
-    logoDesktop: 'Logo desktop',
-    logoMobile: 'Logo mobile',
+    logoDesktop: 'Logo desktop (header)',
+    logoMobile: 'Logo mobile (header)',
+    logoFooter: 'Logo footer (nền tối)',
     favicon: 'Favicon',
     ogDefault: 'Ảnh OpenGraph mặc định',
     headerMenu: 'Menu header',
