@@ -111,6 +111,7 @@ body {
   /*
    * Photo strip only (aspect of the CMS banner). Never height:100% here — on hub
    * pages in-flow copy would stretch the beach/game art behind the whole block.
+   * Mobile: no edge fade (hard crop). Desktop: soft L/R/bottom mask like home.
    */
   .home-hero-banner .home-hero-media {
     position: absolute;
@@ -121,7 +122,7 @@ body {
     pointer-events: none;
   }
 
-  /* Below desktop: copy sits under the reserved photo. */
+  /* Below desktop: copy sits under the reserved photo; no fade mask. */
   @media (max-width: 1023.98px) {
     .home-hero-banner > .site-container {
       padding-top: 1.25rem;
@@ -159,6 +160,14 @@ body {
     .home-hero-banner .home-hero-media {
       height: 100%;
       aspect-ratio: auto;
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+      mask-composite: intersect;
     }
   }
 
@@ -177,6 +186,17 @@ body {
     .home-hero-spacer {
       aspect-ratio: auto;
       height: 500px;
+    }
+
+    .home-hero-banner .home-hero-media {
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+      mask-composite: intersect;
     }
   }
 
