@@ -12,7 +12,7 @@ export default async function HomePage() {
   const [theme, newsPosts, faqs] = await Promise.all([
     getThemeSettings(),
     listBlogPosts({ take: 8, locale }),
-    listFaqs({ featured: true, limit: 6 }),
+    listFaqs({ featured: true, limit: 6, locale }),
   ]);
 
   const backgrounds = resolveHomeBackgrounds(theme?.homeBackgrounds);

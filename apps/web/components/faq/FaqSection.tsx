@@ -51,11 +51,30 @@ export function FaqSection({
   const [loaded, setLoaded] = useState(initialItems != null);
 
   useEffect(() => {
-    if (initialItems != null) return;
+    let cancelled = false;
+    const initialLocale = initialItems?.[0]?.locale;
+    // SSR payload already matches active locale — keep it, avoid a flash refetch.
+    if (initialItems != null && (initialLocale === locale || (!initialLocale && locale === 'vi'))) {
+      setItems(initialItems.map(mapItem).slice(0, limit));
+      setLoaded(true);
+      return;
+    }
+
     void fetchFaqsClient({ featured, position, limit, locale })
-      .then((result) => setItems((result?.items ?? []).map(mapItem)))
-      .catch(() => setItems([]))
-      .finally(() => setLoaded(true));
+      .then((result) => {
+        if (cancelled) return;
+        setItems((result?.items ?? []).map(mapItem));
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [featured, position, limit, initialItems, locale]);
 
   if (!loaded) return null;

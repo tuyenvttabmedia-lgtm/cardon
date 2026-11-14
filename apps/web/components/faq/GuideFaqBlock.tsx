@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useLocale } from '@/components/i18n/LocaleProvider';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
 import {
   fetchFaqsClient,
@@ -21,6 +22,7 @@ function mapItem(row: PublicFaqItem): FaqItem {
 }
 
 export function GuideFaqBlock({ limit = 15 }: { limit?: number }) {
+  const { locale } = useLocale();
   const [categories, setCategories] = useState<PublicFaqCategory[]>([]);
   const [items, setItems] = useState<FaqItem[]>([]);
   const [query, setQuery] = useState('');
@@ -28,8 +30,8 @@ export function GuideFaqBlock({ limit = 15 }: { limit?: number }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    void listFaqCategoriesClient().then((rows) => setCategories(rows ?? []));
-  }, []);
+    void listFaqCategoriesClient(locale).then((rows) => setCategories(rows ?? []));
+  }, [locale]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +41,7 @@ export function GuideFaqBlock({ limit = 15 }: { limit?: number }) {
         limit,
         q: query.trim() || undefined,
         category: categorySlug || undefined,
+        locale,
       });
       setItems((result?.items ?? []).map(mapItem));
     } catch {
@@ -46,7 +49,7 @@ export function GuideFaqBlock({ limit = 15 }: { limit?: number }) {
     } finally {
       setLoading(false);
     }
-  }, [categorySlug, limit, query]);
+  }, [categorySlug, limit, locale, query]);
 
   useEffect(() => {
     const t = setTimeout(() => void load(), query ? 300 : 0);
