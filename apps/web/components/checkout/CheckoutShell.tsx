@@ -684,7 +684,7 @@ function CheckoutShellInner({
       : 'lg:grid-cols-[minmax(0,65%)_minmax(0,35%)]';
 
   return (
-    <div className={cn(showMobileBar ? 'pb-28 md:pb-0' : undefined)}>
+    <div className={cn(showMobileBar ? 'pb-4 md:pb-0' : undefined)}>
       <LoginRequiredModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
       <div className="space-y-4">
@@ -707,9 +707,9 @@ function CheckoutShellInner({
             id={anchorId}
             className={cn('scroll-mt-24 grid gap-6 lg:items-start', gridClass)}
           >
-            <div className="min-h-[420px] space-y-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-card md:p-6">
+            <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-card md:space-y-8 md:p-6">
               {mode === 'CARD' && (
-                <section className="min-h-[140px]">
+                <section>
                   <StepTitle n={1} title={t('checkout.chooseCard')} />
                   {cardProducts.length === 0 ? (
                     <p className="text-sm text-cardon-gray">{t('product.noCatalog')}</p>
@@ -777,7 +777,7 @@ function CheckoutShellInner({
                 </div>
               )}
 
-              <section className={cn(mode === 'CARD' ? 'min-h-[120px]' : 'min-h-[96px]')}>
+              <section>
                 {mode === 'CARD' && <StepTitle n={2} title={t('product.denom')} />}
                 {mode === 'TOPUP' && (
                   <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.denom')}</p>
@@ -823,7 +823,7 @@ function CheckoutShellInner({
               </section>
 
               {mode === 'CARD' && (
-                <>
+                <div className="hidden lg:block">
                   <StepTitle n={3} title={t('checkout.qtyCards')} />
                   <div className="flex flex-wrap items-center gap-4">
                     <QuantityInput
@@ -834,13 +834,12 @@ function CheckoutShellInner({
                     />
                     <span className="text-sm text-cardon-green">{t('product.stock')}</span>
                   </div>
-
-                </>
+                </div>
               )}
 
               <div className="lg:hidden">
                 {mode === 'CARD' ? (
-                  <StepTitle n={4} title={t('checkout.pay')} />
+                  <StepTitle n={3} title={t('checkout.pay')} />
                 ) : (
                   <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.payMethod')}</p>
                 )}
@@ -939,24 +938,31 @@ function CheckoutShellInner({
       </div>
 
       {showMobileBar && (
-        <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 border-t border-gray-200 bg-white p-3 shadow-lg lg:hidden">
-          <div className="site-container flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs text-cardon-gray">{t('common.total')}</p>
-              <p className="text-lg font-bold text-cardon-danger">
+        <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 border-t border-gray-200 bg-white px-3 py-2.5 shadow-lg lg:hidden">
+          <div className="site-container flex items-center gap-2">
+            {mode === 'CARD' ? (
+              <QuantityInput
+                compact
+                value={quantity}
+                min={1}
+                max={DEFAULT_MAX_QUANTITY}
+                onChange={handleQuantityChange}
+                className="shrink-0"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] leading-tight text-cardon-gray">{t('common.total')}</p>
+              <p className="truncate text-sm font-bold leading-tight text-cardon-danger">
                 {pricing ? money(pricing.totalPayment) : '—'}
               </p>
             </div>
             <button
               type="button"
-              className="btn-checkout !w-auto shrink-0 px-6"
+              className="btn-checkout !w-auto shrink-0 px-3.5 py-2.5 text-sm tracking-normal"
               disabled={payDisabled}
               onClick={() => void handlePay()}
             >
               {payButtonLabel}
-              {!checkoutLoading && pricing && !isOverOrderLimit
-                ? ` ${money(pricing.totalPayment)}`
-                : ''}
             </button>
           </div>
         </div>

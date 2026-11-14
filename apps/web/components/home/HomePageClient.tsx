@@ -15,7 +15,13 @@ export function HomePageClient({
   return (
     <>
       <CheckoutShell mode="CARD" initialCategory={initialCategory} anchorId="buy-card" />
-      <FaqSection featured limit={10} showViewAll className="mt-8" initialItems={initialFaqs} />
+      <FaqSection
+        featured
+        limit={10}
+        showViewAll
+        className="mt-6 pb-28 md:pb-0"
+        initialItems={initialFaqs}
+      />
     </>
   );
 }

@@ -15,12 +15,15 @@ export function QuantityInput({
   min = 1,
   max = DEFAULT_MAX_QUANTITY,
   className,
+  compact = false,
 }: {
   value: number;
   onChange: (next: number) => void;
   min?: number;
   max?: number;
   className?: string;
+  /** Smaller controls for sticky mobile pay bar. */
+  compact?: boolean;
 }) {
   const [draft, setDraft] = useState(String(value));
 
@@ -35,12 +38,19 @@ export function QuantityInput({
     setDraft(String(next));
   }
 
+  const btnClass = compact
+    ? 'flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 text-base font-bold hover:bg-gray-50 disabled:opacity-40'
+    : 'flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-xl font-bold hover:bg-gray-50 disabled:opacity-40';
+  const inputClass = compact
+    ? 'h-8 w-11 rounded-md border border-gray-200 text-center text-sm font-bold text-cardon-navy outline-none focus:border-cardon-blue'
+    : 'h-10 w-16 rounded-lg border border-gray-200 text-center text-lg font-bold text-cardon-navy outline-none focus:border-cardon-blue';
+
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex items-center', compact ? 'gap-1' : 'gap-2', className)}>
       <button
         type="button"
         aria-label="Giảm số lượng"
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-xl font-bold hover:bg-gray-50 disabled:opacity-40"
+        className={btnClass}
         disabled={value <= min}
         onClick={() => onChange(clampQuantity(value - 1, min, max))}
       >
@@ -51,7 +61,7 @@ export function QuantityInput({
         inputMode="numeric"
         aria-label="Số lượng"
         value={draft}
-        className="h-10 w-16 rounded-lg border border-gray-200 text-center text-lg font-bold text-cardon-navy outline-none focus:border-cardon-blue"
+        className={inputClass}
         onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
         onBlur={() => commit(draft)}
         onKeyDown={(e) => {
@@ -64,7 +74,7 @@ export function QuantityInput({
       <button
         type="button"
         aria-label="Tăng số lượng"
-        className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 text-xl font-bold hover:bg-gray-50 disabled:opacity-40"
+        className={btnClass}
         disabled={value >= max}
         onClick={() => onChange(clampQuantity(value + 1, min, max))}
       >
