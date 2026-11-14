@@ -10,12 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         cardon: {
-          // Brand primary from logo green (#079B49); navy = deep brand for surfaces/type.
-          navy: '#055A2C',
-          primary: '#079B49',
-          blue: '#079B49',
+          // UI brand tone #02603f (logo wordmark keeps its own greens).
+          navy: '#014530',
+          primary: '#02603f',
+          blue: '#02603f',
           orange: '#FF7A00',
-          green: '#079B49',
+          green: '#02603f',
           bg: '#F5F7FA',
           dark: '#0F172A',
           gray: '#6B7280',
@@ -24,12 +24,12 @@ const config: Config = {
           danger: '#EF4444',
         },
         brand: {
-          50: '#ecfdf3',
-          100: '#d1fae0',
-          500: '#079B49',
-          600: '#068a41',
-          700: '#055A2C',
-          900: '#043f1f',
+          50: '#e8f5ef',
+          100: '#cfe8db',
+          500: '#02603f',
+          600: '#014f34',
+          700: '#014530',
+          900: '#012a1c',
         },
       },
       fontFamily: {
