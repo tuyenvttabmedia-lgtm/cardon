@@ -375,17 +375,14 @@ function MegaPayGatewayCard({
       await onSaveGateway({
         enabled: form.enabled,
         merchantId: form.merchantId,
-        secretKey: form.secretKey,
-        endpoint: form.endpoint,
         returnUrl: form.returnUrl,
         callbackUrl: form.callbackUrl,
-        bankCode: form.bankCode,
-        notifyPublicKey: form.notifyPublicKey,
         pgEncodeKey: form.pgEncodeKey,
         pgMerchantId: form.pgMerchantId,
         pgRefundPassword: form.pgRefundPassword,
         pgEnvironment: form.pgEnvironment,
         reqDomain: form.reqDomain,
+        // endpoint / secretKey / notifyPublicKey: legacy DepositCode — không gửi từ form nữa
       });
       onSaved();
     } catch (err) {
@@ -432,7 +429,7 @@ function MegaPayGatewayCard({
         <div>
           <h2 className="text-lg font-semibold">{vi.settings.megapay}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            2 luồng kỹ thuật · 3 công tắc method bán lẻ. SePay là cổng dự phòng.
+            Chỉ Luồng 2 · MegaPay PG V1.4.6 · 3 công tắc method bán lẻ. SePay là cổng dự phòng.
           </p>
         </div>
         <SettingsRuntimeBadges
@@ -462,7 +459,7 @@ function MegaPayGatewayCard({
           />
         </div>
         <div className="md:col-span-2">
-          <Label>{vi.settings.callbackUrl} (IPN / DepositCode notify)</Label>
+          <Label>{vi.settings.callbackUrl} (PG IPN)</Label>
           <Input
             className="mt-1"
             value={form.callbackUrl ?? ''}
@@ -472,70 +469,20 @@ function MegaPayGatewayCard({
         </div>
       </div>
 
-      <section className="space-y-3 rounded-lg border border-slate-200 p-4">
+      <section className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold">Luồng 1 · DepositCode (legacy)</h3>
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-            Không tạo thanh toán mới
-          </span>
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${
-              settings.depositCodeReady
-                ? 'bg-emerald-100 text-emerald-800'
-                : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            {settings.depositCodeReady ? 'Đủ credential' : 'Thiếu credential'}
+          <h3 className="font-semibold text-slate-700">Luồng 1 · DepositCode</h3>
+          <span className="rounded bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+            Đã tắt
           </span>
         </div>
         <p className="text-sm text-slate-500">
-          VietQR đã chuyển sang Luồng 2 (<code>payType=VA</code>). Phần này chỉ còn dùng để verify
-          notify RSA và tra cứu các giao dịch <code>registerVA</code> cũ — đổi endpoint ở đây không
-          ảnh hưởng tới đơn mới.
+          <code>registerVA</code> / notify RSA không còn nhận webhook hay tạo thanh toán.
+          VietQR bán lẻ dùng PG <code>payType=VA</code> bên dưới. Không chỉnh endpoint sandbox cũ.
         </p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <Label>Secret Key 3DES (24 ký tự)</Label>
-            <Input
-              className="mt-1 font-mono"
-              type="password"
-              value={form.secretKey ?? ''}
-              onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-              placeholder="********"
-            />
-          </div>
-          <div>
-            <Label>Bank code (VA)</Label>
-            <Input
-              className="mt-1"
-              value={form.bankCode ?? ''}
-              onChange={(e) => setForm({ ...form, bankCode: e.target.value })}
-              placeholder="WOORIBANK"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Endpoint registerVA</Label>
-            <Input
-              className="mt-1 font-mono text-xs"
-              value={form.endpoint ?? ''}
-              onChange={(e) => setForm({ ...form, endpoint: e.target.value })}
-              placeholder="https://…/registerVA"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Label>Notify RSA public key (PEM)</Label>
-            <textarea
-              className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-xs"
-              rows={4}
-              value={form.notifyPublicKey ?? ''}
-              onChange={(e) => setForm({ ...form, notifyPublicKey: e.target.value })}
-              placeholder={'-----BEGIN PUBLIC KEY-----\n…\n-----END PUBLIC KEY-----'}
-            />
-          </div>
-        </div>
       </section>
 
-      <section className="space-y-3 rounded-lg border border-slate-200 p-4">
+      <section className="space-y-3 rounded-lg border border-emerald-200 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold">Luồng 2 · MegaPay PG V1.4.6</h3>
           <span
@@ -559,7 +506,7 @@ function MegaPayGatewayCard({
               className="mt-1 font-mono"
               value={form.pgMerchantId ?? ''}
               onChange={(e) => setForm({ ...form, pgMerchantId: e.target.value })}
-              placeholder="CARDON0001 (fallback = Merchant ID DepositCode)"
+              placeholder="CARDON0001"
             />
           </div>
           <div>

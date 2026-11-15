@@ -44,6 +44,7 @@ import {
 } from '../../payment/entities/payment-method.constants';
 import { SettingsEncryptionService } from './settings-encryption.service';
 import { SettingsRepository } from '../repositories/settings.repository';
+import { normalizePem } from './pem.util';
 
 export interface ResolvedSmtpConfig {
   host: string;
@@ -53,11 +54,6 @@ export interface ResolvedSmtpConfig {
   from: string;
   fromName?: string;
   secure: boolean;
-}
-
-function normalizePem(value?: string): string | undefined {
-  if (!value) return undefined;
-  return value.replace(/\\n/g, '\n').trim();
 }
 
 function isMeaningfulStored(value: unknown): boolean {
