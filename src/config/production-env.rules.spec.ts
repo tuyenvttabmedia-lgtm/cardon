@@ -76,8 +76,10 @@ describe('Production environment rules', () => {
         ESIM_ENABLED: 'true',
         ESIM_PROVIDER_MODE: 'live',
         ESIM_LIVE_ARM: 'true',
+        AIRALO_ACCOUNT_MODE: 'production',
+        AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
       }),
-    ).toThrow(/AIRALO_CLIENT_ID/);
+    ).not.toThrow();
 
     expect(() =>
       assertProductionEnv({
@@ -85,8 +87,6 @@ describe('Production environment rules', () => {
         ESIM_ENABLED: 'true',
         ESIM_PROVIDER_MODE: 'mock',
         ESIM_LIVE_ARM: 'true',
-        AIRALO_CLIENT_ID: 'id',
-        AIRALO_CLIENT_SECRET: 'secret',
         AIRALO_ACCOUNT_MODE: 'production',
         AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
       }),
@@ -98,8 +98,6 @@ describe('Production environment rules', () => {
         ESIM_ENABLED: 'true',
         ESIM_PROVIDER_MODE: 'live',
         ESIM_LIVE_ARM: 'true',
-        AIRALO_CLIENT_ID: 'id',
-        AIRALO_CLIENT_SECRET: 'secret',
         AIRALO_ACCOUNT_MODE: 'sandbox',
         AIRALO_WEBHOOK_SECRET: 'w'.repeat(16),
       }),

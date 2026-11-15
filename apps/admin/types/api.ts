@@ -2466,6 +2466,10 @@ export interface SystemSettings extends SettingsSourceView {
   customerTopupEnabled?: boolean;
   customerDataEnabled?: boolean;
   customerEsimEnabled?: boolean;
+  /** ENV gate ESIM_ENABLED (read-only). Both this and customerEsimEnabled must be on for salesOpen. */
+  envEsimEnabled?: boolean;
+  /** Effective storefront sale flag (ENV ∧ admin toggle ∧ live arm). */
+  salesOpen?: boolean;
   /** Max eSIM charge VND per order. 0 = off. Default 2_000_000. */
   esimMaxChargeAmountVnd?: number;
   /** Max eSIM charge USD per order. 0 = admin off (hard cap 80 remains). Default/absolute max 80. */

@@ -974,6 +974,14 @@ export class SettingsStoreService implements OnModuleInit {
       customerTopupEnabled: stored?.customerTopupEnabled ?? false,
       customerDataEnabled: stored?.customerDataEnabled ?? false,
       customerEsimEnabled: stored?.customerEsimEnabled === true,
+      envEsimEnabled: this.configService.get<boolean>('esim.enabled') === true,
+      salesOpen:
+        evaluateEsimSale(
+          esimSaleFlagsFromRuntime(
+            (key) => this.configService.get(key),
+            stored?.customerEsimEnabled === true,
+          ),
+        ).ok === true,
       esimMaxChargeAmountVnd: stored?.esimMaxChargeAmountVnd,
       esimMaxChargeAmountUsd: stored?.esimMaxChargeAmountUsd,
       auditLogRetentionDays:

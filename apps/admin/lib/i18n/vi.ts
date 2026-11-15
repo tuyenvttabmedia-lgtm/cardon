@@ -1201,9 +1201,13 @@ export const vi = {
       'Nếu tắt, khách hàng sẽ không nhìn thấy dịch vụ Nạp data trên website. Dữ liệu cũ vẫn giữ nguyên.',
     customerEsimLabel: 'Cho phép khách hàng mua eSIM',
     customerEsimTooltip:
-      'Bật/tắt bán eSIM trên website khách hàng. Tắt không xóa đơn cũ và không cắt fulfillment.',
+      'Bật/tắt bán eSIM trên website khách hàng. Tắt không xóa đơn cũ và không cắt fulfillment. Cần thêm ESIM_ENABLED=true trên server thì storefront mới mở (salesOpen).',
     customerEsimHint:
       'Nếu tắt, khách thấy “Tạm dừng bán eSIM” và không tạo được đơn eSIM mới. Đơn đã thanh toán vẫn được xử lý.',
+    esimSalesOpenLabel: 'Storefront đang mở bán (salesOpen)',
+    esimEnvGateLabel: 'Cổng ENV ESIM_ENABLED',
+    esimSalesGateHint:
+      'Hai điều kiện: (1) checkbox phía trên và (2) ESIM_ENABLED trên server. Thiếu một trong hai → frontend vẫn báo tạm dừng.',
     esimOrderLimitTitle: 'Giới hạn đơn hàng eSIM',
     esimOrderLimitDesc:
       'Áp dụng riêng cho đơn hàng eSIM. Không ảnh hưởng giới hạn đơn thẻ game, thẻ điện thoại và nạp cước.',
