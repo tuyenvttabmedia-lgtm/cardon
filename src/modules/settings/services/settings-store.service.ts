@@ -974,14 +974,6 @@ export class SettingsStoreService implements OnModuleInit {
       customerTopupEnabled: stored?.customerTopupEnabled ?? false,
       customerDataEnabled: stored?.customerDataEnabled ?? false,
       customerEsimEnabled: stored?.customerEsimEnabled === true,
-      envEsimEnabled: this.configService.get<boolean>('esim.enabled') === true,
-      salesOpen:
-        evaluateEsimSale(
-          esimSaleFlagsFromRuntime(
-            (key) => this.configService.get(key),
-            stored?.customerEsimEnabled === true,
-          ),
-        ).ok === true,
       esimMaxChargeAmountVnd: stored?.esimMaxChargeAmountVnd,
       esimMaxChargeAmountUsd: stored?.esimMaxChargeAmountUsd,
       auditLogRetentionDays:
@@ -1015,8 +1007,17 @@ export class SettingsStoreService implements OnModuleInit {
   getSystemAdminView(): Record<string, unknown> {
     const resolved = this.resolveSystemConfig();
     const chargeLimits = this.resolveEsimChargeLimits();
+    const salesOpen =
+      evaluateEsimSale(
+        esimSaleFlagsFromRuntime(
+          (key) => this.configService.get(key),
+          resolved.customerEsimEnabled === true,
+        ),
+      ).ok === true;
     return {
       ...resolved,
+      envEsimEnabled: this.configService.get<boolean>('esim.enabled') === true,
+      salesOpen,
       esimMaxChargeAmountVnd: chargeLimits.maxVnd,
       esimMaxChargeAmountUsd: chargeLimits.maxUsd,
       source: this.hasDbSetting(SETTINGS_KEYS.SYSTEM) ? 'database' : 'environment',
