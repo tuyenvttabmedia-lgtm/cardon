@@ -11,7 +11,7 @@ import { useT } from '@/components/i18n/LocaleProvider';
 import { buildCheckoutPayPath, isMegapayDepositMethod } from '@/lib/checkout-qr-flow';
 import {
   buildMegapayWaitingPath,
-  canResumeMegapayWaiting,
+  canReopenMegapay,
   readPendingMegapayPayment,
 } from '@/lib/pending-megapay-payment';
 import { readPendingQrPayment } from '@/lib/pending-qr-payment';
@@ -147,7 +147,7 @@ function WaitingPaymentBanner({
     const megapayMatch =
       megapay &&
       (megapay.orderId === orderId || megapay.orderCode === orderCode) &&
-      canResumeMegapayWaiting(megapay);
+      canReopenMegapay(megapay);
     setHasSessionPayload(Boolean(session) || Boolean(megapayMatch));
     setMegapayHref(
       megapayMatch

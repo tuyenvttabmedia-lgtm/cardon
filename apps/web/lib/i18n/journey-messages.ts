@@ -203,13 +203,12 @@ export const journeyVi = {
   'wait.status': 'Trạng thái',
   'wait.missing': 'Không tìm thấy phiên thanh toán trên trình duyệt này. Mở lại từ lịch sử đơn nếu vẫn còn chờ thanh toán.',
   'wait.reopen': 'Mở lại trang thanh toán MegaPay',
-  'wait.reopening': 'Đang tạo phiên thanh toán mới…',
-  'wait.reopenFailed': 'Không tạo được phiên MegaPay mới. Thử lại hoặc xem đơn hàng.',
-  'wait.hint':
-    'Mỗi lần mở lại sẽ tạo mã thanh toán mới (MegaPay không cho dùng lại invoice cũ). Đơn CardOn vẫn giữ nguyên — không cần đặt đơn mới nếu còn hiệu lực.',
+  'wait.reopening': 'Đang mở lại cổng thanh toán…',
   'wait.viewOrder': 'Xem đơn hàng',
   'wait.later': 'Để sau — mua tiếp trên CardOn',
-  'wait.backHint': 'Bạn đã quay lại CardOn. Bấm «Mở lại trang thanh toán» để tạo phiên MegaPay mới và xem QR.',
+  'wait.hint':
+    'Không cần tạo đơn mới nếu vẫn trong thời gian hiệu lực. Nút Back trình duyệt nên đưa bạn về trang này thay vì mất QR.',
+  'wait.backHint': 'Bạn đã quay lại CardOn. Bấm «Mở lại trang thanh toán» nếu cần xem lại QR.',
   'wait.bannerTitle': 'Bạn còn đơn chờ thanh toán:',
   'wait.bannerCta': 'Tiếp tục',
   'order.notFound': 'Không tìm thấy đơn hàng',
@@ -653,14 +652,12 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'wait.missing':
     'No payment session in this browser. Reopen from order history if the order is still awaiting payment.',
   'wait.reopen': 'Reopen MegaPay checkout',
-  'wait.reopening': 'Creating a new payment session…',
-  'wait.reopenFailed': 'Could not create a new MegaPay session. Try again or view the order.',
-  'wait.hint':
-    'Each reopen mints a new MegaPay invoice (duplicates are rejected). Your CardOn order stays the same — no need to place a new order while it is still valid.',
+  'wait.reopening': 'Reopening the payment gateway…',
   'wait.viewOrder': 'View order',
   'wait.later': 'Later — keep shopping on CardOn',
-  'wait.backHint':
-    'You are back on CardOn. Tap “Reopen MegaPay checkout” to mint a new MegaPay session and see the QR again.',
+  'wait.hint':
+    'You usually do not need a new order while the window is open. Browser Back should return you here instead of losing the QR.',
+  'wait.backHint': 'You are back on CardOn. Tap “Reopen MegaPay checkout” if you need the QR again.',
   'wait.bannerTitle': 'You have a pending payment:',
   'wait.bannerCta': 'Continue',
   'result.failedTitle': 'Payment failed',

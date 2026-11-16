@@ -11,22 +11,18 @@ import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
 import {
   buildMegapayWaitingPath,
-  canOpenStoredMegapayForm,
-  canResumeMegapayWaiting,
+  canReopenMegapay,
   clearPendingMegapayPayment,
   readPendingMegapayPayment,
-  storePendingMegapayPayment,
   type PendingMegapayPayment,
 } from '@/lib/pending-megapay-payment';
-import { orderApi, paymentApi } from '@/services/api-client';
-import { generateIdempotencyKey } from '@/lib/utils';
+import { orderApi } from '@/services/api-client';
 
 const POLL_MS = 5000;
 
 /**
  * CardOn “payment station” for MegaPay PG.
  * Browser Back from pg.megapay.vn should land here (not the product page).
- * Reopen always mints a new invoiceNo — MegaPay rejects duplicate invoice numbers.
  */
 export default function CheckoutWaitingClient() {
   const router = useRouter();
@@ -44,10 +40,8 @@ export default function CheckoutWaitingClient() {
   const [pending, setPending] = useState<PendingMegapayPayment | null>(null);
   const [openNonce, setOpenNonce] = useState(0);
   const [autoOpen, setAutoOpen] = useState(false);
-  const [reopening, setReopening] = useState(false);
   const [statusLabel, setStatusLabel] = useState(t('wait.checking'));
   const [pollError, setPollError] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
 
   const orderId = pending?.orderId || orderIdParam;
   const orderCode = pending?.orderCode || orderCodeParam;
@@ -67,9 +61,9 @@ export default function CheckoutWaitingClient() {
     }
   }, [orderIdParam, orderCodeParam]);
 
-  // First arrival with ?open=1: open the original invoice once, then strip the flag.
+  // Auto-open MegaPay once when arriving with ?open=1, then strip the flag so Back won't loop.
   useEffect(() => {
-    if (!shouldAutoOpen || !canOpenStoredMegapayForm(pending)) return;
+    if (!shouldAutoOpen || !canReopenMegapay(pending)) return;
     setAutoOpen(true);
     setOpenNonce((n) => n + 1);
     const next = buildMegapayWaitingPath({
@@ -81,6 +75,7 @@ export default function CheckoutWaitingClient() {
     router.replace(withLocalePrefix(next, locale));
   }, [shouldAutoOpen, pending, emailParam, router, locale]);
 
+  // Returning via bfcache / tab focus: refresh pending, never force-open again.
   useEffect(() => {
     function onPageShow(event: PageTransitionEvent) {
       if (!event.persisted) return;
@@ -152,7 +147,7 @@ export default function CheckoutWaitingClient() {
     return raw && Number.isFinite(value) ? money(value) : null;
   }, [pending?.amount, money]);
 
-  const canResume = canResumeMegapayWaiting(pending) || Boolean(orderId && orderCode);
+  const canReopen = canReopenMegapay(pending);
   const orderHref = orderCode
     ? withLocalePrefix(
         `/checkout/success?orderCode=${encodeURIComponent(orderCode)}${
@@ -162,46 +157,11 @@ export default function CheckoutWaitingClient() {
       )
     : withLocalePrefix('/tai-khoan/lich-su-giao-dich', locale);
 
-  async function reopenGateway() {
-    if (!orderId || reopening) return;
-    setReopening(true);
-    setActionError(null);
+  function reopenGateway() {
+    if (!canReopen) return;
+    setAutoOpen(true);
+    setOpenNonce((n) => n + 1);
     setStatusLabel(t('wait.reopening'));
-    try {
-      // Always mint a new MegaPay invoice — reusing invoiceNo returns "already exist".
-      const pay = await paymentApi.create(
-        {
-          orderId,
-          gateway: 'MEGAPAY',
-          ...(!isAuthenticated && email ? { guestEmail: email } : {}),
-        },
-        generateIdempotencyKey(),
-      );
-      if (!pay.checkoutFormFields || !pay.checkoutClient) {
-        throw new Error(t('wait.reopenFailed'));
-      }
-      const next: PendingMegapayPayment = {
-        orderId,
-        orderCode: orderCode || pending?.orderCode || '',
-        email: email || pending?.email || '',
-        paymentReference: pay.paymentReference,
-        resumeHref: pending?.resumeHref || '/',
-        amount: pay.amount ?? pending?.amount,
-        payType: pay.checkoutFormFields.payType ?? pending?.payType,
-        checkoutFormFields: pay.checkoutFormFields,
-        checkoutClient: pay.checkoutClient,
-        savedAt: Date.now(),
-      };
-      storePendingMegapayPayment(next);
-      setPending(next);
-      setAutoOpen(true);
-      setOpenNonce((n) => n + 1);
-    } catch (err) {
-      setActionError(customerFacingError(locale, err));
-      setStatusLabel(t('wait.pending'));
-    } finally {
-      setReopening(false);
-    }
   }
 
   return (
@@ -233,17 +193,11 @@ export default function CheckoutWaitingClient() {
         )}
 
         {pollError ? <p className="mt-3 text-sm text-red-600">{pollError}</p> : null}
-        {actionError ? <p className="mt-3 text-sm text-red-600">{actionError}</p> : null}
 
         <div className="mt-6 flex flex-col gap-2">
-          {canResume ? (
-            <button
-              type="button"
-              className="btn-checkout"
-              disabled={reopening}
-              onClick={() => void reopenGateway()}
-            >
-              {reopening ? t('wait.reopening') : t('wait.reopen')}
+          {canReopen ? (
+            <button type="button" className="btn-checkout" onClick={reopenGateway}>
+              {t('wait.reopen')}
             </button>
           ) : null}
           <Link
@@ -262,7 +216,7 @@ export default function CheckoutWaitingClient() {
 
         <p className="mt-4 text-xs leading-relaxed text-cardon-gray">{t('wait.hint')}</p>
 
-        {canOpenStoredMegapayForm(pending) && pending?.checkoutFormFields && pending.checkoutClient ? (
+        {canReopen && pending?.checkoutFormFields && pending.checkoutClient ? (
           <MegapayPgCheckoutOpen
             key={`${pending.paymentReference}-${openNonce}`}
             checkoutFormFields={pending.checkoutFormFields}
