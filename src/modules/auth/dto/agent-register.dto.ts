@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   Equals,
   IsBoolean,
@@ -10,6 +11,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Match } from '../../../common/decorators/match.decorator';
+import { normalizeRegisterPhone } from '../entities/normalize-register-phone';
 
 export enum AgentRegisterAccountType {
   PERSONAL = 'PERSONAL',
@@ -21,9 +23,13 @@ export class AgentRegisterDto {
   @IsEnum(AgentRegisterAccountType)
   accountType!: AgentRegisterAccountType;
 
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   email!: string;
 
+  @Transform(({ value }) => normalizeRegisterPhone(value))
   @IsString()
   @Matches(/^(\+84|0)[0-9]{9,10}$/, {
     message: 'Phone must be a valid Vietnamese number',

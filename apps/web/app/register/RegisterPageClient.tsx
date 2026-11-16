@@ -19,6 +19,10 @@ import { useAuth } from '@/hooks/useAuth';
 import type { RegisterPayload } from '@/types/api';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
+import {
+  normalizeIdentityNumber,
+  normalizeRegisterPhone,
+} from '@/lib/normalize-register-phone';
 import { normalizeRegisterUsername } from '@/lib/normalize-register-username';
 import { safeInternalPath } from '@/lib/safe-redirect';
 
@@ -72,13 +76,25 @@ function RegisterForm() {
       setError(t('auth.usernameHint'));
       return;
     }
+    const phone = normalizeRegisterPhone(form.phone);
+    if (!/^(\+84|0)[0-9]{9,10}$/.test(phone)) {
+      setError(t('auth.phoneInvalid'));
+      return;
+    }
+    const identityNumber = normalizeIdentityNumber(form.identityNumber);
+    if (identityNumber && !/^[0-9]{9,12}$/.test(identityNumber)) {
+      setError(t('auth.identityHint'));
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       await register({
         ...form,
         username,
-        identityNumber: form.identityNumber?.trim() || undefined,
+        phone,
+        email: form.email.trim().toLowerCase(),
+        identityNumber,
         captchaToken: captchaToken || undefined,
       });
       setToast(t('auth.registerOk'));
@@ -168,9 +184,16 @@ function RegisterForm() {
               placeholder="0912345678"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onBlur={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  phone: normalizeRegisterPhone(prev.phone) || prev.phone,
+                }))
+              }
               required
               autoComplete="tel"
             />
+            <p className="mt-1 text-xs text-cardon-gray">{t('auth.phoneHint')}</p>
           </div>
           <div>
             <label className="text-sm font-medium text-cardon-navy">{t('auth.identity')}</label>
@@ -179,8 +202,15 @@ function RegisterForm() {
               inputMode="numeric"
               value={form.identityNumber ?? ''}
               onChange={(e) => setForm({ ...form, identityNumber: e.target.value })}
+              onBlur={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  identityNumber: normalizeIdentityNumber(prev.identityNumber) ?? '',
+                }))
+              }
               autoComplete="off"
             />
+            <p className="mt-1 text-xs text-cardon-gray">{t('auth.identityHint')}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

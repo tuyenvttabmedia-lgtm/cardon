@@ -10,6 +10,10 @@ import {
   MinLength,
 } from 'class-validator';
 import { Match } from '../../../common/decorators/match.decorator';
+import {
+  normalizeIdentityNumber,
+  normalizeRegisterPhone,
+} from '../entities/normalize-register-phone';
 import { normalizeRegisterUsername } from '../entities/normalize-register-username';
 
 export class RegisterDto {
@@ -29,9 +33,13 @@ export class RegisterDto {
   @MaxLength(128)
   fullName!: string;
 
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   email!: string;
 
+  @Transform(({ value }) => normalizeRegisterPhone(value))
   @IsString()
   @Matches(/^(\+84|0)[0-9]{9,10}$/, {
     message: 'Phone must be a valid Vietnamese number',
@@ -47,6 +55,7 @@ export class RegisterDto {
   @Match('password', { message: 'Password confirmation does not match' })
   confirmPassword!: string;
 
+  @Transform(({ value }) => normalizeIdentityNumber(value))
   @IsOptional()
   @IsString()
   @Matches(/^[0-9]{9,12}$/, {
