@@ -83,6 +83,7 @@ export function persistMegapayVaForReopen(params: {
   paymentReference: string;
   bankInfo: NonNullable<PendingQrPayment['bankInfo']>;
   transferContent?: string | null;
+  expiresAt?: string | null;
 }): void {
   storePendingQrPayment({
     orderId: params.orderId,
@@ -92,9 +93,80 @@ export function persistMegapayVaForReopen(params: {
     paymentUrl: '',
     bankInfo: params.bankInfo,
     transferContent: params.transferContent ?? null,
-    expiresAt: null,
+    expiresAt: params.expiresAt ?? null,
     paymentReference: params.paymentReference,
     gateway: 'MEGAPAY',
     createdAt: Date.now(),
+  });
+}
+
+export type MegapayVaTransferFields = {
+  accountNumber: string | null;
+  accountName: string | null;
+  bankName: string | null;
+  bankCode: string | null;
+  content: string | null;
+  amount: string | null;
+};
+
+/** Read VA fields from MegaPay postMessage payload or /checkout/result query. */
+export function readMegapayVaTransferFields(
+  source: Record<string, unknown> | { get(name: string): string | null },
+): MegapayVaTransferFields {
+  const get = (key: string): string | null => {
+    if (typeof (source as { get?: unknown }).get === 'function') {
+      const value = (source as { get(name: string): string | null }).get(key);
+      return value?.trim() ? value.trim() : null;
+    }
+    const raw = (source as Record<string, unknown>)[key];
+    return typeof raw === 'string' && raw.trim() ? raw.trim() : null;
+  };
+
+  return {
+    accountNumber: get('vaNumber') ?? get('vaAcc') ?? get('vaAccount'),
+    accountName: get('vaName'),
+    bankName: get('bankName') ?? get('bankCode'),
+    bankCode: get('bankCode'),
+    content: get('vaContent') ?? get('invoiceNo'),
+    amount: get('amount'),
+  };
+}
+
+/**
+ * After MegaPay assigns a deposit account (00_005): park on CardOn /checkout/pay with VietQR.
+ * Never reopen pg.megapay — transfer + poll only.
+ */
+export function persistMegapayVaAndBuildPayPath(params: {
+  orderId: string;
+  orderCode: string;
+  email: string;
+  paymentReference: string;
+  amountFallback?: string | null;
+  expiresAt?: string | null;
+  va: MegapayVaTransferFields;
+}): string | null {
+  if (!params.va.accountNumber) return null;
+
+  const amount = params.va.amount || params.amountFallback || '';
+  persistMegapayVaForReopen({
+    orderId: params.orderId,
+    orderCode: params.orderCode,
+    email: params.email,
+    amount,
+    paymentReference: params.paymentReference,
+    bankInfo: {
+      accountNumber: params.va.accountNumber,
+      accountName: params.va.accountName,
+      bankName: params.va.bankName,
+      bankCode: params.va.bankCode,
+    },
+    transferContent: params.va.content,
+    expiresAt: params.expiresAt ?? null,
+  });
+
+  return buildCheckoutPayPath({
+    orderId: params.orderId,
+    orderCode: params.orderCode,
+    email: params.email,
   });
 }

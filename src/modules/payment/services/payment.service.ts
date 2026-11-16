@@ -294,6 +294,17 @@ export class PaymentService {
         },
       });
 
+      // Reopen / recreate must leave one active invoice — old PENDING → EXPIRED (superseded).
+      await this.paymentRepository.expireOtherPendingForOrder(
+        order.id,
+        created.id,
+        {
+          supersededBy: created.paymentReference,
+          reason: 'NEW_PAYMENT_CREATED',
+        },
+        tx,
+      );
+
       await tx.order.update({
         where: { id: order.id },
         data: {
@@ -739,6 +750,21 @@ export class PaymentService {
       // Amount must match before settle OR late manual-review queue — underpay must not be approvable.
       assertWebhookAmountMatches(payment.amount, verification.amount);
 
+      // Second SUCCESS while order already PAID (e.g. customer paid superseded invoice) → ops review, no re-fulfill.
+      if (payment.order.paymentStatus === OrderPaymentStatus.PAID) {
+        await this.handleDuplicateSuccessOnPaidOrder(payment, {
+          amount: new Decimal(verification.amount!).toFixed(2),
+          providerTransactionId: verification.providerTransactionId ?? null,
+          rawPayload: verification.rawPayload,
+        });
+        return {
+          ok: true,
+          duplicate: true,
+          manualReview: true,
+          paymentReference: payment.paymentReference,
+        };
+      }
+
       const expired = isWebhookPaymentExpired({
         paymentStatus: payment.status,
         orderPaymentStatus: payment.order.paymentStatus,
@@ -757,6 +783,18 @@ export class PaymentService {
           paymentReference: payment.paymentReference,
         };
       }
+    }
+
+    // Superseded / already-final payments: ignore FAILED IPN so reopen is not blocked.
+    if (
+      nextStatus === PaymentRecordStatus.FAILED &&
+      payment.status !== PaymentRecordStatus.PENDING
+    ) {
+      return {
+        ok: true,
+        duplicate: true,
+        paymentReference: payment.paymentReference,
+      };
     }
 
     assertPaymentRecordTransition(payment.status, nextStatus);
@@ -1260,11 +1298,29 @@ export class PaymentService {
         const current = await tx.payment.findUnique({ where: { id: paymentId } });
         if (
           current?.status === PaymentRecordStatus.FAILED ||
-          current?.status === PaymentRecordStatus.SUCCESS
+          current?.status === PaymentRecordStatus.SUCCESS ||
+          current?.status === PaymentRecordStatus.EXPIRED
         ) {
           return true;
         }
         throw new ConflictException('Payment already processed');
+      }
+
+      // Another PENDING invoice still open (reopen) — fail this attempt only, keep order waiting.
+      const remainingPending = await this.paymentRepository.countPendingForOrder(
+        orderId,
+        tx,
+      );
+      if (remainingPending > 0) {
+        return false;
+      }
+
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { paymentStatus: true },
+      });
+      if (order?.paymentStatus !== OrderPaymentStatus.WAITING_PAYMENT) {
+        return false;
       }
 
       await this.orderService.markPaymentFailedInTransaction(tx, orderId);
@@ -1318,6 +1374,92 @@ export class PaymentService {
       },
       lateWebhookPayload: (evidence.rawPayload ?? {}) as Prisma.InputJsonValue,
     } as Prisma.InputJsonValue);
+
+    await this.notificationService.notifyManualPaymentReview(
+      payment.id,
+      payment.orderId,
+    );
+  }
+
+  /**
+   * Customer paid a second invoice after order already PAID (or raced two PENDING).
+   * Record payment SUCCESS for recon + manualReview; never re-fulfill.
+   */
+  private async handleDuplicateSuccessOnPaidOrder(
+    payment: {
+      id: string;
+      orderId: string;
+      paymentReference: string;
+      gatewayResponse: unknown;
+      status: PaymentRecordStatus;
+    },
+    evidence: {
+      amount: string;
+      providerTransactionId?: string | null;
+      rawPayload?: unknown;
+    },
+  ): Promise<void> {
+    const existing =
+      payment.gatewayResponse && typeof payment.gatewayResponse === 'object'
+        ? (payment.gatewayResponse as Record<string, unknown>)
+        : {};
+
+    const gatewayResponse = this.mergeGatewayResponseWithTransactionId(
+      {
+        ...existing,
+        ...(evidence.rawPayload &&
+        typeof evidence.rawPayload === 'object' &&
+        !Array.isArray(evidence.rawPayload)
+          ? (evidence.rawPayload as Record<string, unknown>)
+          : {}),
+        manualReview: true,
+        duplicatePaymentOnPaidOrder: true,
+        duplicatePaymentAt: new Date().toISOString(),
+        duplicatePaymentEvidence: {
+          amount: evidence.amount,
+          providerTransactionId: evidence.providerTransactionId ?? null,
+        },
+      } as Prisma.InputJsonValue,
+      evidence.providerTransactionId ?? undefined,
+    );
+
+    if (payment.status === PaymentRecordStatus.PENDING) {
+      await this.prisma.$transaction(async (tx) => {
+        await this.paymentRepository.claimPendingStatus(
+          payment.id,
+          PaymentRecordStatus.SUCCESS,
+          { paidAt: new Date(), gatewayResponse },
+          tx,
+        );
+      });
+    } else {
+      await this.paymentRepository.recordLateWebhookManualReview(
+        payment.id,
+        gatewayResponse,
+      );
+    }
+
+    this.logger.error(
+      `Duplicate SUCCESS on already-PAID order orderId=${payment.orderId} paymentReference=${payment.paymentReference} amount=${evidence.amount}`,
+    );
+
+    this.activityDispatcher.dispatch({
+      eventType: SystemActivityEventType.WEBHOOK_FAILED,
+      eventCategory: SystemActivityEventCategory.WEBHOOK,
+      severity: SystemActivitySeverity.CRITICAL,
+      source: SystemActivitySource.API,
+      resource: 'payment',
+      resourceId: payment.id,
+      resourceDisplay: payment.paymentReference,
+      title: 'Duplicate payment on PAID order',
+      description: `SUCCESS IPN after order already PAID — manual refund may be required (${payment.paymentReference})`,
+      metadata: {
+        orderId: payment.orderId,
+        paymentReference: payment.paymentReference,
+        amount: evidence.amount,
+        providerTransactionId: evidence.providerTransactionId ?? null,
+      },
+    });
 
     await this.notificationService.notifyManualPaymentReview(
       payment.id,

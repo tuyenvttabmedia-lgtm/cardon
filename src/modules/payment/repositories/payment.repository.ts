@@ -114,6 +114,67 @@ export class PaymentRepository {
     });
   }
 
+  /**
+   * Mark every other PENDING payment on the order as EXPIRED so reopen / recreate
+   * leaves a single active invoice. Late SUCCESS on superseded refs → manual review.
+   */
+  async expireOtherPendingForOrder(
+    orderId: string,
+    keepPaymentId: string,
+    meta: { supersededBy: string; reason: string },
+    tx: Prisma.TransactionClient,
+  ): Promise<number> {
+    const others = await tx.payment.findMany({
+      where: {
+        orderId,
+        id: { not: keepPaymentId },
+        status: PaymentRecordStatus.PENDING,
+        deletedAt: null,
+      },
+      select: { id: true, gatewayResponse: true },
+    });
+    if (others.length === 0) return 0;
+
+    const supersededAt = new Date().toISOString();
+    for (const row of others) {
+      const existing =
+        row.gatewayResponse &&
+        typeof row.gatewayResponse === 'object' &&
+        !Array.isArray(row.gatewayResponse)
+          ? (row.gatewayResponse as Record<string, unknown>)
+          : {};
+      await tx.payment.update({
+        where: { id: row.id },
+        data: {
+          status: PaymentRecordStatus.EXPIRED,
+          gatewayResponse: {
+            ...existing,
+            supersededAt,
+            supersededBy: meta.supersededBy,
+            supersedeReason: meta.reason,
+          } as Prisma.InputJsonValue,
+        },
+      });
+    }
+    return others.length;
+  }
+
+  countPendingForOrder(
+    orderId: string,
+    tx?: Prisma.TransactionClient,
+    excludePaymentId?: string,
+  ) {
+    const client = tx ?? this.prisma;
+    return client.payment.count({
+      where: {
+        orderId,
+        status: PaymentRecordStatus.PENDING,
+        deletedAt: null,
+        ...(excludePaymentId ? { id: { not: excludePaymentId } } : {}),
+      },
+    });
+  }
+
   recordLateWebhookManualReview(
     id: string,
     gatewayResponse: Prisma.InputJsonValue,

@@ -29,6 +29,7 @@ import { SepayConfigService } from '../providers/sepay/sepay.config';
 import { readEsimSepayGatewayConfig } from '../providers/sepay/esim-sepay-sandbox.config';
 import { querySepayPgOrder } from '../providers/sepay/sepay.pg';
 import { assertWebhookAmountMatches } from '../entities/payment-state.machine';
+import { PaymentRepository } from '../repositories/payment.repository';
 
 const ESIM_LANE = 'ESIM';
 
@@ -49,6 +50,7 @@ export class EsimSepayPaymentService {
     private readonly fulfillmentDispatchService: FulfillmentDispatchService,
     private readonly notificationService: NotificationService,
     private readonly sepayConfig: SepayConfigService,
+    private readonly paymentRepository: PaymentRepository,
   ) {}
 
   private gatewayConfig() {
@@ -162,6 +164,15 @@ export class EsimSepayPaymentService {
             gatewayResponse,
           },
         });
+        await this.paymentRepository.expireOtherPendingForOrder(
+          order.id,
+          created.id,
+          {
+            supersededBy: created.paymentReference,
+            reason: 'NEW_PAYMENT_CREATED',
+          },
+          tx,
+        );
         await tx.order.update({
           where: { id: order.id },
           data: { paymentId: created.id },

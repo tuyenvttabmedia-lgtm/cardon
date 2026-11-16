@@ -311,11 +311,15 @@ describe('EsimSepayPaymentService', () => {
     };
     const fulfillment = { dispatchOrderFulfillment: jest.fn().mockResolvedValue(['esim-fulfill-order-1']) };
     const notification = { notifyPaymentSuccess: jest.fn() };
+    const paymentRepository = {
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+    };
     const service = new EsimSepayPaymentService(
       prisma as never,
       fulfillment as never,
       notification as never,
       gatewayStub() as never,
+      paymentRepository as never,
     );
     return {
       service,
@@ -602,6 +606,7 @@ describe('eSIM checkout leaves retail payment and redirect sync alone', () => {
     const repository = {
       findByIdempotencyKey: jest.fn(),
       findLatestByOrderId: jest.fn(),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const service = new PaymentService(
       prisma as never,

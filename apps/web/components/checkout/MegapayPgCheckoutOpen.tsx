@@ -5,6 +5,10 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  persistMegapayVaAndBuildPayPath,
+  readMegapayVaTransferFields,
+} from '@/lib/checkout-qr-flow';
+import {
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
   isMegapayAwaitingTransferResult,
@@ -168,9 +172,25 @@ export function MegapayPgCheckoutOpen({
       q.set('resultCd', resultCd || 'USER_CANCEL');
       if (resultMsg) q.set('resultMsg', resultMsg);
 
-      // Mã nộp tiền đã cấp nhưng chưa có tiền về: giữ phiên để trang kết quả theo dõi đơn.
+      // VA assigned: leave MegaPay permanently — show VietQR on CardOn /checkout/pay.
       if (isMegapayAwaitingTransferResult(resultCd)) {
         const payload = data as Record<string, unknown>;
+        if (orderId && orderCode && paymentReference) {
+          const payPath = persistMegapayVaAndBuildPayPath({
+            orderId,
+            orderCode,
+            email: email ?? '',
+            paymentReference,
+            amountFallback: amount ?? null,
+            va: readMegapayVaTransferFields(payload),
+          });
+          if (payPath) {
+            clearPendingMegapayPayment();
+            closeMegapayLayerDom();
+            router.replace(payPath);
+            return;
+          }
+        }
         for (const field of VA_RESULT_FIELDS) {
           const value = payload[field];
           if (typeof value === 'string' && value.trim()) q.set(field, value.trim());
@@ -182,7 +202,7 @@ export function MegapayPgCheckoutOpen({
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [router, orderCode, email, paymentReference]);
+  }, [router, orderId, orderCode, email, paymentReference, amount]);
 
   useEffect(() => {
     if (!mounted) return undefined;

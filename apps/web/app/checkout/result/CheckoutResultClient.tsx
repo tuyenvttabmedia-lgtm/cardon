@@ -9,7 +9,11 @@ import { customerFacingError } from '@/lib/i18n/customer-error';
 import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { VietQrImage, canBuildVietQrImage } from '@/components/checkout/VietQrImage';
-import { buildCheckoutPayPath, persistMegapayVaForReopen } from '@/lib/checkout-qr-flow';
+import {
+  buildCheckoutPayPath,
+  persistMegapayVaAndBuildPayPath,
+  readMegapayVaTransferFields,
+} from '@/lib/checkout-qr-flow';
 import {
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
@@ -78,37 +82,25 @@ export default function CheckoutResultClient() {
       return;
     }
 
-    // Mã nộp tiền đã được cấp nhưng chưa nhận được tiền — giữ phiên để theo dõi đơn.
+    // VA assigned (00_005): jump to CardOn QR pay page — never reopen MegaPay PG.
     if (isMegapayAwaitingTransferResult(resultCd)) {
-      setStatus('awaiting_transfer');
-      setMessage(
-        t('result.pending'),
-      );
-      // Mirror VA into pending-qr storage so «mở lại thanh toán» from order status works
-      // (that page only reads cardon:pending-qr:*, not pendingMegapay).
-      if (stored?.orderId && stored.orderCode) {
-        const accountNumber =
-          searchParams.get('vaNumber') ??
-          searchParams.get('vaAcc') ??
-          searchParams.get('vaAccount');
-        if (accountNumber) {
-          persistMegapayVaForReopen({
-            orderId: stored.orderId,
-            orderCode: stored.orderCode,
-            email: stored.email ?? '',
-            amount: searchParams.get('amount') ?? stored.amount ?? '',
-            paymentReference: stored.paymentReference,
-            bankInfo: {
-              accountNumber,
-              accountName: searchParams.get('vaName'),
-              bankName: searchParams.get('bankName') ?? searchParams.get('bankCode'),
-              bankCode: searchParams.get('bankCode'),
-            },
-            transferContent:
-              searchParams.get('vaContent') ?? searchParams.get('invoiceNo'),
-          });
+      if (stored?.orderId && stored.orderCode && stored.paymentReference) {
+        const payPath = persistMegapayVaAndBuildPayPath({
+          orderId: stored.orderId,
+          orderCode: stored.orderCode,
+          email: stored.email ?? '',
+          paymentReference: stored.paymentReference,
+          amountFallback: stored.amount ?? null,
+          va: readMegapayVaTransferFields(searchParams),
+        });
+        if (payPath) {
+          clearPendingMegapayPayment();
+          router.replace(withLocalePrefix(payPath, locale));
+          return;
         }
       }
+      setStatus('awaiting_transfer');
+      setMessage(t('result.pending'));
       return;
     }
 

@@ -23,6 +23,7 @@ import { mapPayment, type PaymentCheckoutClient } from '../entities/payment.mapp
 import { assertWebhookAmountMatches } from '../entities/payment-state.machine';
 import { MegaPayProvider } from '../providers/megapay/megapay.provider';
 import type { WebhookVerificationResult } from '../providers/payment-provider.interface';
+import { PaymentRepository } from '../repositories/payment.repository';
 
 const ESIM_LANE = 'ESIM';
 
@@ -48,6 +49,7 @@ export class EsimMegapayPaymentService {
     private readonly notificationService: NotificationService,
     private readonly megapayProvider: MegaPayProvider,
     private readonly settingsStore: SettingsStoreService,
+    private readonly paymentRepository: PaymentRepository,
   ) {}
 
   async createFromSnapshot(input: {
@@ -126,6 +128,15 @@ export class EsimMegapayPaymentService {
             gatewayResponse,
           },
         });
+        await this.paymentRepository.expireOtherPendingForOrder(
+          order.id,
+          created.id,
+          {
+            supersededBy: created.paymentReference,
+            reason: 'NEW_PAYMENT_CREATED',
+          },
+          tx,
+        );
         await tx.order.update({
           where: { id: order.id },
           data: { paymentId: created.id },

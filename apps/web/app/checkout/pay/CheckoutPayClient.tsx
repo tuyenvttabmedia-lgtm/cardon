@@ -270,7 +270,9 @@ export default function CheckoutPayPageClient() {
                 className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
                 onClick={() =>
                   router.push(
-                    `/checkout/success?orderCode=${encodeURIComponent(orderCode)}&email=${encodeURIComponent(email)}`,
+                    `/order/${encodeURIComponent(orderCode)}${
+                      email ? `?email=${encodeURIComponent(email)}` : ''
+                    }`,
                   )
                 }
               >
