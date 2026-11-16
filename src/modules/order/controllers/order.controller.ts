@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -10,6 +11,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { IDEMPOTENCY_KEY_HEADER } from '../../payment/entities/payment.constants';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { AbuseRateLimitService } from '../../../common/abuse-rate-limit/abuse-rate-limit.service';
@@ -48,6 +50,7 @@ export class OrderController {
   @MaintenanceModule('orders')
   async createOrder(
     @Body() dto: CreateOrderDto,
+    @Headers(IDEMPOTENCY_KEY_HEADER) idempotencyKey: string | undefined,
     @CurrentUser() user?: AuthenticatedUser,
     @Req() req?: Request,
   ) {
@@ -86,6 +89,7 @@ export class OrderController {
             countryCode: extractClientCountryCode(req),
           }
         : undefined,
+      idempotencyKey,
     );
   }
 

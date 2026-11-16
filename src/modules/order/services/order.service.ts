@@ -92,6 +92,7 @@ export class OrderService {
     dto: CreateOrderDto,
     user?: AuthenticatedUser,
     requestMeta?: { ip?: string | null; userAgent?: string | null; countryCode?: string | null },
+    checkoutIdempotencyKey?: string,
   ) {
     const isGuest = !user;
     if (isGuest && !dto.guestEmail) {
@@ -103,6 +104,15 @@ export class OrderService {
         throw new BadRequestException(
           'companyName, taxCode, and address are required when invoiceRequired is true',
         );
+      }
+    }
+
+    const idemKey = checkoutIdempotencyKey?.trim() || undefined;
+    if (idemKey) {
+      const existing = await this.orderRepository.findByCheckoutIdempotencyKey(idemKey);
+      if (existing) {
+        this.assertCheckoutIdempotencyAccess(existing, user, dto.guestEmail);
+        return mapOrder(existing);
       }
     }
 
@@ -185,63 +195,80 @@ export class OrderService {
         }
       : {};
 
-    const order = await this.prisma.$transaction(async (tx) => {
-      const financialTransaction =
-        await this.orderRepository.createFinancialTransaction(tx, {
-          transactionId: txnCode,
-          amount: customerPaid,
+    let order;
+    try {
+      order = await this.prisma.$transaction(async (tx) => {
+        const financialTransaction =
+          await this.orderRepository.createFinancialTransaction(tx, {
+            transactionId: txnCode,
+            amount: customerPaid,
+          });
+
+        const created = await this.orderRepository.createWithTransaction(tx, {
+          orderCode,
+          transactionId: financialTransaction.id,
+          userId: user?.id,
+          guestEmail: isGuest ? dto.guestEmail : user?.email,
+          guestPhone: dto.guestPhone,
+          isGuestOrder: isGuest,
+          invoiceRequired: dto.invoiceRequired ?? false,
+          invoiceMetadata,
+          customerNote: dto.customerNote,
+          clientTrace: buildClientTrace(dto, user, requestMeta),
+          totalAmount: customerPaid,
+          faceValue,
+          sellAmount,
+          discountAmount,
+          paymentMethodCode: paymentMethod.methodCode,
+          methodDisplayName: paymentMethod.displayName,
+          paymentGateway: paymentMethod.gatewayCode,
+          settlementType: paymentMethod.settlementType,
+          paymentFeePercent: new Decimal(paymentMethod.percentageFee),
+          paymentFeeFixed: new Decimal(paymentMethod.fixedFee),
+          paymentFeeAmount,
+          customerPaid,
+          providerCost,
+          profit,
+          paymentExpiresAt,
+          checkoutIdempotencyKey: idemKey,
         });
 
-      const created = await this.orderRepository.createWithTransaction(tx, {
-        orderCode,
-        transactionId: financialTransaction.id,
-        userId: user?.id,
-        guestEmail: isGuest ? dto.guestEmail : user?.email,
-        guestPhone: dto.guestPhone,
-        isGuestOrder: isGuest,
-        invoiceRequired: dto.invoiceRequired ?? false,
-        invoiceMetadata,
-        customerNote: dto.customerNote,
-        clientTrace: buildClientTrace(dto, user, requestMeta),
-        totalAmount: customerPaid,
-        faceValue,
-        sellAmount,
-        discountAmount,
-        paymentMethodCode: paymentMethod.methodCode,
-        methodDisplayName: paymentMethod.displayName,
-        paymentGateway: paymentMethod.gatewayCode,
-        settlementType: paymentMethod.settlementType,
-        paymentFeePercent: new Decimal(paymentMethod.percentageFee),
-        paymentFeeFixed: new Decimal(paymentMethod.fixedFee),
-        paymentFeeAmount,
-        customerPaid,
-        providerCost,
-        profit,
-        paymentExpiresAt,
-      });
+        for (const item of lineItems) {
+          await this.orderRepository.createOrderItem(tx, {
+            orderId: created.id,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.lineDiscount,
+            totalAmount: item.lineTotal,
+          });
+        }
 
-      for (const item of lineItems) {
-        await this.orderRepository.createOrderItem(tx, {
-          orderId: created.id,
-          variantId: item.variantId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.lineDiscount,
-          totalAmount: item.lineTotal,
-        });
-      }
-
-      return tx.order.findFirst({
-        where: { id: created.id },
-        include: {
-          orderItems: {
-            include: {
-              variant: { select: { sku: true, name: true } },
+        return tx.order.findFirst({
+          where: { id: created.id },
+          include: {
+            orderItems: {
+              include: {
+                variant: { select: { sku: true, name: true } },
+              },
             },
           },
-        },
+        });
       });
-    });
+    } catch (error) {
+      if (
+        idemKey &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const raced = await this.orderRepository.findByCheckoutIdempotencyKey(idemKey);
+        if (raced) {
+          this.assertCheckoutIdempotencyAccess(raced, user, dto.guestEmail);
+          return mapOrder(raced);
+        }
+      }
+      throw error;
+    }
 
     if (!order) {
       throw new ConflictException('Order creation failed');
@@ -508,6 +535,24 @@ export class OrderService {
       tx,
     );
     await this.orderRepository.failB2cFinancialTransaction(orderId, tx);
+  }
+
+  private assertCheckoutIdempotencyAccess(
+    order: { userId: string | null; guestEmail: string | null },
+    user?: AuthenticatedUser,
+    guestEmail?: string,
+  ): void {
+    if (order.userId) {
+      if (!user?.id || user.id !== order.userId) {
+        throw new NotFoundException('Order not found');
+      }
+      return;
+    }
+    const expected = (order.guestEmail ?? '').trim().toLowerCase();
+    const provided = (guestEmail ?? '').trim().toLowerCase();
+    if (!expected || !provided || expected !== provided) {
+      throw new NotFoundException('Order not found');
+    }
   }
 
   private resolvePaymentMethod(code?: string) {

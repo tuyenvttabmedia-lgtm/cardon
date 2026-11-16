@@ -133,6 +133,7 @@ export default function CheckoutPageClient() {
 
   const [guestEmail, setGuestEmail] = useState('');
   const captchaRef = useRef<TurnstileFieldHandle>(null);
+  const checkoutIdempotencyKeyRef = useRef<string | null>(null);
   const turnstileSiteKey = useTurnstileSiteKey();
   const captchaRequired = !isAuthenticated && isTurnstileSiteKeyConfigured(turnstileSiteKey);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -239,6 +240,10 @@ export default function CheckoutPageClient() {
     if (loading) return;
     setLoading(true);
     setError(null);
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
+    }
+    const orderIdempotencyKey = checkoutIdempotencyKeyRef.current;
 
     try {
       if (vnOnlyBlocked) {
@@ -335,13 +340,16 @@ export default function CheckoutPageClient() {
         setError(t('checkout.noMethods'));
         return;
       }
-      const order = await orderApi.create({
-        items: [{ variantId: variant.id, quantity }],
-        guestEmail: isAuthenticated ? undefined : email,
-        paymentMethodCode,
-        locale: readBrowserLocale(),
-        captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
-      });
+      const order = await orderApi.create(
+        {
+          items: [{ variantId: variant.id, quantity }],
+          guestEmail: isAuthenticated ? undefined : email,
+          paymentMethodCode,
+          locale: readBrowserLocale(),
+          captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
+        },
+        orderIdempotencyKey,
+      );
 
       const resolvedEmail = email ?? order.guestEmail ?? '';
       const pay = await paymentApi.create(
@@ -359,6 +367,7 @@ export default function CheckoutPageClient() {
         email: resolvedEmail,
       });
       storeOrderGuestEmail(order.id, resolvedEmail);
+      checkoutIdempotencyKeyRef.current = null;
 
       if (isInlineQrPayment(pay)) {
         router.push(

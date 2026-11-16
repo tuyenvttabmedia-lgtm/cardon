@@ -397,8 +397,12 @@ export const productApi = {
 };
 
 export const orderApi = {
-  create(payload: CreateOrderPayload) {
-    return apiRequest<Order>('/orders', { method: 'POST', body: payload });
+  create(payload: CreateOrderPayload, idempotencyKey?: string) {
+    return apiRequest<Order>('/orders', {
+      method: 'POST',
+      body: payload,
+      headers: idempotencyKey ? { 'idempotency-key': idempotencyKey } : undefined,
+    });
   },
   lookup(orderCode: string, email: string) {
     const params = new URLSearchParams({ orderCode, email });

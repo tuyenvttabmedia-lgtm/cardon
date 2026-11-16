@@ -173,6 +173,9 @@ export const journeyVi = {
   'result.processing': 'Đang xử lý kết quả thanh toán…',
   'result.okRedirect': 'Thanh toán thành công. Đang chuyển tới trang đơn hàng…',
   'result.okLookup': 'Thanh toán thành công. Vui lòng tra cứu đơn hàng bằng mã đơn và email đã dùng khi mua.',
+  'result.confirmingTitle': 'Đang xác nhận thanh toán',
+  'result.confirming':
+    'Cổng đã báo thành công. CardOn đang xác nhận trên hệ thống — chỉ giao thẻ khi đơn chuyển sang Đã thanh toán.',
   'result.pending': 'Đã tạo mã nộp tiền cho đơn hàng. Vui lòng chuyển khoản đúng số tiền — sản phẩm được giao khi ngân hàng báo có.',
   'result.incomplete': 'Thanh toán chưa hoàn tất. Đơn hàng chưa bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
   'result.cancelled': 'Bạn đã hủy giao dịch nên đơn hàng chưa được thanh toán. Bạn không bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
@@ -601,6 +604,9 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'result.processing': 'Checking the payment result…',
   'result.okRedirect': 'Payment successful. Opening your order…',
   'result.okLookup': 'Payment successful. Look up the order with the order code and the email used at checkout.',
+  'result.confirmingTitle': 'Confirming payment',
+  'result.confirming':
+    'The gateway reported success. CardOn is confirming on our side — cards are only delivered after the order is Paid.',
   'result.pending': 'A transfer reference was created. Pay the exact amount — delivery starts when the bank confirms.',
   'result.incomplete': 'Payment is not finished. You were not charged — start a new order from the home page.',
   'result.cancelled': 'You cancelled the payment, so the order is unpaid. You were not charged — start a new order from the home page.',

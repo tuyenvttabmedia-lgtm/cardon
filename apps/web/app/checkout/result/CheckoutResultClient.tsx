@@ -27,7 +27,13 @@ import { orderApi } from '@/services/api-client';
 
 const POLL_MS = 5000;
 
-type ResultStatus = 'loading' | 'success' | 'awaiting_transfer' | 'cancel' | 'failed';
+type ResultStatus =
+  | 'loading'
+  | 'confirming'
+  | 'success'
+  | 'awaiting_transfer'
+  | 'cancel'
+  | 'failed';
 
 /**
  * MegaPay PG callBackUrl landing page.
@@ -67,18 +73,9 @@ export default function CheckoutResultClient() {
     setPending(stored);
 
     if (isMegapaySuccessResult(resultCd)) {
-      setStatus('success');
-      setMessage(t('result.okRedirect'));
-      clearPendingMegapayPayment();
-      if (stored?.orderCode) {
-        const q = new URLSearchParams({ orderCode: stored.orderCode });
-        if (stored.email) q.set('email', stored.email);
-        router.replace(withLocalePrefix(`/checkout/success?${q.toString()}`, locale));
-        return;
-      }
-      setMessage(
-        t('result.okLookup'),
-      );
+      // Gateway said OK — confirm PAID on CardOn before calling it a success.
+      setStatus('confirming');
+      setMessage(t('result.confirming'));
       return;
     }
 
@@ -142,7 +139,8 @@ export default function CheckoutResultClient() {
   goToSuccessRef.current = goToSuccess;
 
   useEffect(() => {
-    if (status !== 'awaiting_transfer' || authLoading) return undefined;
+    if (status !== 'awaiting_transfer' && status !== 'confirming') return undefined;
+    if (authLoading) return undefined;
     const orderId = pending?.orderId;
     const orderCode = pending?.orderCode;
     const email = pending?.email ?? '';
@@ -160,7 +158,9 @@ export default function CheckoutResultClient() {
         setPollError(null);
 
         if (paymentStatus === 'PAID') {
+          setStatus('success');
           setMessage(t('result.paidRedirect'));
+          clearPendingMegapayPayment();
           goToSuccessRef.current();
           return;
         }
@@ -172,6 +172,8 @@ export default function CheckoutResultClient() {
               ? t('result.orderExpired')
               : t('result.failedPaid'),
           );
+        } else if (status === 'confirming') {
+          setMessage(t('result.confirming'));
         }
       } catch (err) {
         if (!active) return;
@@ -198,13 +200,15 @@ export default function CheckoutResultClient() {
   const heading =
     status === 'success'
       ? t('result.success')
-      : status === 'awaiting_transfer'
-        ? t('result.awaiting')
-        : status === 'cancel'
-          ? t('result.cancelledTitle')
-          : status === 'failed'
-            ? t('result.failedTitle')
-            : t('result.title');
+      : status === 'confirming'
+        ? t('result.confirmingTitle')
+        : status === 'awaiting_transfer'
+          ? t('result.awaiting')
+          : status === 'cancel'
+            ? t('result.cancelledTitle')
+            : status === 'failed'
+              ? t('result.failedTitle')
+              : t('result.title');
 
   return (
     <PageContainer className="page-footer-gap">
@@ -214,10 +218,19 @@ export default function CheckoutResultClient() {
 
         {pending?.orderCode && status !== 'success' && (
           <p className="mt-2 text-sm text-cardon-gray">
-            {status === 'awaiting_transfer' ? t('result.orderCode') : t('result.unpaid')}:{' '}
-            <span className="font-semibold text-cardon-navy">{pending.orderCode}</span>
+            {status === 'awaiting_transfer' || status === 'confirming'
+              ? t('result.orderCode')
+              : t('result.unpaid')}
+            : <span className="font-semibold text-cardon-navy">{pending.orderCode}</span>
           </p>
         )}
+
+        {status === 'confirming' && pollError ? (
+          <p className="mt-3 text-sm text-red-600">{pollError}</p>
+        ) : null}
+        {status === 'confirming' ? (
+          <p className="mt-4 text-xs leading-relaxed text-cardon-gray">{t('result.auto')}</p>
+        ) : null}
 
         {status === 'awaiting_transfer' && (
           <>

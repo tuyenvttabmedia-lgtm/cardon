@@ -154,17 +154,11 @@ export function MegapayPgCheckoutOpen({
       closeMegapayLayerDom();
 
       if (isMegapaySuccessResult(resultCd)) {
-        const pendingRef = paymentReference;
+        // Never jump to /checkout/success on client result alone — wait for server PAID via /result poll.
         const q = new URLSearchParams();
-        if (orderCode) q.set('orderCode', orderCode);
-        if (email) q.set('email', email);
-        clearPendingMegapayPayment();
-        if (orderCode) {
-          router.replace(`/checkout/success?${q.toString()}`);
-        } else {
-          router.replace(`/checkout/result?resultCd=${encodeURIComponent(resultCd)}`);
-        }
-        void pendingRef;
+        q.set('resultCd', resultCd);
+        if (resultMsg) q.set('resultMsg', resultMsg);
+        router.replace(`/checkout/result?${q.toString()}`);
         return;
       }
 

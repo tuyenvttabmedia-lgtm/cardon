@@ -159,6 +159,8 @@ function CheckoutShellInner({
   const retailMarket = useRetailMarket();
   const vnOnlyBlocked = retailMarket === 'INTL';
   const payInFlightRef = useRef(false);
+  /** Stable across retries in the same pay attempt so POST /orders can dedupe. */
+  const checkoutIdempotencyKeyRef = useRef<string | null>(null);
   const autoCatalogInitialized = useRef(false);
 
   const pathCategory = cardCategoryFromPathname(pathname);
@@ -557,30 +559,40 @@ function CheckoutShellInner({
     setOrderLimitError(null);
     setPayment(null);
     setPaidOrderMeta(null);
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
+    }
+    const orderIdempotencyKey = checkoutIdempotencyKeyRef.current;
 
     try {
       let order;
       if (mode === 'CARD') {
-        order = await orderApi.create({
-          items: [{ variantId: variant.id, quantity: orderQuantity }],
-          paymentMethodCode,
-          clientDeviceInfo: collectClientDeviceInfo(),
-          locale: readBrowserLocale(),
-        });
+        order = await orderApi.create(
+          {
+            items: [{ variantId: variant.id, quantity: orderQuantity }],
+            paymentMethodCode,
+            clientDeviceInfo: collectClientDeviceInfo(),
+            locale: readBrowserLocale(),
+          },
+          orderIdempotencyKey,
+        );
       } else {
         const normalizedPhone = normalizeVnPhone(phone);
         const note =
           mode === 'TOPUP'
             ? `Nạp số: ${normalizedPhone} | ${carrierLabel(resolvedCarrierId) ?? resolvedCarrierId}`
             : `Nạp data: ${normalizedPhone} | ${variant.sku || variant.name}`;
-        order = await orderApi.create({
-          items: [{ variantId: variant.id, quantity: 1 }],
-          guestPhone: normalizedPhone,
-          customerNote: note,
-          paymentMethodCode,
-          clientDeviceInfo: collectClientDeviceInfo(),
-          locale: readBrowserLocale(),
-        });
+        order = await orderApi.create(
+          {
+            items: [{ variantId: variant.id, quantity: 1 }],
+            guestPhone: normalizedPhone,
+            customerNote: note,
+            paymentMethodCode,
+            clientDeviceInfo: collectClientDeviceInfo(),
+            locale: readBrowserLocale(),
+          },
+          orderIdempotencyKey,
+        );
       }
 
       const pay = await paymentApi.create({ orderId: order.id, gateway }, generateIdempotencyKey());
@@ -591,6 +603,8 @@ function CheckoutShellInner({
         email: user.email,
       });
       storeOrderGuestEmail(order.id, user.email);
+      // Next intentional pay click starts a new checkout attempt.
+      checkoutIdempotencyKeyRef.current = null;
 
       if (isInlineQrPayment(pay)) {
         router.push(
@@ -905,29 +919,6 @@ function CheckoutShellInner({
                   packageLabel={packageLabel}
                 />
               )}
-              {payment?.checkoutUrl &&
-                payment.checkoutFormFields &&
-                payment.gateway === 'SEPAY' && (
-                  <SepayPgCheckoutRedirect
-                    checkoutUrl={payment.checkoutUrl}
-                    checkoutFormFields={payment.checkoutFormFields}
-                  />
-                )}
-              {payment?.checkoutFormFields &&
-                payment.checkoutClient &&
-                payment.gateway === 'MEGAPAY' &&
-                payment.displayMode !== 'qr_inline' && (
-                  <MegapayPgCheckoutOpen
-                    checkoutFormFields={payment.checkoutFormFields}
-                    checkoutClient={payment.checkoutClient}
-                    orderId={paidOrderMeta?.orderId ?? payment.orderId}
-                    orderCode={paidOrderMeta?.orderCode}
-                    email={paidOrderMeta?.email}
-                    paymentReference={payment.paymentReference}
-                    resumeHref={megapayResumeHref}
-                    amount={payment.amount}
-                  />
-                )}
             </aside>
           </div>
         )}

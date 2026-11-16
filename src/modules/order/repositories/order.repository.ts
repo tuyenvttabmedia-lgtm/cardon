@@ -92,6 +92,7 @@ export interface CreateOrderRecordInput {
   fxAsOf?: Date | null;
   esimMarket?: string | null;
   pricingLockedAt?: Date | null;
+  checkoutIdempotencyKey?: string | null;
 }
 
 export interface CreateOrderItemRecordInput {
@@ -307,6 +308,17 @@ export class OrderRepository {
         paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
         fulfillmentStatus: FulfillmentStatus.PENDING,
         paymentExpiresAt: input.paymentExpiresAt,
+        checkoutIdempotencyKey: input.checkoutIdempotencyKey ?? undefined,
+      },
+      include: ORDER_INCLUDE,
+    });
+  }
+
+  findByCheckoutIdempotencyKey(checkoutIdempotencyKey: string) {
+    return this.prisma.order.findFirst({
+      where: {
+        checkoutIdempotencyKey,
+        ...ACTIVE_ORDER_WHERE,
       },
       include: ORDER_INCLUDE,
     });
