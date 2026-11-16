@@ -70,9 +70,9 @@ export function PurchasedCardsPanel({
           const pin = pins[c.cardId];
           const revealed = !!pin || c.pinViewCount > 0;
           return (
-            <div key={c.cardId} className="min-w-0 overflow-hidden rounded-xl border border-gray-100 p-4 text-sm">
+            <div key={c.cardId} className="min-w-0 overflow-hidden rounded-xl border border-gray-100 px-3 py-3 text-sm">
               <p className="font-semibold text-cardon-navy">{c.productName}</p>
-              <p className="text-xs text-cardon-gray">Đơn: {c.orderCode}</p>
+              <p className="text-[11px] text-cardon-gray">Đơn: {c.orderCode}</p>
               <PurchasedCardActions
                 serial={c.serial}
                 pin={pin}

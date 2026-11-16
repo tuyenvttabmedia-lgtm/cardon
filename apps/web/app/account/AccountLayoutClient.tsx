@@ -6,31 +6,12 @@ import { useEffect } from 'react';
 import { WrongRetailPortalNotice } from '@/components/auth/WrongRetailPortalNotice';
 import { useBarePath, useT } from '@/components/i18n/LocaleProvider';
 import { PageContainer } from '@/components/layout/PageContainer';
-import type { MessageKey } from '@/lib/i18n/messages';
 import { useAuth } from '@/hooks/useAuth';
 import { isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
+import { ACCOUNT_NAV_LINKS, isAccountNavActive } from '@/lib/account-nav';
 import { ACCOUNT_PATHS, isAccountPath } from '@/lib/account-routes';
 import { isRetailCustomerRole } from '@/lib/retail-auth';
 import { cn } from '@/lib/utils';
-
-const LINKS: Array<{ href: string; labelKey: MessageKey; icon: string; requiresData?: boolean }> = [
-  { href: ACCOUNT_PATHS.profile, labelKey: 'account.profile', icon: '👤' },
-  { href: ACCOUNT_PATHS.orders, labelKey: 'account.orders', icon: '📋' },
-  { href: ACCOUNT_PATHS.gameCards, labelKey: 'account.gameCards', icon: '🎮' },
-  { href: ACCOUNT_PATHS.phoneCards, labelKey: 'account.phoneCards', icon: '📱' },
-  { href: ACCOUNT_PATHS.esim, labelKey: 'account.esim', icon: '📶' },
-  { href: ACCOUNT_PATHS.topups, labelKey: 'account.topups', icon: '⚡' },
-  { href: ACCOUNT_PATHS.data, labelKey: 'account.data', icon: '📶', requiresData: true },
-  { href: ACCOUNT_PATHS.support, labelKey: 'nav.help', icon: '🎧' },
-  { href: ACCOUNT_PATHS.password, labelKey: 'account.passwordTitle', icon: '🔒' },
-];
-
-function linkActive(pathname: string, href: string): boolean {
-  if (href === ACCOUNT_PATHS.profile) {
-    return pathname === ACCOUNT_PATHS.profile || pathname === '/account';
-  }
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 export function AccountLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = useBarePath();
@@ -38,12 +19,13 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
   const router = useRouter();
   const { user, isAuthenticated, loading, logout } = useAuth();
   const siteConfig = useSiteConfig();
-  const links = LINKS.filter(
-    (item) => !('requiresData' in item && item.requiresData) || isDataServiceVisible(siteConfig),
+  const links = ACCOUNT_NAV_LINKS.filter(
+    (item) => !item.requiresData || isDataServiceVisible(siteConfig),
   );
   const wrongPortal = Boolean(user && !isRetailCustomerRole(user.role));
   const activeHref =
-    links.find((l) => linkActive(pathname, l.href))?.href ?? ACCOUNT_PATHS.profile;
+    links.find((l) => isAccountNavActive(pathname, l.href))?.href ?? ACCOUNT_PATHS.profile;
+  const activeLabel = links.find((l) => l.href === activeHref);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -77,7 +59,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
 
   return (
     <PageContainer className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8">
-      <div className="mb-4 md:mb-6">
+      <div className="mb-3 md:mb-6">
         <h1 className="text-2xl font-bold text-cardon-navy">{t('account.center')}</h1>
         <p className="mt-1 text-sm text-cardon-gray">{t('account.centerBody')}</p>
       </div>
@@ -91,7 +73,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
                   href={l.href}
                   className={cn(
                     'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                    linkActive(pathname, l.href)
+                    isAccountNavActive(pathname, l.href)
                       ? 'bg-cardon-blue text-white'
                       : 'text-cardon-navy hover:bg-cardon-light',
                   )}
@@ -104,23 +86,40 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
           </ul>
         </nav>
 
-        {/* Mobile: one select with the full desktop list — avoids clipped pill tabs. */}
-        <div className="lg:hidden">
+        {/* Sticky, high-contrast switcher so section changes are obvious on mobile. */}
+        <div className="sticky top-14 z-20 -mx-1 px-1 lg:hidden">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-cardon-gray">
-              {t('account.center')}
+            <span className="mb-1 flex items-center justify-between gap-2 text-xs font-bold text-cardon-blue">
+              <span>📂 Chọn mục tài khoản</span>
+              <span className="rounded-full bg-cardon-blue/10 px-2 py-0.5 text-[10px] font-semibold">
+                {links.length} mục
+              </span>
             </span>
-            <select
-              value={activeHref}
-              onChange={(e) => router.push(e.target.value)}
-              className="w-full rounded-xl border border-cardon-border bg-white px-3 py-3 text-sm font-semibold text-cardon-navy outline-none focus:border-cardon-blue"
-            >
-              {links.map((l) => (
-                <option key={l.href} value={l.href}>
-                  {l.icon} {t(l.labelKey)}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                value={activeHref}
+                onChange={(e) => router.push(e.target.value)}
+                aria-label="Chọn mục tài khoản"
+                className="w-full appearance-none rounded-xl border-2 border-cardon-blue bg-white py-3 pl-3 pr-10 text-sm font-bold text-cardon-navy shadow-md outline-none ring-cardon-blue/20 focus:ring-4"
+              >
+                {links.map((l) => (
+                  <option key={l.href} value={l.href}>
+                    {l.icon} {t(l.labelKey)}
+                  </option>
+                ))}
+              </select>
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-base font-bold text-cardon-blue"
+              >
+                ▾
+              </span>
+            </div>
+            {activeLabel ? (
+              <p className="mt-1 text-[11px] text-cardon-gray">
+                Đang xem: {activeLabel.icon} {t(activeLabel.labelKey)}
+              </p>
+            ) : null}
           </label>
         </div>
 

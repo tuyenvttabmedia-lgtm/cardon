@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
-import { filterMobileNavBySiteConfig, useSiteConfig } from '@/hooks/useSiteConfig';
+import { filterMobileNavBySiteConfig, isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
 import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
-import { ACCOUNT_PATHS, isAccountPath } from '@/lib/account-routes';
+import { ACCOUNT_NAV_LINKS, isAccountNavActive } from '@/lib/account-nav';
+import { isAccountPath } from '@/lib/account-routes';
 import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
 import { compactMobileNavLabel } from '@/lib/mobile-nav-label';
 import { cn } from '@/lib/utils';
@@ -83,7 +83,6 @@ function MobileNavItem({
   );
 }
 
-/** Logged-in sheet: logout only — account sections live in Trung tâm tài khoản. */
 function MobileAccountSheet({
   open,
   onClose,
@@ -93,8 +92,13 @@ function MobileAccountSheet({
   onClose: () => void;
   onLogout: () => void;
 }) {
+  const pathname = useBarePath();
   const t = useT();
+  const siteConfig = useSiteConfig();
   const ref = useRef<HTMLDivElement>(null);
+  const links = ACCOUNT_NAV_LINKS.filter(
+    (item) => !item.requiresData || isDataServiceVisible(siteConfig),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -117,20 +121,46 @@ function MobileAccountSheet({
       />
       <div
         ref={ref}
-        className="fixed bottom-[4.75rem] left-3 right-3 z-[56] overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-xl md:hidden"
+        className="fixed bottom-[4.75rem] left-3 right-3 z-[56] max-h-[min(70vh,28rem)] overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-xl md:hidden"
       >
-        <div className="py-1">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onLogout();
-            }}
-            className="block w-full px-4 py-3.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
-          >
-            {t('nav.logout')}
-          </button>
+        <div className="border-b border-cardon-border px-4 py-2.5">
+          <p className="text-xs font-bold uppercase tracking-wide text-cardon-blue">
+            {t('account.center')}
+          </p>
         </div>
+        <div className="max-h-[min(52vh,20rem)] overflow-y-auto py-1">
+          {links.map((item) => {
+            const active = isAccountNavActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-2.5 px-4 py-3 text-sm font-medium',
+                  active
+                    ? 'bg-cardon-blue/10 font-semibold text-cardon-blue'
+                    : 'text-cardon-navy hover:bg-cardon-light',
+                )}
+              >
+                <span aria-hidden className="text-base leading-none">
+                  {item.icon}
+                </span>
+                {t(item.labelKey)}
+              </Link>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onLogout();
+          }}
+          className="block w-full border-t px-4 py-3.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
+        >
+          {t('nav.logout')}
+        </button>
       </div>
     </>
   );
@@ -192,7 +222,6 @@ function MobileGuestSheet({
 
 export function MobileBottomNav() {
   const pathname = useBarePath();
-  const router = useRouter();
   const { locale } = useLocale();
   const { isAuthenticated, logout } = useAuth();
   const { mobileNav } = useThemeSettings();
@@ -203,19 +232,6 @@ export function MobileBottomNav() {
     mobileNav.filter((item) => item.active !== false),
     siteConfig,
   );
-
-  function onAccountTap() {
-    if (!isAuthenticated) {
-      setAccountOpen(true);
-      return;
-    }
-    // Already in account center → short sheet (center / history / logout). Else go straight in.
-    if (isAccountPath(pathname)) {
-      setAccountOpen(true);
-      return;
-    }
-    router.push(ACCOUNT_PATHS.profile);
-  }
 
   return (
     <>
@@ -240,7 +256,7 @@ export function MobileBottomNav() {
                     active={active}
                     icon={item.icon}
                     label={label}
-                    onClick={onAccountTap}
+                    onClick={() => setAccountOpen(true)}
                   />
                 ) : (
                   <MobileNavItem
