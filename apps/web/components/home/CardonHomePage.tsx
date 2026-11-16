@@ -10,6 +10,7 @@ import { CustomerProductLogo } from '@/components/product/CustomerProductLogo';
 import { FaqSection } from '@/components/faq/FaqSection';
 import { NewsSection } from '@/components/home/NewsSection';
 import { HelpIcon, SectionGlyph } from '@/components/icons/SectionGlyph';
+import { HubGuideLinks } from '@/components/seo/HubGuideLinks';
 import { useProducts } from '@/hooks/useProducts';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import type { PublicBlogPost, PublicFaqItem } from '@/lib/cms-api';
@@ -311,6 +312,7 @@ export function CardonHomePage({
         />
       </section>
 
+      <HubGuideLinks path="/" title="Hướng dẫn nên đọc" />
       <NewsSection posts={newsPosts.slice(0, 8)} icon={<NewsIcon />} />
       <FaqSection
         featured
