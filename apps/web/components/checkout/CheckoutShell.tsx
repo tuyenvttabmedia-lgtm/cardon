@@ -36,7 +36,6 @@ import {
   savePendingCheckout,
 } from '@/lib/checkout-persistence';
 import { isInlineQrPayment, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
-import { persistAndPathForMegapayWaiting } from '@/lib/pending-megapay-payment';
 import {
   collectClientDeviceInfo,
   normalizeVnPhone,
@@ -80,6 +79,9 @@ import type { Payment, Product, ProductVariant } from '@/types/api';
 
 const SepayPgCheckoutRedirect = dynamic(() =>
   import('@/components/checkout/SepayPgCheckoutRedirect').then((m) => m.SepayPgCheckoutRedirect),
+);
+const MegapayPgCheckoutOpen = dynamic(() =>
+  import('@/components/checkout/MegapayPgCheckoutOpen').then((m) => m.MegapayPgCheckoutOpen),
 );
 
 function StepTitle({ n, title }: { n: number; title: string }) {
@@ -478,20 +480,6 @@ function CheckoutShellInner({
     setPaymentMethodCode,
   ]);
 
-  const megapayResumeHref = useMemo(() => {
-    if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
-    if (mode === 'DATA') return `/nap-data#${anchorId}`;
-    if (product?.slug && variant?.id) {
-      const q = new URLSearchParams({
-        slug: product.slug,
-        variantId: variant.id,
-        quantity: String(orderQuantity),
-      });
-      return `/checkout?${q.toString()}`;
-    }
-    return `${homeCardServiceHref(category)}#${anchorId}`;
-  }, [mode, anchorId, product?.slug, variant?.id, orderQuantity, category]);
-
   async function handlePay() {
     if (vnOnlyBlocked) {
       setCheckoutError(t('market.vnOnly'));
@@ -616,30 +604,7 @@ function CheckoutShellInner({
         return;
       }
 
-      // MegaPay PG: park on CardOn waiting station so Back from pg.megapay lands here.
-      if (
-        pay.gateway === 'MEGAPAY' &&
-        pay.checkoutFormFields &&
-        pay.checkoutClient &&
-        pay.displayMode !== 'qr_inline'
-      ) {
-        router.replace(
-          persistAndPathForMegapayWaiting({
-            orderId: order.id,
-            orderCode: order.orderCode,
-            email: user.email,
-            paymentReference: pay.paymentReference,
-            amount: pay.amount,
-            payType: pay.checkoutFormFields.payType,
-            resumeHref: megapayResumeHref,
-            checkoutFormFields: pay.checkoutFormFields,
-            checkoutClient: pay.checkoutClient,
-          }),
-        );
-        return;
-      }
-
-      // SePay form checkout rendered below via payment state.
+      // MegaPay PG / SePay form checkout rendered below via payment state.
     } catch (err) {
       if (err instanceof ApiClientError) {
         const limitDetails = parseOrderAmountLimitError({
@@ -697,6 +662,20 @@ function CheckoutShellInner({
             paymentMethodCode,
         );
   const payDisabled = !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked;
+
+  const megapayResumeHref = useMemo(() => {
+    if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
+    if (mode === 'DATA') return `/nap-data#${anchorId}`;
+    if (product?.slug && variant?.id) {
+      const q = new URLSearchParams({
+        slug: product.slug,
+        variantId: variant.id,
+        quantity: String(orderQuantity),
+      });
+      return `/checkout?${q.toString()}`;
+    }
+    return `${homeCardServiceHref(category)}#${anchorId}`;
+  }, [mode, anchorId, product?.slug, variant?.id, orderQuantity, category]);
 
   const showMobileBar = Boolean(variant);
   const gridClass =
@@ -934,6 +913,21 @@ function CheckoutShellInner({
                     checkoutFormFields={payment.checkoutFormFields}
                   />
                 )}
+              {payment?.checkoutFormFields &&
+                payment.checkoutClient &&
+                payment.gateway === 'MEGAPAY' &&
+                payment.displayMode !== 'qr_inline' && (
+                  <MegapayPgCheckoutOpen
+                    checkoutFormFields={payment.checkoutFormFields}
+                    checkoutClient={payment.checkoutClient}
+                    orderId={paidOrderMeta?.orderId ?? payment.orderId}
+                    orderCode={paidOrderMeta?.orderCode}
+                    email={paidOrderMeta?.email}
+                    paymentReference={payment.paymentReference}
+                    resumeHref={megapayResumeHref}
+                    amount={payment.amount}
+                  />
+                )}
             </aside>
           </div>
         )}
@@ -976,6 +970,21 @@ function CheckoutShellInner({
           checkoutFormFields={payment.checkoutFormFields}
         />
       )}
+      {payment?.checkoutFormFields &&
+        payment.checkoutClient &&
+        payment.gateway === 'MEGAPAY' &&
+        payment.displayMode !== 'qr_inline' && (
+          <MegapayPgCheckoutOpen
+            checkoutFormFields={payment.checkoutFormFields}
+            checkoutClient={payment.checkoutClient}
+            orderId={paidOrderMeta?.orderId ?? payment.orderId}
+            orderCode={paidOrderMeta?.orderCode}
+            email={paidOrderMeta?.email}
+            paymentReference={payment.paymentReference}
+            resumeHref={megapayResumeHref}
+            amount={payment.amount}
+          />
+        )}
     </div>
   );
 }

@@ -11,7 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { VietQrImage, canBuildVietQrImage } from '@/components/checkout/VietQrImage';
 import { buildCheckoutPayPath, persistMegapayVaForReopen } from '@/lib/checkout-qr-flow';
 import {
-  buildMegapayWaitingPath,
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
   isMegapayAwaitingTransferResult,
@@ -113,21 +112,29 @@ export default function CheckoutResultClient() {
       return;
     }
 
-    // Keep pending session on cancel/fail so user can resume from /checkout/waiting.
+    // Phiên PG đã kết thúc (hủy / thất bại): xoá pending để không còn dính đơn cũ.
+    clearPendingMegapayPayment();
+
     if (!resultCd && !resultMsg) {
       setStatus('cancel');
-      setMessage(t('result.incomplete'));
+      setMessage(
+        t('result.incomplete'),
+      );
       return;
     }
 
     if (isMegapayCancelResult(resultCd, resultMsg)) {
       setStatus('cancel');
-      setMessage(t('result.cancelled'));
+      setMessage(
+        t('result.cancelled'),
+      );
       return;
     }
 
     setStatus('failed');
-    setMessage(t('result.failed'));
+    setMessage(
+      t('result.failed'),
+    );
     if (resultMsg?.trim()) console.error('Gateway result message', resultMsg.trim());
   }, [resultCd, resultMsg, router, t, locale, searchParams]);
 
@@ -316,27 +323,8 @@ export default function CheckoutResultClient() {
         )}
 
         {(status === 'cancel' || status === 'failed') && (
-          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            {pending?.orderId && pending.orderCode ? (
-              <Link
-                href={withLocalePrefix(
-                  buildMegapayWaitingPath({
-                    orderId: pending.orderId,
-                    orderCode: pending.orderCode,
-                    email: pending.email,
-                    open: false,
-                  }),
-                  locale,
-                )}
-                className="btn-checkout !w-auto px-5"
-              >
-                {t('result.continuePay')}
-              </Link>
-            ) : null}
-            <Link
-              href={withLocalePrefix(pending?.resumeHref || defaultMegapayResumeHref(), locale)}
-              className="rounded-xl border border-cardon-border px-5 py-3 text-center text-sm font-semibold text-cardon-navy hover:bg-cardon-light"
-            >
+          <div className="mt-6">
+            <Link href={defaultMegapayResumeHref()} className="btn-checkout !w-auto px-5">
               {t('result.newOrder')}
             </Link>
           </div>

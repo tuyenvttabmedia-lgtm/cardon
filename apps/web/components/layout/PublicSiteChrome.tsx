@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { PendingMegapayBanner } from '@/components/checkout/PendingMegapayBanner';
 import { Footer } from '@/components/layout/Footer';
 import { BuildVersionComment } from '@/components/layout/BuildVersionComment';
 import { ContactSpeedDial } from '@/components/layout/ContactSpeedDial';
@@ -23,7 +22,6 @@ export function PublicSiteChrome({ children }: { children: React.ReactNode }) {
       )}
     >
       <Header />
-      <PendingMegapayBanner />
       <main className="page-footer-gap w-full overflow-x-hidden md:pb-0">{children}</main>
       <Footer />
       <BuildVersionComment />

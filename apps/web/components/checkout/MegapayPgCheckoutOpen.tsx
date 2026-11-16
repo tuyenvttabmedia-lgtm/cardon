@@ -85,8 +85,9 @@ function closeMegapayLayerDom(): void {
 /**
  * MegaPay Payment Gateway V1.4.6 — form + openPayment(1, domain).
  *
- * Prefer routing through `/checkout/waiting` so browser Back lands on CardOn.
- * paymentClient.js is jQuery-based and reads `windowType` unconditionally.
+ * paymentClient.js is jQuery-based and reads `windowType` unconditionally, so both must be
+ * present before openPayment runs. The form is portalled to body so the fixed-position
+ * payment layer it injects is not trapped by a transformed/hidden ancestor.
  */
 export function MegapayPgCheckoutOpen({
   checkoutFormFields,
@@ -97,9 +98,6 @@ export function MegapayPgCheckoutOpen({
   paymentReference,
   resumeHref,
   amount,
-  autoOpen = true,
-  quiet = false,
-  onOpened,
 }: {
   checkoutFormFields: Record<string, string>;
   checkoutClient: { domain: string; jsUrl: string; cssUrl: string };
@@ -110,11 +108,6 @@ export function MegapayPgCheckoutOpen({
   /** Path to reopen product checkout after cancel (must include variant query if /checkout). */
   resumeHref?: string;
   amount?: string;
-  /** When false, only mount the form — caller triggers open by remounting with true. */
-  autoOpen?: boolean;
-  /** Hide the “Đang mở cổng…” line (waiting station has its own copy). */
-  quiet?: boolean;
-  onOpened?: () => void;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -140,21 +133,9 @@ export function MegapayPgCheckoutOpen({
       resumeHref: resolvedResumeHref,
       amount,
       payType,
-      checkoutFormFields,
-      checkoutClient,
       savedAt: Date.now(),
     });
-  }, [
-    orderId,
-    orderCode,
-    email,
-    paymentReference,
-    resolvedResumeHref,
-    amount,
-    payType,
-    checkoutFormFields,
-    checkoutClient,
-  ]);
+  }, [orderId, orderCode, email, paymentReference, resolvedResumeHref, amount, payType]);
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
@@ -169,6 +150,7 @@ export function MegapayPgCheckoutOpen({
       closeMegapayLayerDom();
 
       if (isMegapaySuccessResult(resultCd)) {
+        const pendingRef = paymentReference;
         const q = new URLSearchParams();
         if (orderCode) q.set('orderCode', orderCode);
         if (email) q.set('email', email);
@@ -178,6 +160,7 @@ export function MegapayPgCheckoutOpen({
         } else {
           router.replace(`/checkout/result?resultCd=${encodeURIComponent(resultCd)}`);
         }
+        void pendingRef;
         return;
       }
 
@@ -185,6 +168,7 @@ export function MegapayPgCheckoutOpen({
       q.set('resultCd', resultCd || 'USER_CANCEL');
       if (resultMsg) q.set('resultMsg', resultMsg);
 
+      // Mã nộp tiền đã cấp nhưng chưa có tiền về: giữ phiên để trang kết quả theo dõi đơn.
       if (isMegapayAwaitingTransferResult(resultCd)) {
         const payload = data as Record<string, unknown>;
         for (const field of VA_RESULT_FIELDS) {
@@ -198,10 +182,10 @@ export function MegapayPgCheckoutOpen({
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [router, orderCode, email]);
+  }, [router, orderCode, email, paymentReference]);
 
   useEffect(() => {
-    if (!mounted || !autoOpen) return undefined;
+    if (!mounted) return undefined;
     let cancelled = false;
     openedRef.current = false;
 
@@ -219,7 +203,6 @@ export function MegapayPgCheckoutOpen({
         }
         openedRef.current = true;
         window.openPayment(1, checkoutClient.domain, 'megapayForm');
-        onOpened?.();
       } catch (err) {
         if (!cancelled) {
           console.error('MegaPay open failed', err);
@@ -234,12 +217,10 @@ export function MegapayPgCheckoutOpen({
     };
   }, [
     mounted,
-    autoOpen,
     checkoutClient.cssUrl,
     checkoutClient.domain,
     checkoutClient.jsUrl,
     checkoutFormFields,
-    onOpened,
   ]);
 
   const form = (
@@ -252,8 +233,8 @@ export function MegapayPgCheckoutOpen({
   );
 
   return (
-    <div className={quiet ? undefined : 'mt-4 space-y-2'}>
-      {!quiet && <p className="text-sm text-cardon-gray">Đang mở cổng thanh toán MegaPay…</p>}
+    <div className="mt-4 space-y-2">
+      <p className="text-sm text-cardon-gray">Đang mở cổng thanh toán MegaPay…</p>
       {error && (
         <p className="text-sm text-red-600">
           {error}{' '}

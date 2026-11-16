@@ -6,6 +6,7 @@ import { CustomerPriceBreakdown } from '@/components/checkout/CustomerPriceBreak
 import { QuantityInput, DEFAULT_MAX_QUANTITY } from '@/components/checkout/QuantityInput';
 import { PaymentMethodPicker, PaymentMethodsEmpty } from '@/components/checkout/PaymentPanel';
 import { SepayPgCheckoutRedirect } from '@/components/checkout/SepayPgCheckoutRedirect';
+import { MegapayPgCheckoutOpen } from '@/components/checkout/MegapayPgCheckoutOpen';
 import { PageContainer } from '@/components/layout/PageContainer';
 import {
   TurnstileField,
@@ -25,7 +26,6 @@ import { findPaymentMethod, methodGateway } from '@/lib/payment-methods';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
 import { parseOrderAmountLimitError } from '@/lib/order-limit';
 import { isInlineQrPayment, isSepayPgCheckout, persistAndPathForQrPayment } from '@/lib/checkout-qr-flow';
-import { persistAndPathForMegapayWaiting } from '@/lib/pending-megapay-payment';
 import { generateIdempotencyKey, getApiBaseUrl } from '@/lib/utils';
 import type { Product } from '@/types/api';
 import { storeOrderGuestEmail } from '@/lib/order-guest-email';
@@ -323,23 +323,6 @@ export default function CheckoutPageClient() {
           if (!pay.checkoutFormFields || !pay.checkoutClient || pay.displayMode === 'qr_inline') {
             throw new Error(t('checkout.esimPayFailed'));
           }
-          router.replace(
-            persistAndPathForMegapayWaiting({
-              orderId: created.id,
-              orderCode: created.orderCode,
-              email: resolvedEmail,
-              paymentReference: pay.paymentReference,
-              amount: pay.amount,
-              payType: pay.checkoutFormFields.payType,
-              resumeHref: `/checkout?${new URLSearchParams({
-                slug: slug || product?.slug || '',
-                variantId: variant.id,
-                quantity: '1',
-              }).toString()}`,
-              checkoutFormFields: pay.checkoutFormFields,
-              checkoutClient: pay.checkoutClient,
-            }),
-          );
           return;
         }
         if (!isSepayPgCheckout(pay)) {
@@ -389,31 +372,7 @@ export default function CheckoutPageClient() {
         return;
       }
 
-      if (
-        pay.gateway === 'MEGAPAY' &&
-        pay.checkoutFormFields &&
-        pay.checkoutClient &&
-        pay.displayMode !== 'qr_inline'
-      ) {
-        router.replace(
-          persistAndPathForMegapayWaiting({
-            orderId: order.id,
-            orderCode: order.orderCode,
-            email: resolvedEmail,
-            paymentReference: pay.paymentReference,
-            amount: pay.amount,
-            payType: pay.checkoutFormFields.payType,
-            resumeHref: `/checkout?${new URLSearchParams({
-              slug: slug || product?.slug || '',
-              variantId: variant.id,
-              quantity: String(quantity),
-            }).toString()}`,
-            checkoutFormFields: pay.checkoutFormFields,
-            checkoutClient: pay.checkoutClient,
-          }),
-        );
-        return;
-      }
+      // MegaPay PG layer (VNPAYQR / ZaloPay) opens via MegapayPgCheckoutOpen below.
       // SePay / other redirect forms handled by checkout form components.
     } catch (err) {
       const captchaErr = captchaErrorFromApi(err);
@@ -590,6 +549,25 @@ export default function CheckoutPageClient() {
         {payment?.checkoutUrl && payment.checkoutFormFields && payment.gateway === 'SEPAY' && (
           <SepayPgCheckoutRedirect checkoutUrl={payment.checkoutUrl} checkoutFormFields={payment.checkoutFormFields} />
         )}
+        {payment?.checkoutFormFields &&
+          payment.checkoutClient &&
+          payment.gateway === 'MEGAPAY' &&
+          payment.displayMode !== 'qr_inline' && (
+            <MegapayPgCheckoutOpen
+              checkoutFormFields={payment.checkoutFormFields}
+              checkoutClient={payment.checkoutClient}
+              orderId={paidOrderMeta?.orderId ?? payment.orderId}
+              orderCode={paidOrderMeta?.orderCode}
+              email={paidOrderMeta?.email}
+              paymentReference={payment.paymentReference}
+              resumeHref={`/checkout?${new URLSearchParams({
+                slug: slug || product?.slug || '',
+                variantId: variant.id,
+                quantity: '1',
+              }).toString()}`}
+              amount={payment.amount}
+            />
+          )}
       </PageContainer>
     );
   }
@@ -685,6 +663,25 @@ export default function CheckoutPageClient() {
             checkoutFormFields={payment.checkoutFormFields}
           />
         )}
+        {payment?.checkoutFormFields &&
+          payment.checkoutClient &&
+          payment.gateway === 'MEGAPAY' &&
+          payment.displayMode !== 'qr_inline' && (
+            <MegapayPgCheckoutOpen
+              checkoutFormFields={payment.checkoutFormFields}
+              checkoutClient={payment.checkoutClient}
+              orderId={paidOrderMeta?.orderId ?? payment.orderId}
+              orderCode={paidOrderMeta?.orderCode}
+              email={paidOrderMeta?.email}
+              paymentReference={payment.paymentReference}
+              resumeHref={`/checkout?${new URLSearchParams({
+                slug: slug || product?.slug || '',
+                variantId: variant.id,
+                quantity: String(quantity),
+              }).toString()}`}
+              amount={payment.amount}
+            />
+          )}
       </div>
     </PageContainer>
   );

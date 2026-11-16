@@ -2,12 +2,6 @@ const STORAGE_KEY = 'cardon.pendingMegapayPayment';
 /** Quá hạn cửa sổ thanh toán thì coi như không còn phiên nào đang chờ. */
 const MAX_AGE_MS = 60 * 60 * 1000;
 
-export interface MegapayCheckoutClient {
-  domain: string;
-  jsUrl: string;
-  cssUrl: string;
-}
-
 export interface PendingMegapayPayment {
   orderId: string;
   orderCode: string;
@@ -19,9 +13,6 @@ export interface PendingMegapayPayment {
   amount?: string;
   /** MegaPay payType: VA = mã nộp tiền, QR = VNPAYQR, EW = ví. */
   payType?: string;
-  /** Form fields + client so CardOn can reopen the same MegaPay session. */
-  checkoutFormFields?: Record<string, string>;
-  checkoutClient?: MegapayCheckoutClient;
   savedAt: number;
 }
 
@@ -92,60 +83,4 @@ export function isMegapayCancelResult(
 
 export function defaultMegapayResumeHref(): string {
   return '/the-game';
-}
-
-export function canReopenMegapay(pending: PendingMegapayPayment | null | undefined): boolean {
-  return Boolean(
-    pending?.checkoutFormFields &&
-      pending.checkoutClient?.domain &&
-      pending.checkoutClient?.jsUrl &&
-      Object.keys(pending.checkoutFormFields).length > 0,
-  );
-}
-
-export function buildMegapayWaitingPath(params: {
-  orderId: string;
-  orderCode: string;
-  email?: string;
-  open?: boolean;
-}): string {
-  const q = new URLSearchParams({
-    orderId: params.orderId,
-    orderCode: params.orderCode,
-  });
-  if (params.email?.trim()) q.set('email', params.email.trim());
-  if (params.open) q.set('open', '1');
-  return `/checkout/waiting?${q.toString()}`;
-}
-
-/** Persist MegaPay PG payload then return waiting-station URL (open gateway once). */
-export function persistAndPathForMegapayWaiting(params: {
-  orderId: string;
-  orderCode: string;
-  email: string;
-  paymentReference: string;
-  amount?: string;
-  payType?: string;
-  resumeHref: string;
-  checkoutFormFields: Record<string, string>;
-  checkoutClient: MegapayCheckoutClient;
-}): string {
-  storePendingMegapayPayment({
-    orderId: params.orderId,
-    orderCode: params.orderCode,
-    email: params.email,
-    paymentReference: params.paymentReference,
-    resumeHref: params.resumeHref,
-    amount: params.amount,
-    payType: params.payType,
-    checkoutFormFields: params.checkoutFormFields,
-    checkoutClient: params.checkoutClient,
-    savedAt: Date.now(),
-  });
-  return buildMegapayWaitingPath({
-    orderId: params.orderId,
-    orderCode: params.orderCode,
-    email: params.email,
-    open: true,
-  });
 }
