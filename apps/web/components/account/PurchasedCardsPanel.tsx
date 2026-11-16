@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CopyButton } from '@/components/ui/CopyButton';
-import { Button } from '@/components/ui/Button';
+import { PurchasedCardActions } from '@/components/account/PurchasedCardActions';
 import { ListPagination } from '@/components/ui/ListPagination';
 import { orderApi, accountApi } from '@/services/api-client';
 import type { AccountCard } from '@/types/api';
@@ -60,7 +59,7 @@ export function PurchasedCardsPanel({
   if (loading) return <p className="text-cardon-gray">Đang tải...</p>;
 
   return (
-    <div>
+    <div className="min-w-0">
       <h2 className="text-lg font-bold text-cardon-navy">{title}</h2>
       <p className="mt-1 text-sm text-cardon-gray">
         Mã PIN được bảo vệ. Nhấn &quot;Xem mã&quot; để hiển thị — mọi lần xem đều được ghi nhận.
@@ -71,43 +70,21 @@ export function PurchasedCardsPanel({
           const pin = pins[c.cardId];
           const revealed = !!pin || c.pinViewCount > 0;
           return (
-            <div key={c.cardId} className="rounded-xl border border-gray-100 p-4 text-sm">
+            <div key={c.cardId} className="min-w-0 overflow-hidden rounded-xl border border-gray-100 p-4 text-sm">
               <p className="font-semibold text-cardon-navy">{c.productName}</p>
               <p className="text-xs text-cardon-gray">Đơn: {c.orderCode}</p>
-              <div className="mt-3 space-y-3 font-mono text-xs md:text-sm">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p>
-                    <span className="text-cardon-gray">SERIAL:</span>{' '}
-                    <span className="font-semibold">{c.serial}</span>
-                  </p>
-                  <CopyButton value={c.serial} label="Copy serial" />
-                </div>
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <p>
-                    <span className="text-cardon-gray">MÃ THẺ:</span>{' '}
-                    <span className="font-semibold">{pin ?? '************'}</span>
-                  </p>
-                  {!pin && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void revealPin(c)}
-                      disabled={loadingId === c.cardId}
-                    >
-                      {loadingId === c.cardId ? 'Đang tải...' : 'Xem mã'}
-                    </Button>
-                  )}
-                  {pin && <CopyButton value={pin} label="Copy PIN" />}
-                </div>
-              </div>
-              {errors[c.cardId] && (
-                <p className="mt-2 text-sm text-red-600">{errors[c.cardId]}</p>
-              )}
-              {revealed && (
-                <p className="mt-2 text-xs text-cardon-gray">
-                  Đã xem {c.pinViewCount > 0 ? `${c.pinViewCount} lần` : 'mã thẻ'}
-                </p>
-              )}
+              <PurchasedCardActions
+                serial={c.serial}
+                pin={pin}
+                revealLoading={loadingId === c.cardId}
+                onReveal={() => void revealPin(c)}
+                error={errors[c.cardId] || null}
+                viewCountLabel={
+                  revealed
+                    ? `Đã xem ${c.pinViewCount > 0 ? `${c.pinViewCount} lần` : 'mã thẻ'}`
+                    : null
+                }
+              />
             </div>
           );
         })}

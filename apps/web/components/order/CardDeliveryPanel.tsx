@@ -1,8 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { CopyButton } from '@/components/ui/CopyButton';
-import { Button } from '@/components/ui/Button';
+import { PurchasedCardActions } from '@/components/account/PurchasedCardActions';
 import { ListPagination } from '@/components/ui/ListPagination';
 import { useDateTime, useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
@@ -62,41 +61,22 @@ export function CardDeliveryPanel({
         return (
           <div
             key={card.id}
-            className="rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
+            className="min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 shadow-sm"
           >
             <p className="text-base font-semibold text-gray-900">{card.productName}</p>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">Serial</p>
-                <p className="font-mono text-sm font-semibold">{card.serial}</p>
-              </div>
-              <CopyButton value={card.serial} label="Copy serial" />
-            </div>
-            <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-gray-500">{t('order.card')}</p>
-                <p className="font-mono text-sm font-semibold">{pin ?? card.pinMasked}</p>
-              </div>
-              {!pin && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => void revealPin(card)}
-                  disabled={loadingId === card.id}
-                >
-                  {loadingId === card.id ? t('common.loading') : t('order.viewCode')}
-                </Button>
-              )}
-              {pin && <CopyButton value={pin} label="Copy PIN" />}
-            </div>
-            {errors[card.id] && (
-              <p className="mt-2 text-sm text-red-600">{errors[card.id]}</p>
-            )}
-            {revealed && card.pinFirstViewedAt && (
-              <p className="mt-2 text-xs text-gray-500">
-                {t('order.firstView')}: {formatWhen(card.pinFirstViewedAt)}
-              </p>
-            )}
+            <PurchasedCardActions
+              serial={card.serial}
+              pin={pin}
+              pinMasked={card.pinMasked}
+              revealLoading={loadingId === card.id}
+              onReveal={() => void revealPin(card)}
+              error={errors[card.id] || null}
+              viewCountLabel={
+                revealed && card.pinFirstViewedAt
+                  ? `${t('order.firstView')}: ${formatWhen(card.pinFirstViewedAt)}`
+                  : null
+              }
+            />
           </div>
         );
       })}

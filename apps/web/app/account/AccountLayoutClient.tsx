@@ -9,7 +9,7 @@ import { PageContainer } from '@/components/layout/PageContainer';
 import type { MessageKey } from '@/lib/i18n/messages';
 import { useAuth } from '@/hooks/useAuth';
 import { isDataServiceVisible, useSiteConfig } from '@/hooks/useSiteConfig';
-import { ACCOUNT_PATHS } from '@/lib/account-routes';
+import { ACCOUNT_PATHS, isAccountPath } from '@/lib/account-routes';
 import { isRetailCustomerRole } from '@/lib/retail-auth';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,13 @@ const LINKS: Array<{ href: string; labelKey: MessageKey; icon: string; requiresD
   { href: ACCOUNT_PATHS.password, labelKey: 'account.passwordTitle', icon: '🔒' },
 ];
 
+function linkActive(pathname: string, href: string): boolean {
+  if (href === ACCOUNT_PATHS.profile) {
+    return pathname === ACCOUNT_PATHS.profile || pathname === '/account';
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function AccountLayoutClient({ children }: { children: React.ReactNode }) {
   const pathname = useBarePath();
   const t = useT();
@@ -35,6 +42,8 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
     (item) => !('requiresData' in item && item.requiresData) || isDataServiceVisible(siteConfig),
   );
   const wrongPortal = Boolean(user && !isRetailCustomerRole(user.role));
+  const activeHref =
+    links.find((l) => linkActive(pathname, l.href))?.href ?? ACCOUNT_PATHS.profile;
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -67,13 +76,13 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
   }
 
   return (
-    <PageContainer>
-      <div className="mb-6">
+    <PageContainer className="pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8">
+      <div className="mb-4 md:mb-6">
         <h1 className="text-2xl font-bold text-cardon-navy">{t('account.center')}</h1>
         <p className="mt-1 text-sm text-cardon-gray">{t('account.centerBody')}</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[240px_1fr] lg:gap-6">
         <nav className="hidden lg:block">
           <ul className="space-y-1 rounded-2xl border border-cardon-border bg-white p-3 shadow-card">
             {links.map((l) => (
@@ -82,7 +91,7 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
                   href={l.href}
                   className={cn(
                     'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition',
-                    pathname === l.href || (l.href !== ACCOUNT_PATHS.profile && pathname.startsWith(`${l.href}/`))
+                    linkActive(pathname, l.href)
                       ? 'bg-cardon-blue text-white'
                       : 'text-cardon-navy hover:bg-cardon-light',
                   )}
@@ -95,27 +104,32 @@ export function AccountLayoutClient({ children }: { children: React.ReactNode })
           </ul>
         </nav>
 
+        {/* Mobile: one select with the full desktop list — avoids clipped pill tabs. */}
         <div className="lg:hidden">
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold transition',
-                  pathname === l.href || (l.href !== ACCOUNT_PATHS.profile && pathname.startsWith(`${l.href}/`))
-                    ? 'bg-cardon-blue text-white'
-                    : 'border border-cardon-border bg-white text-cardon-navy',
-                )}
-              >
-                <span aria-hidden>{l.icon}</span>
-                {t(l.labelKey)}
-              </Link>
-            ))}
-          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-cardon-gray">
+              {t('account.center')}
+            </span>
+            <select
+              value={activeHref}
+              onChange={(e) => router.push(e.target.value)}
+              className="w-full rounded-xl border border-cardon-border bg-white px-3 py-3 text-sm font-semibold text-cardon-navy outline-none focus:border-cardon-blue"
+            >
+              {links.map((l) => (
+                <option key={l.href} value={l.href}>
+                  {l.icon} {t(l.labelKey)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <div className="min-w-0 rounded-2xl border border-cardon-border bg-white p-4 shadow-card md:p-6">
+        <div
+          className={cn(
+            'min-w-0 rounded-2xl border border-cardon-border bg-white p-4 shadow-card md:p-6',
+            isAccountPath(pathname) && 'overflow-x-hidden',
+          )}
+        >
           {children}
         </div>
       </div>

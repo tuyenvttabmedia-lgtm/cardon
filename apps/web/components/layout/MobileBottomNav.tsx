@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import { filterMobileNavBySiteConfig, useSiteConfig } from '@/hooks/useSiteConfig';
 import { useBarePath, useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { ACCOUNT_PATHS, isAccountPath } from '@/lib/account-routes';
 import { resolveMenuLabel } from '@/lib/i18n/theme-labels';
 import { compactMobileNavLabel } from '@/lib/mobile-nav-label';
 import { cn } from '@/lib/utils';
@@ -13,6 +15,7 @@ import { cn } from '@/lib/utils';
 function navItemActive(pathname: string, url: string): boolean {
   const base = url.split('?')[0];
   if (base === '/') return pathname === '/';
+  if (base === '/account' || base === '/tai-khoan') return isAccountPath(pathname);
   return pathname === base || pathname.startsWith(`${base}/`);
 }
 
@@ -80,18 +83,16 @@ function MobileNavItem({
   );
 }
 
+/** Logged-in sheet: logout only — account sections live in Trung tâm tài khoản. */
 function MobileAccountSheet({
   open,
   onClose,
-  isAuthenticated,
   onLogout,
 }: {
   open: boolean;
   onClose: () => void;
-  isAuthenticated: boolean;
   onLogout: () => void;
 }) {
-  const pathname = useBarePath();
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -106,8 +107,6 @@ function MobileAccountSheet({
 
   if (!open) return null;
 
-  const loginHref = `/login${pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''}`;
-
   return (
     <>
       <button
@@ -120,51 +119,72 @@ function MobileAccountSheet({
         ref={ref}
         className="fixed bottom-[4.75rem] left-3 right-3 z-[56] overflow-hidden rounded-2xl border border-cardon-border bg-white shadow-xl md:hidden"
       >
-        {isAuthenticated ? (
-          <div className="py-1">
-            {[
-              { href: '/account', label: 'Thông tin tài khoản' },
-              { href: '/account/orders', label: 'Lịch sử giao dịch' },
-              { href: '/account/orders', label: 'Đơn hàng' },
-            ].map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                onClick={onClose}
-                className="block px-4 py-3 text-sm font-medium text-cardon-navy hover:bg-cardon-light"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onLogout();
-              }}
-              className="block w-full border-t px-4 py-3 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
-            >
-              Đăng xuất
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2 p-3">
-            <Link
-              href={loginHref}
-              onClick={onClose}
-              className="block rounded-lg border border-gray-200 py-2.5 text-center text-sm font-semibold text-cardon-navy"
-            >
-              {t('nav.login')}
-            </Link>
-            <Link
-              href="/register"
-              onClick={onClose}
-              className="block rounded-lg bg-cardon-blue py-2.5 text-center text-sm font-semibold text-white"
-            >
-              {t('nav.register')}
-            </Link>
-          </div>
-        )}
+        <div className="py-1">
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onLogout();
+            }}
+            className="block w-full px-4 py-3.5 text-left text-sm font-semibold text-red-600 hover:bg-red-50"
+          >
+            {t('nav.logout')}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function MobileGuestSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const pathname = useBarePath();
+  const t = useT();
+  const ref = useRef<HTMLDivElement>(null);
+  const loginHref = `/login${pathname !== '/' ? `?redirect=${encodeURIComponent(pathname)}` : ''}`;
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    }
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        className="fixed inset-0 z-[55] bg-black/30 md:hidden"
+        aria-label="Đóng"
+        onClick={onClose}
+      />
+      <div
+        ref={ref}
+        className="fixed bottom-[4.75rem] left-3 right-3 z-[56] space-y-2 overflow-hidden rounded-2xl border border-cardon-border bg-white p-3 shadow-xl md:hidden"
+      >
+        <Link
+          href={loginHref}
+          onClick={onClose}
+          className="block rounded-lg border border-gray-200 py-2.5 text-center text-sm font-semibold text-cardon-navy"
+        >
+          {t('nav.login')}
+        </Link>
+        <Link
+          href="/register"
+          onClick={onClose}
+          className="block rounded-lg bg-cardon-blue py-2.5 text-center text-sm font-semibold text-white"
+        >
+          {t('nav.register')}
+        </Link>
       </div>
     </>
   );
@@ -172,6 +192,7 @@ function MobileAccountSheet({
 
 export function MobileBottomNav() {
   const pathname = useBarePath();
+  const router = useRouter();
   const { locale } = useLocale();
   const { isAuthenticated, logout } = useAuth();
   const { mobileNav } = useThemeSettings();
@@ -182,6 +203,19 @@ export function MobileBottomNav() {
     mobileNav.filter((item) => item.active !== false),
     siteConfig,
   );
+
+  function onAccountTap() {
+    if (!isAuthenticated) {
+      setAccountOpen(true);
+      return;
+    }
+    // Already in account center → short sheet (center / history / logout). Else go straight in.
+    if (isAccountPath(pathname)) {
+      setAccountOpen(true);
+      return;
+    }
+    router.push(ACCOUNT_PATHS.profile);
+  }
 
   return (
     <>
@@ -206,7 +240,7 @@ export function MobileBottomNav() {
                     active={active}
                     icon={item.icon}
                     label={label}
-                    onClick={() => setAccountOpen(true)}
+                    onClick={onAccountTap}
                   />
                 ) : (
                   <MobileNavItem
@@ -221,12 +255,15 @@ export function MobileBottomNav() {
           })}
         </ul>
       </nav>
-      <MobileAccountSheet
-        open={accountOpen}
-        onClose={() => setAccountOpen(false)}
-        isAuthenticated={isAuthenticated}
-        onLogout={logout}
-      />
+      {isAuthenticated ? (
+        <MobileAccountSheet
+          open={accountOpen}
+          onClose={() => setAccountOpen(false)}
+          onLogout={logout}
+        />
+      ) : (
+        <MobileGuestSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
+      )}
     </>
   );
 }
