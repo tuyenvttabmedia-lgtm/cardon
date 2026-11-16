@@ -3,6 +3,8 @@ import { translate, type MessageKey } from './messages';
 import { ApiClientError } from '@/services/api-client';
 
 const VI_MESSAGE_KEYS: Record<string, MessageKey> = {
+  'Username may only contain letters, numbers, and underscores': 'auth.usernameHint',
+  'Username must be at least 3 characters (letters, numbers, underscores)': 'auth.usernameHint',
   'Sản phẩm này chỉ bán tại Việt Nam.': 'market.vnOnly',
   'Chưa mở bán': 'error.salesOff',
   'Tạm dừng bán eSIM': 'error.salesOff',

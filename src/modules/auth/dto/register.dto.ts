@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   Equals,
   IsBoolean,
@@ -9,10 +10,14 @@ import {
   MinLength,
 } from 'class-validator';
 import { Match } from '../../../common/decorators/match.decorator';
+import { normalizeRegisterUsername } from '../entities/normalize-register-username';
 
 export class RegisterDto {
+  @Transform(({ value }) => normalizeRegisterUsername(value))
   @IsString()
-  @MinLength(3)
+  @MinLength(3, {
+    message: 'Username must be at least 3 characters (letters, numbers, underscores)',
+  })
   @MaxLength(32)
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: 'Username may only contain letters, numbers, and underscores',
