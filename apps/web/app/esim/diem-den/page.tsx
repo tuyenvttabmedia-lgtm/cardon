@@ -11,7 +11,6 @@ export function generateMetadata(): Promise<Metadata> {
   return localizedMetadata({
     title: 'Điểm đến eSIM',
     path: '/esim/diem-den',
-    robots: { index: false, follow: false },
     enTitle: 'eSIM destinations',
   });
 }

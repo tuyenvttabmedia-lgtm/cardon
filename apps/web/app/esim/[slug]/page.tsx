@@ -16,7 +16,6 @@ export async function generateMetadata({
   return localizedMetadata({
     title: 'eSIM du lịch',
     path: `/esim/${slug}`,
-    robots: { index: false, follow: false },
     enTitle: 'Travel eSIM',
   });
 }

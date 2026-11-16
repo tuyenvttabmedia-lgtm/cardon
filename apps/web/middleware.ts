@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { REMOVED_CUSTOMER_PORTAL_REDIRECTS } from '@/lib/account-routes';
+import { collapseDuplicateBlogSlugPath } from '@/lib/blog-url-redirects';
 import { englishLegacyRedirect } from '@/lib/locale-redirects';
 import {
   LOCALE_COOKIE,
@@ -105,6 +106,14 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.')
   ) {
     return nextWithPortal(request, pathname);
+  }
+
+  // GSC 404s: /tin-tuc/{cat}/{slug}/{slug} → canonical post URL.
+  const collapsedBlog = collapseDuplicateBlogSlugPath(rulesPath);
+  if (collapsedBlog) {
+    const localized =
+      localeDecision.locale === 'en' ? withLocalePrefix(collapsedBlog, 'en') : collapsedBlog;
+    return withPortalHeader(NextResponse.redirect(new URL(localized, request.url), 301));
   }
 
   // Legacy homepage tab deep-links → clean SEO paths (strip query).

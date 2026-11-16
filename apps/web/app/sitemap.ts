@@ -8,6 +8,7 @@ import {
   listStaticNavPages,
   type PublicBlogPost,
 } from '@/lib/cms-api';
+import { listEsimPreviewOffers } from '@/lib/esim-offers';
 import { listActiveProducts } from '@/lib/product-api';
 import { BLOG_BASE_PATH, blogCategoryPath, blogPostPath } from '@/lib/routes';
 import { APP_LOCALIZED_PATHS, applyPublishedEnglishAlternates } from '@/lib/sitemap-locales';
@@ -48,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/the-dien-thoai`, lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
     { url: `${base}/nap-cuoc`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${base}/nap-data`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
+    { url: `${base}/esim`, lastModified: now, changeFrequency: 'weekly', priority: 0.85 },
+    { url: `${base}/esim/diem-den`, lastModified: now, changeFrequency: 'weekly', priority: 0.8 },
     { url: `${base}/gioi-thieu`, lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
     { url: `${base}/tro-giup`, lastModified: now, changeFrequency: 'weekly', priority: 0.7 },
     { url: `${base}/dang-ky-dai-ly`, lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
@@ -101,14 +104,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
+  const esimResult = await listEsimPreviewOffers('vi');
+  const esimCountryIsos = esimResult.ok
+    ? [...new Set(esimResult.offers.map((o) => o.countryIso.toLowerCase()).filter(Boolean))]
+    : [];
+  const esimCountryPages: MetadataRoute.Sitemap = esimCountryIsos.map((iso) => ({
+    url: `${base}/esim/quoc-gia/${iso}`,
+    lastModified: now,
+    changeFrequency: 'weekly' as const,
+    priority: 0.75,
+  }));
+  const esimCountryPaths = esimCountryIsos.map((iso) => `/esim/quoc-gia/${iso}`);
+
   const englishIndex = (await listEnglishSitemap()) ?? { pages: [], categories: [] };
   const productPaths = products.map((product) => `/product/${product.slug}`);
 
   return applyPublishedEnglishAlternates(
-    [...staticPages, ...categoryPages, ...blogPages, ...productPages, ...faqPages],
+    [
+      ...staticPages,
+      ...categoryPages,
+      ...blogPages,
+      ...productPages,
+      ...faqPages,
+      ...esimCountryPages,
+    ],
     {
       base,
-      appLocalizedPaths: [...APP_LOCALIZED_PATHS, ...productPaths],
+      appLocalizedPaths: [...APP_LOCALIZED_PATHS, ...productPaths, ...esimCountryPaths],
       englishPages: englishIndex.pages,
       englishCategories: englishIndex.categories,
       now,
