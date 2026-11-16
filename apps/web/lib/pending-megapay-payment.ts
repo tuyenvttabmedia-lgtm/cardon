@@ -94,13 +94,31 @@ export function defaultMegapayResumeHref(): string {
   return '/the-game';
 }
 
-export function canReopenMegapay(pending: PendingMegapayPayment | null | undefined): boolean {
+/** Enough to show the waiting station and mint a fresh MegaPay invoice on reopen. */
+export function canResumeMegapayWaiting(
+  pending: PendingMegapayPayment | null | undefined,
+): boolean {
+  return Boolean(pending?.orderId && pending?.orderCode);
+}
+
+/**
+ * True when stored form fields can open MegaPay once (first redirect).
+ * Do NOT reuse after Back — MegaPay rejects duplicate invoiceNo.
+ */
+export function canOpenStoredMegapayForm(
+  pending: PendingMegapayPayment | null | undefined,
+): boolean {
   return Boolean(
     pending?.checkoutFormFields &&
       pending.checkoutClient?.domain &&
       pending.checkoutClient?.jsUrl &&
       Object.keys(pending.checkoutFormFields).length > 0,
   );
+}
+
+/** @deprecated use canOpenStoredMegapayForm / canResumeMegapayWaiting */
+export function canReopenMegapay(pending: PendingMegapayPayment | null | undefined): boolean {
+  return canOpenStoredMegapayForm(pending);
 }
 
 export function buildMegapayWaitingPath(params: {
