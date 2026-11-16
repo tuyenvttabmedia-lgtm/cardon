@@ -9,6 +9,11 @@ import { OrderStatusPanel } from '@/components/order/OrderStatusPanel';
 import { OrderTimeline } from '@/components/order/OrderTimeline';
 import { useT } from '@/components/i18n/LocaleProvider';
 import { buildCheckoutPayPath, isMegapayDepositMethod } from '@/lib/checkout-qr-flow';
+import {
+  buildMegapayWaitingPath,
+  canReopenMegapay,
+  readPendingMegapayPayment,
+} from '@/lib/pending-megapay-payment';
 import { readPendingQrPayment } from '@/lib/pending-qr-payment';
 import type { EsimDelivery, OrderDeliveryResponse } from '@/types/api';
 
@@ -134,15 +139,31 @@ function WaitingPaymentBanner({
   const t = useT();
   const [sessionLooksDeposit, setSessionLooksDeposit] = useState(false);
   const [hasSessionPayload, setHasSessionPayload] = useState(false);
+  const [megapayHref, setMegapayHref] = useState<string | null>(null);
 
   useEffect(() => {
     const session = readPendingQrPayment(orderId);
-    setHasSessionPayload(Boolean(session));
+    const megapay = readPendingMegapayPayment();
+    const megapayMatch =
+      megapay &&
+      (megapay.orderId === orderId || megapay.orderCode === orderCode) &&
+      canReopenMegapay(megapay);
+    setHasSessionPayload(Boolean(session) || Boolean(megapayMatch));
+    setMegapayHref(
+      megapayMatch
+        ? buildMegapayWaitingPath({
+            orderId,
+            orderCode,
+            email: email || megapay?.email || '',
+            open: false,
+          })
+        : null,
+    );
     // Prefer session shape: MegaPay VA stores bankInfo with empty paymentUrl.
     setSessionLooksDeposit(
       Boolean(session?.bankInfo?.accountNumber) && !session?.paymentUrl?.trim(),
     );
-  }, [orderId]);
+  }, [orderId, orderCode, email]);
 
   const isDeposit =
     sessionLooksDeposit || isMegapayDepositMethod(paymentMethodCode, paymentGateway);
@@ -150,7 +171,14 @@ function WaitingPaymentBanner({
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
       <p>{isDeposit ? t('order.waitingTransfer') : t('order.waitingGateway')}</p>
-      {hasSessionPayload ? (
+      {megapayHref ? (
+        <Link
+          href={megapayHref}
+          className="mt-2 inline-block font-semibold text-cardon-blue hover:underline"
+        >
+          {t('wait.reopen')}
+        </Link>
+      ) : hasSessionPayload ? (
         <Link
           href={buildCheckoutPayPath({ orderId, orderCode, email })}
           className="mt-2 inline-block font-semibold text-cardon-blue hover:underline"
