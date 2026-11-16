@@ -45,6 +45,7 @@ export default function SettingsPaypalPage() {
     try {
       const next = await settingsAdminApi.updatePaypal({
         mode,
+        esimEnabled: form.paypalEsimEnabled === true || form.esimEnabled === true,
         ...(clientId.trim() ? { clientId: clientId.trim() } : {}),
         ...(clientSecret.trim() ? { clientSecret: clientSecret.trim() } : {}),
         ...(webhookId.trim() ? { webhookId: webhookId.trim() } : {}),
@@ -168,10 +169,26 @@ export default function SettingsPaypalPage() {
           </div>
           {probeNote && <p className="text-sm text-slate-700">{probeNote}</p>}
         </Card>
-        <Card className="max-w-xl space-y-2">
-          <p className="font-semibold text-slate-800">Feature flags</p>
-          <p className="text-sm text-slate-600">Ba cờ tách riêng. Trang này chưa hỗ trợ đổi chúng.</p>
-          <FlagRow label="PAYPAL_ESIM_ENABLED" on={form.paypalEsimEnabled === true} />
+        <Card className="max-w-xl space-y-3">
+          <p className="font-semibold text-slate-800">Công tắc eSIM</p>
+          <p className="text-sm text-slate-600">
+            PayPal chỉ cho buyer ngoài Việt Nam (USD). Cờ này cũng có trong Cấu hình → Thanh toán →
+            Công tắc phương thức.
+          </p>
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+            <input
+              type="checkbox"
+              checked={form.paypalEsimEnabled === true || form.esimEnabled === true}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  esimEnabled: e.target.checked,
+                  paypalEsimEnabled: e.target.checked,
+                })
+              }
+            />
+            Bật PayPal cho eSIM (nước ngoài)
+          </label>
           <FlagRow label="customerEsimEnabled" on={form.customerEsimEnabled === true} />
           <FlagRow label="salesOpen" on={form.salesOpen === true} />
         </Card>

@@ -198,8 +198,8 @@ export function renderEmailTemplate(
       const accountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
       return {
         subject: `Mã cài eSIM đã sẵn sàng — đơn ${String(data.orderCode ?? '')}`,
-        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng.</p><p>Mở tài khoản CardOn để xem mã QR và hướng dẫn cài: <a href="${accountUrl}">${accountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
-        text: `Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng. Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
+        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng.</p><p>${data.isGuestOrder === true ? 'Mở link đơn hàng để xem mã QR và hướng dẫn cài' : 'Mở tài khoản CardOn để xem mã QR và hướng dẫn cài'}: <a href="${accountUrl}">${accountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
+        text: `Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng. ${data.isGuestOrder === true ? 'Mở link đơn hàng' : 'Xem trong tài khoản'}: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
       };
     }
     case 'ESIM_LOW_DATA': {

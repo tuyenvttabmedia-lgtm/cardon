@@ -41,6 +41,7 @@ import {
   esimOptionKey,
   esimOrderCreateBody,
   esimPayLabel,
+  esimPaymentMethodsHint,
   esimReferenceNote,
   filterEsimQuotedOptions,
   type EsimQuoteView,
@@ -51,7 +52,7 @@ import { withLocalePrefix } from '@/lib/i18n/locale';
 export default function CheckoutPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const t = useT();
   const money = useMoney();
   const { locale } = useLocale();
@@ -93,7 +94,9 @@ export default function CheckoutPageClient() {
     ? allPaymentMethods.find((method) => {
         if (method.methodCode.toUpperCase() !== selectedOption.methodCode.toUpperCase()) return false;
         if (method.gatewayCode !== selectedOption.gateway) return false;
-        if (selectedOption.gateway === 'MEGAPAY') return method.esimEnabled === true;
+        if (selectedOption.gateway === 'MEGAPAY' || selectedOption.gateway === 'SEPAY') {
+          return method.esimEnabled === true;
+        }
         return method.enabled;
       }) ?? null
     : null;
@@ -162,16 +165,6 @@ export default function CheckoutPageClient() {
       setGuestEmail(user.email);
     }
   }, [user?.email]);
-
-  useEffect(() => {
-    if (!isEsim || authLoading || isAuthenticated) return;
-    const checkoutPath = withLocalePrefix('/checkout', locale);
-    const query = slug
-      ? `slug=${encodeURIComponent(slug)}&variantId=${encodeURIComponent(variantId)}&quantity=1`
-      : `variantId=${encodeURIComponent(variantId)}&quantity=1`;
-    const next = `${checkoutPath}?${query}`;
-    router.replace(`${withLocalePrefix('/login', locale)}?redirect=${encodeURIComponent(next)}`);
-  }, [isEsim, authLoading, isAuthenticated, slug, variantId, router, locale]);
 
   useEffect(() => {
     if (!maybeEsim || !variantId) {
@@ -254,9 +247,6 @@ export default function CheckoutPageClient() {
       if (isEsim && !esimSalesOpen) {
         throw new Error('Chưa mở bán');
       }
-      if (isEsim && !isAuthenticated) {
-        throw new Error('Đăng nhập trước khi mua eSIM');
-      }
       const email = isAuthenticated ? user?.email : guestEmail.trim();
       if (!email) {
         throw new Error('Vui lòng nhập email để nhận đơn hàng');
@@ -277,16 +267,30 @@ export default function CheckoutPageClient() {
             market: esimMarketForGateway(selectedOption.gateway),
             locale: readBrowserLocale(),
           }),
-          guestEmail: undefined,
+          guestEmail: isAuthenticated ? undefined : email,
+          captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
         });
         // Reused PAID order (fulfillment still running): open the order, do not create payment.
         if (created.paymentStatus === 'PAID') {
-          router.push(withLocalePrefix(`/orders/${created.id}`, locale));
+          if (isAuthenticated) {
+            router.push(withLocalePrefix(`/orders/${created.id}`, locale));
+          } else {
+            router.push(
+              withLocalePrefix(
+                `/orders/${created.id}?email=${encodeURIComponent(email)}`,
+                locale,
+              ),
+            );
+          }
           return;
         }
         setPayPhase('payment');
         const pay = await paymentApi.create(
-          { orderId: created.id, gateway: selectedOption.gateway },
+          {
+            orderId: created.id,
+            gateway: selectedOption.gateway,
+            ...(isAuthenticated ? {} : { guestEmail: email }),
+          },
           generateIdempotencyKey(),
         );
         if (selectedOption.gateway === 'PAYPAL') {
@@ -411,15 +415,13 @@ export default function CheckoutPageClient() {
     }
   }
 
-  if (!variant || (isEsim && (authLoading || !isAuthenticated))) {
+  if (!variant) {
     return (
       <PageContainer>
         <p className="text-cardon-gray">
-          {!esimOffersReady || (isEsim && authLoading) || (maybeEsim && quoteState === 'loading')
+          {!esimOffersReady || (maybeEsim && quoteState === 'loading')
             ? t('checkout.esimLoading')
-            : isEsim
-              ? t('checkout.toLogin')
-              : t('checkout.missingProduct')}
+            : t('checkout.missingProduct')}
         </p>
       </PageContainer>
     );
@@ -478,7 +480,9 @@ export default function CheckoutPageClient() {
                       : option.gateway === 'MEGAPAY'
                         ? option.methodCode === 'ZALOPAY'
                           ? t('checkout.esimZaloPay')
-                          : t('checkout.esimVnPayQr')
+                          : option.methodCode === 'DEPOSIT_CODE'
+                            ? t('checkout.esimSePay')
+                            : t('checkout.esimVnPayQr')
                         : t('checkout.esimSePay');
                   return (
                     <button
@@ -495,10 +499,41 @@ export default function CheckoutPageClient() {
               </div>
             )}
             {note ? <p className="mt-4 text-sm leading-relaxed text-cardon-gray">{note}</p> : null}
-            {quote ? (
+            {quote && quotedOptions.length > 0 ? (
               <p className="mt-3 text-sm leading-relaxed text-cardon-gray">
-                {t(buyerMarket === 'INTL' ? 'checkout.esimForeignMethod' : 'checkout.esimVnMethods')}
+                {esimPaymentMethodsHint(locale, buyerMarket, quotedOptions)}
               </p>
+            ) : null}
+            {!isAuthenticated ? (
+              <div className="mt-5 space-y-3 rounded-xl border border-cardon-border bg-slate-50/80 p-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-cardon-navy">{t('checkout.guest')}</h3>
+                  <p className="mt-1 text-xs text-cardon-gray">{t('checkout.esimGuestHint')}</p>
+                </div>
+                <Input
+                  type="email"
+                  placeholder="email@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  autoComplete="email"
+                />
+                {captchaRequired ? (
+                  <TurnstileField
+                    ref={captchaRef}
+                    action="guest-order"
+                    onTokenChange={setCaptchaToken}
+                  />
+                ) : null}
+                <p className="text-xs text-cardon-gray">
+                  {t('checkout.hasAccount')}{' '}
+                  <a
+                    href={withLocalePrefix('/login', locale)}
+                    className="font-semibold text-cardon-blue hover:underline"
+                  >
+                    {t('nav.login')}
+                  </a>
+                </p>
+              </div>
             ) : null}
             {!esimSalesOpen ? (
               <div className="mt-4"><EsimSalesOffNotice compact /></div>

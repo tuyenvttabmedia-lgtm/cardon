@@ -39,6 +39,7 @@ import { resolveRetailMarket } from '../product/entities/retail-market';
 import { MANUAL_USD_VND_SOURCE, convertVndSellToUsd, selectCheckoutFx } from '../fx/fx-rate.rules';
 import {
   ESIM_ORDER_REUSE_PAYMENTS,
+  esimBuyerLockKey,
   esimOrderCreateLockPair,
   isReusableEsimOrder,
 } from './esim-order-idempotency';
@@ -84,17 +85,31 @@ export class EsimOrderService {
     requestMeta?: { ip?: string | null; userAgent?: string | null; countryCode?: string | null },
     options?: EsimCreateOptions,
   ) {
-    if (!user?.id) {
-      throw new UnauthorizedException('Login required for eSIM');
-    }
     if (dto.items.length !== 1 || dto.items[0].quantity !== 1) {
       throw new BadRequestException('An eSIM order contains one item with quantity 1');
     }
 
-    const adminTest = options?.adminTest === true && user.role === UserRole.SUPER_ADMIN;
+    const adminTest =
+      options?.adminTest === true && user?.role === UserRole.SUPER_ADMIN;
     if (options?.adminTest === true && !adminTest) {
+      if (!user?.id) {
+        throw new UnauthorizedException('Login required for eSIM admin test');
+      }
       throw new ForbiddenException('Insufficient role');
     }
+
+    const isGuest = !user?.id;
+    const buyerEmail = (
+      isGuest ? dto.guestEmail?.trim() : user?.email?.trim()
+    )?.toLowerCase();
+    if (!buyerEmail) {
+      throw new BadRequestException(
+        isGuest
+          ? 'guestEmail is required for guest eSIM checkout'
+          : 'Authenticated eSIM checkout requires an account email',
+      );
+    }
+    // Email policy for guests is enforced on OrderController; logged-in uses account email.
 
     const flags = esimSaleFlagsFromRuntime(
       (key) => this.configService.get(key),
@@ -209,16 +224,26 @@ export class EsimOrderService {
     });
     const orderCode = generateOrderCode();
     const txnCode = generateTransactionId();
-    // Customer PayPal: age from DB createdAt only (never JWT/FE). Admin-test skips new-account 30.
+    // Customer PayPal: age from DB createdAt only (never JWT/FE). Guest → null (new-account cap).
+    // Admin-test skips new-account 30.
     const accountAgeHours = adminTest
       ? Number.POSITIVE_INFINITY
-      : await this.resolveCustomerAccountAgeHours(user.id);
+      : user?.id
+        ? await this.resolveCustomerAccountAgeHours(user.id)
+        : null;
+    const buyerKey = esimBuyerLockKey({
+      userId: user?.id,
+      guestEmail: buyerEmail,
+    });
 
     const order = await this.prisma.$transaction(async (tx) => {
-      await this.lockEsimOrderCreate(tx, user.id, variant.id);
+      await this.lockEsimOrderCreate(tx, buyerKey, variant.id);
       const reusable = await this.findReusableEsimOrder(
         tx,
-        user.id,
+        {
+          userId: user?.id,
+          guestEmail: isGuest ? buyerEmail : undefined,
+        },
         variant.id,
         market,
         paymentMethod.gatewayCode,
@@ -254,7 +279,7 @@ export class EsimOrderService {
         ? adminTestCharge.currency
         : priceSnapshot.chargeCurrency;
       await this.assertEsimChargeWithinLimit({
-        userId: user.id,
+        buyer: { userId: user?.id, guestEmail: isGuest ? buyerEmail : undefined },
         market,
         gateway: paymentMethod.gatewayCode,
         chargeAmount: limitChargeAmount,
@@ -268,15 +293,16 @@ export class EsimOrderService {
       const created = await this.orderRepository.createWithTransaction(tx, {
         orderCode,
         transactionId: financial.id,
-        userId: user.id,
-        guestEmail: user.email,
-        isGuestOrder: false,
+        userId: user?.id,
+        guestEmail: buyerEmail,
+        isGuestOrder: isGuest,
         invoiceRequired: false,
         invoiceMetadata: {},
         customerNote: dto.customerNote,
         clientTrace: {
-          customerId: user.id,
-          customerEmail: user.email,
+          customerId: user?.id ?? null,
+          customerEmail: buyerEmail,
+          isGuestOrder: isGuest,
           ipAddress: requestMeta?.ip ?? null,
           userAgent: requestMeta?.userAgent ?? null,
           locale: dto.locale === 'en' ? 'en' : 'vi',
@@ -392,7 +418,7 @@ export class EsimOrderService {
    * Uses server charge snapshot (or admin-test sandbox USD), never client-declared amounts.
    */
   private async assertEsimChargeWithinLimit(input: {
-    userId: string;
+    buyer: { userId?: string | null; guestEmail?: string | null };
     market: EsimMarket;
     gateway: string;
     chargeAmount: number | string;
@@ -404,7 +430,7 @@ export class EsimOrderService {
       esimMaxChargeAmountVnd: system.esimMaxChargeAmountVnd,
       esimMaxChargeAmountUsd: system.esimMaxChargeAmountUsd,
     });
-    const velocity = await this.readEsimPaidVelocityToday(input.userId);
+    const velocity = await this.readEsimPaidVelocityToday(input.buyer);
     const result = evaluateEsimChargeLimit({
       chargeAmount: input.chargeAmount,
       chargeCurrency: input.chargeCurrency,
@@ -421,7 +447,7 @@ export class EsimOrderService {
     this.logger.warn(
       JSON.stringify({
         event: 'ESIM_ORDER_AMOUNT_LIMIT',
-        userId: input.userId,
+        buyerKey: esimBuyerLockKey(input.buyer),
         market: input.market,
         gateway: input.gateway,
         chargeAmount: result.chargeAmount,
@@ -443,7 +469,10 @@ export class EsimOrderService {
     );
   }
 
-  private async readEsimPaidVelocityToday(userId: string): Promise<{
+  private async readEsimPaidVelocityToday(buyer: {
+    userId?: string | null;
+    guestEmail?: string | null;
+  }): Promise<{
     ordersPaidToday: number;
     usdPaidToday: number;
   }> {
@@ -452,10 +481,19 @@ export class EsimOrderService {
     }
     const start = new Date();
     start.setUTCHours(0, 0, 0, 0);
+    const identity =
+      buyer.userId != null && buyer.userId !== ''
+        ? { userId: buyer.userId }
+        : buyer.guestEmail
+          ? { guestEmail: { equals: buyer.guestEmail, mode: 'insensitive' as const } }
+          : null;
+    if (!identity) {
+      return { ordersPaidToday: 0, usdPaidToday: 0 };
+    }
     try {
       const rows = await this.prisma.order.findMany({
         where: {
-          userId,
+          ...identity,
           ...ACTIVE_ORDER_WHERE,
           paymentStatus: OrderPaymentStatus.PAID,
           createdAt: { gte: start },
@@ -477,16 +515,16 @@ export class EsimOrderService {
 
   private async lockEsimOrderCreate(
     tx: Prisma.TransactionClient,
-    userId: string,
+    buyerKey: string,
     variantId: string,
   ): Promise<void> {
-    const [userKey, variantKey] = esimOrderCreateLockPair(userId, variantId);
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userKey}), hashtext(${variantKey}))`;
+    const [lockA, lockB] = esimOrderCreateLockPair(buyerKey, variantId);
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockA}), hashtext(${lockB}))`;
   }
 
   private async findReusableEsimOrder(
     tx: Prisma.TransactionClient,
-    userId: string,
+    buyer: { userId?: string | null; guestEmail?: string | null },
     variantId: string,
     market: EsimMarket,
     gatewayCode: string,
@@ -495,9 +533,15 @@ export class EsimOrderService {
   ) {
     const gateway = gatewayCode.trim().toUpperCase();
     const now = new Date();
+    // Guests must never reuse by email alone — that leaks orderId and enables LPA reveal.
+    // Logged-in buyers still reuse WAITING_PAYMENT / in-flight PAID for the same account.
+    if (!(buyer.userId != null && buyer.userId !== '')) {
+      return null;
+    }
+    const identity = { userId: buyer.userId };
     const rows = await tx.order.findMany({
       where: {
-        userId,
+        ...identity,
         ...ACTIVE_ORDER_WHERE,
         paymentStatus: { in: [...ESIM_ORDER_REUSE_PAYMENTS] },
         orderItems: { some: { variantId, variant: { type: 'ESIM' } } },
@@ -619,7 +663,8 @@ export class EsimOrderService {
     const providerCost = new Decimal(selected.mapping.providerCost);
     const referenceAmount = sellAmount.toFixed(0);
     const vndCharge = new Decimal(Math.round(Number(sellAmount.toString()))).toFixed(0);
-    const sepayReady = this.sepayEsimReady();
+    const sepayMethodCodes = this.settingsStore.listEsimSepayMethodCodes();
+    const sepayReady = sepayMethodCodes.length > 0;
     const paypalReady = this.paypalEsimReady();
     let usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null = null;
     if (paypalReady) {
@@ -648,6 +693,7 @@ export class EsimOrderService {
       vndChargeAmount: vndCharge,
       usd,
       sepayReady,
+      sepayMethodCodes,
       paypalReady,
       megapayMethodCodes: this.settingsStore.listEsimMegapayMethodCodes(),
     });
@@ -666,12 +712,6 @@ export class EsimOrderService {
       paymentOptions: options.paymentOptions,
       unavailableReason: options.unavailableReason,
     };
-  }
-
-  /** eSIM Payment Gateway, not the agent-wallet VietQR secret. */
-  private sepayEsimReady(): boolean {
-    const gateway = this.settingsStore.resolveSepayPaymentGateway();
-    return gateway.enabled === true && Boolean(gateway.merchantId?.trim()) && Boolean(gateway.merchantSecretKey?.trim());
   }
 
   private paypalEsimReady(): boolean {

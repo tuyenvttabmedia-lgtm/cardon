@@ -294,8 +294,49 @@ export class EsimMegapayPaymentService {
       await this.enqueueAfterCommit(payment.orderId, payment.id);
       return { success: true, outcome: 'DUPLICATE' };
     }
+    if (settlement === 'EXPIRED' || settlement === 'LOST') {
+      await this.noteLatePayment(payment.id, providerTransactionId, settlement);
+      try {
+        await this.notificationService.notifyAdminRetryRequired(payment.orderId, {
+          message: `eSIM MegaPay IPN ${settlement} after payment window`,
+          providerTransactionId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `eSIM MegaPay late-pay alert failed ref=${payment.paymentReference}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
     this.logger.warn(`eSIM MegaPay IPN ${settlement} ref=${payment.paymentReference}`);
     return { success: true, outcome: 'IGNORED', reason: settlement };
+  }
+
+  private async noteLatePayment(
+    paymentId: string,
+    providerTransactionId: string,
+    reason: 'EXPIRED' | 'LOST',
+  ): Promise<void> {
+    const current = await this.prisma.payment.findFirst({
+      where: { id: paymentId, deletedAt: null },
+    });
+    if (!current || current.status === PaymentRecordStatus.SUCCESS) return;
+    const previous =
+      current.gatewayResponse && typeof current.gatewayResponse === 'object'
+        ? (current.gatewayResponse as Record<string, unknown>)
+        : {};
+    await this.prisma.payment.updateMany({
+      where: { id: paymentId, status: { not: PaymentRecordStatus.SUCCESS }, deletedAt: null },
+      data: {
+        gatewayResponse: {
+          ...previous,
+          providerTransactionId,
+          reconciliationRequired: true,
+          reconciliationReason: reason,
+          manualReview: true,
+          lateWebhookAt: new Date().toISOString(),
+        } as Prisma.InputJsonObject,
+      },
+    });
   }
 
   private assertVndSnapshot(order: {

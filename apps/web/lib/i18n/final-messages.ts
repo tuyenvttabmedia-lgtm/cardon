@@ -92,6 +92,11 @@ export const finalVi = {
   'install.apnManual': 'Cần nhập APN thủ công',
   'order.syncing': 'Đang xác nhận thanh toán và chuẩn bị mã eSIM. Trang này tự cập nhật.',
   'order.esimFetching': 'Thanh toán đã xác nhận. Đang chuẩn bị mã cài eSIM.',
+  'order.guestRegisterTitle': 'Lưu eSIM vào tài khoản?',
+  'order.guestRegisterBody':
+    'Tạo tài khoản CardOn (miễn phí) để xem lại QR và lịch sử eSIM lần sau — không bắt buộc để dùng gói vừa mua.',
+  'order.guestRegisterCta': 'Tạo tài khoản',
+  'order.guestRegisterNote': 'Email mua hàng sẽ được điền sẵn trên form đăng ký.',
   'order.waitingGateway': 'Chưa nhận được xác nhận thanh toán. Giữ trang QR và chuyển đúng số tiền.',
   'order.waitingTransfer':
     'Chưa nhận được xác nhận thanh toán. Chuyển đúng số tiền theo thông tin tài khoản đã cấp.',
@@ -333,6 +338,11 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'install.apnManual': 'Enter the APN manually',
   'order.syncing': 'Confirming payment and preparing your eSIM code. This page updates automatically.',
   'order.esimFetching': 'Payment confirmed. Preparing the eSIM install code.',
+  'order.guestRegisterTitle': 'Save this eSIM to an account?',
+  'order.guestRegisterBody':
+    'Create a free CardOn account to reopen the QR and order history later — optional; your plan already works.',
+  'order.guestRegisterCta': 'Create account',
+  'order.guestRegisterNote': 'Your purchase email will be prefilled on the sign-up form.',
   'order.waitingGateway': 'Payment is not confirmed yet. Keep the QR page open and transfer the exact amount.',
   'order.waitingTransfer':
     'Payment is not confirmed yet. Transfer the exact amount using the account details already issued.',

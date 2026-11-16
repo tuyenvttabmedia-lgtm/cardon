@@ -48,15 +48,16 @@ describe('PayPal admin configuration', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(harness.repo.upsert).not.toHaveBeenCalled();
 
+    // DB flag may be armed from admin; runtime still requires ENV ∧ DB (resolvePaypalConfig).
     await harness.service.updatePaymentPaypal('admin-1', { mode: 'sandbox', esimEnabled: true, clientId: 'id-only' });
-    expect(harness.saved.esimEnabled).toBe(false);
+    expect(harness.saved.esimEnabled).toBe(true);
     expect(harness.saved.clientSecretEnc).toBe('enc:kept-secret');
     expect(harness.audit.at(-1)).toMatchObject({
       actorId: 'admin-1',
       modeBefore: 'sandbox',
       modeAfter: 'sandbox',
       paypalEsimEnabledBefore: false,
-      paypalEsimEnabledAfter: false,
+      paypalEsimEnabledAfter: true,
       customerEsimEnabledBefore: false,
       customerEsimEnabledAfter: false,
       salesOpenBefore: false,

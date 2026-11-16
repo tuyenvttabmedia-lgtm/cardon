@@ -1016,7 +1016,7 @@ describe('B3.19 QUERY claim', () => {
 });
 
 describe('Phase A eSIM order boundaries', () => {
-  it('rejects a guest before any payment call', async () => {
+  it('rejects guest eSIM create without guestEmail before any payment call', async () => {
     const service = new EsimOrderService(
       {} as never,
       {} as never,
@@ -1028,7 +1028,7 @@ describe('Phase A eSIM order boundaries', () => {
     );
     await expect(
       service.create({ items: [{ variantId: 'v', quantity: 1 }] } as never, undefined),
-    ).rejects.toBeInstanceOf(UnauthorizedException);
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects a mixed card and eSIM cart before writing an order', async () => {

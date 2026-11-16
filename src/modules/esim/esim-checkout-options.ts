@@ -4,7 +4,7 @@ export type EsimCheckoutGateway = 'SEPAY' | 'MEGAPAY' | 'PAYPAL';
 
 export interface EsimCheckoutOption {
   gateway: EsimCheckoutGateway;
-  /** Concrete method for fees / createPayment (VIETQR, VNPAYQR, ZALOPAY, PAYPAL). */
+  /** Concrete method for fees / createPayment (VIETQR, DEPOSIT_CODE, VNPAYQR, ZALOPAY, PAYPAL). */
   methodCode: string;
   currency: 'VND' | 'USD';
   amount: string;
@@ -21,6 +21,8 @@ export type EsimCheckoutUnavailable =
   | 'FX_UNAVAILABLE'
   | 'VND_UNAVAILABLE';
 
+const MEGAPAY_ESIM_CODES = new Set(['DEPOSIT_CODE', 'VNPAYQR', 'ZALOPAY']);
+
 /**
  * One gateway per package market. Language does not add a currency.
  * An international plan stays on the USD snapshot, so SePay is omitted.
@@ -31,7 +33,9 @@ export function buildEsimCheckoutOptions(input: {
   referenceAmountVnd: string;
   vndChargeAmount: string;
   usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null;
-  sepayReady: boolean;
+  /** @deprecated prefer sepayMethodCodes */
+  sepayReady?: boolean;
+  sepayMethodCodes?: string[];
   paypalReady: boolean;
   megapayMethodCodes?: string[];
 }): { paymentOptions: EsimCheckoutOption[]; unavailableReason: EsimCheckoutUnavailable | null } {
@@ -40,7 +44,8 @@ export function buildEsimCheckoutOptions(input: {
     const options = buildVndOptions({
       referenceAmount,
       vndChargeAmount: input.vndChargeAmount,
-      sepayReady: input.sepayReady,
+      sepayReady: input.sepayReady === true,
+      sepayMethodCodes: input.sepayMethodCodes ?? [],
       megapayMethodCodes: input.megapayMethodCodes ?? [],
     });
     if (options.length === 0) {
@@ -74,7 +79,7 @@ export function buildEsimCheckoutOptions(input: {
 
 /**
  * Buyer location chooses which pairs are offered. The package country does not.
- * Vietnam can pay SePay VND, MegaPay VNPAYQR/ZALOPAY (when armed), or PayPal USD.
+ * Vietnam can pay SePay / MegaPay VND (when armed) or PayPal USD.
  * A confirmed foreign country gets PayPal USD only.
  */
 export function buildEsimBuyerCheckoutOptions(input: {
@@ -82,16 +87,21 @@ export function buildEsimBuyerCheckoutOptions(input: {
   referenceAmountVnd: string;
   vndChargeAmount: string;
   usd: { amount: string; fxRate: string; fxRateId: string; fxAsOf: string } | null;
-  sepayReady: boolean;
+  /** @deprecated prefer sepayMethodCodes */
+  sepayReady?: boolean;
+  sepayMethodCodes?: string[];
   paypalReady: boolean;
   megapayMethodCodes?: string[];
 }): { paymentOptions: EsimCheckoutOption[]; unavailableReason: EsimCheckoutUnavailable | null } {
   const referenceAmount = input.referenceAmountVnd;
+  const sepayMethodCodes = input.sepayMethodCodes ?? [];
+  const megapayMethodCodes = input.megapayMethodCodes ?? [];
   const vndOptions = buildVndOptions({
     referenceAmount,
     vndChargeAmount: input.vndChargeAmount,
-    sepayReady: input.sepayReady,
-    megapayMethodCodes: input.megapayMethodCodes ?? [],
+    sepayReady: input.sepayReady === true,
+    sepayMethodCodes,
+    megapayMethodCodes,
   });
   const paypal: EsimCheckoutOption | null =
     input.paypalReady && input.usd?.amount && input.usd.fxRate
@@ -114,7 +124,8 @@ export function buildEsimBuyerCheckoutOptions(input: {
   }
   const paymentOptions = [...vndOptions, ...(paypal ? [paypal] : [])];
   if (paymentOptions.length > 0) return { paymentOptions, unavailableReason: null };
-  if (!input.sepayReady && !(input.megapayMethodCodes?.length) && !input.paypalReady) {
+  const sepayArmed = sepayMethodCodes.length > 0 || input.sepayReady === true;
+  if (!sepayArmed && !megapayMethodCodes.length && !input.paypalReady) {
     return { paymentOptions: [], unavailableReason: 'VND_UNAVAILABLE' };
   }
   if (!input.paypalReady || !input.usd) {
@@ -126,18 +137,29 @@ export function buildEsimBuyerCheckoutOptions(input: {
   return { paymentOptions: [], unavailableReason: 'VND_UNAVAILABLE' };
 }
 
+function resolveSepayMethodCodes(input: {
+  sepayReady: boolean;
+  sepayMethodCodes: string[];
+}): string[] {
+  if (input.sepayMethodCodes.length > 0) {
+    return input.sepayMethodCodes.map((code) => code.trim().toUpperCase()).filter(Boolean);
+  }
+  return input.sepayReady ? ['VIETQR'] : [];
+}
+
 function buildVndOptions(input: {
   referenceAmount: string;
   vndChargeAmount: string;
   sepayReady: boolean;
+  sepayMethodCodes: string[];
   megapayMethodCodes: string[];
 }): EsimCheckoutOption[] {
   if (!input.vndChargeAmount) return [];
   const options: EsimCheckoutOption[] = [];
-  if (input.sepayReady) {
+  for (const methodCode of resolveSepayMethodCodes(input)) {
     options.push({
       gateway: 'SEPAY',
-      methodCode: 'VIETQR',
+      methodCode,
       currency: 'VND',
       amount: input.vndChargeAmount,
       referenceCurrency: 'VND',
@@ -149,7 +171,7 @@ function buildVndOptions(input: {
   }
   for (const methodCode of input.megapayMethodCodes) {
     const code = methodCode.trim().toUpperCase();
-    if (code !== 'VNPAYQR' && code !== 'ZALOPAY') continue;
+    if (!MEGAPAY_ESIM_CODES.has(code)) continue;
     options.push({
       gateway: 'MEGAPAY',
       methodCode: code,

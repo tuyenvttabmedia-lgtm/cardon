@@ -57,6 +57,15 @@ export class EsimFulfillmentService {
     orderId: string,
     options?: { simulateTimeout?: boolean },
   ): Promise<EsimFulfillmentResult> {
+    const result = await this.fulfillCore(orderId, options);
+    await this.alertOpsIfNeeded(result);
+    return result;
+  }
+
+  private async fulfillCore(
+    orderId: string,
+    options?: { simulateTimeout?: boolean },
+  ): Promise<EsimFulfillmentResult> {
     const skipped = await this.skippedAdminTest(orderId);
     if (skipped) return skipped;
     await this.settings?.reload();
@@ -140,6 +149,24 @@ export class EsimFulfillmentService {
         fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
         created: false,
       };
+    }
+  }
+
+  private async alertOpsIfNeeded(result: EsimFulfillmentResult): Promise<void> {
+    if (
+      result.fulfillmentStatus !== FulfillmentStatus.WAITING_ADMIN_RETRY &&
+      result.fulfillmentStatus !== FulfillmentStatus.NEED_MANUAL_REVIEW
+    ) {
+      return;
+    }
+    try {
+      await this.notifications?.notifyAdminRetryRequired(result.orderId, {
+        message: `eSIM fulfillment ${result.fulfillmentStatus}`,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `eSIM ops alert failed for ${result.orderId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

@@ -5,6 +5,7 @@ import {
   esimOptionKey,
   esimOrderCreateBody,
   esimPayLabel,
+  esimPaymentMethodsHint,
   esimReferenceNote,
   esimShelfPrice,
   filterEsimQuotedOptions,
@@ -78,7 +79,7 @@ describe('eSIM checkout labels', () => {
       filterEsimQuotedOptions(
         options,
         [
-          { enabled: true, gatewayCode: 'SEPAY', methodCode: 'VIETQR' },
+          { enabled: false, esimEnabled: true, gatewayCode: 'SEPAY', methodCode: 'VIETQR' },
           { enabled: false, esimEnabled: true, gatewayCode: 'MEGAPAY', methodCode: 'VNPAYQR' },
           { enabled: true, esimEnabled: false, gatewayCode: 'MEGAPAY', methodCode: 'ZALOPAY' },
           { enabled: true, gatewayCode: 'PAYPAL', methodCode: 'PAYPAL' },
@@ -86,6 +87,16 @@ describe('eSIM checkout labels', () => {
         true,
       ).map((row) => esimOptionKey(row)),
     ).toEqual(['SEPAY:VIETQR', 'MEGAPAY:VNPAYQR', 'PAYPAL:PAYPAL']);
+    expect(
+      filterEsimQuotedOptions(
+        options,
+        [
+          { enabled: true, esimEnabled: false, gatewayCode: 'SEPAY', methodCode: 'VIETQR' },
+          { enabled: false, esimEnabled: true, gatewayCode: 'MEGAPAY', methodCode: 'VNPAYQR' },
+        ],
+        true,
+      ).map((row) => esimOptionKey(row)),
+    ).toEqual(['MEGAPAY:VNPAYQR']);
   });
 
   it('maps the gateway to the order market and prefers buyerMarket on the quote', () => {
@@ -94,5 +105,29 @@ describe('eSIM checkout labels', () => {
     expect(esimMarketForGateway('MEGAPAY')).toBe('VN');
     expect(esimBuyerMarket({ market: 'VN', buyerMarket: 'INTL' })).toBe('INTL');
     expect(esimBuyerMarket({ market: 'VN' })).toBe('VN');
+  });
+
+  it('hints only name methods that are actually quoted', () => {
+    expect(esimPaymentMethodsHint('vi', 'VN', [])).toBeNull();
+    expect(
+      esimPaymentMethodsHint('vi', 'VN', [
+        { gateway: 'SEPAY', methodCode: 'VIETQR', currency: 'VND' },
+      ]),
+    ).toBe(
+      'Thanh toán tại Việt Nam: VietQR. Chọn một phương thức bên dưới. Quốc gia gói eSIM không ảnh hưởng cổng thanh toán.',
+    );
+    expect(
+      esimPaymentMethodsHint('vi', 'VN', [
+        { gateway: 'SEPAY', methodCode: 'VIETQR', currency: 'VND' },
+        { gateway: 'MEGAPAY', methodCode: 'ZALOPAY', currency: 'VND' },
+        { gateway: 'PAYPAL', methodCode: 'PAYPAL', currency: 'USD' },
+      ]),
+    ).toContain('VietQR, ZaloPay hoặc PayPal (USD)');
+    expect(
+      esimPaymentMethodsHint('en', 'INTL', [{ gateway: 'PAYPAL', methodCode: 'PAYPAL', currency: 'USD' }]),
+    ).toBe('Paying from outside Vietnam: PayPal (USD).');
+    expect(
+      esimPaymentMethodsHint('vi', 'INTL', [{ gateway: 'PAYPAL', methodCode: 'PAYPAL', currency: 'USD' }]),
+    ).toBe('Thanh toán từ nước ngoài: PayPal (USD).');
   });
 });

@@ -20,8 +20,10 @@ export function paymentMethodsForCheckout<
     return input.methods.filter((method) => method.enabled && method.gatewayCode === 'PAYPAL');
   }
   return input.methods.filter((method) => {
-    if (method.gatewayCode === 'SEPAY' || method.gatewayCode === 'PAYPAL') return method.enabled;
-    if (method.gatewayCode === 'MEGAPAY') return method.esimEnabled === true;
+    if (method.gatewayCode === 'PAYPAL') return method.enabled;
+    if (method.gatewayCode === 'SEPAY' || method.gatewayCode === 'MEGAPAY') {
+      return method.esimEnabled === true;
+    }
     return false;
   });
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { EsimInstallPanel } from '@/components/esim/EsimInstallPanel';
 import { CardDeliveryPanel } from '@/components/order/CardDeliveryPanel';
+import { GuestRegisterUpsell } from '@/components/order/GuestRegisterUpsell';
 import { OrderStatusPanel } from '@/components/order/OrderStatusPanel';
 import { OrderTimeline } from '@/components/order/OrderTimeline';
 import { useT } from '@/components/i18n/LocaleProvider';
@@ -91,6 +92,13 @@ export function OrderDeliveryContent({
       {isEsim ? (
         <EsimInstallPanel esim={esim} compact={showCardsOnly} guestEmail={guestEmail} />
       ) : null}
+
+      {!showCardsOnly &&
+        isEsim &&
+        paid &&
+        guestEmail?.trim() ? (
+          <GuestRegisterUpsell email={guestEmail} redirectPath="/account/esim" />
+        ) : null}
 
       {!showCardsOnly &&
         order.customerStatus !== 'DELIVERED' &&

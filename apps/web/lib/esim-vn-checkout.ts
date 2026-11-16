@@ -5,13 +5,18 @@ import { getApiBaseUrl, generateIdempotencyKey } from '@/lib/utils';
 import { ApiClientError, orderApi, paymentApi } from '@/services/api-client';
 import type { Payment, PaymentGatewayCode } from '@/types/api';
 
-/** Vietnam eSIM lane: SePay + MegaPay when esimEnabled. PayPal INTL stays on the quote path. */
+/** Vietnam eSIM lane: SePay / MegaPay when esimEnabled. PayPal INTL stays on the quote path. */
 export function filterEsimVnPaymentMethods(methods: PublicPaymentMethod[]): PublicPaymentMethod[] {
   return methods.filter((method) => {
-    if (method.gatewayCode === 'SEPAY') return method.enabled;
+    if (method.gatewayCode === 'SEPAY') {
+      return method.esimEnabled === true && method.methodCode.toUpperCase() === 'VIETQR';
+    }
     if (method.gatewayCode === 'MEGAPAY') {
       const code = method.methodCode.toUpperCase();
-      return method.esimEnabled === true && (code === 'VNPAYQR' || code === 'ZALOPAY');
+      return (
+        method.esimEnabled === true &&
+        (code === 'DEPOSIT_CODE' || code === 'VNPAYQR' || code === 'ZALOPAY')
+      );
     }
     return false;
   });
