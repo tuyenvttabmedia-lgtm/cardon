@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EsimInstallPanel } from '@/components/esim/EsimInstallPanel';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import {
@@ -9,6 +9,7 @@ import {
   preferEsimVnMethodCode,
   resolveEsimVnPayResult,
 } from '@/lib/esim-vn-checkout';
+import { orderedSepayCheckoutEntries } from '@/lib/sepay-checkout-form';
 import { generateIdempotencyKey } from '@/lib/utils';
 import { formatVnd } from '@/lib/utils';
 import { accountApi, paymentApi } from '@/services/api-client';
@@ -44,6 +45,8 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
   const [topupLoading, setTopupLoading] = useState(false);
   const [topupError, setTopupError] = useState('');
   const [payingId, setPayingId] = useState<string | null>(null);
+  const installRef = useRef<HTMLDivElement>(null);
+  const scrollInstallOnOpen = useRef(false);
 
   const loadUsage = useCallback(async () => {
     if (!orderId || !esim.hasIccid) return;
@@ -62,6 +65,15 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
   useEffect(() => {
     void loadUsage();
   }, [loadUsage]);
+
+  useEffect(() => {
+    if (!showInstall || !scrollInstallOnOpen.current) return;
+    scrollInstallOnOpen.current = false;
+    const node = installRef.current;
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showInstall]);
 
   async function openTopup() {
     if (!orderId) return;
@@ -103,11 +115,12 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
         window.location.assign(result.path);
         return;
       }
+      // SePay rejects scrambled jsonb key order with "Yêu cầu không hợp lệ".
       const form = document.createElement('form');
       form.method = 'POST';
       form.action = result.checkoutUrl;
       form.style.display = 'none';
-      for (const [key, value] of Object.entries(result.checkoutFormFields)) {
+      for (const [key, value] of orderedSepayCheckoutEntries(result.checkoutFormFields)) {
         const input = document.createElement('input');
         input.type = 'hidden';
         input.name = key;
@@ -232,7 +245,13 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
           {esim.kind === 'ready' ? (
             <button
               type="button"
-              onClick={() => setShowInstall((v) => !v)}
+              onClick={() => {
+                setShowInstall((open) => {
+                  if (open) return false;
+                  scrollInstallOnOpen.current = true;
+                  return true;
+                });
+              }}
               className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
             >
               {t('esim.installToggle')}
@@ -280,7 +299,7 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
       ) : null}
 
       {showInstall || esim.kind !== 'ready' ? (
-        <div className="px-2 pb-2 sm:px-3 sm:pb-3">
+        <div ref={installRef} id={`esim-install-${orderId}`} className="scroll-mt-20 px-2 pb-2 sm:px-3 sm:pb-3">
           <EsimInstallPanel esim={esim} showAccountLink={false} compact />
         </div>
       ) : null}
