@@ -281,7 +281,10 @@ describe('EsimPaypalPaymentService', () => {
         return ['esim-fulfill-order-1'];
       }),
     };
-    const notification = { notifyPaymentSuccess: jest.fn() };
+    const notification = {
+      notifyPaymentSuccess: jest.fn(),
+      notifyManualPaymentReview: jest.fn(),
+    };
     const service = new EsimPaypalPaymentService(
       prisma as never,
       paypal as never,
@@ -396,6 +399,13 @@ describe('EsimPaypalPaymentService', () => {
     expect(wrong.state().paymentStatus).toBe(PaymentRecordStatus.PENDING);
     expect(wrong.state().orderStatus).toBe(OrderPaymentStatus.WAITING_PAYMENT);
     expect(wrong.fulfillment.dispatchOrderFulfillment).not.toHaveBeenCalled();
+    expect(wrong.notification.notifyManualPaymentReview).toHaveBeenCalled();
+    expect(wrong.state().gatewayResponse).toEqual(
+      expect.objectContaining({
+        manualReview: true,
+        settlementMismatch: expect.any(String),
+      }),
+    );
   });
 
   it('lets only one of two concurrent captures settle and enqueue', async () => {
@@ -598,6 +608,8 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
 
   it('does not mark an admin-test payment paid when the capture order id does not match', async () => {
     const claimPendingStatus = jest.fn();
+    const recordLateWebhookManualReview = jest.fn();
+    const notifyManualPaymentReview = jest.fn();
     const service = new PaymentService(
       { order: { findUnique: jest.fn() }, $transaction: jest.fn() } as never,
       {
@@ -615,6 +627,7 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
         }),
         findSuccessByProviderTransactionId: jest.fn(),
         claimPendingStatus,
+        recordLateWebhookManualReview,
       } as never,
       { create: jest.fn() } as never,
       {
@@ -632,7 +645,7 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
       { markPaidInTransaction: jest.fn() } as never,
       { recordPaymentSuccess: jest.fn() } as never,
       { dispatchOrderFulfillment: jest.fn() } as never,
-      { notifyPaymentSuccess: jest.fn() } as never,
+      { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview } as never,
       { dispatch: jest.fn() } as never,
     );
     const result = await service.handleWebhook('paypal', capturePayload({
@@ -642,7 +655,9 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
       supplementary_data: { related_ids: { order_id: 'OTHER-ORDER' } },
     }), {});
     expect(result.ok).toBe(true);
-    expect(result.duplicate).toBeUndefined();
+    expect(result.manualReview).toBe(true);
     expect(claimPendingStatus).not.toHaveBeenCalled();
+    expect(recordLateWebhookManualReview).toHaveBeenCalled();
+    expect(notifyManualPaymentReview).toHaveBeenCalled();
   });
 });
