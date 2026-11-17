@@ -36,8 +36,24 @@ const SLUG_TO_ISO: Record<string, string> = {
   'esim-ireland': 'IE',
   'esim-sec': 'CZ',
   'esim-qatar': 'QA',
+  'esim-arap-xe-ut': 'SA',
+  'esim-sri-lanka': 'LK',
+  'esim-nepal': 'NP',
+  'esim-georgia': 'GE',
+  'esim-jordan': 'JO',
+  'esim-oman': 'OM',
+  'esim-bahrain': 'BH',
+  'esim-morocco': 'MA',
+  'esim-nam-phi': 'ZA',
+  'esim-croatia': 'HR',
+  'esim-thuy-dien': 'SE',
+  'esim-na-uy': 'NO',
+  'esim-dan-mach': 'DK',
+  'esim-iceland': 'IS',
+  'esim-brazil': 'BR',
   'esim-chau-a': 'ASIA',
   'esim-chau-au': 'EUROPE',
+  'esim-the-gioi': 'WORLD',
 };
 
 const NAME_TO_ISO: Array<[string, string]> = [
@@ -83,6 +99,28 @@ const NAME_TO_ISO: Array<[string, string]> = [
   ['ireland', 'IE'],
   ['séc', 'CZ'],
   ['qatar', 'QA'],
+  ['ả rập xê út', 'SA'],
+  ['arap xe ut', 'SA'],
+  ['saudi', 'SA'],
+  ['sri lanka', 'LK'],
+  ['nepal', 'NP'],
+  ['georgia', 'GE'],
+  ['jordan', 'JO'],
+  ['oman', 'OM'],
+  ['bahrain', 'BH'],
+  ['morocco', 'MA'],
+  ['maroc', 'MA'],
+  ['nam phi', 'ZA'],
+  ['south africa', 'ZA'],
+  ['croatia', 'HR'],
+  ['thụy điển', 'SE'],
+  ['na uy', 'NO'],
+  ['đan mạch', 'DK'],
+  ['iceland', 'IS'],
+  ['brazil', 'BR'],
+  ['toàn cầu', 'WORLD'],
+  ['global', 'WORLD'],
+  ['thế giới', 'WORLD'],
 ];
 
 export function esimProductIso(name: string, slug?: string | null): string | null {
@@ -100,4 +138,20 @@ export function flagCdnCode(iso: string | null): string | null {
   if (key === 'EUROPE' || key === 'EU') return 'eu';
   if (/^[A-Z]{2}$/.test(key)) return key.toLowerCase();
   return null;
+}
+
+/** Local SVG for regional packs without an ISO flag. */
+export function flagCustomSrc(iso: string | null): string | null {
+  if (!iso) return null;
+  const key = iso.toUpperCase();
+  if (key === 'ASIA') return '/images/esim/flag-asia.svg';
+  if (key === 'WORLD') return '/images/esim/flag-world.svg';
+  return null;
+}
+
+export function flagImageSrc(iso: string | null): string | null {
+  const custom = flagCustomSrc(iso);
+  if (custom) return custom;
+  const code = flagCdnCode(iso);
+  return code ? `https://flagcdn.com/w80/${code}.png` : null;
 }

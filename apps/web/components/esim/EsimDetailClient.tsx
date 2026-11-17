@@ -55,6 +55,23 @@ const REGION_KEY: Record<string, MessageKey> = {
   IE: 'esim.region.europe',
   CZ: 'esim.region.europe',
   EG: 'esim.region.africa',
+  MX: 'esim.region.america',
+  SA: 'esim.region.asia',
+  LK: 'esim.region.asia',
+  NP: 'esim.region.asia',
+  GE: 'esim.region.asia',
+  JO: 'esim.region.asia',
+  OM: 'esim.region.asia',
+  BH: 'esim.region.asia',
+  MA: 'esim.region.africa',
+  ZA: 'esim.region.africa',
+  HR: 'esim.region.europe',
+  SE: 'esim.region.europe',
+  NO: 'esim.region.europe',
+  DK: 'esim.region.europe',
+  IS: 'esim.region.europe',
+  BR: 'esim.region.america',
+  WORLD: 'esim.intl',
 };
 
 const DAY_SPANS = [
