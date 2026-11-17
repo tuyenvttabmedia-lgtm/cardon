@@ -54,6 +54,11 @@ export class OrderController {
     @CurrentUser() user?: AuthenticatedUser,
     @Req() req?: Request,
   ) {
+    const trimmedIdempotencyKey = idempotencyKey?.trim();
+    if (!trimmedIdempotencyKey) {
+      throw new BadRequestException('Idempotency-Key header is required');
+    }
+
     const ip = req ? extractClientIp(req) : undefined;
     const isGuest = !user;
 
@@ -89,7 +94,7 @@ export class OrderController {
             countryCode: extractClientCountryCode(req),
           }
         : undefined,
-      idempotencyKey,
+      trimmedIdempotencyKey,
     );
   }
 

@@ -26,10 +26,13 @@ import {
 import { orderApi } from '@/services/api-client';
 
 const POLL_MS = 5000;
+/** Stop endless confirming spinner; user can still open order status. */
+const CONFIRM_TIMEOUT_MS = 90_000;
 
 type ResultStatus =
   | 'loading'
   | 'confirming'
+  | 'confirm_timeout'
   | 'success'
   | 'awaiting_transfer'
   | 'cancel'
@@ -48,8 +51,9 @@ export default function CheckoutResultClient() {
   const { locale } = useLocale();
   const [status, setStatus] = useState<ResultStatus>('loading');
   const [message, setMessage] = useState('');
-  const [pending, setPending] = useState<PendingMegapayPayment | null>(null);
   const [pollError, setPollError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingMegapayPayment | null>(null);
+  const confirmStartedAtRef = useRef<number | null>(null);
 
   const resultCd = searchParams.get('resultCd');
   const resultMsg = searchParams.get('resultMsg');
@@ -74,6 +78,12 @@ export default function CheckoutResultClient() {
 
     if (isMegapaySuccessResult(resultCd)) {
       // Gateway said OK — confirm PAID on CardOn before calling it a success.
+      if (!stored?.orderId || !stored?.orderCode) {
+        setStatus('confirm_timeout');
+        setMessage(t('result.confirmMissing'));
+        return;
+      }
+      confirmStartedAtRef.current = Date.now();
       setStatus('confirming');
       setMessage(t('result.confirming'));
       return;
@@ -138,6 +148,13 @@ export default function CheckoutResultClient() {
   const goToSuccessRef = useRef(goToSuccess);
   goToSuccessRef.current = goToSuccess;
 
+  const retryConfirm = useCallback(() => {
+    confirmStartedAtRef.current = Date.now();
+    setPollError(null);
+    setStatus('confirming');
+    setMessage(t('result.confirming'));
+  }, [t]);
+
   useEffect(() => {
     if (status !== 'awaiting_transfer' && status !== 'confirming') return undefined;
     if (authLoading) return undefined;
@@ -151,6 +168,17 @@ export default function CheckoutResultClient() {
 
     async function poll() {
       try {
+        if (
+          status === 'confirming' &&
+          confirmStartedAtRef.current &&
+          Date.now() - confirmStartedAtRef.current >= CONFIRM_TIMEOUT_MS
+        ) {
+          if (!active) return;
+          setStatus('confirm_timeout');
+          setMessage(t('result.confirmTimeout'));
+          return;
+        }
+
         const paymentStatus = isAuthenticated
           ? (await orderApi.getById(orderId!)).paymentStatus
           : (await orderApi.lookup(orderCode!, email)).order.paymentStatus;
@@ -202,6 +230,8 @@ export default function CheckoutResultClient() {
       ? t('result.success')
       : status === 'confirming'
         ? t('result.confirmingTitle')
+        : status === 'confirm_timeout'
+          ? t('result.confirmTimeoutTitle')
         : status === 'awaiting_transfer'
           ? t('result.awaiting')
           : status === 'cancel'
@@ -209,6 +239,16 @@ export default function CheckoutResultClient() {
             : status === 'failed'
               ? t('result.failedTitle')
               : t('result.title');
+
+  const orderStatusHref =
+    pending?.orderCode
+      ? withLocalePrefix(
+          `/checkout/success?orderCode=${encodeURIComponent(pending.orderCode)}${
+            pending.email ? `&email=${encodeURIComponent(pending.email)}` : ''
+          }`,
+          locale,
+        )
+      : null;
 
   return (
     <PageContainer className="page-footer-gap">
@@ -218,7 +258,7 @@ export default function CheckoutResultClient() {
 
         {pending?.orderCode && status !== 'success' && (
           <p className="mt-2 text-sm text-cardon-gray">
-            {status === 'awaiting_transfer' || status === 'confirming'
+            {status === 'awaiting_transfer' || status === 'confirming' || status === 'confirm_timeout'
               ? t('result.orderCode')
               : t('result.unpaid')}
             : <span className="font-semibold text-cardon-navy">{pending.orderCode}</span>
@@ -231,6 +271,31 @@ export default function CheckoutResultClient() {
         {status === 'confirming' ? (
           <p className="mt-4 text-xs leading-relaxed text-cardon-gray">{t('result.auto')}</p>
         ) : null}
+
+        {(status === 'confirming' || status === 'confirm_timeout') && (
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+            {status === 'confirm_timeout' && pending?.orderId && pending.orderCode ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-cardon-blue hover:underline"
+                onClick={retryConfirm}
+              >
+                {t('result.confirmRetry')}
+              </button>
+            ) : null}
+            {orderStatusHref ? (
+              <Link
+                href={orderStatusHref}
+                className="text-sm font-semibold text-cardon-blue hover:underline"
+              >
+                {t('result.viewOrder')}
+              </Link>
+            ) : null}
+            <Link href={defaultMegapayResumeHref()} className="text-sm font-semibold text-cardon-blue hover:underline">
+              {t('result.newOrder')}
+            </Link>
+          </div>
+        )}
 
         {status === 'awaiting_transfer' && (
           <>

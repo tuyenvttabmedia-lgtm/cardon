@@ -22,6 +22,8 @@ describe('W5 guest order protection (OrderController)', () => {
     captchaToken: 'tok',
   };
 
+  const idemKey = 'idem-order-1';
+
   const req = {
     headers: {},
     socket: { remoteAddress: '1.2.3.4' },
@@ -36,8 +38,16 @@ describe('W5 guest order protection (OrderController)', () => {
     emailPolicy.assertRegistrationEmailAllowed.mockImplementation(() => undefined);
   });
 
+  it('rejects missing Idempotency-Key before create', async () => {
+    await expect(
+      controller.createOrder(guestDto as never, undefined, undefined, req),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(orderService.createOrder).not.toHaveBeenCalled();
+    expect(turnstile.verifyOrThrow).not.toHaveBeenCalled();
+  });
+
   it('guest: turnstile → email policy → fail-open abuse → create', async () => {
-    await controller.createOrder(guestDto as never, undefined, undefined, req);
+    await controller.createOrder(guestDto as never, idemKey, undefined, req);
 
     expect(turnstile.verifyOrThrow).toHaveBeenCalled();
     expect(emailPolicy.assertRegistrationEmailAllowed).toHaveBeenCalledWith(
@@ -56,7 +66,7 @@ describe('W5 guest order protection (OrderController)', () => {
     await expect(
       controller.createOrder(
         { ...guestDto, guestEmail: 'x@example.com' } as never,
-        undefined,
+        idemKey,
         undefined,
         req,
       ),
@@ -67,7 +77,7 @@ describe('W5 guest order protection (OrderController)', () => {
   it('authenticated: skips turnstile + email policy; abuse userId only (no guest IP)', async () => {
     await controller.createOrder(
       { items: guestDto.items } as never,
-      undefined,
+      idemKey,
       { id: 'u1', email: 'u@gmail.com' } as never,
       req,
     );
@@ -82,7 +92,7 @@ describe('W5 guest order protection (OrderController)', () => {
   });
 
   it('guest: abuse uses ip + email, not userId', async () => {
-    await controller.createOrder(guestDto as never, undefined, undefined, req);
+    await controller.createOrder(guestDto as never, idemKey, undefined, req);
     expect(abuseRateLimit.consumeFailOpen).toHaveBeenCalledWith(
       expect.objectContaining({
         bucket: 'order_create',
@@ -97,7 +107,7 @@ describe('W5 guest order protection (OrderController)', () => {
     await expect(
       controller.createOrder(
         { ...guestDto, captchaToken: undefined } as never,
-        undefined,
+        idemKey,
         undefined,
         req,
       ),
@@ -110,7 +120,7 @@ describe('W5 guest order protection (OrderController)', () => {
       new HttpException('Too many requests', HttpStatus.TOO_MANY_REQUESTS),
     );
     await expect(
-      controller.createOrder(guestDto as never, undefined, undefined, req),
+      controller.createOrder(guestDto as never, idemKey, undefined, req),
     ).rejects.toMatchObject({ status: HttpStatus.TOO_MANY_REQUESTS });
   });
 

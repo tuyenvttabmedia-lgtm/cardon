@@ -163,6 +163,14 @@ function CheckoutShellInner({
   const checkoutIdempotencyKeyRef = useRef<string | null>(null);
   const autoCatalogInitialized = useRef(false);
 
+  /** Drop open gateway session so user can start a new order without waiting for expiry. */
+  const clearOpenPaymentSession = useCallback(() => {
+    setPayment(null);
+    setPaidOrderMeta(null);
+    checkoutIdempotencyKeyRef.current = null;
+    payInFlightRef.current = false;
+  }, []);
+
   const pathCategory = cardCategoryFromPathname(pathname);
   const [category, setCategory] = useState<HomeCardCategory>(
     pathCategory ?? initialCategory,
@@ -289,25 +297,26 @@ function CheckoutShellInner({
   const packageLabel = variant && mode === 'DATA' ? formatDataPackageCard(variant).packageName : undefined;
 
   const handleCategoryChange = useCallback((next: HomeCardCategory) => {
+    clearOpenPaymentSession();
     setCategory(next);
     setProduct(null);
     setVariant(null);
     setQuantity(1);
     setCheckoutError(null);
     setOrderLimitError(null);
-    setPayment(null);
-    setPaidOrderMeta(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handleProductChange = useCallback((p: Product) => {
+    clearOpenPaymentSession();
     setProduct(p);
     setVariant(null);
     setCheckoutError(null);
     setOrderLimitError(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handleVariantChange = useCallback(
     (v: ProductVariant) => {
+      clearOpenPaymentSession();
       setVariant(v);
       setOrderLimitError(null);
       const owner = findProductForVariant(filteredProducts, v.id);
@@ -319,11 +328,12 @@ function CheckoutShellInner({
         }
       }
     },
-    [filteredProducts, mode, carriers],
+    [clearOpenPaymentSession, filteredProducts, mode, carriers],
   );
 
   const handleCarrierChange = useCallback(
     (id: string) => {
+      clearOpenPaymentSession();
       if (mode === 'TOPUP') setCarrierManual(true);
       setCarrierId(id);
       const match = telcoProducts.find((p) => matchCarrier(p, id)) ?? null;
@@ -332,20 +342,22 @@ function CheckoutShellInner({
       setCheckoutError(null);
       setOrderLimitError(null);
     },
-    [mode, telcoProducts],
+    [clearOpenPaymentSession, mode, telcoProducts],
   );
 
   const handleQuantityChange = useCallback((next: number) => {
+    clearOpenPaymentSession();
     setQuantity(next);
     setOrderLimitError(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handlePaymentMethodChange = useCallback(
     (code: string) => {
+      clearOpenPaymentSession();
       setPaymentMethodCode(code);
       setOrderLimitError(null);
     },
-    [setPaymentMethodCode],
+    [clearOpenPaymentSession, setPaymentMethodCode],
   );
 
   useEffect(() => {
@@ -493,7 +505,7 @@ function CheckoutShellInner({
       );
       return;
     }
-    if (payInFlightRef.current || checkoutLoading) return;
+    if (payInFlightRef.current || checkoutLoading || payment) return;
 
     const validationError = validateCheckout({
       product: checkoutProduct,
@@ -657,9 +669,12 @@ function CheckoutShellInner({
     }
   }
 
+  const gatewaySessionOpen = Boolean(payment);
   const payButtonLabel = checkoutLoading
     ? t('checkout.creating')
-    : isOverOrderLimit
+    : gatewaySessionOpen
+      ? t('checkout.gatewayOpen')
+      : isOverOrderLimit
       ? orderQuantity > 1
         ? t('checkout.reduceQty')
         : t('checkout.overLimit')
@@ -675,7 +690,8 @@ function CheckoutShellInner({
             hasPaymentMethods &&
             paymentMethodCode,
         );
-  const payDisabled = !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked;
+  const payDisabled =
+    !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked || gatewaySessionOpen;
 
   const megapayResumeHref = useMemo(() => {
     if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
@@ -755,6 +771,7 @@ function CheckoutShellInner({
                     type="tel"
                     value={phone}
                     onChange={(e) => {
+                      clearOpenPaymentSession();
                       setPhone(e.target.value);
                       // Keep manual carrier override (sandbox test numbers often use mismatched prefixes).
                       if (mode === 'TOPUP' && !e.target.value.trim()) {
@@ -877,6 +894,18 @@ function CheckoutShellInner({
                 {checkoutError && !activeOrderLimit && (
                   <p className="mt-2 text-sm text-red-600">{checkoutError}</p>
                 )}
+                {gatewaySessionOpen ? (
+                  <button
+                    type="button"
+                    className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+                    onClick={() => {
+                      clearOpenPaymentSession();
+                      setCheckoutError(null);
+                    }}
+                  >
+                    {t('checkout.cancelGateway')}
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -919,6 +948,18 @@ function CheckoutShellInner({
                   packageLabel={packageLabel}
                 />
               )}
+              {gatewaySessionOpen ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+                  onClick={() => {
+                    clearOpenPaymentSession();
+                    setCheckoutError(null);
+                  }}
+                >
+                  {t('checkout.cancelGateway')}
+                </button>
+              ) : null}
             </aside>
           </div>
         )}
@@ -952,6 +993,20 @@ function CheckoutShellInner({
               {payButtonLabel}
             </button>
           </div>
+          {gatewaySessionOpen ? (
+            <div className="site-container pt-1.5">
+              <button
+                type="button"
+                className="text-xs font-semibold text-cardon-blue hover:underline"
+                onClick={() => {
+                  clearOpenPaymentSession();
+                  setCheckoutError(null);
+                }}
+              >
+                {t('checkout.cancelGateway')}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

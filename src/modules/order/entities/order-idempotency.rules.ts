@@ -1,7 +1,7 @@
 /**
  * Checkout / payment idempotency rules (Phase 2D.1 — documented).
  *
- * Retail B2C POST /orders accepts optional Idempotency-Key → orders.checkout_idempotency_key.
+ * Retail B2C POST /orders requires Idempotency-Key → orders.checkout_idempotency_key.
  * Same key returns the original order (owner / guestEmail checked). eSIM lane still has its
  * own in-flight reuse for user+variant.
  *

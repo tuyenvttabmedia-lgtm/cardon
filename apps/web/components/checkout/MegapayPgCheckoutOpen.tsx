@@ -32,6 +32,9 @@ const VA_RESULT_FIELDS = [
   'invoiceNo',
 ] as const;
 
+/** Survives React Strict Mode remount so the same invoice does not openPayment twice. */
+const openedMegapayPaymentRefs = new Set<string>();
+
 declare global {
   interface Window {
     openPayment?: (mode: number, domain: string, formId?: string) => void;
@@ -198,10 +201,13 @@ export function MegapayPgCheckoutOpen({
     return () => window.removeEventListener('message', onMessage);
   }, [router, orderId, orderCode, email, paymentReference, amount]);
 
+  // Open once per paymentReference (module set survives Strict Mode remount).
   useEffect(() => {
-    if (!mounted) return undefined;
+    if (!mounted || !paymentReference) return undefined;
+    if (openedMegapayPaymentRefs.has(paymentReference) || openedRef.current) {
+      return undefined;
+    }
     let cancelled = false;
-    openedRef.current = false;
 
     async function openLayer() {
       try {
@@ -216,6 +222,7 @@ export function MegapayPgCheckoutOpen({
           return;
         }
         openedRef.current = true;
+        openedMegapayPaymentRefs.add(paymentReference!);
         window.openPayment(1, checkoutClient.domain, 'megapayForm');
       } catch (err) {
         if (!cancelled) {
@@ -231,10 +238,10 @@ export function MegapayPgCheckoutOpen({
     };
   }, [
     mounted,
+    paymentReference,
     checkoutClient.cssUrl,
     checkoutClient.domain,
     checkoutClient.jsUrl,
-    checkoutFormFields,
   ]);
 
   const form = (

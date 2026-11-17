@@ -116,6 +116,8 @@ export const journeyVi = {
   'checkout.cardLogin': 'Mua thẻ yêu cầu đăng nhập tài khoản',
   'checkout.payFailed': 'Thanh toán thất bại',
   'checkout.creating': 'Đang tạo giao dịch...',
+  'checkout.gatewayOpen': 'Đang mở cổng thanh toán…',
+  'checkout.cancelGateway': 'Huỷ / đặt lại đơn mới',
   'checkout.reduceQty': 'Giảm số lượng để tiếp tục',
   'checkout.overLimit': 'Đơn hàng vượt quá giới hạn',
   'checkout.unavailable': 'Thanh toán tạm thời chưa khả dụng. Thử lại sau hoặc liên hệ hỗ trợ.',
@@ -176,6 +178,12 @@ export const journeyVi = {
   'result.confirmingTitle': 'Đang xác nhận thanh toán',
   'result.confirming':
     'Cổng đã báo thành công. CardOn đang xác nhận trên hệ thống — chỉ giao thẻ khi đơn chuyển sang Đã thanh toán.',
+  'result.confirmTimeoutTitle': 'Chưa nhận được xác nhận',
+  'result.confirmTimeout':
+    'CardOn chưa nhận được xác nhận thanh toán từ ngân hàng. Bạn có thể xem trạng thái đơn hoặc thử kiểm tra lại — không bị trừ thêm nếu giao dịch chưa thành công.',
+  'result.confirmMissing':
+    'Thiếu thông tin đơn trên trình duyệt nên không tự xác nhận được. Hãy mở trạng thái đơn bằng mã đơn, hoặc đặt lại đơn mới.',
+  'result.confirmRetry': 'Thử kiểm tra lại',
   'result.pending': 'Đã tạo mã nộp tiền cho đơn hàng. Vui lòng chuyển khoản đúng số tiền — sản phẩm được giao khi ngân hàng báo có.',
   'result.incomplete': 'Thanh toán chưa hoàn tất. Đơn hàng chưa bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
   'result.cancelled': 'Bạn đã hủy giao dịch nên đơn hàng chưa được thanh toán. Bạn không bị trừ tiền — hãy đặt lại đơn mới trên trang chủ.',
@@ -547,6 +555,8 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'checkout.cardLogin': 'Buying cards requires an account',
   'checkout.payFailed': 'Payment failed',
   'checkout.creating': 'Creating payment...',
+  'checkout.gatewayOpen': 'Payment gateway is open…',
+  'checkout.cancelGateway': 'Cancel / start a new order',
   'checkout.reduceQty': 'Lower the quantity to continue',
   'checkout.overLimit': 'Order is over the limit',
   'checkout.unavailable': 'Payment is temporarily unavailable. Try again or contact support.',
@@ -607,6 +617,12 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'result.confirmingTitle': 'Confirming payment',
   'result.confirming':
     'The gateway reported success. CardOn is confirming on our side — cards are only delivered after the order is Paid.',
+  'result.confirmTimeoutTitle': 'Confirmation not received yet',
+  'result.confirmTimeout':
+    'CardOn has not received bank confirmation yet. You can view the order status or try again — you are not charged again if payment did not succeed.',
+  'result.confirmMissing':
+    'This browser is missing the order session, so automatic confirmation cannot run. Open the order status with your order code, or start a new order.',
+  'result.confirmRetry': 'Check again',
   'result.pending': 'A transfer reference was created. Pay the exact amount — delivery starts when the bank confirms.',
   'result.incomplete': 'Payment is not finished. You were not charged — start a new order from the home page.',
   'result.cancelled': 'You cancelled the payment, so the order is unpaid. You were not charged — start a new order from the home page.',

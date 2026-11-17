@@ -134,6 +134,7 @@ export default function CheckoutPageClient() {
   const [guestEmail, setGuestEmail] = useState('');
   const captchaRef = useRef<TurnstileFieldHandle>(null);
   const checkoutIdempotencyKeyRef = useRef<string | null>(null);
+  const payInFlightRef = useRef(false);
   const turnstileSiteKey = useTurnstileSiteKey();
   const captchaRequired = !isAuthenticated && isTurnstileSiteKeyConfigured(turnstileSiteKey);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -237,7 +238,8 @@ export default function CheckoutPageClient() {
       if (!hasPaymentMethods) setError(t('checkout.noMethods'));
       return;
     }
-    if (loading) return;
+    if (loading || payInFlightRef.current || payment) return;
+    payInFlightRef.current = true;
     setLoading(true);
     setError(null);
     if (!checkoutIdempotencyKeyRef.current) {
@@ -265,18 +267,22 @@ export default function CheckoutPageClient() {
           throw new Error(t('checkout.esimNoMethod'));
         }
         setPayPhase('order');
-        const created = await orderApi.create({
-          ...esimOrderCreateBody({
-            variantId: variant.id,
-            paymentMethodCode: esimMethod.methodCode,
-            market: esimMarketForGateway(selectedOption.gateway),
-            locale: readBrowserLocale(),
-          }),
-          guestEmail: isAuthenticated ? undefined : email,
-          captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
-        });
+        const created = await orderApi.create(
+          {
+            ...esimOrderCreateBody({
+              variantId: variant.id,
+              paymentMethodCode: esimMethod.methodCode,
+              market: esimMarketForGateway(selectedOption.gateway),
+              locale: readBrowserLocale(),
+            }),
+            guestEmail: isAuthenticated ? undefined : email,
+            captchaToken: !isAuthenticated ? captchaToken || undefined : undefined,
+          },
+          orderIdempotencyKey,
+        );
         // Reused PAID order (fulfillment still running): open the order, do not create payment.
         if (created.paymentStatus === 'PAID') {
+          checkoutIdempotencyKeyRef.current = null;
           if (isAuthenticated) {
             router.push(withLocalePrefix(`/orders/${created.id}`, locale));
           } else {
@@ -302,6 +308,7 @@ export default function CheckoutPageClient() {
           if (!isPaypalApprovalUrl(pay.paymentUrl)) {
             throw new Error(t('checkout.esimPayFailed'));
           }
+          checkoutIdempotencyKeyRef.current = null;
           window.location.assign(pay.paymentUrl);
           return;
         }
@@ -313,6 +320,7 @@ export default function CheckoutPageClient() {
           email: resolvedEmail,
         });
         storeOrderGuestEmail(created.id, resolvedEmail);
+        checkoutIdempotencyKeyRef.current = null;
         if (isInlineQrPayment(pay)) {
           router.push(
             persistAndPathForQrPayment({
@@ -421,6 +429,7 @@ export default function CheckoutPageClient() {
     } finally {
       setLoading(false);
       setPayPhase(null);
+      payInFlightRef.current = false;
     }
   }
 
@@ -497,7 +506,12 @@ export default function CheckoutPageClient() {
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setSelectedOptionKey(key)}
+                      onClick={() => {
+                        setPayment(null);
+                        setPaidOrderMeta(null);
+                        checkoutIdempotencyKeyRef.current = null;
+                        setSelectedOptionKey(key);
+                      }}
                       className={`w-full rounded-xl border px-4 py-3 text-left ${selected ? 'border-cardon-blue bg-brand-50' : 'border-cardon-border bg-white'}`}
                     >
                       <span className="block text-sm font-semibold text-cardon-navy">{title}</span>
@@ -548,9 +562,28 @@ export default function CheckoutPageClient() {
               <div className="mt-4"><EsimSalesOffNotice compact /></div>
             ) : null}
             <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 -mx-5 mt-5 border-t border-cardon-border bg-white px-5 py-4 lg:static lg:mx-0 lg:border-0 lg:px-0 lg:py-0">
-              <Button className="w-full" size="lg" disabled={loading || !esimSalesOpen || !selectedOption} onClick={handleCheckout}>
-                {loading ? busyLabel : cta}
+              <Button
+                className="w-full"
+                size="lg"
+                disabled={loading || Boolean(payment) || !esimSalesOpen || !selectedOption}
+                onClick={handleCheckout}
+              >
+                {loading ? busyLabel : payment ? t('checkout.gatewayOpen') : cta}
               </Button>
+              {payment ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+                  onClick={() => {
+                    setPayment(null);
+                    setPaidOrderMeta(null);
+                    checkoutIdempotencyKeyRef.current = null;
+                    setError(null);
+                  }}
+                >
+                  {t('checkout.cancelGateway')}
+                </button>
+              ) : null}
               {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
             </div>
           </section>
@@ -595,7 +628,12 @@ export default function CheckoutPageClient() {
               value={quantity}
               min={1}
               max={DEFAULT_MAX_QUANTITY}
-              onChange={setQuantity}
+              onChange={(next) => {
+                setPayment(null);
+                setPaidOrderMeta(null);
+                checkoutIdempotencyKeyRef.current = null;
+                setQuantity(next);
+              }}
             />
           </div>
           <div className="mt-4">
@@ -612,7 +650,12 @@ export default function CheckoutPageClient() {
               type="email"
               placeholder="email@example.com"
               value={guestEmail}
-              onChange={(e) => setGuestEmail(e.target.value)}
+              onChange={(e) => {
+                setPayment(null);
+                setPaidOrderMeta(null);
+                checkoutIdempotencyKeyRef.current = null;
+                setGuestEmail(e.target.value);
+              }}
             />
             {captchaRequired && (
               <TurnstileField
@@ -638,7 +681,12 @@ export default function CheckoutPageClient() {
               <PaymentMethodPicker
                 methods={paymentMethods}
                 value={paymentMethodCode}
-                onChange={setPaymentMethodCode}
+                onChange={(code) => {
+                  setPayment(null);
+                  setPaidOrderMeta(null);
+                  checkoutIdempotencyKeyRef.current = null;
+                  setPaymentMethodCode(code);
+                }}
               />
             ) : (
               <PaymentMethodsEmpty />
@@ -654,15 +702,34 @@ export default function CheckoutPageClient() {
               size="lg"
               disabled={
                 loading ||
+                Boolean(payment) ||
                 !hasPaymentMethods ||
                 !paymentMethodCode ||
                 (captchaRequired && !captchaToken)
               }
               onClick={handleCheckout}
             >
-              {loading ? t('checkout.processing') : `${t('checkout.createPay')}${pricing ? ` ${money(pricing.totalPayment)}` : ''}`}
+              {loading
+                ? t('checkout.processing')
+                : payment
+                  ? t('checkout.gatewayOpen')
+                  : `${t('checkout.createPay')}${pricing ? ` ${money(pricing.totalPayment)}` : ''}`}
             </Button>
           )}
+          {payment ? (
+            <button
+              type="button"
+              className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+              onClick={() => {
+                setPayment(null);
+                setPaidOrderMeta(null);
+                checkoutIdempotencyKeyRef.current = null;
+                setError(null);
+              }}
+            >
+              {t('checkout.cancelGateway')}
+            </button>
+          ) : null}
           {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
         </div>
 
