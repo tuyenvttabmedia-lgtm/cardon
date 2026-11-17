@@ -8,6 +8,7 @@ import {
   PaymentRecordStatus,
   PaymentSettlementType,
   Prisma,
+  ProductVariantType,
   ProviderProductMappingStatus,
   ProviderTransactionStatus,
   ReconcileDomain,
@@ -881,12 +882,15 @@ export class FinanceRepository {
   }
 
   /**
-   * B2C retail orders completed in range — source for VAT daily packs.
-   * Agent channel excluded (separate statement flow).
+   * B2C retail card/topup orders completed in range — source for eSale VAT packs.
+   * Agent + eSIM excluded (eSIM has its own finance lane).
    */
   findB2cCompletedOrderItemsForVat(fromInclusive: Date, toExclusive: Date) {
     return this.prisma.orderItem.findMany({
       where: {
+        variant: {
+          type: { not: ProductVariantType.ESIM },
+        },
         order: {
           ...ACTIVE_ORDER_WHERE,
           ...EXCLUDE_ADMIN_TEST_ORDERS,

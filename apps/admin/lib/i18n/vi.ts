@@ -586,8 +586,8 @@ export const vi = {
   },
   finance: {
     title: 'Tài chính',
-    subtitle: 'Hóa đơn GTGT theo ngày — NCC, bán lẻ (tách 10%/8%), phí cổng',
-    navDashboard: 'Đối soát NCC',
+    subtitle: 'Hóa đơn GTGT theo ngày — eSale, bán lẻ (tách 10%/8%), phí cổng',
+    navDashboard: 'Đối soát eSale',
     navPayments: 'Phí cổng TT',
     navProviders: 'HĐ đầu ra / Tổng hợp',
     tabSettlement: 'Settlement cổng TT',

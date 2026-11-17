@@ -4,7 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { RequestMethod } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
-import express, { type Request, type Response } from 'express';
+import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { getAppProcessRole, shouldRegisterHttp } from './config/process-role';
@@ -73,6 +73,12 @@ async function bootstrap(): Promise<void> {
     });
   });
 
+  // Public CMS media is embedded by web + admin (different origins). Helmet defaults
+  // CORP to same-origin which blocks favicons/images on admin.cardon.vn.
+  app.use('/uploads', (_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  });
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
 
