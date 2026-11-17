@@ -307,7 +307,11 @@ export class EsimFulfillmentService {
             openCreate.attemptId,
             install.installSecret,
             false,
-            install.iccid,
+            {
+              iccid: install.iccid,
+              sharingLink: install.sharingLink,
+              sharingAccessCode: install.sharingAccessCode,
+            },
           );
           return {
             queried: true,
