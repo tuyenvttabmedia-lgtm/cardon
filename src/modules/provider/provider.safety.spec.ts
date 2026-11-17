@@ -296,7 +296,7 @@ describe('Phase 2F.2 Provider Safety Audit', () => {
   });
 
   describe('CHECK 4: Quantity validation', () => {
-    it('sets WAITING_ADMIN_RETRY when eSale returns fewer cards than ordered', async () => {
+    it('saves received cards and parks NEED_MANUAL_REVIEW on quantity mismatch (no re-buy)', async () => {
       const ctx = buildSafetyContext({ quantity: 10 });
       jest.spyOn(ctx.esale, 'buyCard').mockResolvedValue({
         success: true,
@@ -311,8 +311,8 @@ describe('Phase 2F.2 Provider Safety Audit', () => {
 
       const result = await ctx.service.fulfillOrder('order-safety-1');
 
-      expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
-      expect(ctx.cardRecordRepository.createMany).not.toHaveBeenCalled();
+      expect(result.fulfillmentStatus).toBe(FulfillmentStatus.NEED_MANUAL_REVIEW);
+      expect(ctx.cardRecordRepository.createMany).toHaveBeenCalled();
       expect(ctx.providerAudit.recordFailed).toHaveBeenCalledWith(
         expect.objectContaining({
           metadata: expect.objectContaining({ reason: 'QUANTITY_MISMATCH' }),

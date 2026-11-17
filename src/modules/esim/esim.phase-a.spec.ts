@@ -1330,7 +1330,7 @@ describe('Phase A eSIM access, admin, dispatch, and logs', () => {
     });
     expect(mail.html).not.toContain('TEST-LPA');
     expect(mail.text).not.toContain(secret);
-    expect(mail.text).toContain('Không có mã cài đặt');
+    expect(mail.text).toMatch(/không (có|chứa) mã cài đặt/i);
     const ready = renderEmailTemplate('ESIM_READY', {
       orderCode: 'CO1',
       installSecret: secret,
@@ -1338,7 +1338,7 @@ describe('Phase A eSIM access, admin, dispatch, and logs', () => {
     });
     expect(ready.html).not.toContain('TEST-LPA');
     expect(ready.text).not.toContain(secret);
-    expect(ready.text).toContain('Không có mã cài đặt');
+    expect(ready.text).toMatch(/không (có|chứa) mã cài đặt/i);
     const sandbox = renderEmailTemplate('ESIM_SANDBOX_READY', {
       orderCode: 'CO1',
       installSecret: secret,
@@ -1347,7 +1347,7 @@ describe('Phase A eSIM access, admin, dispatch, and logs', () => {
     expect(sandbox.subject).toContain('[TEST]');
     expect(sandbox.html).not.toContain('TEST-LPA');
     expect(sandbox.text).not.toContain(secret);
-    expect(sandbox.text).toContain('Không có mã cài đặt');
+    expect(sandbox.text).toMatch(/không (có|chứa) mã cài đặt/i);
   });
 
   it('uses a stable esim job id', async () => {

@@ -127,6 +127,7 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
         expiresAt: new Date('2020-01-01T00:00:00Z'),
       }),
       updateStatus: jest.fn(),
+      countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const orderRepository = { updatePaymentStatus: jest.fn() };
     const prisma = {
@@ -165,6 +166,7 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
         expiresAt: new Date('2020-01-01T00:00:00Z'),
       }),
       updateStatus: jest.fn(),
+      countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const service = new PaymentExpirationService(
       { $transaction: jest.fn() } as never,

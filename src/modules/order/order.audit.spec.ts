@@ -163,7 +163,10 @@ describe('Phase 2D.1 Order Integrity Audit', () => {
   describe('CHECK 2: Double submit protection', () => {
     it('documents idempotency requirement for payment phase', () => {
       expect(ORDER_IDEMPOTENCY_RULES.orderCreation.currentBehavior).toContain(
-        'no dedup',
+        'Idempotency-Key',
+      );
+      expect(ORDER_IDEMPOTENCY_RULES.orderCreation.currentBehavior).toContain(
+        'checkout_idempotency_key',
       );
       expect(ORDER_IDEMPOTENCY_RULES.orderCreation.paymentPhaseRequirement).toContain(
         'Idempotency-Key',
