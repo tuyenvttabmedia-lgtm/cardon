@@ -6,7 +6,7 @@
   - `DEPOSIT_CODE` — VietQR / mã nộp tiền, `payType=VA`
   - `VNPAYQR` — `payType=QR`
   - `ZALOPAY` — `payType=EW`, `bankCode=ZALO`
-- Webhook MegaPay nhận cả DepositCode RSA notify (giao dịch cũ) và PG IPN `merchantToken`.
+- Webhook MegaPay **chỉ** nhận PG IPN `merchantToken` (Luồng 1 DepositCode RSA notify đã tắt).
 - `resultCd=00_005` (VA đã cấp, chưa có tiền) → `PENDING`; chỉ IPN `00_000` mới giao thẻ.
 - Refund `payType=VA` bị chặn ở provider (MegaPay không hỗ trợ hủy giao dịch VA).
 - Đơn dùng mã nộp tiền có cửa sổ thanh toán tối thiểu 30 phút, khớp `vaEndDt`.
@@ -32,7 +32,8 @@
 6. `MEGAPAY_RETURN_URL=https://cardon.vn/checkout/result`
 7. `MEGAPAY_REQ_DOMAIN=https://cardon.vn`
 
-`MEGAPAY_MERCHANT_ID` / `MEGAPAY_SECRET_KEY` / `MEGAPAY_ENDPOINT` (sandbox `VAP001`) chỉ còn
-phục vụ notify + tra cứu giao dịch DepositCode cũ, không tạo thanh toán mới.
+`MEGAPAY_MERCHANT_ID` / `MEGAPAY_SECRET_KEY` / `MEGAPAY_ENDPOINT` (sandbox `VAP001`) là
+credential DepositCode cũ — **không dùng** cho bán lẻ; có thể để trống trong admin.
+Runtime chỉ cần PG: `MEGAPAY_PG_*` + callback/return/reqDomain.
 
 Chi tiết: `docs/04_MEGAPAY_INTEGRATION.md`

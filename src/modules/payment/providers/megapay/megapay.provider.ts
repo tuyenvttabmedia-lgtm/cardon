@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { timingSafeEqual } from 'crypto';
 import { PaymentGatewayCode } from '@prisma/client';
 import {
   CreateProviderPaymentParams,
@@ -10,11 +9,6 @@ import {
   WebhookVerificationResult,
 } from '../payment-provider.interface';
 import { DepositCodeHttpClient } from './depositcode.client';
-import { verifyDepositCodeNotifySignature } from './depositcode.crypto';
-import {
-  DepositCodeNotifyPayload,
-  normalizeDepositCodeNotify,
-} from './depositcode.types';
 import {
   buildMegapayPgCheckoutForm,
   buildMegapayPgIpnToken,
@@ -33,7 +27,8 @@ export class MegaPayProvider implements PaymentProviderInterface {
 
   constructor(
     private readonly configService: MegapayConfigService,
-    private readonly httpClient: DepositCodeHttpClient,
+    /** Kept for Nest DI; DepositCode HTTP path is disabled. */
+    private readonly _depositCodeClient: DepositCodeHttpClient,
     private readonly pgClient: MegapayPgHttpClient,
   ) {}
 
@@ -103,69 +98,19 @@ export class MegaPayProvider implements PaymentProviderInterface {
     if (isMegapayPgIpnPayload(payload)) {
       return this.verifyPgIpn(payload);
     }
-    return this.verifyDepositCodeNotify(payload);
-  }
-
-  private verifyDepositCodeNotify(
-    payload: unknown,
-  ): WebhookVerificationResult {
-    const body = normalizePayload(payload) as DepositCodeNotifyPayload;
-    const notify = normalizeDepositCodeNotify(body);
-    const config = this.configService.getConfig();
-
-    const requiredOk =
-      !!notify.requestId &&
-      !!notify.referenceId &&
-      !!notify.requestTime &&
-      !!notify.mapId &&
-      !!notify.vaAcc &&
-      notify.amount !== '' &&
-      !!notify.signature;
-
-    if (!requiredOk) {
-      return {
-        valid: false,
-        paymentReference: notify.mapId,
-        status: 'PENDING',
-        rawPayload: { ...notify, gateway: this.gateway },
-      };
-    }
-
-    // MerchantCode is not in the signed payload — bind it to our configured merchant.
-    if (!merchantCodesMatch(config.merchantId, notify.merchantCode)) {
-      return {
-        valid: false,
-        paymentReference: notify.mapId,
-        status: 'PENDING',
-        rawPayload: { ...notify, gateway: this.gateway, rejectReason: 'MERCHANT_MISMATCH' },
-      };
-    }
-
-    const valid = verifyDepositCodeNotifySignature({
-      requestId: notify.requestId,
-      referenceId: notify.referenceId,
-      requestTime: notify.requestTime,
-      amount: notify.amount,
-      fee: notify.fee || '0',
-      vaAcc: notify.vaAcc,
-      mapId: notify.mapId,
-      signatureHex: notify.signature,
-      publicKeyPem: config.notifyPublicKey,
-    });
-
-    const amountNum = parseFloat(notify.amount);
-    const amount =
-      Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
-
+    // Luồng 1 DepositCode (registerVA / RSA notify) đã tắt — chỉ nhận PG V1.4.6 IPN.
+    const body = normalizePayload(payload);
+    const mapId = String(
+      body.mapId ?? body.MapId ?? body.merTrxId ?? body.invoiceNo ?? '',
+    );
     return {
-      valid,
-      paymentReference: notify.mapId,
-      status: valid ? 'SUCCESS' : 'PENDING',
-      amount,
-      providerTransactionId: notify.referenceId,
+      valid: false,
+      paymentReference: mapId,
+      status: 'PENDING',
       rawPayload: {
-        ...notify,
+        ...body,
         gateway: this.gateway,
+        rejectReason: 'DEPOSITCODE_LEGACY_DISABLED',
         integrationMode: 'deposit_code_va',
       },
     };
@@ -219,6 +164,8 @@ export class MegaPayProvider implements PaymentProviderInterface {
     const success = isMegapayPgSuccessCode(resultCd);
     // 00_005: mới gán mã nộp tiền, khách chưa chuyển tiền → giữ PENDING, chờ IPN 00_000.
     const awaitingTransfer = isMegapayVaAwaitingTransferCode(resultCd);
+    // 99*: processing / unknown — align with queryTransaction (do not mark FAILED yet).
+    const softPending = (resultCd ?? '').trim().toUpperCase().startsWith('99');
     const amountNum = parseFloat(amountRaw);
     const amount =
       Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
@@ -229,7 +176,7 @@ export class MegaPayProvider implements PaymentProviderInterface {
       status:
         valid && success
           ? 'SUCCESS'
-          : valid && !awaitingTransfer
+          : valid && !awaitingTransfer && !softPending
             ? 'FAILED'
             : 'PENDING',
       amount,
@@ -243,29 +190,19 @@ export class MegaPayProvider implements PaymentProviderInterface {
   }
 
   async queryTransaction(reference: string): Promise<ProviderTransactionStatus> {
-    // Prefer PG trxStatus for PAY-* / PG layer references.
-    if (reference.toUpperCase().startsWith('PAY-')) {
-      const pg = await this.pgClient.queryByMerTrxId(reference);
-      const cd = (pg.resultCd ?? '').toUpperCase();
-      const success = isMegapayPgSuccessCode(cd);
-      const failed =
-        cd.length > 0 &&
-        !success &&
-        !isMegapayVaAwaitingTransferCode(cd) &&
-        !cd.startsWith('99');
-      return {
-        paymentReference: pg.merTrxId ?? reference,
-        status: success ? 'SUCCESS' : failed ? 'FAILED' : 'PENDING',
-        amount: pg.amount ?? '0',
-      };
-    }
-
-    // DepositCode status API only confirms VA mapping — payment success is notify-driven.
-    const result = await this.httpClient.checkStatusByMapId(reference);
+    // Chỉ tra cứu qua MegaPay PG V1.4.6 — DepositCode status API đã tắt.
+    const pg = await this.pgClient.queryByMerTrxId(reference);
+    const cd = (pg.resultCd ?? '').toUpperCase();
+    const success = isMegapayPgSuccessCode(cd);
+    const failed =
+      cd.length > 0 &&
+      !success &&
+      !isMegapayVaAwaitingTransferCode(cd) &&
+      !cd.startsWith('99');
     return {
-      paymentReference: result.map_id ?? reference,
-      status: result.response_code === '00' ? 'PENDING' : 'FAILED',
-      amount: result.amount != null ? String(result.amount) : '0',
+      paymentReference: pg.merTrxId ?? reference,
+      status: success ? 'SUCCESS' : failed ? 'FAILED' : 'PENDING',
+      amount: pg.amount ?? '0',
     };
   }
 
@@ -322,13 +259,6 @@ export class MegaPayProvider implements PaymentProviderInterface {
       message: result.resultMsg ?? (success ? 'Cancelled' : `Cancel failed (${cd || 'unknown'})`),
     };
   }
-}
-
-function merchantCodesMatch(expected: string, provided: string): boolean {
-  const left = Buffer.from(expected.trim());
-  const right = Buffer.from(provided.trim());
-  if (!left.length || left.length !== right.length) return false;
-  return timingSafeEqual(left, right);
 }
 
 function normalizePayload(payload: unknown): Record<string, unknown> {

@@ -99,6 +99,12 @@ function harness(options?: {
       findFirst: jest.fn(async () => order),
       update: orderUpdate,
     },
+    payment: {
+      findFirst: jest.fn(async () => null),
+    },
+    orderItem: {
+      findMany: jest.fn(async () => []),
+    },
     $transaction: jest.fn((callback: (client: typeof tx) => Promise<unknown>) => {
       const run = chain.then(async () => {
         events.push('tx-start');
@@ -119,7 +125,10 @@ function harness(options?: {
   const notify = { notifyPaymentSuccess: jest.fn() };
   const service = new PaymentService(
     prisma as never,
-    { findByIdempotencyKey: jest.fn(async (key: string) => (stored?.idempotencyKey === key ? stored : null)) } as never,
+    {
+      findByIdempotencyKey: jest.fn(async (key: string) => (stored?.idempotencyKey === key ? stored : null)),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+    } as never,
     { create: jest.fn() } as never,
     { get: () => paypal } as never,
     { markPaidInTransaction: jest.fn() } as never,
@@ -309,6 +318,8 @@ describe('admin-test PayPal payment amount', () => {
     const service = new PaymentService(
       {
         order: { findFirst: async () => customerOrder },
+        payment: { findFirst: async () => null },
+        orderItem: { findMany: async () => [] },
         $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
           callback({
             payment: {
@@ -333,7 +344,7 @@ describe('admin-test PayPal payment amount', () => {
             order: { update: jest.fn() },
           }),
       } as never,
-      { findByIdempotencyKey: jest.fn() } as never,
+      { findByIdempotencyKey: jest.fn(), expireOtherPendingForOrder: jest.fn().mockResolvedValue(0) } as never,
       { create: jest.fn() } as never,
       { get: () => paypal } as never,
       {} as never,

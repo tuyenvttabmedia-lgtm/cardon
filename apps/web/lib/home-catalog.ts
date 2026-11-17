@@ -42,7 +42,7 @@ export const HOME_CATEGORY_TABS: Array<{
 
     fallbackEmoji: '🎮',
 
-    accent: 'border-cardon-blue bg-blue-50 text-cardon-blue',
+    accent: 'border-cardon-blue bg-brand-50 text-cardon-blue',
 
   },
 

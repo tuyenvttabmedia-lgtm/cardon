@@ -121,6 +121,12 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
             },
           }),
         ),
+        order: {
+          findFirst: jest.fn().mockResolvedValue({
+            paymentStatus: OrderPaymentStatus.PAID,
+            fulfillmentStatus: 'COMPLETED',
+          }),
+        },
       };
       const orderService = { markPaidInTransaction: jest.fn() };
       const paymentAuditService = {
@@ -232,6 +238,7 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
           {
             findByReference: jest.fn().mockResolvedValue(payment),
             findSuccessByProviderTransactionId: jest.fn().mockResolvedValue(null),
+            recordLateWebhookManualReview: jest.fn(),
           } as never,
           { create: jest.fn() } as never,
           PaymentProviderRegistry.withProviders(
@@ -248,32 +255,34 @@ describe('Phase 2E.4 Payment Gateway Final Audit', () => {
       };
     }
 
-    it('rejects MegaPay webhook with wrong amount', async () => {
+    it('acks MegaPay amount-mismatch SUCCESS into manual review', async () => {
       const { service } = buildAmountTestService('megapay');
       const payload = {
         paymentReference: 'PAY-AMT-001',
         status: 'SUCCESS',
         amount: '90000.00',
       };
-      await expect(
-        service.handleWebhook('megapay', payload, {
-          'x-webhook-signature': computeMockWebhookSignature(payload),
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      const result = await service.handleWebhook('megapay', payload, {
+        'x-webhook-signature': computeMockWebhookSignature(payload),
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ ok: true, manualReview: true }),
+      );
     });
 
-    it('rejects SePay webhook with wrong amount via mock gateway path', async () => {
+    it('acks SePay amount-mismatch SUCCESS into manual review', async () => {
       const { service } = buildAmountTestService('sepay');
       const payload = {
         paymentReference: 'PAY-AMT-001',
         status: 'SUCCESS',
         amount: '90000.00',
       };
-      await expect(
-        service.handleWebhook('sepay', payload, {
-          'x-webhook-signature': computeMockWebhookSignature(payload),
-        }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      const result = await service.handleWebhook('sepay', payload, {
+        'x-webhook-signature': computeMockWebhookSignature(payload),
+      });
+      expect(result).toEqual(
+        expect.objectContaining({ ok: true, manualReview: true }),
+      );
     });
   });
 

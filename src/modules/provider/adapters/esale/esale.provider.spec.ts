@@ -244,6 +244,57 @@ describe('ESaleProvider', () => {
     expect(result.failureCode).toBe('TIMEOUT');
   });
 
+  it('returns TIMEOUT on topup HTTP abort (never definitive FAILED)', async () => {
+    const fetchMock = jest.fn().mockImplementation((_url, init) => {
+      const signal = init?.signal as AbortSignal | undefined;
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          const error = new Error('Aborted');
+          error.name = 'AbortError';
+          reject(error);
+        });
+        setTimeout(() => {
+          const error = new Error('Aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, 20);
+      });
+    });
+
+    const provider = buildProvider(fetchMock);
+    const result = await provider.topup({
+      requestId: 'REQ-TOPUP-TIMEOUT',
+      providerProductCode: 'VIETTEL_TOPUP_10000',
+      phoneNumber: '0901234567',
+      amount: 10000,
+      orderId: 'order-topup-1',
+    });
+
+    expect(result.status).toBe(ProviderTransactionStatus.TIMEOUT);
+    expect(result.failureCode).toBe('TIMEOUT');
+    expect(result.success).toBe(false);
+  });
+
+  it('returns TIMEOUT on topup HTTP 502 (ambiguous — may already be applied)', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      json: async () => ({}),
+    });
+
+    const provider = buildProvider(fetchMock);
+    const result = await provider.topup({
+      requestId: 'REQ-TOPUP-502',
+      providerProductCode: 'VIETTEL_TOPUP_10000',
+      phoneNumber: '0901234567',
+      amount: 10000,
+      orderId: 'order-topup-2',
+    });
+
+    expect(result.status).toBe(ProviderTransactionStatus.TIMEOUT);
+    expect(result.failureCode).toBe('TIMEOUT');
+  });
+
   it('recovers via checkTransaction after timeout', async () => {
     const encryptedPin = encryptPinForEsale('1111222233334444');
     const fetchMock = jest

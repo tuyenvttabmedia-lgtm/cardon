@@ -12,6 +12,8 @@ describe('esimProductIso', () => {
   it('resolves from Vietnamese name when slug is missing', () => {
     expect(esimProductIso('eSIM Thái Lan')).toBe('TH');
     expect(esimProductIso('eSIM Châu Âu')).toBe('EUROPE');
+    expect(esimProductIso('eSIM Ả Rập Xê Út', 'esim-arap-xe-ut')).toBe('SA');
+    expect(esimProductIso('eSIM Toàn cầu', 'esim-the-gioi')).toBe('WORLD');
     expect(flagCdnCode('EUROPE')).toBe('eu');
     expect(flagCdnCode('ASIA')).toBeNull();
     expect(flagCdnCode('JP')).toBe('jp');

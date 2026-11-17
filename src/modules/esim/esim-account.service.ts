@@ -11,14 +11,19 @@ import {
   isInstallableLpa,
   resolveEsimDeliveryKind,
 } from './esim-delivery.view';
+import { EsimAiraloAdapter } from './esim-airalo.adapter';
 import { buildEsimPackageSpec } from './esim-package-spec';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
+import { maskEsimIccid, readEsimTopupTrace } from './esim-usage.rules';
 
 export interface EsimAccountRow extends EsimDeliveryView {
   id: string | null;
   orderId: string;
   orderCode: string;
   createdAt: string;
+  iccidMasked: string | null;
+  hasIccid: boolean;
+  topupSupported: boolean;
 }
 
 @Injectable()
@@ -27,6 +32,7 @@ export class EsimAccountService {
     private readonly prisma: PrismaService,
     private readonly encryption: CardEncryptionService,
     @Optional() private readonly settings?: SettingsStoreService,
+    @Optional() private readonly airalo?: EsimAiraloAdapter,
   ) {}
 
   async listForUser(userId: string): Promise<EsimAccountRow[]> {
@@ -44,27 +50,43 @@ export class EsimAccountService {
         createdAt: true,
         paymentStatus: true,
         fulfillmentStatus: true,
+        clientTrace: true,
         orderItems: {
           where: { variant: { type: ProductVariantType.ESIM } },
           select: {
             variant: { select: { name: true, product: { select: { name: true } } } },
             esimQuote: { select: { providerProductCode: true } },
-            esimProfile: { select: { id: true, createdAt: true, installSecretEnc: true } },
+            esimProfile: {
+              select: {
+                id: true,
+                createdAt: true,
+                installSecretEnc: true,
+                iccid: true,
+                sharingLink: true,
+                sharingAccessCode: true,
+              },
+            },
           },
         },
       },
     });
 
+    // Filter top-up child orders in app code. Prisma JSON `NOT path=equals` drops
+    // rows where the path is missing (SQL NULL), which hid every normal eSIM.
+    const simOrders = orders.filter((order) => !readEsimTopupTrace(order.clientTrace));
+
     const packages = await this.loadPackageMap(
-      orders.flatMap((order) =>
+      simOrders.flatMap((order) =>
         order.orderItems.map((item) => item.esimQuote?.providerProductCode).filter(Boolean) as string[],
       ),
     );
 
-    return orders.flatMap((order) => {
+    const rows: EsimAccountRow[] = [];
+    for (const order of simOrders) {
       const item = order.orderItems[0];
-      if (!item) return [];
-      return [
+      if (!item) continue;
+      const sharing = await this.ensureSharing(item.esimProfile);
+      rows.push(
         this.toRow({
           id: item.esimProfile?.id ?? null,
           orderId: order.id,
@@ -75,12 +97,16 @@ export class EsimAccountService {
           productName: item.variant.product.name,
           variantName: item.variant.name,
           installSecretEnc: item.esimProfile?.installSecretEnc ?? null,
+          iccid: item.esimProfile?.iccid ?? null,
+          sharingLink: sharing.sharingLink,
+          sharingAccessCode: sharing.sharingAccessCode,
           packageRow: item.esimQuote?.providerProductCode
             ? packages.get(item.esimQuote.providerProductCode)
             : undefined,
         }),
-      ];
-    });
+      );
+    }
+    return rows;
   }
 
   async getForUser(userId: string, orderId: string): Promise<EsimAccountRow> {
@@ -97,23 +123,34 @@ export class EsimAccountService {
         createdAt: true,
         paymentStatus: true,
         fulfillmentStatus: true,
+        clientTrace: true,
         orderItems: {
           where: { variant: { type: ProductVariantType.ESIM } },
           select: {
             variant: { select: { name: true, product: { select: { name: true } } } },
             esimQuote: { select: { providerProductCode: true } },
-            esimProfile: { select: { id: true, createdAt: true, installSecretEnc: true } },
+            esimProfile: {
+              select: {
+                id: true,
+                createdAt: true,
+                installSecretEnc: true,
+                iccid: true,
+                sharingLink: true,
+                sharingAccessCode: true,
+              },
+            },
           },
         },
       },
     });
     const item = order?.orderItems[0];
-    if (!order || !item) {
+    if (!order || !item || readEsimTopupTrace(order.clientTrace)) {
       throw new NotFoundException('eSIM profile not found');
     }
     const packages = await this.loadPackageMap(
       item.esimQuote?.providerProductCode ? [item.esimQuote.providerProductCode] : [],
     );
+    const sharing = await this.ensureSharing(item.esimProfile);
     return this.toRow({
       id: item.esimProfile?.id ?? null,
       orderId: order.id,
@@ -124,10 +161,60 @@ export class EsimAccountService {
       productName: item.variant.product.name,
       variantName: item.variant.name,
       installSecretEnc: item.esimProfile?.installSecretEnc ?? null,
+      iccid: item.esimProfile?.iccid ?? null,
+      sharingLink: sharing.sharingLink,
+      sharingAccessCode: sharing.sharingAccessCode,
       packageRow: item.esimQuote?.providerProductCode
         ? packages.get(item.esimQuote.providerProductCode)
         : undefined,
     });
+  }
+
+  /** Persist Airalo Cloud share for older profiles that only stored LPA/ICCID. */
+  private async ensureSharing(
+    profile:
+      | {
+          id: string;
+          iccid: string | null;
+          sharingLink: string | null;
+          sharingAccessCode: string | null;
+        }
+      | null
+      | undefined,
+  ): Promise<{ sharingLink: string | null; sharingAccessCode: string | null }> {
+    if (!profile) return { sharingLink: null, sharingAccessCode: null };
+    if (profile.sharingLink?.startsWith('https://') && profile.sharingAccessCode?.trim()) {
+      return {
+        sharingLink: profile.sharingLink,
+        sharingAccessCode: profile.sharingAccessCode.trim(),
+      };
+    }
+    if (!profile.iccid || !this.airalo?.getSim) {
+      return {
+        sharingLink: profile.sharingLink,
+        sharingAccessCode: profile.sharingAccessCode,
+      };
+    }
+    try {
+      const sim = await this.airalo.getSim(profile.iccid);
+      if (!sim.sharingLink?.startsWith('https://') || !sim.sharingAccessCode?.trim()) {
+        return {
+          sharingLink: profile.sharingLink,
+          sharingAccessCode: profile.sharingAccessCode,
+        };
+      }
+      const sharingLink = sim.sharingLink.trim();
+      const sharingAccessCode = sim.sharingAccessCode.trim().slice(0, 32);
+      await this.prisma.esimProfile
+        .update({ where: { id: profile.id }, data: { sharingLink, sharingAccessCode } })
+        .catch(() => undefined);
+      return { sharingLink, sharingAccessCode };
+    } catch {
+      return {
+        sharingLink: profile.sharingLink,
+        sharingAccessCode: profile.sharingAccessCode,
+      };
+    }
   }
 
   private toRow(input: {
@@ -140,6 +227,9 @@ export class EsimAccountService {
     productName?: string | null;
     variantName?: string | null;
     installSecretEnc: string | null;
+    iccid?: string | null;
+    sharingLink?: string | null;
+    sharingAccessCode?: string | null;
     packageRow?: Parameters<typeof buildEsimPackageSpec>[0];
   }): EsimAccountRow {
     let secret: string | null = null;
@@ -167,13 +257,19 @@ export class EsimAccountService {
       sandboxAccount: this.settings?.resolveAiraloAccountMode() !== 'production',
       orderId: input.orderId,
       orderCode: input.orderCode,
+      sharingLink: input.sharingLink,
+      sharingAccessCode: input.sharingAccessCode,
     });
+    const iccidMasked = maskEsimIccid(input.iccid);
     return {
       ...view,
       id: input.id,
       orderId: input.orderId,
       orderCode: input.orderCode,
       createdAt: input.createdAt,
+      iccidMasked,
+      hasIccid: Boolean(input.iccid && input.iccid.trim().length >= 10),
+      topupSupported: Boolean(input.iccid && input.iccid.trim().length >= 10 && kind === 'ready'),
     };
   }
 

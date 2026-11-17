@@ -85,17 +85,14 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
   }
 
   // Customer sales in production must never run on mock LPA or unarmed live HTTP.
+  // Airalo client id/secret may live in encrypted DB settings (Admin → Airalo);
+  // ENV copies are optional. Webhook secret + account mode still come from ENV.
   if (isEnabledFlag(env.ESIM_ENABLED)) {
     if (env.ESIM_PROVIDER_MODE !== 'live') {
       errors.push('ESIM_PROVIDER_MODE=live is required when ESIM_ENABLED=true in production');
     }
     if (!isEnabledFlag(env.ESIM_LIVE_ARM)) {
       errors.push('ESIM_LIVE_ARM=true is required when ESIM_ENABLED=true in production');
-    }
-    if (!env.AIRALO_CLIENT_ID || !env.AIRALO_CLIENT_SECRET) {
-      errors.push(
-        'AIRALO_CLIENT_ID and AIRALO_CLIENT_SECRET are required when ESIM_ENABLED=true in production',
-      );
     }
     if (env.AIRALO_ACCOUNT_MODE !== 'production') {
       errors.push(
@@ -108,9 +105,6 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
       );
     }
   }
-
-  // Catalogue cron may arm live HTTP with credentials from encrypted DB settings.
-  // Only require AIRALO_* in ENV when customer sales are enabled (block above).
 
   if (isEnabledFlag(env.PAYPAL_ESIM_ENABLED)) {
     errors.push('PAYPAL_ESIM_ENABLED must stay off until PayPal eSIM checkout is live');

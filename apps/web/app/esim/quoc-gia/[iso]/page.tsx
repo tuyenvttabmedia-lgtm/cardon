@@ -16,7 +16,6 @@ export async function generateMetadata({
   return localizedMetadata({
     title: 'Gói eSIM theo quốc gia',
     path: `/esim/quoc-gia/${iso}`,
-    robots: { index: false, follow: false },
     enTitle: `eSIM plans · ${iso.toUpperCase()}`,
   });
 }

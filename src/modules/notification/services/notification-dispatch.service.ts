@@ -186,13 +186,38 @@ export class NotificationDispatchService {
     const customerName =
       order.user?.email?.split('@')[0] ?? order.guestEmail?.split('@')[0] ?? 'Quý khách';
 
-    const publicUrl = this.configService.get<string>('appPublicUrl') ?? 'https://cardon.vn';
+    const publicUrl = (this.configService.get<string>('appPublicUrl') ?? 'https://cardon.vn').replace(
+      /\/$/,
+      '',
+    );
     const { installSecret: _omitSecret, ...safePayload } = payload;
     const trace = order.clientTrace;
     const storedLocale =
       trace && typeof trace === 'object' && !Array.isArray(trace) && (trace as { locale?: unknown }).locale === 'en'
         ? 'en'
         : 'vi';
+    const guestEmail = order.guestEmail?.trim() ?? '';
+    const isGuest = order.isGuestOrder === true || (!order.user?.id && Boolean(guestEmail));
+    const accountUrl = isGuest
+      ? `${publicUrl}/orders/${order.id}?email=${encodeURIComponent(guestEmail)}`
+      : `${publicUrl}/tai-khoan/esim`;
+    const esimItem = order.orderItems.find((item) => item.variant?.type === 'ESIM');
+    const destination =
+      (esimItem?.variant?.product?.name ?? esimItem?.variant?.name ?? '')
+        .replace(/^eSIM\s+/i, '')
+        .trim() || null;
+    const packageName = esimItem?.variant?.name?.trim() || null;
+    const sharingLink =
+      typeof esimItem?.esimProfile?.sharingLink === 'string' &&
+      esimItem.esimProfile.sharingLink.startsWith('https://')
+        ? esimItem.esimProfile.sharingLink
+        : null;
+    const sharingAccessCode =
+      typeof esimItem?.esimProfile?.sharingAccessCode === 'string' &&
+      esimItem.esimProfile.sharingAccessCode.trim()
+        ? esimItem.esimProfile.sharingAccessCode.trim()
+        : null;
+
     const enriched: Record<string, unknown> = {
       ...safePayload,
       locale: safePayload.locale === 'en' || safePayload.locale === 'vi' ? safePayload.locale : storedLocale,
@@ -202,7 +227,12 @@ export class NotificationDispatchService {
       total: order.totalAmount.toFixed(0),
       amount: order.totalAmount.toFixed(0),
       totalAmount: order.totalAmount.toFixed(2),
-      accountUrl: `${publicUrl.replace(/\/$/, '')}/tai-khoan/esim`,
+      accountUrl,
+      isGuestOrder: isGuest,
+      ...(destination ? { destination } : {}),
+      ...(packageName ? { packageName } : {}),
+      ...(sharingLink ? { sharingLink } : {}),
+      ...(sharingAccessCode ? { sharingAccessCode } : {}),
     };
 
     if (

@@ -85,7 +85,7 @@ export function AboutPageClient() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {WHY_CHOOSE.map((item) => (
             <div key={item.title} className="flex gap-4 rounded-2xl border border-cardon-border bg-white p-5 shadow-card">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-xl">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-xl">
                 {item.icon}
               </span>
               <div>

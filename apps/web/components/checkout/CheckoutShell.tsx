@@ -159,7 +159,17 @@ function CheckoutShellInner({
   const retailMarket = useRetailMarket();
   const vnOnlyBlocked = retailMarket === 'INTL';
   const payInFlightRef = useRef(false);
+  /** Stable across retries in the same pay attempt so POST /orders can dedupe. */
+  const checkoutIdempotencyKeyRef = useRef<string | null>(null);
   const autoCatalogInitialized = useRef(false);
+
+  /** Drop open gateway session so user can start a new order without waiting for expiry. */
+  const clearOpenPaymentSession = useCallback(() => {
+    setPayment(null);
+    setPaidOrderMeta(null);
+    checkoutIdempotencyKeyRef.current = null;
+    payInFlightRef.current = false;
+  }, []);
 
   const pathCategory = cardCategoryFromPathname(pathname);
   const [category, setCategory] = useState<HomeCardCategory>(
@@ -287,25 +297,26 @@ function CheckoutShellInner({
   const packageLabel = variant && mode === 'DATA' ? formatDataPackageCard(variant).packageName : undefined;
 
   const handleCategoryChange = useCallback((next: HomeCardCategory) => {
+    clearOpenPaymentSession();
     setCategory(next);
     setProduct(null);
     setVariant(null);
     setQuantity(1);
     setCheckoutError(null);
     setOrderLimitError(null);
-    setPayment(null);
-    setPaidOrderMeta(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handleProductChange = useCallback((p: Product) => {
+    clearOpenPaymentSession();
     setProduct(p);
     setVariant(null);
     setCheckoutError(null);
     setOrderLimitError(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handleVariantChange = useCallback(
     (v: ProductVariant) => {
+      clearOpenPaymentSession();
       setVariant(v);
       setOrderLimitError(null);
       const owner = findProductForVariant(filteredProducts, v.id);
@@ -317,11 +328,12 @@ function CheckoutShellInner({
         }
       }
     },
-    [filteredProducts, mode, carriers],
+    [clearOpenPaymentSession, filteredProducts, mode, carriers],
   );
 
   const handleCarrierChange = useCallback(
     (id: string) => {
+      clearOpenPaymentSession();
       if (mode === 'TOPUP') setCarrierManual(true);
       setCarrierId(id);
       const match = telcoProducts.find((p) => matchCarrier(p, id)) ?? null;
@@ -330,20 +342,22 @@ function CheckoutShellInner({
       setCheckoutError(null);
       setOrderLimitError(null);
     },
-    [mode, telcoProducts],
+    [clearOpenPaymentSession, mode, telcoProducts],
   );
 
   const handleQuantityChange = useCallback((next: number) => {
+    clearOpenPaymentSession();
     setQuantity(next);
     setOrderLimitError(null);
-  }, []);
+  }, [clearOpenPaymentSession]);
 
   const handlePaymentMethodChange = useCallback(
     (code: string) => {
+      clearOpenPaymentSession();
       setPaymentMethodCode(code);
       setOrderLimitError(null);
     },
-    [setPaymentMethodCode],
+    [clearOpenPaymentSession, setPaymentMethodCode],
   );
 
   useEffect(() => {
@@ -491,7 +505,7 @@ function CheckoutShellInner({
       );
       return;
     }
-    if (payInFlightRef.current || checkoutLoading) return;
+    if (payInFlightRef.current || checkoutLoading || payment) return;
 
     const validationError = validateCheckout({
       product: checkoutProduct,
@@ -557,33 +571,46 @@ function CheckoutShellInner({
     setOrderLimitError(null);
     setPayment(null);
     setPaidOrderMeta(null);
+    if (!checkoutIdempotencyKeyRef.current) {
+      checkoutIdempotencyKeyRef.current = generateIdempotencyKey();
+    }
+    const orderIdempotencyKey = checkoutIdempotencyKeyRef.current;
 
     try {
       let order;
       if (mode === 'CARD') {
-        order = await orderApi.create({
-          items: [{ variantId: variant.id, quantity: orderQuantity }],
-          paymentMethodCode,
-          clientDeviceInfo: collectClientDeviceInfo(),
-          locale: readBrowserLocale(),
-        });
+        order = await orderApi.create(
+          {
+            items: [{ variantId: variant.id, quantity: orderQuantity }],
+            paymentMethodCode,
+            clientDeviceInfo: collectClientDeviceInfo(),
+            locale: readBrowserLocale(),
+          },
+          orderIdempotencyKey,
+        );
       } else {
         const normalizedPhone = normalizeVnPhone(phone);
         const note =
           mode === 'TOPUP'
             ? `Nạp số: ${normalizedPhone} | ${carrierLabel(resolvedCarrierId) ?? resolvedCarrierId}`
             : `Nạp data: ${normalizedPhone} | ${variant.sku || variant.name}`;
-        order = await orderApi.create({
-          items: [{ variantId: variant.id, quantity: 1 }],
-          guestPhone: normalizedPhone,
-          customerNote: note,
-          paymentMethodCode,
-          clientDeviceInfo: collectClientDeviceInfo(),
-          locale: readBrowserLocale(),
-        });
+        order = await orderApi.create(
+          {
+            items: [{ variantId: variant.id, quantity: 1 }],
+            guestPhone: normalizedPhone,
+            customerNote: note,
+            paymentMethodCode,
+            clientDeviceInfo: collectClientDeviceInfo(),
+            locale: readBrowserLocale(),
+          },
+          orderIdempotencyKey,
+        );
       }
 
-      const pay = await paymentApi.create({ orderId: order.id, gateway }, generateIdempotencyKey());
+      const pay = await paymentApi.create(
+        { orderId: order.id, gateway },
+        `pay:${order.id}:${gateway}`,
+      );
       setPayment(pay);
       setPaidOrderMeta({
         orderId: order.id,
@@ -591,6 +618,8 @@ function CheckoutShellInner({
         email: user.email,
       });
       storeOrderGuestEmail(order.id, user.email);
+      // Next intentional pay click starts a new checkout attempt.
+      checkoutIdempotencyKeyRef.current = null;
 
       if (isInlineQrPayment(pay)) {
         router.push(
@@ -643,9 +672,12 @@ function CheckoutShellInner({
     }
   }
 
+  const gatewaySessionOpen = Boolean(payment);
   const payButtonLabel = checkoutLoading
     ? t('checkout.creating')
-    : isOverOrderLimit
+    : gatewaySessionOpen
+      ? t('checkout.gatewayOpen')
+      : isOverOrderLimit
       ? orderQuantity > 1
         ? t('checkout.reduceQty')
         : t('checkout.overLimit')
@@ -661,7 +693,8 @@ function CheckoutShellInner({
             hasPaymentMethods &&
             paymentMethodCode,
         );
-  const payDisabled = !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked;
+  const payDisabled =
+    !canPay || isOverOrderLimit || checkoutLoading || vnOnlyBlocked || gatewaySessionOpen;
 
   const megapayResumeHref = useMemo(() => {
     if (mode === 'TOPUP') return `/nap-cuoc#${anchorId}`;
@@ -684,7 +717,7 @@ function CheckoutShellInner({
       : 'lg:grid-cols-[minmax(0,65%)_minmax(0,35%)]';
 
   return (
-    <div className={cn(showMobileBar ? 'pb-28 md:pb-0' : undefined)}>
+    <div className={cn(showMobileBar ? 'pb-4 md:pb-0' : undefined)}>
       <LoginRequiredModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
 
       <div className="space-y-4">
@@ -707,9 +740,9 @@ function CheckoutShellInner({
             id={anchorId}
             className={cn('scroll-mt-24 grid gap-6 lg:items-start', gridClass)}
           >
-            <div className="min-h-[420px] space-y-8 rounded-2xl border border-gray-200 bg-white p-4 shadow-card md:p-6">
+            <div className="space-y-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-card md:space-y-8 md:p-6">
               {mode === 'CARD' && (
-                <section className="min-h-[140px]">
+                <section>
                   <StepTitle n={1} title={t('checkout.chooseCard')} />
                   {cardProducts.length === 0 ? (
                     <p className="text-sm text-cardon-gray">{t('product.noCatalog')}</p>
@@ -733,14 +766,15 @@ function CheckoutShellInner({
 
               {mode !== 'CARD' && (
                 <div>
-                  <label className="text-sm font-semibold text-cardon-navy">
-                    {mode === 'TOPUP' ? t('checkout.phone') : t('checkout.phoneShort')}
-                  </label>
+                  <StepTitle
+                    n={1}
+                    title={mode === 'TOPUP' ? t('checkout.phone') : t('checkout.phoneShort')}
+                  />
                   <Input
-                    className="mt-2"
                     type="tel"
                     value={phone}
                     onChange={(e) => {
+                      clearOpenPaymentSession();
                       setPhone(e.target.value);
                       // Keep manual carrier override (sandbox test numbers often use mismatched prefixes).
                       if (mode === 'TOPUP' && !e.target.value.trim()) {
@@ -754,8 +788,8 @@ function CheckoutShellInner({
 
               {mode !== 'CARD' && (
                 <div>
-                  <p className="text-sm font-semibold text-cardon-navy">Chọn nhà mạng</p>
-                  <CatalogSelectorGrid className="mt-3">
+                  <StepTitle n={2} title={t('checkout.chooseCarrier')} />
+                  <CatalogSelectorGrid>
                     {carriers.map((c) => {
                       const selected = carrierId === c.id;
                       const available = telcoProducts.some((p) => matchCarrier(p, c.id));
@@ -777,14 +811,10 @@ function CheckoutShellInner({
                 </div>
               )}
 
-              <section className={cn(mode === 'CARD' ? 'min-h-[120px]' : 'min-h-[96px]')}>
+              <section>
                 {mode === 'CARD' && <StepTitle n={2} title={t('product.denom')} />}
-                {mode === 'TOPUP' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.denom')}</p>
-                )}
-                {mode === 'DATA' && (
-                  <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.dataPlan')}</p>
-                )}
+                {mode === 'TOPUP' && <StepTitle n={3} title={t('product.denom')} />}
+                {mode === 'DATA' && <StepTitle n={3} title={t('product.dataPlan')} />}
 
                 {variantOptions.length === 0 ? (
                   <p className="text-sm text-cardon-gray">
@@ -823,7 +853,7 @@ function CheckoutShellInner({
               </section>
 
               {mode === 'CARD' && (
-                <>
+                <div className="hidden lg:block">
                   <StepTitle n={3} title={t('checkout.qtyCards')} />
                   <div className="flex flex-wrap items-center gap-4">
                     <QuantityInput
@@ -834,13 +864,12 @@ function CheckoutShellInner({
                     />
                     <span className="text-sm text-cardon-green">{t('product.stock')}</span>
                   </div>
-
-                </>
+                </div>
               )}
 
               <div className="lg:hidden">
                 {mode === 'CARD' ? (
-                  <StepTitle n={4} title={t('checkout.pay')} />
+                  <StepTitle n={3} title={t('checkout.pay')} />
                 ) : (
                   <p className="mb-3 text-sm font-semibold text-cardon-navy">{t('product.payMethod')}</p>
                 )}
@@ -868,6 +897,18 @@ function CheckoutShellInner({
                 {checkoutError && !activeOrderLimit && (
                   <p className="mt-2 text-sm text-red-600">{checkoutError}</p>
                 )}
+                {gatewaySessionOpen ? (
+                  <button
+                    type="button"
+                    className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+                    onClick={() => {
+                      clearOpenPaymentSession();
+                      setCheckoutError(null);
+                    }}
+                  >
+                    {t('checkout.cancelGateway')}
+                  </button>
+                ) : null}
               </div>
             </div>
 
@@ -910,55 +951,65 @@ function CheckoutShellInner({
                   packageLabel={packageLabel}
                 />
               )}
-              {payment?.checkoutUrl &&
-                payment.checkoutFormFields &&
-                payment.gateway === 'SEPAY' && (
-                  <SepayPgCheckoutRedirect
-                    checkoutUrl={payment.checkoutUrl}
-                    checkoutFormFields={payment.checkoutFormFields}
-                  />
-                )}
-              {payment?.checkoutFormFields &&
-                payment.checkoutClient &&
-                payment.gateway === 'MEGAPAY' &&
-                payment.displayMode !== 'qr_inline' && (
-                  <MegapayPgCheckoutOpen
-                    checkoutFormFields={payment.checkoutFormFields}
-                    checkoutClient={payment.checkoutClient}
-                    orderId={paidOrderMeta?.orderId ?? payment.orderId}
-                    orderCode={paidOrderMeta?.orderCode}
-                    email={paidOrderMeta?.email}
-                    paymentReference={payment.paymentReference}
-                    resumeHref={megapayResumeHref}
-                    amount={payment.amount}
-                  />
-                )}
+              {gatewaySessionOpen ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-semibold text-cardon-blue hover:underline"
+                  onClick={() => {
+                    clearOpenPaymentSession();
+                    setCheckoutError(null);
+                  }}
+                >
+                  {t('checkout.cancelGateway')}
+                </button>
+              ) : null}
             </aside>
           </div>
         )}
       </div>
 
       {showMobileBar && (
-        <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 border-t border-gray-200 bg-white p-3 shadow-lg lg:hidden">
-          <div className="site-container flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs text-cardon-gray">{t('common.total')}</p>
-              <p className="text-lg font-bold text-cardon-danger">
+        <div className="fixed bottom-16 left-0 right-0 z-40 border-t border-gray-200 bg-white px-3 py-2.5 shadow-lg lg:hidden">
+          <div className="site-container flex items-center gap-2">
+            {mode === 'CARD' ? (
+              <QuantityInput
+                compact
+                value={quantity}
+                min={1}
+                max={DEFAULT_MAX_QUANTITY}
+                onChange={handleQuantityChange}
+                className="shrink-0"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] leading-tight text-cardon-gray">{t('common.total')}</p>
+              <p className="truncate text-sm font-bold leading-tight text-cardon-danger">
                 {pricing ? money(pricing.totalPayment) : '—'}
               </p>
             </div>
             <button
               type="button"
-              className="btn-checkout !w-auto shrink-0 px-6"
+              className="btn-checkout !w-auto shrink-0 px-3.5 py-2.5 text-sm tracking-normal"
               disabled={payDisabled}
               onClick={() => void handlePay()}
             >
               {payButtonLabel}
-              {!checkoutLoading && pricing && !isOverOrderLimit
-                ? ` ${money(pricing.totalPayment)}`
-                : ''}
             </button>
           </div>
+          {gatewaySessionOpen ? (
+            <div className="site-container pt-1.5">
+              <button
+                type="button"
+                className="text-xs font-semibold text-cardon-blue hover:underline"
+                onClick={() => {
+                  clearOpenPaymentSession();
+                  setCheckoutError(null);
+                }}
+              >
+                {t('checkout.cancelGateway')}
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
 

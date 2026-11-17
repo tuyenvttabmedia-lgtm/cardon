@@ -4,9 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { LoginRequiredModal } from '@/components/checkout/LoginRequiredModal';
 import { FaqAccordion, type FaqItem } from '@/components/faq/FaqAccordion';
-import { useAuth } from '@/hooks/useAuth';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { EsimProductGallery } from '@/components/esim/EsimProductGallery';
 import { dataAmountMb, destPhotoFor, durationDays, offerGallery } from '@/lib/esim-browse';
@@ -57,6 +55,23 @@ const REGION_KEY: Record<string, MessageKey> = {
   IE: 'esim.region.europe',
   CZ: 'esim.region.europe',
   EG: 'esim.region.africa',
+  MX: 'esim.region.america',
+  SA: 'esim.region.asia',
+  LK: 'esim.region.asia',
+  NP: 'esim.region.asia',
+  GE: 'esim.region.asia',
+  JO: 'esim.region.asia',
+  OM: 'esim.region.asia',
+  BH: 'esim.region.asia',
+  MA: 'esim.region.africa',
+  ZA: 'esim.region.africa',
+  HR: 'esim.region.europe',
+  SE: 'esim.region.europe',
+  NO: 'esim.region.europe',
+  DK: 'esim.region.europe',
+  IS: 'esim.region.europe',
+  BR: 'esim.region.america',
+  WORLD: 'esim.intl',
 };
 
 const DAY_SPANS = [
@@ -107,13 +122,10 @@ export function EsimDetailClient({
   const countryOffers = offers.filter((item) => item.countryIso === offer.countryIso);
   const router = useRouter();
   const [section, setSection] = useState('tong-quan');
-  const [loginOpen, setLoginOpen] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [span, setSpan] = useState('');
   const [dataFilter, setDataFilter] = useState('');
   const [sort, setSort] = useState<SortKey>('price');
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const detailHref = withLocalePrefix(`/esim/${offer.id}`, locale);
   const faq = useMemo(() => buildFaq(t), [t]);
 
   const dataOptions = useMemo(
@@ -184,11 +196,6 @@ export function EsimDetailClient({
   function payEsim() {
     if (!salesOpen) {
       setPayError(t('error.salesOff'));
-      return;
-    }
-    if (authLoading) return;
-    if (!isAuthenticated) {
-      setLoginOpen(true);
       return;
     }
     setPayError(null);
@@ -290,8 +297,7 @@ export function EsimDetailClient({
             {salesOpen ? (
               <button
                 type="button"
-                disabled={authLoading}
-                className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-cardon-blue px-5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-4 inline-flex h-11 items-center justify-center rounded-xl bg-cardon-blue px-5 text-sm font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy"
                 onClick={payEsim}
               >
                 {t('checkout.payTitle')}
@@ -473,7 +479,7 @@ export function EsimDetailClient({
                     }
                     className={`flex h-full flex-col rounded-xl border-2 bg-white p-3 transition-all duration-200 sm:p-4 ${
                       active
-                        ? 'scale-[1.01] border-cardon-blue bg-blue-50 shadow-sm'
+                        ? 'scale-[1.01] border-cardon-blue bg-brand-50 shadow-sm'
                         : 'border-gray-100 hover:-translate-y-px hover:border-cardon-blue/40 hover:shadow-md'
                     }`}
                   >
@@ -519,7 +525,6 @@ export function EsimDetailClient({
         <h2 className="mb-3 text-xl font-bold text-cardon-navy md:text-2xl">{t('home.faqTitle')}</h2>
         <FaqAccordion items={faq} title="" layout="split" />
       </section>
-      <LoginRequiredModal open={loginOpen} onClose={() => setLoginOpen(false)} redirectPath={detailHref} />
     </div>
   );
 }

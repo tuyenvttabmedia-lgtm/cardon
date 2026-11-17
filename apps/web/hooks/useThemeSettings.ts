@@ -85,6 +85,7 @@ export function useThemeSettings() {
 
   const logoDesktop = theme?.logoDesktop || '/images/cardon-logo-full.png';
   const logoMobile = theme?.logoMobile || '/images/cardon-icon.png';
+  const logoFooter = theme?.logoFooter?.trim() || '/images/cardon-logo-on-dark.png';
   const favicon = theme?.favicon || '/images/cardon-icon.png';
   const homeBackgrounds = resolveHomeBackgrounds(theme?.homeBackgrounds);
 
@@ -95,6 +96,7 @@ export function useThemeSettings() {
     mobileNav,
     logoDesktop,
     logoMobile,
+    logoFooter,
     favicon,
     companyInfo,
     contactChannels,

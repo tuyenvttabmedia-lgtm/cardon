@@ -1,8 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { ProductVariantType } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { ACTIVE_ORDER_WHERE } from '../order/entities/order.constants';
+import { SettingsStoreService } from '../settings/services/settings-store.service';
 import { AiraloRequestError, EsimAiraloAdapter } from './esim-airalo.adapter';
+import {
+  costVndFromAiralo,
+  retailVndFromAiralo,
+  sellPriceFromAiralo,
+} from './esim-catalogue.rules';
+import { parseAiraloUsageBody, type EsimUsageSnapshot } from './esim-usage.rules';
 
 export interface EsimTopupPackageView {
   providerPackageId: string;
@@ -11,6 +18,14 @@ export interface EsimTopupPackageView {
   validityDays: number | null;
   price: number | null;
   currency: string | null;
+  netPriceUsd: number | null;
+  netPriceVnd: number | null;
+  retailPriceUsd: number | null;
+  retailPriceVnd: number | null;
+  costVnd: number;
+  sellPriceVnd: number;
+  dataLabel: string | null;
+  validityLabel: string | null;
 }
 
 export interface EsimTopupSubmitResult {
@@ -23,14 +38,15 @@ export interface EsimTopupSubmitResult {
 }
 
 /**
- * Airalo eSIM top-up (checklist item 4). Uses partner credit on sandbox/ops paths.
- * Customer-paid storefront top-up can wrap this later with a paid checkout.
+ * Airalo eSIM top-up + usage. Ops can submit on partner credit;
+ * customer-paid checkout wraps list/pricing then fulfills after PAID.
  */
 @Injectable()
 export class EsimTopupService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly airalo: EsimAiraloAdapter,
+    @Optional() private readonly settings?: SettingsStoreService,
   ) {}
 
   async listForOrder(orderId: string, userId?: string): Promise<{
@@ -43,21 +59,36 @@ export class EsimTopupService {
         'eSIM profile has no ICCID yet. Recover install details from Airalo before top-up.',
       );
     }
-    try {
-      const packages = await this.airalo.listTopupPackages(profile.iccid);
-      return { iccid: profile.iccid, packages };
-    } catch (error) {
-      throw this.mapAiraloError(error, 'list top-up packages');
-    }
+    return this.listForIccid(profile.iccid);
   }
 
   async listForIccid(iccid: string): Promise<{ iccid: string; packages: EsimTopupPackageView[] }> {
     const trimmed = this.requireIccid(iccid);
     try {
       const packages = await this.airalo.listTopupPackages(trimmed);
-      return { iccid: trimmed, packages };
+      const usdVndRate = this.settings?.resolveAiraloUsdVndRate() ?? 26_000;
+      return {
+        iccid: trimmed,
+        packages: packages.map((pack) => this.pricePackage(pack, usdVndRate)),
+      };
     } catch (error) {
       throw this.mapAiraloError(error, 'list top-up packages');
+    }
+  }
+
+  async usageForOrder(orderId: string, userId?: string): Promise<{
+    iccid: string;
+    usage: EsimUsageSnapshot | null;
+  }> {
+    const profile = await this.loadProfile(orderId, userId);
+    if (!profile.iccid) {
+      throw new BadRequestException('eSIM profile has no ICCID yet');
+    }
+    try {
+      const body = await this.airalo.getSimUsage(profile.iccid);
+      return { iccid: profile.iccid, usage: parseAiraloUsageBody(body) };
+    } catch (error) {
+      throw this.mapAiraloError(error, 'get usage');
     }
   }
 
@@ -98,6 +129,50 @@ export class EsimTopupService {
     } catch (error) {
       throw this.mapAiraloError(error, 'submit top-up');
     }
+  }
+
+  private pricePackage(
+    pack: {
+      providerPackageId: string;
+      title: string;
+      dataAmountMb: number | null;
+      validityDays: number | null;
+      price: number | null;
+      currency: string | null;
+      netPriceUsd: number | null;
+      netPriceVnd: number | null;
+      retailPriceUsd: number | null;
+      retailPriceVnd: number | null;
+    },
+    usdVndRate: number,
+  ): EsimTopupPackageView {
+    const cost = costVndFromAiralo({
+      netPriceVnd: pack.netPriceVnd,
+      netPriceUsd: pack.netPriceUsd ?? pack.price,
+      usdVndRate,
+    });
+    const retailVnd = retailVndFromAiralo({
+      retailPriceVnd: pack.retailPriceVnd,
+      retailPriceUsd: pack.retailPriceUsd,
+      usdVndRate,
+    });
+    const sellPriceVnd = sellPriceFromAiralo(cost.costVnd, retailVnd);
+    return {
+      providerPackageId: pack.providerPackageId,
+      title: pack.title,
+      dataAmountMb: pack.dataAmountMb,
+      validityDays: pack.validityDays,
+      price: pack.price,
+      currency: pack.currency,
+      netPriceUsd: pack.netPriceUsd,
+      netPriceVnd: pack.netPriceVnd,
+      retailPriceUsd: pack.retailPriceUsd,
+      retailPriceVnd: pack.retailPriceVnd,
+      costVnd: cost.costVnd,
+      sellPriceVnd,
+      dataLabel: pack.dataAmountMb != null ? formatDataMb(pack.dataAmountMb) : null,
+      validityLabel: pack.validityDays != null ? `${pack.validityDays} ngày` : null,
+    };
   }
 
   private requireIccid(iccid: string): string {
@@ -141,8 +216,17 @@ export class EsimTopupService {
       if (error.status === 404 || error.airaloCode === 34 || /iccid/i.test(error.message)) {
         return new BadRequestException(`Airalo rejected ICCID during ${action}`);
       }
+      if (error.status === 429) {
+        return new BadRequestException('Airalo usage rate limit — thử lại sau ít phút');
+      }
       return new BadRequestException(`Airalo ${action} failed: ${error.message}`);
     }
     return error instanceof Error ? error : new BadRequestException(`Airalo ${action} failed`);
   }
+}
+
+function formatDataMb(mb: number): string {
+  if (mb >= 1024 && mb % 1024 === 0) return `${mb / 1024} GB`;
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb} MB`;
 }

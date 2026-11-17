@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { ArticleHubCta } from '@/components/blog/ArticleHubCta';
 import { ArticleSidebar, RelatedPostsGrid } from '@/components/blog/ArticleSidebar';
 import { ArticleShareButtons } from '@/components/blog/ArticleShareButtons';
 import { ArticleTableOfContents } from '@/components/blog/ArticleTableOfContents';
@@ -127,7 +128,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
               {post.category && post.categorySlug && (
                 <Link
                   href={blogCategoryPath(post.categorySlug)}
-                  className="inline-flex rounded-full bg-blue-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-cardon-blue"
+                  className="inline-flex rounded-full bg-brand-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-cardon-blue"
                 >
                   {post.category}
                 </Link>
@@ -155,6 +156,8 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
             )}
 
             <SafeCmsHtml html={articleHtml} className="cms-prose mt-6" />
+
+            <ArticleHubCta categorySlug={post.categorySlug} currentPath={articlePath} />
 
             <ArticleShareButtons url={articleUrl} title={post.title} />
 

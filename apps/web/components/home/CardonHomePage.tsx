@@ -9,6 +9,8 @@ import { StorefrontHero } from '@/components/layout/StorefrontHero';
 import { CustomerProductLogo } from '@/components/product/CustomerProductLogo';
 import { FaqSection } from '@/components/faq/FaqSection';
 import { NewsSection } from '@/components/home/NewsSection';
+import { HelpIcon, SectionGlyph } from '@/components/icons/SectionGlyph';
+import { HubGuideLinks } from '@/components/seo/HubGuideLinks';
 import { useProducts } from '@/hooks/useProducts';
 import { useThemeSettings } from '@/hooks/useThemeSettings';
 import type { PublicBlogPost, PublicFaqItem } from '@/lib/cms-api';
@@ -201,7 +203,7 @@ export function CardonHomePage({
           image={homeBackgrounds.homeCategoryPhoneCardBg}
           position="right center"
           size="auto 100%"
-          wash="#e7f3ff"
+          wash="#e8f5ef"
         />
         <CategoryCard
           title={t('nav.topup')}
@@ -310,6 +312,7 @@ export function CardonHomePage({
         />
       </section>
 
+      <HubGuideLinks path="/" title="Hướng dẫn nên đọc" />
       <NewsSection posts={newsPosts.slice(0, 8)} icon={<NewsIcon />} />
       <FaqSection
         featured
@@ -359,7 +362,7 @@ function SectionHeading({
 
 const CATEGORY_TONE = {
   violet: 'bg-[#f0e8ff] text-[#7c3aed]',
-  sky: 'bg-[#e7f3ff] text-cardon-blue',
+  sky: 'bg-[#e8f5ef] text-cardon-blue',
   emerald: 'bg-[#e5f8f0] text-cardon-green',
   amber: 'bg-[#fff4ea] text-[#d97706]',
 } as const;
@@ -530,23 +533,6 @@ function LogoSection({
   );
 }
 
-function SectionGlyph({ children }: { children: ReactNode }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="h-[18px] w-[18px] md:h-[22px] md:w-[22px]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      {children}
-    </svg>
-  );
-}
-
 function GamepadIcon() {
   return (
     <SectionGlyph>
@@ -594,16 +580,6 @@ function NewsIcon() {
       <path d="M18 14h-8" />
       <path d="M15 18h-5" />
       <path d="M10 6h8v4h-8V6Z" />
-    </SectionGlyph>
-  );
-}
-
-function HelpIcon() {
-  return (
-    <SectionGlyph>
-      <circle cx="12" cy="12" r="10" />
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-      <path d="M12 17h.01" />
     </SectionGlyph>
   );
 }

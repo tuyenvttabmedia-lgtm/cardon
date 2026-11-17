@@ -20,6 +20,85 @@ function emailLocale(data: Record<string, unknown>): 'vi' | 'en' {
   return data.locale === 'en' ? 'en' : 'vi';
 }
 
+function renderEsimReadyEmail(
+  locale: 'vi' | 'en',
+  data: Record<string, unknown>,
+): RenderedEmail {
+  const orderCode = String(data.orderCode ?? '');
+  const name = String(data.customerName ?? (locale === 'en' ? 'there' : 'Quý khách'));
+  const accountUrl = String(data.accountUrl ?? '/tai-khoan/esim');
+  const destination = String(data.destination ?? '').trim();
+  const packageName = String(data.packageName ?? '').trim();
+  const sharingLink = String(data.sharingLink ?? '').trim();
+  const sharingAccessCode = String(data.sharingAccessCode ?? '').trim();
+  const guest = data.isGuestOrder === true;
+  const planLine = [destination, packageName].filter(Boolean).join(' · ');
+  const safeAccount = escapeHtml(accountUrl);
+  const safeName = escapeHtml(name);
+  const safeOrder = escapeHtml(orderCode);
+  const safePlan = escapeHtml(planLine);
+
+  if (locale === 'en') {
+    const openLabel = guest ? 'Open your order page' : 'Open your CardOn eSIM account';
+    const cloudHtml =
+      sharingLink.startsWith('https://') && sharingAccessCode
+        ? `<p>Optional guide page: <a href="${escapeHtml(sharingLink)}">${escapeHtml(sharingLink)}</a><br/>Access code: <strong>${escapeHtml(sharingAccessCode)}</strong></p>`
+        : '';
+    const cloudText =
+      sharingLink.startsWith('https://') && sharingAccessCode
+        ? `\nOptional guide: ${sharingLink} (access code ${sharingAccessCode})`
+        : '';
+    return {
+      subject: `Your eSIM is ready — order ${orderCode}`,
+      html: `<p>Hello ${safeName},</p>
+<p>Your travel eSIM for order <strong>${safeOrder}</strong>${safePlan ? ` (${safePlan})` : ''} is ready on CardOn.</p>
+<p><strong>How to install</strong></p>
+<ol>
+<li>Stay on Wi‑Fi.</li>
+<li>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></li>
+<li>Open the install code / QR, then use <em>Add eSIM on iPhone</em> or <em>Add eSIM on Android</em>, or enter the manual SM-DP+ details.</li>
+</ol>
+${cloudHtml}
+<p>This email does <strong>not</strong> include the install code. Keep QR and LPA private.</p>`,
+      text: `Hello ${name},
+Your travel eSIM for order ${orderCode}${planLine ? ` (${planLine})` : ''} is ready on CardOn.
+1) Stay on Wi-Fi
+2) ${openLabel}: ${accountUrl}
+3) Open install code / QR, then Add eSIM on iPhone or Android, or enter SM-DP+ manually.${cloudText}
+This email does not include the install code.`,
+    };
+  }
+
+  const openLabel = guest ? 'Mở trang đơn hàng' : 'Mở tài khoản eSIM CardOn';
+  const cloudHtml =
+    sharingLink.startsWith('https://') && sharingAccessCode
+      ? `<p>Hướng dẫn phụ (eSIMs Cloud): <a href="${escapeHtml(sharingLink)}">${escapeHtml(sharingLink)}</a><br/>Mã truy cập: <strong>${escapeHtml(sharingAccessCode)}</strong></p>`
+      : '';
+  const cloudText =
+    sharingLink.startsWith('https://') && sharingAccessCode
+      ? `\nHướng dẫn phụ: ${sharingLink} (mã truy cập ${sharingAccessCode})`
+      : '';
+  return {
+    subject: `Mã cài eSIM đã sẵn sàng — đơn ${orderCode}`,
+    html: `<p>Xin chào ${safeName},</p>
+<p>eSIM du lịch của đơn <strong>${safeOrder}</strong>${safePlan ? ` (${safePlan})` : ''} đã sẵn sàng trên CardOn.</p>
+<p><strong>Cách cài</strong></p>
+<ol>
+<li>Giữ kết nối Wi‑Fi.</li>
+<li>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></li>
+<li>Mở mã cài / QR, rồi chọn <em>Thêm eSIM trên iPhone</em> hoặc <em>Thêm eSIM trên Android</em>, hoặc nhập thủ công SM-DP+ / mã kích hoạt.</li>
+</ol>
+${cloudHtml}
+<p>Email này <strong>không</strong> chứa mã cài đặt. Không gửi QR/LPA cho người khác.</p>`,
+    text: `Xin chào ${name},
+eSIM du lịch đơn ${orderCode}${planLine ? ` (${planLine})` : ''} đã sẵn sàng trên CardOn.
+1) Giữ Wi-Fi
+2) ${openLabel}: ${accountUrl}
+3) Mở mã cài / QR, rồi Thêm eSIM trên iPhone hoặc Android, hoặc nhập SM-DP+ thủ công.${cloudText}
+Email này không chứa mã cài đặt.`,
+  };
+}
+
 function renderEnglishEmail(
   template: EmailTemplateType,
   data: Record<string, unknown>,
@@ -44,11 +123,7 @@ function renderEnglishEmail(
         text: `Payment received for order ${String(data.orderCode ?? '')}. Amount: ${String(data.total ?? data.amount ?? '')} VND`,
       };
     case 'ESIM_READY':
-      return {
-        subject: `Your eSIM is ready — order ${String(data.orderCode ?? '')}`,
-        html: `<p>Your eSIM for order ${escapeHtml(String(data.orderCode ?? ''))} is ready.</p><p><a href="${escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'))}">Open install instructions</a></p><p>This email does not include the install code.</p>`,
-        text: `eSIM for order ${String(data.orderCode ?? '')} is ready. Open your account. This email does not include the install code.`,
-      };
+      return renderEsimReadyEmail('en', data);
     case 'ESIM_LOW_DATA':
       return {
         subject: `Low data on your eSIM — order ${String(data.orderCode ?? '')}`,
@@ -194,14 +269,8 @@ export function renderEmailTemplate(
         text: `[TEST] Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng trên CardOn. ${sandboxNotice} Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
       };
     }
-    case 'ESIM_READY': {
-      const accountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
-      return {
-        subject: `Mã cài eSIM đã sẵn sàng — đơn ${String(data.orderCode ?? '')}`,
-        html: `<p>Xin chào ${escapeHtml(String(data.customerName ?? 'Quý khách'))},</p><p>Mã cài eSIM của đơn <strong>${escapeHtml(String(data.orderCode ?? ''))}</strong> đã sẵn sàng.</p><p>Mở tài khoản CardOn để xem mã QR và hướng dẫn cài: <a href="${accountUrl}">${accountUrl}</a></p><p>Email này không chứa mã cài đặt.</p>`,
-        text: `Mã cài eSIM đơn ${String(data.orderCode ?? '')} đã sẵn sàng. Xem trong tài khoản: ${String(data.accountUrl ?? '/tai-khoan/esim')}. Không có mã cài đặt trong email.`,
-      };
-    }
+    case 'ESIM_READY':
+      return renderEsimReadyEmail('vi', data);
     case 'ESIM_LOW_DATA': {
       const accountUrl = escapeHtml(String(data.accountUrl ?? '/tai-khoan/esim'));
       const remaining =

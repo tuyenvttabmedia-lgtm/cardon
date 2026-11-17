@@ -1,7 +1,12 @@
 import { FulfillmentStatus, OrderPaymentStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { EsimOrderService } from './esim-order.service';
-import { ESIM_REUSE_MIN_REMAINING_MS, esimOrderCreateLockPair, isReusableEsimOrder } from './esim-order-idempotency';
+import {
+  ESIM_REUSE_MIN_REMAINING_MS,
+  esimBuyerLockKey,
+  esimOrderCreateLockPair,
+  isReusableEsimOrder,
+} from './esim-order-idempotency';
 
 describe('eSIM order reuse rules', () => {
   const now = new Date('2026-10-26T08:00:00.000Z');
@@ -88,8 +93,10 @@ describe('eSIM order reuse rules', () => {
   });
 
   it('builds a stable advisory lock pair', () => {
-    expect(esimOrderCreateLockPair(' user-1 ', ' variant-1 ')).toEqual([
-      'esim-order:user-1',
+    expect(esimBuyerLockKey({ userId: 'u1' })).toBe('user:u1');
+    expect(esimBuyerLockKey({ guestEmail: ' A@Mail.COM ' })).toBe('guest:a@mail.com');
+    expect(esimOrderCreateLockPair(' user:u1 ', ' variant-1 ')).toEqual([
+      'esim-order:user:u1',
       'variant-1',
     ]);
   });
@@ -228,6 +235,27 @@ describe('EsimOrderService create reuse', () => {
     expect(createWithTransaction).not.toHaveBeenCalled();
     expect(quoteCreate).not.toHaveBeenCalled();
     expect(locks).toEqual(['advisory', 'advisory']);
+  });
+
+  it('does not reuse another guest order by email alone', async () => {
+    const guestWaiting = {
+      ...waitingOrder,
+      isGuestOrder: true,
+      userId: null as string | null,
+      guestEmail: 'victim@test.invalid',
+    };
+    const store = { current: guestWaiting };
+    const { service, createWithTransaction } = harness(store);
+    const created = await service.create(
+      {
+        items: [{ variantId: 'variant-1', quantity: 1 }],
+        paymentMethodCode: 'SEPAY',
+        guestEmail: 'victim@test.invalid',
+      } as never,
+      undefined,
+    );
+    expect(createWithTransaction).toHaveBeenCalledTimes(1);
+    expect(created.id).toBe('order-new');
   });
 
   it('serializes concurrent creates so only one order is written', async () => {

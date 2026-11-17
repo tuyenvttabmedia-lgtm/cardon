@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { EsimInstallPanel } from '@/components/esim/EsimInstallPanel';
+import { EsimManageCard } from '@/components/esim/EsimManageCard';
+import { useT } from '@/components/i18n/LocaleProvider';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import { accountApi } from '@/services/api-client';
 import type { EsimDelivery } from '@/types/api';
@@ -15,6 +16,7 @@ function rankEsim(kind: EsimDelivery['kind']): number {
 }
 
 export default function AccountEsimPage() {
+  const t = useT();
   const [rows, setRows] = useState<EsimDelivery[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,7 @@ export default function AccountEsimPage() {
       }
     }
     void load();
-    const timer = setInterval(() => void load(), 8000);
+    const timer = setInterval(() => void load(), 20_000);
     return () => {
       active = false;
       clearInterval(timer);
@@ -44,10 +46,8 @@ export default function AccountEsimPage() {
 
   return (
     <section>
-      <h1 className="text-lg font-bold text-cardon-navy md:text-xl">eSIM của tôi</h1>
-      <p className="mt-1 text-sm text-cardon-gray">
-        Mã cài hiện sau khi thanh toán thành công. Giữ bí mật mã cài — chỉ mở trên thiết bị của bạn.
-      </p>
+      <h1 className="text-lg font-bold text-cardon-navy md:text-xl">{t('esim.manageTitle')}</h1>
+      <p className="mt-1 max-w-2xl text-sm text-cardon-gray">{t('esim.manageLead')}</p>
       {loading ? <p className="mt-6 text-sm text-cardon-gray">Đang tải…</p> : null}
       {error ? <p className="mt-6 text-sm text-red-600">{error}</p> : null}
       {!loading && !error && rows.length === 0 ? (
@@ -63,7 +63,7 @@ export default function AccountEsimPage() {
           .sort((a, b) => rankEsim(a.kind) - rankEsim(b.kind))
           .map((row) => (
             <li key={row.id ?? row.orderId}>
-              <EsimInstallPanel esim={row} showAccountLink={false} />
+              <EsimManageCard esim={row} />
             </li>
           ))}
       </ul>

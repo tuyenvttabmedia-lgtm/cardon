@@ -9,8 +9,23 @@ export const ESIM_ORDER_REUSE_PAYMENTS = [
 /** Do not hand back a waiting order that is about to expire; payment create would fail. */
 export const ESIM_REUSE_MIN_REMAINING_MS = 2 * 60_000;
 
-export function esimOrderCreateLockPair(userId: string, variantId: string): [string, string] {
-  return [`esim-order:${userId.trim()}`, variantId.trim()];
+/**
+ * Advisory lock identity for create/reuse.
+ * Logged-in: `user:<uuid>`. Guest: `guest:<normalized-email>`.
+ */
+export function esimOrderCreateLockPair(buyerKey: string, variantId: string): [string, string] {
+  return [`esim-order:${buyerKey.trim()}`, variantId.trim()];
+}
+
+export function esimBuyerLockKey(input: {
+  userId?: string | null;
+  guestEmail?: string | null;
+}): string {
+  const userId = input.userId?.trim();
+  if (userId) return `user:${userId}`;
+  const email = input.guestEmail?.trim().toLowerCase();
+  if (email) return `guest:${email}`;
+  throw new Error('eSIM buyer identity required');
 }
 
 /** PAID + these statuses are still being fulfilled — reopen that order, do not charge again. */

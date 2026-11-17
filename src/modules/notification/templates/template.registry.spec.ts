@@ -60,14 +60,23 @@ describe('eSIM email templates', () => {
     const ready = renderEmailTemplate('ESIM_READY', {
       orderCode: FIXTURE_ORDER,
       installSecret: 'LPA:1$lpa.airalo.com$TEST',
+      destination: 'Asia',
+      packageName: '500MB',
+      sharingLink: 'https://esims.cloud/keyon/demo',
+      sharingAccessCode: '8265',
+      accountUrl: FIXTURE_ACCOUNT,
     });
     const test = renderEmailTemplate('ESIM_TEST_READY', {
       orderCode: FIXTURE_ORDER,
       installSecret: 'LPA:1$lpa.airalo.com$TEST',
     });
+    expect(ready.html).toContain('Asia');
+    expect(ready.html).toContain('esims.cloud/keyon/demo');
+    expect(ready.html).toContain('8265');
+    expect(ready.html).toContain(FIXTURE_ACCOUNT);
     for (const part of [ready.html, ready.text, test.html, test.text]) {
       expect(part).not.toMatch(/LPA:1/i);
-      expect(part).toMatch(/không chứa mã cài đặt|Không có mã cài đặt/i);
+      expect(part).toMatch(/không[\s\S]{0,24}chứa mã cài đặt|Không có mã cài đặt/i);
     }
   });
 });

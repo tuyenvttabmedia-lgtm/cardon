@@ -50,7 +50,15 @@ describe('Phase 2E.1 Payment Safety Audit', () => {
         recordPaymentSuccess: jest.fn(),
       };
       const service = new PaymentService(
-        { $transaction: jest.fn() } as never,
+        {
+          $transaction: jest.fn(),
+          order: {
+            findFirst: jest.fn().mockResolvedValue({
+              paymentStatus: OrderPaymentStatus.PAID,
+              fulfillmentStatus: 'COMPLETED',
+            }),
+          },
+        } as never,
         paymentRepository as never,
         { create: jest.fn() } as never,
         testRegistry(),

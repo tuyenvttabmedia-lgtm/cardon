@@ -181,7 +181,7 @@ describe('MegaPayProvider (DepositCode VA)', () => {
   });
 
   describe('verifyWebhook', () => {
-    it('accepts valid DepositCode notify signature', async () => {
+    it('rejects DepositCode legacy notify (Luồng 1 disabled)', async () => {
       const payload = {
         MerchantCode: 'VAP001',
         RequestId: 'VAP001REQ1',
@@ -207,58 +207,12 @@ describe('MegaPayProvider (DepositCode VA)', () => {
 
       const result = await provider.verifyWebhook({ ...payload, Signature }, {});
 
-      expect(result.valid).toBe(true);
+      expect(result.valid).toBe(false);
       expect(result.paymentReference).toBe('PAY-REF-001');
-      expect(result.status).toBe('SUCCESS');
-      expect(result.amount).toBe('100000.00');
-      expect(result.providerTransactionId).toBe('VAP001REF1');
-    });
-
-    it('rejects invalid signature', async () => {
-      const result = await provider.verifyWebhook(
-        {
-          MerchantCode: 'VAP001',
-          RequestId: 'VAP001REQ1',
-          RequestTime: '2024-10-15 14:52:58',
-          VaAcc: '902000225341',
-          MapId: 'PAY-REF-001',
-          ReferenceId: 'VAP001REF1',
-          Amount: 100000,
-          Fee: 0,
-          Signature: 'deadbeef',
-        },
-        {},
-      );
-      expect(result.valid).toBe(false);
-    });
-
-    it('rejects DepositCode notify for a different merchant even with a valid signature', async () => {
-      const payload = {
-        MerchantCode: 'OTHER',
-        RequestId: 'VAP001REQ1',
-        RequestTime: '2024-10-15 14:52:58',
-        VaAcc: '902000225341',
-        VaName: 'VAP001 NGUYEN VAN A',
-        MapId: 'PAY-REF-001',
-        ReferenceId: 'VAP001REF1',
-        Amount: 100000,
-        Fee: 0,
-        BankCode: 'WOORIBANK',
-        BankName: 'WOORI',
-      };
-      const Signature = signNotify({
-        RequestId: payload.RequestId,
-        ReferenceId: payload.ReferenceId,
-        RequestTime: payload.RequestTime,
-        Amount: payload.Amount,
-        Fee: payload.Fee,
-        VaAcc: payload.VaAcc,
-        MapId: payload.MapId,
-      });
-
-      const result = await provider.verifyWebhook({ ...payload, Signature }, {});
-      expect(result.valid).toBe(false);
       expect(result.status).toBe('PENDING');
+      expect((result.rawPayload as { rejectReason?: string }).rejectReason).toBe(
+        'DEPOSITCODE_LEGACY_DISABLED',
+      );
     });
 
     it('accepts valid MegaPay PG IPN merchantToken', async () => {

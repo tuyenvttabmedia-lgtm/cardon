@@ -22,6 +22,13 @@ describe('W5 guest order protection (OrderController)', () => {
     captchaToken: 'tok',
   };
 
+  const idemKey = 'idem-order-1';
+
+  const req = {
+    headers: {},
+    socket: { remoteAddress: '1.2.3.4' },
+  } as never;
+
   beforeEach(() => {
     jest.clearAllMocks();
     orderService.createOrder.mockResolvedValue({ id: 'o1' });
@@ -31,11 +38,16 @@ describe('W5 guest order protection (OrderController)', () => {
     emailPolicy.assertRegistrationEmailAllowed.mockImplementation(() => undefined);
   });
 
+  it('rejects missing Idempotency-Key before create', async () => {
+    await expect(
+      controller.createOrder(guestDto as never, undefined, undefined, req),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(orderService.createOrder).not.toHaveBeenCalled();
+    expect(turnstile.verifyOrThrow).not.toHaveBeenCalled();
+  });
+
   it('guest: turnstile → email policy → fail-open abuse → create', async () => {
-    await controller.createOrder(guestDto as never, undefined, {
-      headers: {},
-      socket: { remoteAddress: '1.2.3.4' },
-    } as never);
+    await controller.createOrder(guestDto as never, idemKey, undefined, req);
 
     expect(turnstile.verifyOrThrow).toHaveBeenCalled();
     expect(emailPolicy.assertRegistrationEmailAllowed).toHaveBeenCalledWith(
@@ -54,8 +66,9 @@ describe('W5 guest order protection (OrderController)', () => {
     await expect(
       controller.createOrder(
         { ...guestDto, guestEmail: 'x@example.com' } as never,
+        idemKey,
         undefined,
-        { headers: {}, socket: { remoteAddress: '1.2.3.4' } } as never,
+        req,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(orderService.createOrder).not.toHaveBeenCalled();
@@ -64,8 +77,9 @@ describe('W5 guest order protection (OrderController)', () => {
   it('authenticated: skips turnstile + email policy; abuse userId only (no guest IP)', async () => {
     await controller.createOrder(
       { items: guestDto.items } as never,
+      idemKey,
       { id: 'u1', email: 'u@gmail.com' } as never,
-      { headers: {}, socket: { remoteAddress: '1.2.3.4' } } as never,
+      req,
     );
     expect(turnstile.verifyOrThrow).not.toHaveBeenCalled();
     expect(emailPolicy.assertRegistrationEmailAllowed).not.toHaveBeenCalled();
@@ -78,10 +92,7 @@ describe('W5 guest order protection (OrderController)', () => {
   });
 
   it('guest: abuse uses ip + email, not userId', async () => {
-    await controller.createOrder(guestDto as never, undefined, {
-      headers: {},
-      socket: { remoteAddress: '1.2.3.4' },
-    } as never);
+    await controller.createOrder(guestDto as never, idemKey, undefined, req);
     expect(abuseRateLimit.consumeFailOpen).toHaveBeenCalledWith(
       expect.objectContaining({
         bucket: 'order_create',
@@ -96,8 +107,9 @@ describe('W5 guest order protection (OrderController)', () => {
     await expect(
       controller.createOrder(
         { ...guestDto, captchaToken: undefined } as never,
+        idemKey,
         undefined,
-        { headers: {}, socket: { remoteAddress: '1.2.3.4' } } as never,
+        req,
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(orderService.createOrder).not.toHaveBeenCalled();
@@ -108,10 +120,17 @@ describe('W5 guest order protection (OrderController)', () => {
       new HttpException('Too many requests', HttpStatus.TOO_MANY_REQUESTS),
     );
     await expect(
-      controller.createOrder(guestDto as never, undefined, {
-        headers: {},
-        socket: { remoteAddress: '1.2.3.4' },
-      } as never),
+      controller.createOrder(guestDto as never, idemKey, undefined, req),
     ).rejects.toMatchObject({ status: HttpStatus.TOO_MANY_REQUESTS });
+  });
+
+  it('forwards Idempotency-Key to createOrder', async () => {
+    await controller.createOrder(guestDto as never, 'idem-order-1', undefined, req);
+    expect(orderService.createOrder).toHaveBeenCalledWith(
+      guestDto,
+      undefined,
+      expect.anything(),
+      'idem-order-1',
+    );
   });
 });

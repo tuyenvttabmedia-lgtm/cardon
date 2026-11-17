@@ -111,6 +111,7 @@ body {
   /*
    * Photo strip only (aspect of the CMS banner). Never height:100% here — on hub
    * pages in-flow copy would stretch the beach/game art behind the whole block.
+   * Mobile: no edge fade (hard crop). Desktop: soft L/R/bottom mask like home.
    */
   .home-hero-banner .home-hero-media {
     position: absolute;
@@ -119,17 +120,9 @@ body {
     width: 100%;
     aspect-ratio: 2068 / 550;
     pointer-events: none;
-    -webkit-mask-image:
-      linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
-      linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
-    -webkit-mask-composite: source-in;
-    mask-image:
-      linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
-      linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
-    mask-composite: intersect;
   }
 
-  /* Below desktop: copy sits under the reserved photo. */
+  /* Below desktop: copy sits under the reserved photo; no fade mask. */
   @media (max-width: 1023.98px) {
     .home-hero-banner > .site-container {
       padding-top: 1.25rem;
@@ -167,6 +160,14 @@ body {
     .home-hero-banner .home-hero-media {
       height: 100%;
       aspect-ratio: auto;
+      -webkit-mask-image:
+        linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+      -webkit-mask-composite: source-in;
+      mask-image:
+        linear-gradient(90deg, transparent 0%, #000 9%, #000 91%, transparent 100%),
+        linear-gradient(180deg, #000 0%, #000 58%, transparent 100%);
+      mask-composite: intersect;
     }
   }
 
@@ -200,8 +201,7 @@ body {
   }
 
   /*
-   * Hub pages: clip so the absolute photo cannot paint into the checkout card;
-   * the mask still softens L/R/bottom into gray.
+   * Hub pages: clip so the absolute photo cannot paint into the checkout card.
    */
   .home-hero-banner--hub {
     overflow: hidden;
@@ -213,7 +213,7 @@ body {
   }
 
   .btn-checkout {
-    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cardon-blue to-cardon-orange px-6 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 disabled:opacity-50;
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cardon-blue to-[#014530] px-6 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-md transition hover:opacity-95 disabled:opacity-50;
   }
 
   .step-badge {

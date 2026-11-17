@@ -1163,8 +1163,8 @@ export const vi = {
     topupApiUrl: 'Topup API URL',
     agencyCode: 'Agency Code',
     clientCode: 'Client Code',
-    privateKey: 'Private Key (PEM)',
-    publicKey: 'Public Key (PEM)',
+    privateKey: 'Private Key client (PEM) — ký request + giải mã PIN',
+    publicKey: 'Public Key eSale (PEM) — verify chữ ký response (không phải key mình gửi eSale)',
     timeoutMs: 'Timeout (ms)',
     smtpHost: 'SMTP Host',
     smtpPort: 'SMTP Port',
@@ -1201,9 +1201,13 @@ export const vi = {
       'Nếu tắt, khách hàng sẽ không nhìn thấy dịch vụ Nạp data trên website. Dữ liệu cũ vẫn giữ nguyên.',
     customerEsimLabel: 'Cho phép khách hàng mua eSIM',
     customerEsimTooltip:
-      'Bật/tắt bán eSIM trên website khách hàng. Tắt không xóa đơn cũ và không cắt fulfillment.',
+      'Bật/tắt bán eSIM trên website khách hàng. Tắt không xóa đơn cũ và không cắt fulfillment. Cần thêm ESIM_ENABLED=true trên server thì storefront mới mở (salesOpen).',
     customerEsimHint:
       'Nếu tắt, khách thấy “Tạm dừng bán eSIM” và không tạo được đơn eSIM mới. Đơn đã thanh toán vẫn được xử lý.',
+    esimSalesOpenLabel: 'Storefront đang mở bán (salesOpen)',
+    esimEnvGateLabel: 'Cổng ENV ESIM_ENABLED',
+    esimSalesGateHint:
+      'Hai điều kiện: (1) checkbox phía trên và (2) ESIM_ENABLED trên server. Thiếu một trong hai → frontend vẫn báo tạm dừng.',
     esimOrderLimitTitle: 'Giới hạn đơn hàng eSIM',
     esimOrderLimitDesc:
       'Áp dụng riêng cho đơn hàng eSIM. Không ảnh hưởng giới hạn đơn thẻ game, thẻ điện thoại và nạp cước.',
@@ -1354,8 +1358,9 @@ export const vi = {
   },
   appearance: {
     title: 'Giao diện',
-    logoDesktop: 'Logo desktop',
-    logoMobile: 'Logo mobile',
+    logoDesktop: 'Logo desktop (header)',
+    logoMobile: 'Logo mobile (header)',
+    logoFooter: 'Logo footer (nền tối)',
     favicon: 'Favicon',
     ogDefault: 'Ảnh OpenGraph mặc định',
     headerMenu: 'Menu header',

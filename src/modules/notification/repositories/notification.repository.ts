@@ -40,7 +40,16 @@ export class NotificationRepository {
         orderItems: {
           include: {
             variant: {
-              select: { sku: true, name: true, type: true, faceValue: true },
+              select: {
+                sku: true,
+                name: true,
+                type: true,
+                faceValue: true,
+                product: { select: { name: true } },
+              },
+            },
+            esimProfile: {
+              select: { sharingLink: true, sharingAccessCode: true },
             },
             cardRecords: {
               select: {

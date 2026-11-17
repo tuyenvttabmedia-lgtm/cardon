@@ -195,7 +195,7 @@ export function EsimCountryPlans({
         <section id="thong-tin" className="mt-8 scroll-mt-24 rounded-2xl border border-[#e6edf5] bg-white p-4 shadow-sm sm:p-5">
           <h2 className="text-xl font-bold text-cardon-navy md:text-2xl">{t('esim.about')} · {country.name}</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5">
-            <Info icon={<SignalIcon />} title={t('esim.coverageLabel')} text={country.iso === 'ASIA' || country.iso === 'EUROPE' ? t('esim.coverageRegion') : t('esim.coverageNational')} />
+            <Info icon={<SignalIcon />} title={t('esim.coverageLabel')} text={country.iso === 'ASIA' || country.iso === 'EUROPE' || country.iso === 'WORLD' ? t('esim.coverageRegion') : t('esim.coverageNational')} />
             <Info icon={<AntennaIcon />} title={t('esim.network')} text={networkText} />
             <Info icon={<BoltIcon />} title={t('esim.networkType')} text={country.speedLabel || t('esim.speedFallback')} />
             <Info icon={<QrIcon />} title={t('esim.activate')} text={plans[0]?.activationLabel || t('esim.activateQr')} />

@@ -29,6 +29,15 @@ export class PaymentExpirationService {
         tx,
       );
 
+      // Do not expire the order while another PENDING invoice is still open (reopen race).
+      const remainingPending = await this.paymentRepository.countPendingForOrder(
+        payment.orderId,
+        tx,
+      );
+      if (remainingPending > 0) {
+        return;
+      }
+
       const order = await tx.order.findUnique({
         where: { id: payment.orderId },
         select: { paymentStatus: true },

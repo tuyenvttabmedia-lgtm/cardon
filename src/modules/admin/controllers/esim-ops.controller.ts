@@ -145,6 +145,11 @@ export class EsimOpsAdminController {
       installSecret: revealed.installSecret,
       qrSvg: revealed.qrSvg,
       appleSetupUrl: revealed.appleSetupUrl,
+      androidSetupUrl: revealed.androidSetupUrl,
+      smdpAddress: revealed.smdpAddress,
+      activationCode: revealed.activationCode,
+      sharingLink: revealed.sharingLink,
+      sharingAccessCode: revealed.sharingAccessCode,
     };
   }
 

@@ -565,12 +565,6 @@ export default function EsimCatalogAdminPage() {
         </div>
 
         {error ? <ErrorMessage message={error} /> : null}
-        {canCreateTestOrder ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-            «Tạo đơn kiểm thử» chỉ dành cho SUPER_ADMIN, tạo đơn thử gắn tài khoản admin.
-            Không mở bán công khai và không phải eSIM thương mại cho khách.
-          </p>
-        ) : null}
         {paypalSnapshot ? (
           <div className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
             <p className="font-medium">Đơn kiểm thử PayPal Sandbox {paypalSnapshot.orderCode}</p>

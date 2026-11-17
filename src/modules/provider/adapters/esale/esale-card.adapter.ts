@@ -114,8 +114,8 @@ export class EsaleCardAdapter {
       };
     }
 
+    // eSale signs the response with the `time` of THIS check request, not the original buycard time.
     const checkTime = Math.floor(Date.now() / 1000).toString();
-    const requestTime = context.providerRequestTime ?? checkTime;
 
     try {
       const response = await this.client.checkCardTransaction({
@@ -125,7 +125,10 @@ export class EsaleCardAdapter {
         time: checkTime,
       });
 
-      return this.mapCardResponse(response, { requestId, requestTime });
+      return this.mapCardResponse(response, {
+        requestId,
+        requestTime: checkTime,
+      });
     } catch (error) {
       return this.handleHttpError(error, requestId);
     }
@@ -175,7 +178,7 @@ export class EsaleCardAdapter {
         )
       ) {
         this.logger.warn(
-          `eSale response signature verification failed for transId=${params.requestId}`,
+          `eSale response signature verification failed for transId=${params.requestId} time=${params.requestTime} hasSignature=${Boolean(data.signature)} hasPublicKey=${Boolean(this.configService.getConfig().esalePublicKeyPem)}`,
         );
       }
 
@@ -247,13 +250,14 @@ export class EsaleCardAdapter {
   }
 
   private handleHttpError(error: unknown, requestId: string): ProviderResult {
-    if (error instanceof EsaleHttpError && error.timeout) {
+    // Any HTTP-layer failure after buyCard may already be applied at eSale — recover via check only.
+    if (error instanceof EsaleHttpError) {
       return {
         success: false,
         status: ProviderTransactionStatus.TIMEOUT,
         failureCode: 'TIMEOUT',
         message: error.message,
-        rawResponse: { requestId, timeout: true },
+        rawResponse: { requestId, timeout: error.timeout, ambiguousHttp: true },
       };
     }
 
@@ -262,10 +266,10 @@ export class EsaleCardAdapter {
     this.logger.error(`eSale card request failed requestId=${requestId}: ${message}`);
     return {
       success: false,
-      status: ProviderTransactionStatus.FAILED,
-      failureCode: 'UNKNOWN',
+      status: ProviderTransactionStatus.TIMEOUT,
+      failureCode: 'TIMEOUT',
       message,
-      rawResponse: { requestId },
+      rawResponse: { requestId, ambiguousHttp: true },
     };
   }
 }

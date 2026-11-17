@@ -346,12 +346,26 @@ export class EsimFulfillmentRepository {
     attemptId: string;
     installSecretEnc: string;
     iccid?: string | null;
+    sharingLink?: string | null;
+    sharingAccessCode?: string | null;
     testData?: boolean;
     source?: 'airalo' | 'mock';
   }): Promise<void> {
     const iccid =
       typeof input.iccid === 'string' && input.iccid.trim().length >= 10
         ? input.iccid.trim().slice(0, 32)
+        : null;
+    const sharingLink =
+      typeof input.sharingLink === 'string' &&
+      input.sharingLink.startsWith('https://') &&
+      input.sharingLink.length <= 512
+        ? input.sharingLink.trim()
+        : null;
+    const sharingAccessCode =
+      typeof input.sharingAccessCode === 'string' &&
+      input.sharingAccessCode.trim() &&
+      input.sharingAccessCode.trim().length <= 32
+        ? input.sharingAccessCode.trim()
         : null;
     await this.prisma.$transaction(async (tx) => {
       await tx.esimProfile.create({
@@ -360,6 +374,8 @@ export class EsimFulfillmentRepository {
           attemptId: input.attemptId,
           installSecretEnc: input.installSecretEnc,
           ...(iccid ? { iccid } : {}),
+          ...(sharingLink ? { sharingLink } : {}),
+          ...(sharingAccessCode ? { sharingAccessCode } : {}),
         },
       });
       const current = await tx.esimProviderAttempt.findUnique({

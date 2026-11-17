@@ -10,7 +10,6 @@ export function generateMetadata(): Promise<Metadata> {
   return localizedMetadata({
     title: 'eSIM du lịch quốc tế',
     path: '/esim',
-    robots: { index: false, follow: false },
     enTitle: translate('en', 'seo.esimTitle'),
     enDescription: translate('en', 'seo.esimDescription'),
   });

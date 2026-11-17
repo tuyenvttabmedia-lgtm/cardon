@@ -10,11 +10,12 @@ const config: Config = {
     extend: {
       colors: {
         cardon: {
-          navy: '#1E3A8A',
-          primary: '#1E3A8A',
-          blue: '#005BEA',
+          // UI brand tone #02603f (logo wordmark keeps its own greens).
+          navy: '#014530',
+          primary: '#02603f',
+          blue: '#02603f',
           orange: '#FF7A00',
-          green: '#00B889',
+          green: '#02603f',
           bg: '#F5F7FA',
           dark: '#0F172A',
           gray: '#6B7280',
@@ -23,12 +24,12 @@ const config: Config = {
           danger: '#EF4444',
         },
         brand: {
-          50: '#fff7ed',
-          100: '#ffedd5',
-          500: '#FF7A00',
-          600: '#FF7A00',
-          700: '#1E3A8A',
-          900: '#1E3A8A',
+          50: '#e8f5ef',
+          100: '#cfe8db',
+          500: '#02603f',
+          600: '#014f34',
+          700: '#014530',
+          900: '#012a1c',
         },
       },
       fontFamily: {

@@ -32,11 +32,11 @@ export function ServiceTrustBar({ className }: { className?: string }) {
           key={item.title}
           className={cn(
             'flex items-center gap-2.5 rounded-xl border border-cardon-border bg-white p-2.5 shadow-card transition-all duration-200 md:gap-3 md:rounded-2xl md:p-4',
-            'md:hover:-translate-y-0.5 md:hover:border-blue-100 md:hover:shadow-md',
+            'md:hover:-translate-y-0.5 md:hover:border-brand-100 md:hover:shadow-md',
           )}
         >
           <span
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 text-base md:text-lg"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-base md:text-lg"
             aria-hidden
           >
             {item.icon}

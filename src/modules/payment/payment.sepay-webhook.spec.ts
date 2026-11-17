@@ -124,20 +124,23 @@ describe('PaymentService — SePay webhooks', () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('rejects SePay webhook with wrong amount', async () => {
+  it('acks SePay amount-mismatch SUCCESS into manual review', async () => {
     const paymentRepository = {
       findByReference: jest.fn().mockResolvedValue(pendingPayment),
       findSuccessByProviderTransactionId: jest.fn().mockResolvedValue(null),
+      recordLateWebhookManualReview: jest.fn(),
     };
     const service = buildSePayService({ paymentRepository });
 
-    await expect(
-      service.handleWebhook(
-        'sepay',
-        sepayPayload({ transferAmount: 90000 }),
-        { Authorization: `Apikey ${SEPAY_CONFIG.apiKey}` },
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    const result = await service.handleWebhook(
+      'sepay',
+      sepayPayload({ transferAmount: 90000 }),
+      { Authorization: `Apikey ${SEPAY_CONFIG.apiKey}` },
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ ok: true, manualReview: true }),
+    );
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalled();
   });
 
   it('returns OK for unknown reference without failing', async () => {

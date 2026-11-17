@@ -4,6 +4,11 @@ export type EsimRevealPayload = {
   installSecret: string | null;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl?: string | null;
+  smdpAddress?: string | null;
+  activationCode?: string | null;
+  sharingLink?: string | null;
+  sharingAccessCode?: string | null;
 };
 
 /** Drop reveal state when the bound order is no longer the one on screen. */

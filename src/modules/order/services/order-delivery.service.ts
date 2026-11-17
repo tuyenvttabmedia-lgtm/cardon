@@ -15,7 +15,9 @@ import { CardEncryptionService } from '../../provider/services/card-encryption.s
 import { NotificationService } from '../../notification/services/notification.service';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import {
+  androidEsimSetupUrl,
   appleEsimSetupUrl,
+  splitLpaManualParts,
   buildEsimDelivery,
   destinationFromNames,
   emptyEsimDelivery,
@@ -195,10 +197,25 @@ export class OrderDeliveryService {
     }
 
     const display = lpaForDisplay(secret);
+    const manual = splitLpaManualParts(display);
+    const profile = item?.esimProfile;
+    const sharingLink =
+      typeof profile?.sharingLink === 'string' && profile.sharingLink.startsWith('https://')
+        ? profile.sharingLink
+        : null;
+    const sharingAccessCode =
+      typeof profile?.sharingAccessCode === 'string' && profile.sharingAccessCode.trim()
+        ? profile.sharingAccessCode.trim()
+        : null;
     return {
       installSecret: display,
       qrSvg: renderLpaQrSvg(secret),
       appleSetupUrl: isEsimTestSecret(secret) ? null : appleEsimSetupUrl(display),
+      androidSetupUrl: isEsimTestSecret(secret) ? null : androidEsimSetupUrl(display),
+      smdpAddress: manual?.smdpAddress ?? null,
+      activationCode: manual?.activationCode ?? null,
+      sharingLink: isEsimTestSecret(secret) ? null : sharingLink,
+      sharingAccessCode: isEsimTestSecret(secret) ? null : sharingAccessCode,
     };
   }
 

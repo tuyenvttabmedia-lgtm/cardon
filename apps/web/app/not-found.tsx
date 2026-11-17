@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <PageContainer className="flex min-h-[60vh] flex-col items-center justify-center text-center">
       <div className="rounded-2xl border border-cardon-border bg-white p-8 shadow-card md:p-12">
-        <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-blue-50 text-6xl" aria-hidden>
+        <div className="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-brand-50 text-6xl" aria-hidden>
           🔍
         </div>
         <h1 className="mt-6 text-6xl font-bold text-cardon-navy">404</h1>

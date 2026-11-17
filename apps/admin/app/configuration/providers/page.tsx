@@ -321,7 +321,11 @@ export default function SettingsProvidersPage() {
 
             <Label>{vi.settings.privateKey}</Label>
 
-            <Textarea className="mt-1 min-h-[80px] font-mono text-xs" value={form.privateKey ?? ''} onChange={(e) => setForm({ ...form, privateKey: e.target.value })} placeholder="-----BEGIN RSA PRIVATE KEY-----" />
+            <Textarea className="mt-1 min-h-[80px] font-mono text-xs" value={form.privateKey ?? ''} onChange={(e) => setForm({ ...form, privateKey: e.target.value })} placeholder="-----BEGIN PRIVATE KEY-----" />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Key cặp client — public tương ứng đã gửi eSale để họ verify request / mã hóa PIN.
+            </p>
 
           </div>
 
@@ -329,7 +333,12 @@ export default function SettingsProvidersPage() {
 
             <Label>{vi.settings.publicKey}</Label>
 
-            <Textarea className="mt-1 min-h-[80px] font-mono text-xs" value={form.publicKey ?? ''} onChange={(e) => setForm({ ...form, publicKey: e.target.value })} />
+            <Textarea className="mt-1 min-h-[80px] font-mono text-xs" value={form.publicKey ?? ''} onChange={(e) => setForm({ ...form, publicKey: e.target.value })} placeholder="-----BEGIN PUBLIC KEY-----" />
+
+            <p className="mt-1 text-xs text-slate-500">
+              Public key <strong>do eSale cấp</strong> để verify <code>data.signature</code> khi mua thẻ.
+              Không dán public key mình gửi cho eSale vào ô này.
+            </p>
 
           </div>
 

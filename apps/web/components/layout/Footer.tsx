@@ -12,7 +12,6 @@ import {
   type FooterColumn,
 } from '@/lib/footer-config';
 import { isOptimizableImageSrc, optimizerImageSrc, resolveAssetUrl } from '@/lib/assets';
-import { backgroundLayer } from '@/lib/home-backgrounds';
 import { SITE_NAME, cn } from '@/lib/utils';
 import { stripLocalePrefix } from '@/lib/i18n/locale';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
@@ -63,7 +62,20 @@ function FooterHref({
   );
 }
 
-function FooterColumnLinks({ col }: { col: FooterColumn }) {
+function isAboutCardonColumn(col: FooterColumn): boolean {
+  const title = `${col.title ?? ''} ${col.titleEn ?? ''}`.toLowerCase();
+  return title.includes('về cardon') || title.includes('ve cardon') || title.includes('about cardon');
+}
+
+function FooterColumnLinks({
+  col,
+  companyInfo,
+  showBoCongThuong,
+}: {
+  col: FooterColumn;
+  companyInfo?: CompanyInfo;
+  showBoCongThuong?: boolean;
+}) {
   const { locale } = useLocale();
   const title = resolveThemeTitle(locale, col);
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
@@ -83,57 +95,69 @@ function FooterColumnLinks({ col }: { col: FooterColumn }) {
           );
         })}
       </ul>
+      {showBoCongThuong && companyInfo ? (
+        <BoCongThuongBadge company={companyInfo} variant="desktop" className="mt-[35px]" />
+      ) : null}
     </div>
+  );
+}
+
+function FooterBrandLogo({ logoSrc }: { logoSrc?: string | null }) {
+  if (!logoSrc) {
+    return <p className="text-lg font-semibold text-white">{SITE_NAME}</p>;
+  }
+  const optimized = optimizerImageSrc(logoSrc) ?? logoSrc;
+  return (
+    <Link
+      href="/"
+      className="relative inline-block h-8 w-[min(180px,48vw)] shrink-0 sm:h-9 sm:w-[200px]"
+    >
+      {isOptimizableImageSrc(optimized) ? (
+        <Image
+          src={optimized}
+          alt="CardOn.vn"
+          fill
+          sizes="(max-width: 640px) 180px, 200px"
+          quality={60}
+          className="object-contain object-left"
+        />
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element -- remote non-optimizer logo
+        <img
+          src={logoSrc}
+          alt="CardOn.vn"
+          width={200}
+          height={36}
+          className="h-full w-full object-contain object-left"
+        />
+      )}
+    </Link>
   );
 }
 
 function BrandColumn({
   col,
-  companyInfo,
   logoSrc,
+  logoAccessory,
 }: {
   col: FooterColumn;
-  companyInfo: CompanyInfo;
   logoSrc?: string | null;
+  /** Optional node rendered on the same row as the logo (mobile BCT badge). */
+  logoAccessory?: ReactNode;
 }) {
   const { locale } = useLocale();
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
   return (
     <div className="min-w-0">
-      {logoSrc ? (
-        <Link
-          href="/"
-          className="relative mb-4 inline-block h-8 w-[min(180px,48vw)] sm:h-9 sm:w-[200px]"
-        >
-          {(() => {
-            const optimized = optimizerImageSrc(logoSrc) ?? logoSrc;
-            if (isOptimizableImageSrc(optimized)) {
-              return (
-                <Image
-                  src={optimized}
-                  alt="CardOn.vn"
-                  fill
-                  sizes="(max-width: 640px) 180px, 200px"
-                  quality={60}
-                  className="object-contain object-left"
-                />
-              );
-            }
-            return (
-              // eslint-disable-next-line @next/next/no-img-element -- remote non-optimizer logo
-              <img
-                src={logoSrc}
-                alt="CardOn.vn"
-                width={200}
-                height={36}
-                className="h-full w-full object-contain object-left"
-              />
-            );
-          })()}
-        </Link>
-      ) : (
-        <p className="mb-3 text-lg font-semibold text-white">{SITE_NAME}</p>
-      )}
+      <div
+        className={cn(
+          'mb-4',
+          logoAccessory ? 'flex items-center justify-between gap-3' : undefined,
+        )}
+      >
+        <FooterBrandLogo logoSrc={logoSrc} />
+        {logoAccessory}
+      </div>
       {description ? (
         <p className="max-w-md text-sm leading-relaxed text-white/70">{description}</p>
       ) : null}
@@ -149,17 +173,25 @@ function BrandColumn({
           );
         })}
       </ul>
-      <BoCongThuongBadge company={companyInfo} className="mt-4 lg:hidden" />
     </div>
   );
 }
 
+/** CMS badge PNG is 230×86 with ~10px transparent left padding. */
+const BCT_BADGE_NATIVE_W = 230;
+const BCT_BADGE_NATIVE_H = 86;
+const BCT_BADGE_CROP_LEFT = 10;
+const BCT_BADGE_VISIBLE_W = BCT_BADGE_NATIVE_W - BCT_BADGE_CROP_LEFT;
+
 function BoCongThuongBadge({
   company,
   className,
+  variant = 'desktop',
 }: {
   company: CompanyInfo;
   className?: string;
+  /** desktop: fixed max width; mobile: match footer logo height (h-8). */
+  variant?: 'desktop' | 'mobile';
 }) {
   const { locale } = useLocale();
   const badge = resolveBoCongThuongBadge(company, locale);
@@ -170,14 +202,28 @@ function BoCongThuongBadge({
       href={badge.linkUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className={cn('inline-block max-w-[148px] opacity-90 transition hover:opacity-100', className)}
+      className={cn(
+        // Clip left PNG pad; size by one axis so aspect stays true (no stretch)
+        'relative block overflow-hidden',
+        variant === 'mobile'
+          ? 'h-8 w-auto shrink-0 sm:h-9'
+          : 'w-full max-w-[176px]',
+        className,
+      )}
+      style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
       aria-label={badge.alt}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- CMS-uploaded badge URL */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- CMS PNG; preserve native aspect */}
       <img
         src={badge.imageUrl}
         alt={badge.alt}
-        className="h-11 w-auto max-w-[168px] object-contain object-left sm:h-12 sm:max-w-[180px]"
+        width={BCT_BADGE_NATIVE_W}
+        height={BCT_BADGE_NATIVE_H}
+        decoding="async"
+        className="absolute top-0 h-full w-auto max-w-none"
+        style={{
+          left: `${(-BCT_BADGE_CROP_LEFT / BCT_BADGE_VISIBLE_W) * 100}%`,
+        }}
       />
     </a>
   );
@@ -219,22 +265,64 @@ function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
               </svg>
             </button>
             {isOpen ? (
-              <ul className="space-y-2.5 pb-4 text-sm">
-                {col.links.map((link) => {
-                  const label = presentFooterLink(locale, link);
-                  return (
-                    <li key={`${col.title}-${link.href}-${link.label}`}>
-                      <FooterHref href={link.href} className={footerLinkClass}>
-                        {label}
-                      </FooterHref>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="pb-4">
+                <ul className="space-y-2.5 text-sm">
+                  {col.links.map((link) => {
+                    const label = presentFooterLink(locale, link);
+                    return (
+                      <li key={`${col.title}-${link.href}-${link.label}`}>
+                        <FooterHref href={link.href} className={footerLinkClass}>
+                          {label}
+                        </FooterHref>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             ) : null}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function FooterSocialIcons({
+  fanpageHref,
+  zaloHref,
+  className,
+}: {
+  fanpageHref?: string;
+  zaloHref?: string;
+  className?: string;
+}) {
+  if (!fanpageHref && !zaloHref) return null;
+  return (
+    <div className={cn('flex items-center gap-2', className)} aria-label="Mạng xã hội">
+      {fanpageHref ? (
+        <a
+          href={fanpageHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] transition hover:bg-[#1877F2]/25"
+          aria-label="Facebook"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
+          </svg>
+        </a>
+      ) : null}
+      {zaloHref ? (
+        <a
+          href={zaloHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#0068FF]/40 bg-[#0068FF]/15 text-[10px] font-bold text-[#0068FF] transition hover:bg-[#0068FF]/25"
+          aria-label="Zalo"
+        >
+          Zalo
+        </a>
+      ) : null}
     </div>
   );
 }
@@ -255,16 +343,21 @@ function FooterBottomBar({
     '';
   const fanpage = contactChannels.find((c) => c.key === 'fanpage' && c.enabled);
   const zalo = contactChannels.find((c) => c.key === 'zalo' && c.enabled);
-  const badge = resolveBoCongThuongBadge(companyInfo);
 
   return (
     <div className="border-t border-white/10">
-      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-6">
+        {/* Mobile: BCT left + FB/Zalo beside it, under the rule below “Hỗ trợ” */}
+        <div className="flex items-center justify-start gap-3 lg:hidden">
+          <BoCongThuongBadge company={companyInfo} variant="mobile" />
+          <FooterSocialIcons fanpageHref={fanpage?.href} zaloHref={zalo?.href} />
+        </div>
+
         <span className="shrink-0 text-xs leading-none text-white/50">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </span>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-center">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-end">
           <nav
             aria-label="Liên hệ nhanh"
             className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5"
@@ -290,43 +383,12 @@ function FooterBottomBar({
             </Link>
           </nav>
 
-          {(fanpage?.href || zalo?.href) && (
-            <div className="flex items-center gap-2" aria-label="Mạng xã hội">
-              {fanpage?.href ? (
-                <a
-                  href={fanpage.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
-                  aria-label="Facebook"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
-                  </svg>
-                </a>
-              ) : null}
-              {zalo?.href ? (
-                <a
-                  href={zalo.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[10px] font-bold text-white transition hover:border-cardon-orange hover:bg-cardon-orange/15 hover:text-cardon-orange"
-                  aria-label="Zalo"
-                >
-                  Zalo
-                </a>
-              ) : null}
-            </div>
-          )}
+          <FooterSocialIcons
+            fanpageHref={fanpage?.href}
+            zaloHref={zalo?.href}
+            className="hidden lg:flex"
+          />
         </div>
-
-        {badge ? (
-          <div className="hidden flex-wrap items-center gap-3 lg:flex lg:justify-end" aria-label="Chứng nhận">
-            <BoCongThuongBadge company={companyInfo} />
-          </div>
-        ) : (
-          <span className="hidden lg:block" aria-hidden />
-        )}
       </div>
     </div>
   );
@@ -336,13 +398,8 @@ export function Footer() {
   const pathname = usePathname();
   const t = useT();
   const { locale } = useLocale();
-  const { footerColumns, companyInfo, logoDesktop, homeBackgrounds, contactChannels } =
-    useThemeSettings();
+  const { footerColumns, companyInfo, contactChannels, logoFooter } = useThemeSettings();
   const home = stripLocalePrefix(pathname || '/').pathname === '/';
-  const homeLogo = home ? resolveAssetUrl(logoDesktop) : null;
-  const footerArt = home
-    ? backgroundLayer(homeBackgrounds.siteFooterBg, 'center bottom', '100% auto')
-    : undefined;
   const copyrightName =
     locale === 'en' && companyInfo.companyNameEn?.trim()
       ? companyInfo.companyNameEn.trim()
@@ -350,16 +407,15 @@ export function Footer() {
 
   const brandColumn = footerColumns[0];
   const linkColumns = footerColumns.slice(1);
+  const aboutLinkIndex = linkColumns.findIndex(isAboutCardonColumn);
+  const boCongThuongColumnIndex = aboutLinkIndex >= 0 ? aboutLinkIndex : 0;
 
   useEffect(() => {
     console.log(`WEB_BUILD_VERSION=${WEB_BUILD_VERSION}`);
   }, []);
 
   return (
-    <footer
-      className={`mt-auto border-t border-cardon-border pb-20 text-white md:pb-0 ${home ? 'bg-[#021a4a]' : 'bg-cardon-navy'}`}
-      style={footerArt}
-    >
+    <footer className="mt-auto border-t border-cardon-border bg-[#0B0F0C] pb-20 text-white md:pb-0">
       {home ? null : (
         <div className="site-container grid gap-6 py-8 sm:grid-cols-2 lg:grid-cols-4">
           {TRUST_ITEMS.map((item) => (
@@ -376,13 +432,13 @@ export function Footer() {
         </div>
       )}
 
-      <div className={`border-t border-white/10 ${home ? 'bg-transparent' : 'bg-[#152d6b]'}`}>
+      <div className="border-t border-white/10 bg-[#111827]">
         <div className="site-container py-10 lg:py-12">
-          {/* Mobile: brand + Keyon-style accordion */}
+          {/* Mobile: brand + Keyon-style accordion (BCT is in FooterBottomBar) */}
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
-                <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
+                <BrandColumn col={brandColumn} logoSrc={logoFooter} />
               </div>
             ) : null}
             <FooterAccordions columns={linkColumns} />
@@ -399,15 +455,14 @@ export function Footer() {
                   : 'lg:grid-cols-2',
             )}
           >
-            {brandColumn ? (
-              <BrandColumn col={brandColumn} companyInfo={companyInfo} logoSrc={homeLogo} />
-            ) : null}
+            {brandColumn ? <BrandColumn col={brandColumn} logoSrc={logoFooter} /> : null}
             {linkColumns.map((col, index) => (
               <div key={`${col.title}-${index}`} className="min-w-0">
-                <FooterColumnLinks col={col} />
-                {index === linkColumns.length - 1 ? (
-                  <BoCongThuongBadge company={companyInfo} className="mt-4" />
-                ) : null}
+                <FooterColumnLinks
+                  col={col}
+                  companyInfo={companyInfo}
+                  showBoCongThuong={index === boCongThuongColumnIndex}
+                />
               </div>
             ))}
           </div>

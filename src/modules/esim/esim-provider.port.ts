@@ -40,6 +40,10 @@ export interface EsimOrderResult {
   installSecret?: string;
   /** Airalo SIM ICCID when present on the order/sim payload. */
   iccid?: string;
+  /** eSIMs Cloud share URL from Airalo `sharing.link`. */
+  sharingLink?: string;
+  /** Passcode for sharingLink from Airalo `sharing.access_code` (not LPA). */
+  sharingAccessCode?: string;
 }
 
 export interface EsimProviderPort {

@@ -1392,6 +1392,7 @@ export const settingsAdminApi = {
     clientId?: string;
     clientSecret?: string;
     webhookId?: string;
+    esimEnabled?: boolean;
   }) {
     return apiRequest<PaymentPaypalSettings>('/admin/settings/payment/paypal', {
       method: 'PUT',

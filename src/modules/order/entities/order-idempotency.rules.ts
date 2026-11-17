@@ -1,15 +1,14 @@
 /**
  * Checkout / payment idempotency rules (Phase 2D.1 — documented).
  *
- * Legacy Order Core does NOT deduplicate rapid double-clicks on POST /orders.
- * Each card/topup submit creates a new order + financial_transaction row.
- * eSIM lane reuses an in-flight order for the same user + variant (no schema change).
+ * Retail B2C POST /orders requires Idempotency-Key → orders.checkout_idempotency_key.
+ * Same key returns the original order (owner / guestEmail checked). eSIM lane still has its
+ * own in-flight reuse for user+variant.
  *
- * Payment phase MUST implement:
+ * Payment phase:
  *
- * 1. Idempotency-Key header on checkout → payment creation
- *    - Same key within TTL returns existing payment_url (HTTP 200)
- *    - Key scoped to: userId OR guestEmail + cart fingerprint
+ * 1. Idempotency-Key header on payment creation
+ *    - Same key returns existing payment_url (HTTP 200)
  *
  * 2. payments.payment_reference as webhook idempotency key (per 06_ORDER_FULFILLMENT.md)
  *
@@ -20,7 +19,7 @@
 export const ORDER_IDEMPOTENCY_RULES = {
   orderCreation: {
     currentBehavior:
-      'Legacy POST /orders creates a new order (no dedup). eSIM reuses in-flight user+variant orders.',
+      'POST /orders with Idempotency-Key stores orders.checkout_idempotency_key and replays the same order. eSIM also reuses in-flight user+variant orders.',
     paymentPhaseRequirement:
       'Idempotency-Key on payment creation; webhook uses payment_reference',
   },

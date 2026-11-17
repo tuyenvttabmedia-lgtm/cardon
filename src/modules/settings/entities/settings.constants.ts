@@ -85,8 +85,9 @@ export interface StoredPaymentMethod {
   /** Retail card/topup checkout. */
   enabled: boolean;
   /**
-   * eSIM VN lane only (MegaPay VNPAYQR / ZALOPAY). Independent of `enabled`
-   * so retail can stay VietQR-only while eSIM offers wallet/QR.
+   * eSIM lane toggle. Independent of retail `enabled`.
+   * MegaPay: DEPOSIT_CODE / VNPAYQR / ZALOPAY. SePay: VIETQR.
+   * PayPal uses settings.payment.paypal.esimEnabled (not this row).
    */
   esimEnabled?: boolean;
   percentageFee: number;
@@ -103,6 +104,7 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     logoUrl: null,
     settlementType: 'DIRECT_TO_MERCHANT',
     enabled: true,
+    esimEnabled: false,
     percentageFee: 0,
     fixedFee: 300,
   },
@@ -115,6 +117,7 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
     logoUrl: null,
     settlementType: 'DIRECT_TO_MERCHANT',
     enabled: false,
+    esimEnabled: false,
     percentageFee: 0.3,
     fixedFee: 0,
   },
@@ -161,12 +164,29 @@ export const DEFAULT_PAYMENT_METHODS: StoredPaymentMethod[] = [
   },
 ];
 
-/** MegaPay methods that may be armed for eSIM VN (not DEPOSIT_CODE / VA). */
-export const ESIM_MEGAPAY_METHOD_CODES = ['VNPAYQR', 'ZALOPAY'] as const;
+/** MegaPay PG methods that may be armed for eSIM (all three retail PG methods). */
+export const ESIM_MEGAPAY_METHOD_CODES = ['DEPOSIT_CODE', 'VNPAYQR', 'ZALOPAY'] as const;
 export type EsimMegapayMethodCode = (typeof ESIM_MEGAPAY_METHOD_CODES)[number];
 
 export function isEsimMegapayMethodCode(code: string): code is EsimMegapayMethodCode {
   return (ESIM_MEGAPAY_METHOD_CODES as readonly string[]).includes(code.trim().toUpperCase());
+}
+
+/** SePay methods wired for eSIM Payment Gateway (BANK_TRANSFER / VietQR). */
+export const ESIM_SEPAY_METHOD_CODES = ['VIETQR'] as const;
+export type EsimSepayMethodCode = (typeof ESIM_SEPAY_METHOD_CODES)[number];
+
+export function isEsimSepayMethodCode(code: string): code is EsimSepayMethodCode {
+  return (ESIM_SEPAY_METHOD_CODES as readonly string[]).includes(code.trim().toUpperCase());
+}
+
+/** True when the method row can expose an eSIM toggle in admin. */
+export function isEsimToggleableMethod(gatewayCode: string, methodCode: string): boolean {
+  const gateway = gatewayCode.trim().toUpperCase();
+  const code = methodCode.trim().toUpperCase();
+  if (gateway === 'MEGAPAY') return isEsimMegapayMethodCode(code);
+  if (gateway === 'SEPAY') return isEsimSepayMethodCode(code);
+  return false;
 }
 
 /** @deprecated eSIM Go API token. Kept for cleanup / audit of old settings only. */

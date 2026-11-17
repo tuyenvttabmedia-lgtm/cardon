@@ -241,20 +241,28 @@ export class SettingsAdminService {
         'PayPal LIVE requires client id, client secret, and webhook id. Mode was not changed.',
       );
     }
+    const nextEsimEnabled =
+      typeof dto.esimEnabled === 'boolean' ? dto.esimEnabled : current.esimEnabled === true;
     const next: StoredPaymentPaypal = {
-      esimEnabled: current.esimEnabled === true,
+      esimEnabled: nextEsimEnabled,
       mode: nextMode === 'live' ? 'live' : 'sandbox',
       clientIdEnc: this.mergeSecretField(dto.clientId, current.clientIdEnc),
       clientSecretEnc: this.mergeSecretField(dto.clientSecret, current.clientSecretEnc),
       webhookIdEnc: this.mergeSecretField(dto.webhookId, current.webhookIdEnc),
     };
-    const changed = ['mode', 'clientId', 'clientSecret', 'webhookId'];
+    const changed = ['mode', 'clientId', 'clientSecret', 'webhookId', 'esimEnabled'];
+    const afterFlags = { ...beforeFlags, paypalEsimEnabled: nextEsimEnabled };
     await this.persist(
       adminId,
       SETTINGS_KEYS.PAYMENT_PAYPAL,
       next as Prisma.InputJsonValue,
       changed,
-      this.paypalAuditMeta(current.mode ?? 'sandbox', next.mode ?? 'sandbox', beforeFlags),
+      this.paypalAuditMeta(
+        current.mode ?? 'sandbox',
+        next.mode ?? 'sandbox',
+        beforeFlags,
+        afterFlags,
+      ),
     );
     return this.getPaymentPaypal();
   }
@@ -783,17 +791,18 @@ export class SettingsAdminService {
   private paypalAuditMeta(
     modeBefore: string,
     modeAfter: string,
-    flags: { paypalEsimEnabled: boolean; customerEsimEnabled: boolean; salesOpen: boolean },
+    before: { paypalEsimEnabled: boolean; customerEsimEnabled: boolean; salesOpen: boolean },
+    after: { paypalEsimEnabled: boolean; customerEsimEnabled: boolean; salesOpen: boolean } = before,
   ) {
     return {
       modeBefore,
       modeAfter,
-      paypalEsimEnabledBefore: flags.paypalEsimEnabled,
-      paypalEsimEnabledAfter: flags.paypalEsimEnabled,
-      customerEsimEnabledBefore: flags.customerEsimEnabled,
-      customerEsimEnabledAfter: flags.customerEsimEnabled,
-      salesOpenBefore: flags.salesOpen,
-      salesOpenAfter: flags.salesOpen,
+      paypalEsimEnabledBefore: before.paypalEsimEnabled,
+      paypalEsimEnabledAfter: after.paypalEsimEnabled,
+      customerEsimEnabledBefore: before.customerEsimEnabled,
+      customerEsimEnabledAfter: after.customerEsimEnabled,
+      salesOpenBefore: before.salesOpen,
+      salesOpenAfter: after.salesOpen,
     };
   }
 

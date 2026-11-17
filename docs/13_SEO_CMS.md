@@ -30,6 +30,7 @@ CMS content is separate from the product/order engine. Catalog prices come from 
 | FAQ hub | `/tro-giup` | |
 | FAQ detail | `/tro-giup/{category}/{slug}` | |
 | Agent register | `/dang-ky-dai-ly` | |
+| eSIM hub | `/esim` | Indexable; also `/esim/diem-den`, `/esim/quoc-gia/{iso}` |
 | Static CMS pages | `/{slug}` | e.g. `/gioi-thieu`, policies |
 
 ### Legacy redirects (permanent)
@@ -43,6 +44,7 @@ CMS content is separate from the product/order engine. Catalog prices come from 
 | `/partner/register` | `/dang-ky-dai-ly` |
 | `/huong-dan` | `/tin-tuc/huong-dan` |
 | `/khuyen-mai` | `/tin-tuc/khuyen-mai` |
+| `/tin-tuc/{cat}/{slug}/{slug}` | `/tin-tuc/{cat}/{slug}` (duplicate-slug 404 cleanup) |
 | `/account` | `/tai-khoan` |
 
 Private routes (`/login`, `/checkout`, `/tai-khoan`, `/orders`, …) are **noindex** and listed in `robots.txt` Disallow.

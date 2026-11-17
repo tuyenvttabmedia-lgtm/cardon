@@ -18,6 +18,9 @@ import { airaloNumericId, airaloOrderCode } from './esim-airalo-code';
 import { ESIM_PROVIDER_PORT, EsimProviderPort } from './esim-provider.port';
 import { ESIM_LIVE_HTTP_DISABLED, ESIM_TEST_MARKER } from './esim.constants';
 import { isEsimTestSecret } from './esim-delivery.view';
+import { EsimTopupService } from './esim-topup.service';
+import { readEsimTopupTrace } from './esim-usage.rules';
+import { PrismaService } from '../../database/prisma.service';
 
 export interface EsimFulfillmentResult {
   orderId: string;
@@ -51,15 +54,28 @@ export class EsimFulfillmentService {
     @Optional() private readonly settings?: SettingsStoreService,
     @Optional() private readonly notifications?: NotificationService,
     @Optional() private readonly getLease?: EsimGetLease,
+    @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly topups?: EsimTopupService,
   ) {}
 
   async fulfill(
     orderId: string,
     options?: { simulateTimeout?: boolean },
   ): Promise<EsimFulfillmentResult> {
+    const result = await this.fulfillCore(orderId, options);
+    await this.alertOpsIfNeeded(result);
+    return result;
+  }
+
+  private async fulfillCore(
+    orderId: string,
+    options?: { simulateTimeout?: boolean },
+  ): Promise<EsimFulfillmentResult> {
     const skipped = await this.skippedAdminTest(orderId);
     if (skipped) return skipped;
     await this.settings?.reload();
+    const topup = await this.fulfillTopupIfNeeded(orderId);
+    if (topup) return topup;
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
       throw new NotFoundException('eSIM quote not found');
@@ -140,6 +156,24 @@ export class EsimFulfillmentService {
         fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
         created: false,
       };
+    }
+  }
+
+  private async alertOpsIfNeeded(result: EsimFulfillmentResult): Promise<void> {
+    if (
+      result.fulfillmentStatus !== FulfillmentStatus.WAITING_ADMIN_RETRY &&
+      result.fulfillmentStatus !== FulfillmentStatus.NEED_MANUAL_REVIEW
+    ) {
+      return;
+    }
+    try {
+      await this.notifications?.notifyAdminRetryRequired(result.orderId, {
+        message: `eSIM fulfillment ${result.fulfillmentStatus}`,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `eSIM ops alert failed for ${result.orderId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -273,7 +307,11 @@ export class EsimFulfillmentService {
             openCreate.attemptId,
             install.installSecret,
             false,
-            install.iccid,
+            {
+              iccid: install.iccid,
+              sharingLink: install.sharingLink,
+              sharingAccessCode: install.sharingAccessCode,
+            },
           );
           return {
             queried: true,
@@ -526,6 +564,70 @@ export class EsimFulfillmentService {
     return review;
   }
 
+  /** Paid customer top-up: Airalo POST /orders/topups — no new install profile. */
+  private async fulfillTopupIfNeeded(orderId: string): Promise<EsimFulfillmentResult | null> {
+    if (!this.prisma || !this.topups) return null;
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { clientTrace: true, fulfillmentStatus: true, paymentStatus: true },
+    });
+    const trace = readEsimTopupTrace(order?.clientTrace);
+    if (!trace) return null;
+    if (order?.fulfillmentStatus === FulfillmentStatus.COMPLETED) {
+      return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED, created: false };
+    }
+    if (order?.paymentStatus !== 'PAID') {
+      return {
+        orderId,
+        fulfillmentStatus: order?.fulfillmentStatus ?? FulfillmentStatus.PENDING,
+        created: false,
+      };
+    }
+    try {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.PROVIDER_REQUEST,
+        'eSIM top-up started',
+      );
+      const result = await this.topups.submit(
+        trace.iccid,
+        trace.packageId,
+        `cardon-topup-${orderId}`,
+      );
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.COMPLETED },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.PROVIDER_SUCCESS,
+        `eSIM top-up applied (${result.providerOrderCode ?? result.orderReference ?? trace.packageId})`,
+      );
+      return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED, created: false };
+    } catch (error) {
+      const message = error instanceof Error ? error.message.slice(0, 200) : 'top-up failed';
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.ORDER_NEED_SUPPORT,
+        `eSIM top-up failed: ${message}`,
+      );
+      this.logger.warn(`eSIM top-up fulfill failed order=${orderId}: ${message}`);
+      return {
+        orderId,
+        fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+        created: false,
+      };
+    }
+  }
+
   /** Persisted clientTrace.adminTest only. A replayed job still stops here. */
   private async skippedAdminTest(orderId: string): Promise<EsimFulfillmentResult | null> {
     const skip = this.repository.skipAdminTestFulfillment;
@@ -582,8 +684,10 @@ export class EsimFulfillmentService {
       });
       let installSecret = this.cleanInstallSecret(result.installSecret);
       let iccid = this.cleanIccid(result.iccid);
+      let sharingLink = this.cleanSharingLink(result.sharingLink);
+      let sharingAccessCode = this.cleanSharingAccessCode(result.sharingAccessCode);
       this.logger.log(
-        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)} hasIccid=${Boolean(iccid)}`,
+        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)} hasIccid=${Boolean(iccid)} hasShare=${Boolean(sharingLink)}`,
       );
       if (!reference && !ids.numericId && !ids.orderCode) {
         await this.repository.markUnconfirmed(inserted.attemptId, quote.orderItemId);
@@ -630,6 +734,8 @@ export class EsimFulfillmentService {
           } else {
             installSecret = leased.value.installSecret;
             iccid = iccid ?? leased.value.iccid;
+            sharingLink = sharingLink ?? leased.value.sharingLink;
+            sharingAccessCode = sharingAccessCode ?? leased.value.sharingAccessCode;
             await this.repository.closeQueryAttempt({
               attemptId: queryClaim.attemptId,
               failed: !installSecret,
@@ -647,7 +753,7 @@ export class EsimFulfillmentService {
         inserted.attemptId,
         installSecret,
         true,
-        iccid,
+        { iccid, sharingLink, sharingAccessCode },
       );
     } catch (error) {
       const message = this.safeErrorMessage(error);
@@ -703,7 +809,11 @@ export class EsimFulfillmentService {
         attemptId,
         install.installSecret,
         false,
-        install.iccid,
+        {
+          iccid: install.iccid,
+          sharingLink: install.sharingLink,
+          sharingAccessCode: install.sharingAccessCode,
+        },
       );
     } catch (error) {
       await this.repository.markUnconfirmed(
@@ -749,7 +859,12 @@ export class EsimFulfillmentService {
     numericId?: string;
     orderCode?: string;
     fallback?: string;
-  }): Promise<{ installSecret?: string; iccid?: string }> {
+  }): Promise<{
+    installSecret?: string;
+    iccid?: string;
+    sharingLink?: string;
+    sharingAccessCode?: string;
+  }> {
     if (!this.provider.getInstallDetails) return {};
     const lookups = [ids.numericId, ids.orderCode, ids.fallback].filter(
       (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index,
@@ -759,7 +874,14 @@ export class EsimFulfillmentService {
         const details = await this.provider.getInstallDetails(lookup);
         const secret = this.cleanInstallSecret(details.installSecret);
         const iccid = this.cleanIccid(details.iccid);
-        if (secret) return { installSecret: secret, iccid };
+        if (secret) {
+          return {
+            installSecret: secret,
+            iccid,
+            sharingLink: this.cleanSharingLink(details.sharingLink),
+            sharingAccessCode: this.cleanSharingAccessCode(details.sharingAccessCode),
+          };
+        }
       } catch {
         // GET 422 is not proof the order was never created. Try the next identifier.
       }
@@ -788,13 +910,29 @@ export class EsimFulfillmentService {
     return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
   }
 
+  private cleanSharingLink(value: string | null | undefined): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.startsWith('https://') && trimmed.length <= 512 ? trimmed : undefined;
+  }
+
+  private cleanSharingAccessCode(value: string | null | undefined): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed && trimmed.length <= 32 ? trimmed : undefined;
+  }
+
   private async storeInstallSecret(
     orderId: string,
     orderItemId: string,
     attemptId: string,
     installSecret: string,
     created: boolean,
-    iccid?: string,
+    extras?: {
+      iccid?: string;
+      sharingLink?: string;
+      sharingAccessCode?: string;
+    },
   ): Promise<EsimFulfillmentResult> {
     const testData = isEsimTestSecret(installSecret) || installSecret.includes(ESIM_TEST_MARKER);
     try {
@@ -802,7 +940,9 @@ export class EsimFulfillmentService {
         orderItemId,
         attemptId,
         installSecretEnc: this.encryption.encrypt(installSecret),
-        iccid: this.cleanIccid(iccid),
+        iccid: this.cleanIccid(extras?.iccid),
+        sharingLink: this.cleanSharingLink(extras?.sharingLink),
+        sharingAccessCode: this.cleanSharingAccessCode(extras?.sharingAccessCode),
         testData,
         source: 'airalo',
       });

@@ -202,10 +202,13 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     body.set('package_id', packageId);
     body.set('quantity', String(Math.max(1, Math.min(50, quantity))));
     body.set('type', 'sim');
+    const brand = (this.config?.get<string>('airalo.brandSettingsName') ?? '').trim();
+    if (brand) body.set('brand_settings_name', brand);
+    // Never pass to_email / sharing_option — CardOn sends its own customer email.
     return this.send('POST', '/v2/orders', body).then((parsed) => {
       const result = this.readOrder(parsed);
       this.logger.log(
-        `Airalo CREATE parsed ref=${result.orderReference ?? 'none'} hasLpa=${Boolean(result.installSecret)}`,
+        `Airalo CREATE parsed ref=${result.orderReference ?? 'none'} hasLpa=${Boolean(result.installSecret)} hasShare=${Boolean(result.sharingLink)}`,
       );
       return result;
     });
@@ -403,10 +406,12 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     const sims = Array.isArray(data.sims) ? data.sims : [];
     let installSecret: string | undefined;
     let iccid: string | undefined;
+    let sharing = readAiraloSharing(data);
     for (const sim of sims) {
       if (!installSecret) installSecret = readAiraloInstallSecret(sim);
       if (!iccid) iccid = readAiraloIccid(sim);
-      if (installSecret && iccid) break;
+      if (!sharing) sharing = readAiraloSharing(sim);
+      if (installSecret && iccid && sharing) break;
     }
     return {
       orderReference,
@@ -417,7 +422,39 @@ export class EsimAiraloAdapter implements EsimProviderPort {
       total: typeof data.price === 'number' ? data.price : undefined,
       installSecret,
       iccid,
+      sharingLink: sharing?.link,
+      sharingAccessCode: sharing?.accessCode,
     };
+  }
+
+  /** GET /v2/sims/{iccid} — includes sharing link/access code for backfill. */
+  async getSim(iccid: string): Promise<EsimOrderResult> {
+    const trimmed = iccid.trim();
+    if (!trimmed) throw new AiraloRequestError('Airalo ICCID is required');
+    const body = await this.send('GET', `/v2/sims/${encodeURIComponent(trimmed)}`);
+    const data =
+      body && typeof body === 'object'
+        ? ((body as { data?: unknown }).data ?? body)
+        : null;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new AiraloRequestError('Airalo sim response was empty');
+    }
+    const record = data as Record<string, unknown>;
+    const sharing = readAiraloSharing(record);
+    return {
+      installSecret: readAiraloInstallSecret(record),
+      iccid: readAiraloIccid(record) ?? trimmed,
+      sharingLink: sharing?.link,
+      sharingAccessCode: sharing?.accessCode,
+      status: readAiraloOrderStatus(record.status),
+    };
+  }
+
+  /** GET /v2/sims/{iccid}/usage — remaining data / status (rate-limited by Airalo). */
+  async getSimUsage(iccid: string): Promise<unknown> {
+    const trimmed = iccid.trim();
+    if (!trimmed) throw new AiraloRequestError('Airalo ICCID is required');
+    return this.send('GET', `/v2/sims/${encodeURIComponent(trimmed)}/usage`);
   }
 
   /** GET /v2/sims/{iccid}/topups — packages that can top up this eSIM. */
@@ -471,6 +508,10 @@ export interface AiraloTopupPackage {
   validityDays: number | null;
   price: number | null;
   currency: string | null;
+  netPriceUsd: number | null;
+  netPriceVnd: number | null;
+  retailPriceUsd: number | null;
+  retailPriceVnd: number | null;
 }
 
 export function readAiraloIccid(sim: unknown): string | undefined {
@@ -479,6 +520,25 @@ export function readAiraloIccid(sim: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
+}
+
+/** Airalo eSIMs Cloud share payload — never treat access_code as the LPA. */
+export function readAiraloSharing(
+  row: unknown,
+): { link: string; accessCode: string } | undefined {
+  if (!row || typeof row !== 'object') return undefined;
+  const sharing = (row as { sharing?: unknown }).sharing;
+  const source =
+    sharing && typeof sharing === 'object' && !Array.isArray(sharing)
+      ? (sharing as Record<string, unknown>)
+      : (row as Record<string, unknown>);
+  const link = stringOrEmpty(source.link ?? source.sharing_link);
+  const accessCode = stringOrEmpty(
+    source.access_code ?? source.accessCode ?? source.sharing_access_code,
+  );
+  if (!link.startsWith('https://') || !accessCode || accessCode.length > 32) return undefined;
+  if (link.length > 512) return undefined;
+  return { link, accessCode };
 }
 
 export function parseAiraloTopupPackages(body: unknown): AiraloTopupPackage[] {
@@ -496,14 +556,34 @@ export function parseAiraloTopupPackages(body: unknown): AiraloTopupPackage[] {
     if (!id) continue;
     const amount = Number(record.amount ?? record.data ?? record.data_amount);
     const day = Number(record.day ?? record.days ?? record.validity);
-    const price = Number(record.price ?? record.net_price);
+    const prices =
+      record.prices && typeof record.prices === 'object'
+        ? (record.prices as {
+            net_price?: Record<string, unknown>;
+            recommended_retail_price?: Record<string, unknown>;
+            price?: unknown;
+          })
+        : undefined;
+    const net = (prices?.net_price ?? record.net_price) as Record<string, unknown> | undefined;
+    const retail = (prices?.recommended_retail_price ?? record.recommended_retail_price) as
+      | Record<string, unknown>
+      | undefined;
+    const netUsd = readMoney(net?.USD ?? net?.usd ?? record.price ?? prices?.price);
+    const netVnd = readMoney(net?.VND ?? net?.vnd);
+    const retailUsd = readMoney(retail?.USD ?? retail?.usd);
+    const retailVnd = readMoney(retail?.VND ?? retail?.vnd);
+    const price = netUsd ?? Number(record.price ?? record.net_price);
     out.push({
       providerPackageId: id,
       title: stringOrEmpty(record.title ?? record.name) || id,
       dataAmountMb: Number.isFinite(amount) ? Math.round(amount) : null,
       validityDays: Number.isFinite(day) ? Math.round(day) : null,
       price: Number.isFinite(price) ? price : null,
-      currency: typeof record.currency === 'string' ? record.currency : null,
+      currency: typeof record.currency === 'string' ? record.currency : netUsd != null ? 'USD' : null,
+      netPriceUsd: netUsd,
+      netPriceVnd: netVnd,
+      retailPriceUsd: retailUsd,
+      retailPriceVnd: retailVnd,
     });
   }
   return out;

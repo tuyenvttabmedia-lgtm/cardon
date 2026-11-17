@@ -470,6 +470,11 @@ export class UpdateCmsThemeDto {
   @IsOptional()
   @IsString()
   @MaxLength(512)
+  logoFooter?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
   favicon?: string;
 
   @IsOptional()

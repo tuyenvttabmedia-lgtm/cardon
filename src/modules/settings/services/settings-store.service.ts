@@ -32,6 +32,7 @@ import {
   MaintenanceMode,
   AUDIT_LOG_RETENTION_DAYS_DEFAULT,
   isEsimMegapayMethodCode,
+  isEsimSepayMethodCode,
 } from '../entities/settings.constants';
 import {
   DEFAULT_PAYMENT_GATEWAY,
@@ -44,6 +45,7 @@ import {
 } from '../../payment/entities/payment-method.constants';
 import { SettingsEncryptionService } from './settings-encryption.service';
 import { SettingsRepository } from '../repositories/settings.repository';
+import { normalizePem } from './pem.util';
 
 export interface ResolvedSmtpConfig {
   host: string;
@@ -53,11 +55,6 @@ export interface ResolvedSmtpConfig {
   from: string;
   fromName?: string;
   secure: boolean;
-}
-
-function normalizePem(value?: string): string | undefined {
-  if (!value) return undefined;
-  return value.replace(/\\n/g, '\n').trim();
 }
 
 function isMeaningfulStored(value: unknown): boolean {
@@ -444,7 +441,7 @@ export class SettingsStoreService implements OnModuleInit {
     return match ?? null;
   }
 
-  /** eSIM order create — SePay retail-enabled, MegaPay VNPAYQR/ZALOPAY when esimEnabled. */
+  /** eSIM order create — SePay VIETQR / MegaPay VNPAYQR|ZALOPAY when esimEnabled. */
   resolveEsimPaymentMethod(methodCode: string): StoredPaymentMethod | null {
     const normalized = normalizeMethodCode(methodCode);
     const match = this.resolvePublicPaymentMethods().find(
@@ -469,8 +466,33 @@ export class SettingsStoreService implements OnModuleInit {
       .map((method) => method.methodCode);
   }
 
+  /** SePay method codes armed for eSIM VN (Payment Gateway creds + esimEnabled). */
+  listEsimSepayMethodCodes(): string[] {
+    const gateway = this.resolveSepayPaymentGateway();
+    const pgReady =
+      gateway.enabled === true &&
+      Boolean(gateway.merchantId?.trim()) &&
+      Boolean(gateway.merchantSecretKey?.trim());
+    if (!pgReady) return [];
+    return this.mergePaymentMethodsConfig()
+      .filter(
+        (method) =>
+          method.gatewayCode === 'SEPAY' &&
+          method.esimEnabled === true &&
+          isEsimSepayMethodCode(method.methodCode),
+      )
+      .map((method) => method.methodCode);
+  }
+
+  /** True when SePay PG is configured and at least one SePay eSIM method is armed. */
+  isSepayEsimArmed(): boolean {
+    return this.listEsimSepayMethodCodes().length > 0;
+  }
+
   private isMethodEsimArmed(method: StoredPaymentMethod): boolean {
-    if (method.gatewayCode === 'SEPAY') return method.enabled === true;
+    if (method.gatewayCode === 'SEPAY') {
+      return method.esimEnabled === true && isEsimSepayMethodCode(method.methodCode);
+    }
     if (method.gatewayCode === 'PAYPAL') return method.enabled === true;
     if (method.gatewayCode === 'MEGAPAY') {
       return method.esimEnabled === true && isEsimMegapayMethodCode(method.methodCode);
@@ -489,7 +511,10 @@ export class SettingsStoreService implements OnModuleInit {
     );
     const methods = this.mergePaymentMethodsConfig().filter((method) => {
       if (method.gatewayCode === 'SEPAY') {
-        return method.enabled && sepayOk;
+        if (!sepayOk) return false;
+        // Retail-enabled OR eSIM-armed VIETQR (even when retail toggle is off).
+        if (method.enabled) return true;
+        return method.esimEnabled === true && isEsimSepayMethodCode(method.methodCode);
       }
       if (method.gatewayCode === 'MEGAPAY') {
         if (!megapayOk) return false;
@@ -856,10 +881,13 @@ export class SettingsStoreService implements OnModuleInit {
     const modeFromStore = stored?.mode === 'live' ? 'live' : stored?.mode === 'sandbox' ? 'sandbox' : null;
     const modeFromEnv = this.configService.get<string>('paypal.mode') === 'live' ? 'live' : 'sandbox';
     const mode = modeFromStore ?? modeFromEnv;
-    const esimEnabled =
+    // ENV is the hard kill switch (production-env.rules). DB cannot arm PayPal eSIM alone.
+    const envArmed = this.configService.get<boolean>('paypal.esimEnabled') === true;
+    const storeArmed =
       typeof stored?.esimEnabled === 'boolean'
-        ? stored.esimEnabled
-        : this.configService.get<boolean>('paypal.esimEnabled') === true;
+        ? stored.esimEnabled === true
+        : false;
+    const esimEnabled = envArmed && storeArmed;
     return { esimEnabled, clientId, clientSecret, webhookId, mode };
   }
 
@@ -1011,8 +1039,17 @@ export class SettingsStoreService implements OnModuleInit {
   getSystemAdminView(): Record<string, unknown> {
     const resolved = this.resolveSystemConfig();
     const chargeLimits = this.resolveEsimChargeLimits();
+    const salesOpen =
+      evaluateEsimSale(
+        esimSaleFlagsFromRuntime(
+          (key) => this.configService.get(key),
+          resolved.customerEsimEnabled === true,
+        ),
+      ).ok === true;
     return {
       ...resolved,
+      envEsimEnabled: this.configService.get<boolean>('esim.enabled') === true,
+      salesOpen,
       esimMaxChargeAmountVnd: chargeLimits.maxVnd,
       esimMaxChargeAmountUsd: chargeLimits.maxUsd,
       source: this.hasDbSetting(SETTINGS_KEYS.SYSTEM) ? 'database' : 'environment',

@@ -14,7 +14,13 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CardEncryptionService } from '../provider/services/card-encryption.service';
 import { isRetiredAiraloSandboxHost, SettingsStoreService } from '../settings/services/settings-store.service';
-import { appleEsimSetupUrl, isEsimTestSecret, lpaForDisplay } from './esim-delivery.view';
+import {
+  androidEsimSetupUrl,
+  appleEsimSetupUrl,
+  isEsimTestSecret,
+  lpaForDisplay,
+  splitLpaManualParts,
+} from './esim-delivery.view';
 import { toAiraloOrderCode } from './esim-airalo-code';
 import { EsimFulfillmentRepository } from './esim-fulfillment.repository';
 import { EsimFulfillmentService, type EsimFulfillmentResult } from './esim-fulfillment.service';
@@ -87,6 +93,11 @@ export interface EsimAdminRevealPayload {
   installSecret: string;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl: string | null;
+  smdpAddress: string | null;
+  activationCode: string | null;
+  sharingLink: string | null;
+  sharingAccessCode: string | null;
 }
 
 /**
@@ -230,7 +241,16 @@ export class EsimAdminService {
         orderItems: {
           where: { variant: { type: ProductVariantType.ESIM } },
           take: 1,
-          select: { esimProfile: { select: { id: true, installSecretEnc: true } } },
+          select: {
+            esimProfile: {
+              select: {
+                id: true,
+                installSecretEnc: true,
+                sharingLink: true,
+                sharingAccessCode: true,
+              },
+            },
+          },
         },
       },
     });
@@ -240,12 +260,18 @@ export class EsimAdminService {
       throw new NotFoundException('eSIM profile not found');
     }
     const display = lpaForDisplay(secret);
+    const manual = splitLpaManualParts(display);
     return {
       orderCode: order.orderCode,
       profileId: profile.id,
       installSecret: display,
       qrSvg: renderLpaQrSvg(secret),
       appleSetupUrl: isEsimTestSecret(secret) ? null : appleEsimSetupUrl(display),
+      androidSetupUrl: isEsimTestSecret(secret) ? null : androidEsimSetupUrl(display),
+      smdpAddress: manual?.smdpAddress ?? null,
+      activationCode: manual?.activationCode ?? null,
+      sharingLink: isEsimTestSecret(secret) ? null : profile.sharingLink ?? null,
+      sharingAccessCode: isEsimTestSecret(secret) ? null : profile.sharingAccessCode ?? null,
     };
   }
 

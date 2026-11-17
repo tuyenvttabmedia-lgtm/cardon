@@ -181,10 +181,10 @@ export default function AccountOrdersPage() {
       ) : (
         <div className="mt-4 space-y-3">
           {filteredOrders.map((o) => (
-            <div key={o.id} className="rounded-xl border border-cardon-border p-4 text-sm shadow-card">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-cardon-navy">{o.orderCode}</p>
-                <span className="font-bold text-cardon-navy">{money(String(o.totalAmount))}</span>
+            <div key={o.id} className="min-w-0 overflow-hidden rounded-xl border border-cardon-border p-4 text-sm shadow-card">
+              <div className="flex min-w-0 items-start justify-between gap-2">
+                <p className="min-w-0 break-all font-semibold text-cardon-navy">{o.orderCode}</p>
+                <span className="shrink-0 font-bold text-cardon-navy">{money(String(o.totalAmount))}</span>
               </div>
               <p className="mt-2 text-cardon-navy">{orderProductSummary(o)}</p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -250,7 +250,7 @@ function StatusBadge({ children, tone }: { children: React.ReactNode; tone: 'blu
     <span
       className={cn(
         'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-        tone === 'blue' ? 'bg-blue-50 text-cardon-blue' : 'bg-cardon-light text-cardon-gray',
+        tone === 'blue' ? 'bg-brand-50 text-cardon-blue' : 'bg-cardon-light text-cardon-gray',
       )}
     >
       {children}

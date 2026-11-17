@@ -224,9 +224,12 @@ export default function AppearancePage() {
           <Card id="logos" className="scroll-mt-16 space-y-4 xl:col-span-2">
             <div>
               <h2 className="font-semibold">Logo & ảnh mặc định</h2>
-              <p className="mt-0.5 text-sm text-slate-500">Logo site, favicon và ảnh Open Graph mặc định.</p>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Logo header, logo footer (nền tối), favicon và ảnh Open Graph mặc định. Tab «Footer» bên dưới chỉ
+                chỉnh cột liên kết — không phải chỗ upload logo.
+              </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               <MediaImageField
                 label={vi.appearance.logoDesktop}
                 folder="logo"
@@ -238,6 +241,12 @@ export default function AppearancePage() {
                 folder="logo"
                 value={form.logoMobile}
                 onChange={(url) => setForm({ ...form, logoMobile: url })}
+              />
+              <MediaImageField
+                label={vi.appearance.logoFooter}
+                folder="logo"
+                value={form.logoFooter ?? ''}
+                onChange={(url) => setForm({ ...form, logoFooter: url })}
               />
               <MediaImageField
                 label={vi.appearance.favicon}
@@ -775,7 +784,8 @@ export default function AppearancePage() {
               <div>
                 <h2 className="font-semibold">{vi.appearance.footerColumns}</h2>
                 <p className="text-sm text-slate-500">
-                  Cột liên kết 2–4. Cột 1 lấy từ &quot;Thông tin công ty&quot; — không tạo riêng.
+                  Cột liên kết 2–4. Cột 1 lấy từ &quot;Thông tin công ty&quot; — không tạo riêng. Logo
+                  footer upload ở mục «Logo» phía trên.
                 </p>
               </div>
               <Button size="sm" variant="secondary" onClick={addFooterCol}>

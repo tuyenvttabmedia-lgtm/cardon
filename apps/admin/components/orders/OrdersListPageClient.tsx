@@ -379,6 +379,32 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
   const [hydrated, setHydrated] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [balanceBusyId, setBalanceBusyId] = useState<string | null>(null);
+
+  const refreshProviders = useCallback(async () => {
+    try {
+      setProviders(await adminApi.getProvidersStatus());
+    } catch {
+      setProviders([]);
+    }
+  }, []);
+
+  async function syncProviderBalance(providerId: string) {
+    setBalanceBusyId(providerId);
+    setActionMessage(null);
+    setError(null);
+    try {
+      const result = await adminApi.checkProviderBalance(providerId);
+      setActionMessage(
+        `${vi.providers.balance}: ${formatVnd(result.balance)} · ${formatDateTime(result.lastCheckedAt)}`,
+      );
+      await refreshProviders();
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : vi.providers.checkFailed);
+    } finally {
+      setBalanceBusyId(null);
+    }
+  }
 
   // Sync from URL when browser back/forward changes query (after first paint).
   useEffect(() => {
@@ -437,8 +463,8 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
   }, [listParams, summaryParams]);
 
   useEffect(() => {
-    void adminApi.getProvidersStatus().then(setProviders).catch(() => setProviders([]));
-  }, []);
+    void refreshProviders();
+  }, [refreshProviders]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -544,7 +570,62 @@ function OrdersListInner({ channel }: { channel: ChannelMode }) {
                 : 'Quản lý đơn hàng bán lẻ, theo dõi thanh toán và tình trạng giao hàng.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {!isAgent
+              ? providers.map((p) => {
+                  const health =
+                    p.status === 'MAINTENANCE' || p.status === 'DISABLED'
+                      ? 'MAINTENANCE'
+                      : p.healthStatus ?? p.status;
+                  return (
+                    <div
+                      key={p.id}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs',
+                        p.lowBalanceWarning
+                          ? 'border-amber-300 bg-amber-50'
+                          : 'border-slate-200 bg-slate-50',
+                      )}
+                      title={
+                        p.lastCheckedAt
+                          ? `Cập nhật ${formatDateTime(p.lastCheckedAt)}`
+                          : 'Chưa đồng bộ — bấm Đồng bộ để hỏi NCC'
+                      }
+                    >
+                      <span className="font-medium text-slate-500">{p.code}</span>
+                      <span className="font-semibold tabular-nums text-slate-900">
+                        {formatVnd(p.balance)}
+                      </span>
+                      <Badge
+                        tone={
+                          health === 'ONLINE'
+                            ? 'success'
+                            : health === 'SLOW'
+                              ? 'warning'
+                              : health === 'ERROR' ||
+                                  health === 'OFFLINE' ||
+                                  health === 'MAINTENANCE'
+                                ? 'danger'
+                                : 'default'
+                        }
+                      >
+                        {health}
+                      </Badge>
+                      {p.lowBalanceWarning ? (
+                        <span className="text-[10px] font-medium text-amber-800">Thấp</span>
+                      ) : null}
+                      <button
+                        type="button"
+                        disabled={balanceBusyId === p.id}
+                        onClick={() => void syncProviderBalance(p.id)}
+                        className="rounded px-1 py-0.5 font-medium text-admin-700 hover:bg-white/80 disabled:opacity-50"
+                      >
+                        {balanceBusyId === p.id ? '…' : 'Đồng bộ'}
+                      </button>
+                    </div>
+                  );
+                })
+              : null}
             <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading}>
               {loading ? 'Đang tải…' : 'Làm mới'}
             </Button>

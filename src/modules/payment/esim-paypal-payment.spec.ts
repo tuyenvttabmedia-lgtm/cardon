@@ -491,7 +491,7 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
       orderItem: {
         findMany: jest.fn().mockResolvedValue([{ variant: { type: itemType } }]),
       },
-      payment: { create: jest.fn() },
+      payment: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn(async (fn: (tx: unknown) => unknown) => fn({
         payment: {
           create: jest.fn().mockResolvedValue({
@@ -512,7 +512,7 @@ describe('PayPal eSIM routing leaves admin-test, SePay, and retail settlement al
     };
     const service = new PaymentService(
       prisma as never,
-      { findByIdempotencyKey: jest.fn() } as never,
+      { findByIdempotencyKey: jest.fn(), expireOtherPendingForOrder: jest.fn().mockResolvedValue(0) } as never,
       {} as never,
       PaymentProviderRegistry.withProviders(new MockMegaPayProvider(), new MockSePayProvider()),
       {} as never,

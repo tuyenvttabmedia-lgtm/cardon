@@ -29,6 +29,7 @@ import { SepayConfigService } from '../providers/sepay/sepay.config';
 import { readEsimSepayGatewayConfig } from '../providers/sepay/esim-sepay-sandbox.config';
 import { querySepayPgOrder } from '../providers/sepay/sepay.pg';
 import { assertWebhookAmountMatches } from '../entities/payment-state.machine';
+import { PaymentRepository } from '../repositories/payment.repository';
 
 const ESIM_LANE = 'ESIM';
 
@@ -49,6 +50,7 @@ export class EsimSepayPaymentService {
     private readonly fulfillmentDispatchService: FulfillmentDispatchService,
     private readonly notificationService: NotificationService,
     private readonly sepayConfig: SepayConfigService,
+    private readonly paymentRepository: PaymentRepository,
   ) {}
 
   private gatewayConfig() {
@@ -109,6 +111,9 @@ export class EsimSepayPaymentService {
 
         const paymentReference = `ESIM${randomBytes(8).toString('hex').toUpperCase()}`;
         const locale = readOrderCheckoutLocale(order.clientTrace);
+        const guestEmail = order.guestEmail?.trim();
+        const returnQuery: Record<string, string> = { payment: 'success' };
+        if (guestEmail) returnQuery.email = guestEmail;
         const fields = {
           order_amount: amount.toFixed(0),
           merchant: config.merchantId,
@@ -119,13 +124,17 @@ export class EsimSepayPaymentService {
           customer_id: input.userId ?? order.userId ?? '',
           payment_method: 'BANK_TRANSFER',
           // Same landing as retail SePay: order page + payment flag. Not /checkout/result (MegaPay).
+          // Guest buyers get ?email= so the order page can open without a second prompt.
           success_url: storefrontCheckoutUrl(config.publicUrl, locale, `/orders/${order.id}`, {
+            ...returnQuery,
             payment: 'success',
           }),
           error_url: storefrontCheckoutUrl(config.publicUrl, locale, `/orders/${order.id}`, {
+            ...returnQuery,
             payment: 'error',
           }),
           cancel_url: storefrontCheckoutUrl(config.publicUrl, locale, `/orders/${order.id}`, {
+            ...returnQuery,
             payment: 'cancel',
           }),
         };
@@ -155,6 +164,15 @@ export class EsimSepayPaymentService {
             gatewayResponse,
           },
         });
+        await this.paymentRepository.expireOtherPendingForOrder(
+          order.id,
+          created.id,
+          {
+            supersededBy: created.paymentReference,
+            reason: 'NEW_PAYMENT_CREATED',
+          },
+          tx,
+        );
         await tx.order.update({
           where: { id: order.id },
           data: { paymentId: created.id },
@@ -319,6 +337,16 @@ export class EsimSepayPaymentService {
     }
     if (settlement === 'EXPIRED' || settlement === 'LOST') {
       await this.noteReconciliation(payment.id, providerTransactionId, settlement);
+      try {
+        await this.notificationService.notifyAdminRetryRequired(payment.orderId, {
+          message: `eSIM SePay ${settlement} after payment window`,
+          providerTransactionId,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `eSIM SePay late-pay alert failed invoice=${payment.paymentReference}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
     this.logger.warn(`eSIM SePay sync ${settlement} invoice=${payment.paymentReference}`);
     return {
@@ -371,6 +399,18 @@ export class EsimSepayPaymentService {
         await this.enqueueAfterCommit(payment.orderId, payment.id);
       } else {
         await this.noteReconciliation(payment.id, decision.providerTransactionId, settlement);
+        if (settlement === 'EXPIRED' || settlement === 'LOST') {
+          try {
+            await this.notificationService.notifyAdminRetryRequired(payment.orderId, {
+              message: `eSIM SePay IPN ${settlement} after payment window`,
+              providerTransactionId: decision.providerTransactionId,
+            });
+          } catch (error) {
+            this.logger.warn(
+              `eSIM SePay IPN late-pay alert failed invoice=${payment.paymentReference}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
         this.logger.warn(`eSIM SePay IPN ${settlement} invoice=${payment.paymentReference}`);
       }
       return {

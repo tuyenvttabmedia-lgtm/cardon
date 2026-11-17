@@ -212,6 +212,21 @@ export default function SettingsSystemPage() {
                 </span>
               </span>
             </label>
+            <div className="mt-3 space-y-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <p>
+                {vi.settings.esimEnvGateLabel}:{' '}
+                <span className={form.envEsimEnabled ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-700'}>
+                  {form.envEsimEnabled ? 'ON' : 'OFF'}
+                </span>
+              </p>
+              <p>
+                {vi.settings.esimSalesOpenLabel}:{' '}
+                <span className={form.salesOpen ? 'font-semibold text-emerald-700' : 'font-semibold text-amber-700'}>
+                  {form.salesOpen ? 'OPEN' : 'CLOSED'}
+                </span>
+              </p>
+              <p className="text-slate-500">{vi.settings.esimSalesGateHint}</p>
+            </div>
           </div>
 
           <div className="space-y-3 border-t border-slate-200 pt-4">

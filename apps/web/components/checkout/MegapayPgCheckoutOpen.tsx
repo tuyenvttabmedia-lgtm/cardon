@@ -5,6 +5,10 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  persistMegapayVaAndBuildPayPath,
+  readMegapayVaTransferFields,
+} from '@/lib/checkout-qr-flow';
+import {
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
   isMegapayAwaitingTransferResult,
@@ -27,6 +31,9 @@ const VA_RESULT_FIELDS = [
   'trxId',
   'invoiceNo',
 ] as const;
+
+/** Survives React Strict Mode remount so the same invoice does not openPayment twice. */
+const openedMegapayPaymentRefs = new Set<string>();
 
 declare global {
   interface Window {
@@ -139,6 +146,14 @@ export function MegapayPgCheckoutOpen({
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
+      // Only accept MegaPay PG frame messages from the configured checkout domain.
+      try {
+        const allowed = new URL(checkoutClient.domain).origin;
+        if (event.origin !== allowed) return;
+      } catch {
+        return;
+      }
+
       const data = event.data;
       if (!data || typeof data !== 'object') return;
       const close = (data as { closeLayer?: string }).closeLayer;
@@ -150,17 +165,11 @@ export function MegapayPgCheckoutOpen({
       closeMegapayLayerDom();
 
       if (isMegapaySuccessResult(resultCd)) {
-        const pendingRef = paymentReference;
+        // Never jump to /checkout/success on client result alone — wait for server PAID via /result poll.
         const q = new URLSearchParams();
-        if (orderCode) q.set('orderCode', orderCode);
-        if (email) q.set('email', email);
-        clearPendingMegapayPayment();
-        if (orderCode) {
-          router.replace(`/checkout/success?${q.toString()}`);
-        } else {
-          router.replace(`/checkout/result?resultCd=${encodeURIComponent(resultCd)}`);
-        }
-        void pendingRef;
+        q.set('resultCd', resultCd);
+        if (resultMsg) q.set('resultMsg', resultMsg);
+        router.replace(`/checkout/result?${q.toString()}`);
         return;
       }
 
@@ -168,13 +177,27 @@ export function MegapayPgCheckoutOpen({
       q.set('resultCd', resultCd || 'USER_CANCEL');
       if (resultMsg) q.set('resultMsg', resultMsg);
 
-      // Mã nộp tiền đã cấp nhưng chưa có tiền về: giữ phiên để trang kết quả theo dõi đơn.
+      // VA assigned: leave MegaPay permanently — show VietQR on CardOn /checkout/pay.
+      // VA fields come only from the origin-checked MegaPay message while a pending session exists.
       if (isMegapayAwaitingTransferResult(resultCd)) {
         const payload = data as Record<string, unknown>;
-        for (const field of VA_RESULT_FIELDS) {
-          const value = payload[field];
-          if (typeof value === 'string' && value.trim()) q.set(field, value.trim());
+        if (orderId && orderCode && paymentReference) {
+          const payPath = persistMegapayVaAndBuildPayPath({
+            orderId,
+            orderCode,
+            email: email ?? '',
+            paymentReference,
+            amountFallback: amount ?? null,
+            va: readMegapayVaTransferFields(payload),
+          });
+          if (payPath) {
+            clearPendingMegapayPayment();
+            closeMegapayLayerDom();
+            router.replace(payPath);
+            return;
+          }
         }
+        // Do not copy VA into the public result URL (phishing surface). Keep resultCd only.
       }
 
       router.replace(`/checkout/result?${q.toString()}`);
@@ -182,12 +205,15 @@ export function MegapayPgCheckoutOpen({
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [router, orderCode, email, paymentReference]);
+  }, [router, orderId, orderCode, email, paymentReference, amount, checkoutClient.domain]);
 
+  // Open once per paymentReference (module set survives Strict Mode remount).
   useEffect(() => {
-    if (!mounted) return undefined;
+    if (!mounted || !paymentReference) return undefined;
+    if (openedMegapayPaymentRefs.has(paymentReference) || openedRef.current) {
+      return undefined;
+    }
     let cancelled = false;
-    openedRef.current = false;
 
     async function openLayer() {
       try {
@@ -202,6 +228,7 @@ export function MegapayPgCheckoutOpen({
           return;
         }
         openedRef.current = true;
+        openedMegapayPaymentRefs.add(paymentReference!);
         window.openPayment(1, checkoutClient.domain, 'megapayForm');
       } catch (err) {
         if (!cancelled) {
@@ -217,10 +244,10 @@ export function MegapayPgCheckoutOpen({
     };
   }, [
     mounted,
+    paymentReference,
     checkoutClient.cssUrl,
     checkoutClient.domain,
     checkoutClient.jsUrl,
-    checkoutFormFields,
   ]);
 
   const form = (

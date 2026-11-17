@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CheckoutShell } from '@/components/checkout/CheckoutShell';
 import { FaqSection } from '@/components/faq/FaqSection';
+import { HelpIcon } from '@/components/icons/SectionGlyph';
+import { HubGuideLinks } from '@/components/seo/HubGuideLinks';
 import { getSiteConfig, type PublicFaqItem, type PublicSiteConfig } from '@/lib/cms-api';
 
 export function TopupPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[] }) {
@@ -40,9 +42,11 @@ export function TopupPageClient({ initialFaqs }: { initialFaqs?: PublicFaqItem[]
         limit={10}
         showViewAll
         viewAllHref="/tro-giup?position=topup"
-        className="mt-8"
+        icon={<HelpIcon />}
+        className="mt-6"
         initialItems={initialFaqs}
       />
+      <HubGuideLinks path="/nap-cuoc" />
     </>
   );
 }

@@ -59,13 +59,13 @@ export function UserAccountDropdown() {
         <span className="text-xs text-cardon-gray">▾</span>
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
-          <p className="border-b px-4 py-2 text-xs text-cardon-gray">{user.email}</p>
+        <div className="absolute right-0 z-50 mt-2 w-max min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+          <p className="truncate border-b px-3 py-2 text-xs text-cardon-gray">{user.email}</p>
           {menuItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="block px-4 py-2.5 text-sm text-cardon-navy hover:bg-cardon-light"
+              className="block whitespace-nowrap px-3 py-2 text-sm text-cardon-navy hover:bg-cardon-light"
               onClick={() => setOpen(false)}
             >
               {t(item.label)}
@@ -73,7 +73,7 @@ export function UserAccountDropdown() {
           ))}
           <button
             type="button"
-            className="block w-full border-t px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+            className="block w-full whitespace-nowrap border-t px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
             onClick={() => {
               setOpen(false);
               logout();

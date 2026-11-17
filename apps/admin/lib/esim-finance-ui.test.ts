@@ -15,8 +15,9 @@ describe('F1 finance eSIM UI wiring', () => {
     expect(page).toContain('FinanceEsimRevenuePanel');
     expect(panel).toContain('getEsimRevenue');
     expect(panel).toContain('exportEsimRevenue');
-    expect(panel).toContain('UNAVAILABLE');
     expect(panel).toContain('ước tính');
+    expect(panel).toContain('PayPal fee');
+    expect(panel).not.toContain('F1 chưa có');
     expect(client).toContain('/admin/finance/esim/revenue');
   });
 });

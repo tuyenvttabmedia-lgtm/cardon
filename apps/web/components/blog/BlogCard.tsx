@@ -173,7 +173,7 @@ export function BlogCard({
       </div>
       <div className={cn('flex flex-1 flex-col p-4 md:p-5', resolvedVariant === 'featured' && 'md:py-6')}>
         {post.category && (
-          <span className="inline-flex w-fit rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-cardon-blue">
+          <span className="inline-flex w-fit rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-cardon-blue">
             {post.category}
           </span>
         )}

@@ -22,7 +22,8 @@ describe('PaymentService', () => {
   let prisma: {
     order: { findFirst: jest.Mock; update: jest.Mock };
     $transaction: jest.Mock;
-    payment: { create: jest.Mock; findUnique: jest.Mock };
+    payment: { create: jest.Mock; findUnique: jest.Mock; findFirst: jest.Mock };
+    orderItem: { count: jest.Mock; findMany: jest.Mock };
   };
   let paymentRepository: {
     findByIdempotencyKey: jest.Mock;
@@ -30,6 +31,8 @@ describe('PaymentService', () => {
     findById: jest.Mock;
     claimPendingStatus: jest.Mock;
     recordLateWebhookManualReview: jest.Mock;
+    expireOtherPendingForOrder: jest.Mock;
+    countPendingForOrder: jest.Mock;
   };
   let webhookLogRepository: { create: jest.Mock };
   let orderService: {
@@ -75,6 +78,8 @@ describe('PaymentService', () => {
       findById: jest.fn(),
       claimPendingStatus: jest.fn().mockResolvedValue({ count: 1 }),
       recordLateWebhookManualReview: jest.fn(),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+      countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     webhookLogRepository = { create: jest.fn() };
     orderService = {
@@ -99,6 +104,11 @@ describe('PaymentService', () => {
       payment: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      orderItem: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       $transaction: jest.fn(async (cb) => cb({})),
     };
@@ -152,6 +162,12 @@ describe('PaymentService', () => {
     expect(result.status).toBe(PaymentRecordStatus.PENDING);
     expect(result.paymentUrl).toContain('mock.megapay.example');
     expect(paymentAuditService.recordPaymentCreated).toHaveBeenCalled();
+    expect(paymentRepository.expireOtherPendingForOrder).toHaveBeenCalledWith(
+      'order-1',
+      'pay-1',
+      expect.objectContaining({ reason: 'NEW_PAYMENT_CREATED' }),
+      expect.anything(),
+    );
   });
 
   it('rejects payment create when the JWT owner does not match the order', async () => {
@@ -332,7 +348,7 @@ describe('PaymentService', () => {
     expect(paymentAuditService.recordPaymentSuccess).not.toHaveBeenCalled();
   });
 
-  it('rejects webhook with amount mismatch', async () => {
+  it('acks amount-mismatch SUCCESS into manual review without settling', async () => {
     paymentRepository.findByReference.mockResolvedValue(pendingPayment);
 
     const payload = {
@@ -342,15 +358,24 @@ describe('PaymentService', () => {
     };
     const signature = computeMockWebhookSignature(payload);
 
-    await expect(
-      service.handleWebhook(
-        'megapay',
-        payload,
-        { 'x-webhook-signature': signature },
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
 
+    expect(result).toEqual(
+      expect.objectContaining({ ok: true, manualReview: true, paymentReference: 'PAY-REF-001' }),
+    );
     expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: '90000.00' }),
+        lateWebhookPayload: expect.objectContaining({
+          amountMismatch: true,
+          receivedAmount: '90000.00',
+        }),
+      }),
+    );
   });
 
   it('returns OK for PENDING webhook without updating payment', async () => {
@@ -426,7 +451,7 @@ describe('PaymentService', () => {
     );
   });
 
-  it('rejects late SUCCESS underpay instead of opening approvable manual review', async () => {
+  it('records late SUCCESS underpay as manual review with received amount (not auto-PAID)', async () => {
     paymentRepository.findByReference.mockResolvedValue({
       ...pendingPayment,
       status: PaymentRecordStatus.EXPIRED,
@@ -441,10 +466,104 @@ describe('PaymentService', () => {
     };
     const signature = computeMockWebhookSignature(payload);
 
-    await expect(
-      service.handleWebhook('megapay', payload, { 'x-webhook-signature': signature }),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    expect(paymentRepository.recordLateWebhookManualReview).not.toHaveBeenCalled();
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+    expect(result.manualReview).toBe(true);
+    expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: '1000.00' }),
+        lateWebhookPayload: expect.objectContaining({
+          amountMismatch: true,
+          receivedAmount: '1000.00',
+        }),
+      }),
+    );
+  });
+
+  it('flags manualReview for SUCCESS when order is already PAID (duplicate money)', async () => {
+    paymentRepository.findByReference.mockResolvedValue({
+      ...pendingPayment,
+      id: 'pay-2',
+      paymentReference: 'PAY-REF-002',
+      order: { paymentStatus: OrderPaymentStatus.PAID },
+    });
+    prisma.$transaction.mockImplementation(async (cb) => cb({}));
+
+    const payload = {
+      paymentReference: 'PAY-REF-002',
+      status: 'SUCCESS',
+      amount: '100000.00',
+    };
+    const signature = computeMockWebhookSignature(payload);
+
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+
+    expect(result.manualReview).toBe(true);
+    expect(result.duplicate).toBe(true);
+    expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+    expect(fulfillmentDispatchService.dispatchOrderFulfillment).not.toHaveBeenCalled();
+    expect(paymentRepository.claimPendingStatus).toHaveBeenCalledWith(
+      'pay-2',
+      PaymentRecordStatus.SUCCESS,
+      expect.objectContaining({
+        gatewayResponse: expect.objectContaining({
+          duplicatePaymentOnPaidOrder: true,
+          manualReview: true,
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('ignores FAILED IPN on superseded EXPIRED payment without failing the order', async () => {
+    paymentRepository.findByReference.mockResolvedValue({
+      ...pendingPayment,
+      status: PaymentRecordStatus.EXPIRED,
+      order: { paymentStatus: OrderPaymentStatus.WAITING_PAYMENT },
+    });
+
+    const payload = {
+      paymentReference: 'PAY-REF-001',
+      status: 'FAILED',
+    };
+    const signature = computeMockWebhookSignature(payload);
+
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.duplicate).toBe(true);
+    expect(orderService.markPaymentFailedInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('FAILED IPN does not fail the order when another PENDING invoice remains', async () => {
+    paymentRepository.findByReference.mockResolvedValue(pendingPayment);
+    paymentRepository.countPendingForOrder.mockResolvedValue(1);
+    prisma.$transaction.mockImplementation(async (cb) =>
+      cb({
+        payment: { findUnique: jest.fn() },
+        order: { findUnique: jest.fn() },
+      }),
+    );
+
+    const payload = {
+      paymentReference: 'PAY-REF-001',
+      status: 'FAILED',
+    };
+    const signature = computeMockWebhookSignature(payload);
+
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(orderService.markPaymentFailedInTransaction).not.toHaveBeenCalled();
   });
 
   it('requires Idempotency-Key header', async () => {
@@ -468,6 +587,7 @@ describe('PaymentExpirationService', () => {
       }),
       updateStatus: jest.fn(),
       findPendingExpired: jest.fn(),
+      countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const orderRepository = {
       updatePaymentStatus: jest.fn(),
