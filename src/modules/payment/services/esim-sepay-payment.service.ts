@@ -384,7 +384,15 @@ export class EsimSepayPaymentService {
       amount: new Decimal(payment.amount.toString()),
     });
     if (!decision.ok || !decision.providerTransactionId) {
-      await this.recordMismatch(payment.id, decision.reason, decision.providerTransactionId);
+      await this.recordMismatch(payment.id, decision.reason, {
+        providerTransactionId: decision.providerTransactionId,
+        // Underpay evidence must be the bank amount — never the invoice total (blocks false approve).
+        receivedAmount:
+          decision.reason === 'AMOUNT'
+            ? decision.transactionAmount ?? decision.orderAmount ?? null
+            : null,
+        orderId: payment.orderId,
+      });
       this.logger.warn(`eSIM SePay IPN mismatch ${decision.reason} invoice=${payment.paymentReference}`);
       return { success: true, outcome: 'IGNORED', reason: decision.reason };
     }
@@ -447,7 +455,11 @@ export class EsimSepayPaymentService {
   private async recordMismatch(
     paymentId: string,
     reason: string,
-    providerTransactionId?: string,
+    meta?: {
+      providerTransactionId?: string;
+      receivedAmount?: string | null;
+      orderId?: string;
+    },
   ): Promise<void> {
     const current = await this.prisma.payment.findFirst({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
@@ -455,7 +467,15 @@ export class EsimSepayPaymentService {
     });
     if (!current) return;
     const previous = readGateway(current.gatewayResponse);
-    const amount = new Decimal(current.amount.toString()).toFixed(0);
+    const expectedAmount = new Decimal(current.amount.toString()).toFixed(0);
+    let evidenceAmount = expectedAmount;
+    if (meta?.receivedAmount?.trim()) {
+      try {
+        evidenceAmount = new Decimal(meta.receivedAmount).toFixed(0);
+      } catch {
+        evidenceAmount = meta.receivedAmount.trim();
+      }
+    }
     await this.prisma.payment.updateMany({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
       data: {
@@ -467,13 +487,24 @@ export class EsimSepayPaymentService {
           manualReview: true,
           lateWebhookAt: new Date().toISOString(),
           lateWebhookEvidence: {
-            amount,
-            ...(providerTransactionId ? { providerTransactionId } : {}),
+            amount: evidenceAmount,
+            expectedAmount,
+            ...(reason === 'AMOUNT' ? { amountMismatch: true, receivedAmount: evidenceAmount } : {}),
+            ...(meta?.providerTransactionId ? { providerTransactionId: meta.providerTransactionId } : {}),
             reason,
           },
         } as Prisma.InputJsonObject,
       },
     });
+    if (meta?.orderId) {
+      try {
+        await this.notificationService.notifyManualPaymentReview(paymentId, meta.orderId);
+      } catch (error) {
+        this.logger.warn(
+          `eSIM SePay mismatch alert failed paymentId=${paymentId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
   }
 
   /** Claim enqueue once; clear flag if Redis/dispatch fails so sync/IPN can retry. */

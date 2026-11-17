@@ -126,7 +126,7 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
         status: PaymentRecordStatus.PENDING,
         expiresAt: new Date('2020-01-01T00:00:00Z'),
       }),
-      updateStatus: jest.fn(),
+      claimPendingStatus: jest.fn().mockResolvedValue({ count: 1 }),
       countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const orderRepository = { updatePaymentStatus: jest.fn() };
@@ -148,10 +148,10 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
     );
 
     await expect(service.expirePayment('pay-1')).resolves.toBe(true);
-    expect(paymentRepository.updateStatus).toHaveBeenCalledWith(
+    expect(paymentRepository.claimPendingStatus).toHaveBeenCalledWith(
       'pay-1',
       PaymentRecordStatus.EXPIRED,
-      undefined,
+      {},
       expect.anything(),
     );
     expect(orderRepository.updatePaymentStatus).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
         status: PaymentRecordStatus.SUCCESS,
         expiresAt: new Date('2020-01-01T00:00:00Z'),
       }),
-      updateStatus: jest.fn(),
+      claimPendingStatus: jest.fn(),
       countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     const service = new PaymentExpirationService(
@@ -175,7 +175,7 @@ describe('B3.56 expiry, refund mark, and unpaid fulfillment', () => {
     );
 
     await expect(service.expirePayment('pay-1')).resolves.toBe(false);
-    expect(paymentRepository.updateStatus).not.toHaveBeenCalled();
+    expect(paymentRepository.claimPendingStatus).not.toHaveBeenCalled();
   });
 
   function adminRecovery(order: {

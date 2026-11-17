@@ -585,7 +585,7 @@ describe('PaymentExpirationService', () => {
         status: PaymentRecordStatus.PENDING,
         expiresAt: new Date('2020-01-01'),
       }),
-      updateStatus: jest.fn(),
+      claimPendingStatus: jest.fn().mockResolvedValue({ count: 1 }),
       findPendingExpired: jest.fn(),
       countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
@@ -612,10 +612,10 @@ describe('PaymentExpirationService', () => {
 
     const expired = await service.expirePayment('pay-1');
     expect(expired).toBe(true);
-    expect(paymentRepository.updateStatus).toHaveBeenCalledWith(
+    expect(paymentRepository.claimPendingStatus).toHaveBeenCalledWith(
       'pay-1',
       PaymentRecordStatus.EXPIRED,
-      undefined,
+      {},
       expect.anything(),
     );
   });

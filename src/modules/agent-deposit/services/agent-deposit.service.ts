@@ -458,9 +458,20 @@ export class AgentDepositService {
   }
 
   async markDepositFailed(depositId: string, reason: string) {
-    const deposit = await this.depositRepository.update(depositId, {
-      status: AgentDepositStatus.FAILED,
-    });
+    const existing = await this.depositRepository.findByIdOnly(depositId);
+    if (!existing) return null;
+
+    // Never overwrite PAID/CREDITED (or already FAILED/EXPIRED) on a late non-SUCCESS IPN.
+    const claim = await this.depositRepository.claimStatus(
+      depositId,
+      [AgentDepositStatus.INIT, AgentDepositStatus.AWAITING_PAYMENT],
+      AgentDepositStatus.FAILED,
+    );
+    if (claim.count === 0) {
+      return existing;
+    }
+
+    const deposit = (await this.depositRepository.findByIdOnly(depositId)) ?? existing;
     const agent = await this.agentRepository.findById(deposit.agentId);
     if (agent?.userId) {
       await this.notificationService.notifyAgentDepositFailed(

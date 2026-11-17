@@ -220,15 +220,21 @@ export class EsimMegapayPaymentService {
     try {
       assertWebhookAmountMatches(payment.amount, queried.amount);
     } catch (error) {
+      const received = queried.amount ? new Decimal(queried.amount).toFixed(2) : '';
       this.logger.warn(
         `eSIM MegaPay sync amount rejected ref=${payment.paymentReference} reason=${
           error instanceof Error ? error.message : 'AMOUNT'
         }`,
       );
+      await this.noteAmountMismatch(payment.id, payment.orderId, {
+        receivedAmount: received || null,
+        providerTransactionId: queried.paymentReference || null,
+      });
       return {
         paymentReference: payment.paymentReference,
         status: PaymentRecordStatus.PENDING,
         synced: false,
+        manualReview: true,
       };
     }
     const providerTransactionId = queried.paymentReference || payment.paymentReference;
@@ -284,7 +290,16 @@ export class EsimMegapayPaymentService {
     try {
       assertWebhookAmountMatches(payment.amount, input.verification.amount);
     } catch {
-      this.logger.warn(`eSIM MegaPay IPN amount mismatch ref=${payment.paymentReference}`);
+      const received = input.verification.amount
+        ? new Decimal(input.verification.amount).toFixed(2)
+        : '';
+      this.logger.warn(
+        `eSIM MegaPay IPN amount mismatch ref=${payment.paymentReference} expected=${payment.amount.toString()} received=${received}`,
+      );
+      await this.noteAmountMismatch(payment.id, payment.orderId, {
+        receivedAmount: received || null,
+        providerTransactionId: input.verification.providerTransactionId ?? null,
+      });
       return { success: true, outcome: 'IGNORED', reason: 'AMOUNT_MISMATCH' };
     }
     const providerTransactionId =
@@ -348,6 +363,51 @@ export class EsimMegapayPaymentService {
         } as Prisma.InputJsonObject,
       },
     });
+  }
+
+  /** Park amount-mismatch IPN/sync into the same manual-review queue as retail C2. Never auto-PAID. */
+  private async noteAmountMismatch(
+    paymentId: string,
+    orderId: string,
+    meta: { receivedAmount: string | null; providerTransactionId: string | null },
+  ): Promise<void> {
+    const current = await this.prisma.payment.findFirst({
+      where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
+    });
+    if (!current) return;
+    const previous =
+      current.gatewayResponse && typeof current.gatewayResponse === 'object'
+        ? (current.gatewayResponse as Record<string, unknown>)
+        : {};
+    const expectedAmount = new Decimal(current.amount.toString()).toFixed(2);
+    const receivedAmount = meta.receivedAmount?.trim() || expectedAmount;
+    await this.prisma.payment.updateMany({
+      where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
+      data: {
+        gatewayResponse: {
+          ...previous,
+          settlementMismatch: 'AMOUNT',
+          reconciliationRequired: true,
+          reconciliationReason: 'AMOUNT_MISMATCH',
+          manualReview: true,
+          lateWebhookAt: new Date().toISOString(),
+          lateWebhookEvidence: {
+            amount: receivedAmount,
+            expectedAmount,
+            receivedAmount,
+            amountMismatch: true,
+            providerTransactionId: meta.providerTransactionId,
+          },
+        } as Prisma.InputJsonObject,
+      },
+    });
+    try {
+      await this.notificationService.notifyManualPaymentReview(paymentId, orderId);
+    } catch (error) {
+      this.logger.warn(
+        `eSIM MegaPay amount-mismatch alert failed paymentId=${paymentId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
 
   private assertVndSnapshot(order: {

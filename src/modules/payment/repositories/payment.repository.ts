@@ -136,6 +136,7 @@ export class PaymentRepository {
     if (others.length === 0) return 0;
 
     const supersededAt = new Date().toISOString();
+    let expired = 0;
     for (const row of others) {
       const existing =
         row.gatewayResponse &&
@@ -143,8 +144,13 @@ export class PaymentRepository {
         !Array.isArray(row.gatewayResponse)
           ? (row.gatewayResponse as Record<string, unknown>)
           : {};
-      await tx.payment.update({
-        where: { id: row.id },
+      // Re-check PENDING so a concurrent SUCCESS IPN is never overwritten to EXPIRED.
+      const claim = await tx.payment.updateMany({
+        where: {
+          id: row.id,
+          status: PaymentRecordStatus.PENDING,
+          deletedAt: null,
+        },
         data: {
           status: PaymentRecordStatus.EXPIRED,
           gatewayResponse: {
@@ -155,8 +161,9 @@ export class PaymentRepository {
           } as Prisma.InputJsonValue,
         },
       });
+      expired += claim.count;
     }
-    return others.length;
+    return expired;
   }
 
   countPendingForOrder(

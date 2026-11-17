@@ -8,12 +8,7 @@ import { useLocale, useMoney, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { withLocalePrefix } from '@/lib/i18n/locale';
 import { useAuth } from '@/hooks/useAuth';
-import { VietQrImage, canBuildVietQrImage } from '@/components/checkout/VietQrImage';
-import {
-  buildCheckoutPayPath,
-  persistMegapayVaAndBuildPayPath,
-  readMegapayVaTransferFields,
-} from '@/lib/checkout-qr-flow';
+import { buildCheckoutPayPath } from '@/lib/checkout-qr-flow';
 import {
   clearPendingMegapayPayment,
   defaultMegapayResumeHref,
@@ -23,6 +18,7 @@ import {
   readPendingMegapayPayment,
   type PendingMegapayPayment,
 } from '@/lib/pending-megapay-payment';
+import { readPendingQrPayment } from '@/lib/pending-qr-payment';
 import { orderApi } from '@/services/api-client';
 
 const POLL_MS = 5000;
@@ -58,20 +54,6 @@ export default function CheckoutResultClient() {
   const resultCd = searchParams.get('resultCd');
   const resultMsg = searchParams.get('resultMsg');
 
-  const vaInfo = useMemo(
-    () => ({
-      accountNumber:
-        searchParams.get('vaNumber') ??
-        searchParams.get('vaAcc') ??
-        searchParams.get('vaAccount'),
-      accountName: searchParams.get('vaName'),
-      bankName: searchParams.get('bankName') ?? searchParams.get('bankCode'),
-      content: searchParams.get('vaContent') ?? searchParams.get('invoiceNo'),
-      amount: searchParams.get('amount'),
-    }),
-    [searchParams],
-  );
-
   useEffect(() => {
     const stored = readPendingMegapayPayment();
     setPending(stored);
@@ -89,22 +71,24 @@ export default function CheckoutResultClient() {
       return;
     }
 
-    // VA assigned (00_005): jump to CardOn QR pay page — never reopen MegaPay PG.
-    // Only trust VA fields when we already have a pending session for this browser
-    // (created after paymentApi.create). Never render bank details from a bare query link.
+    // VA assigned (00_005): never trust bank details from the callback query string
+    // (phishing). Only reopen /checkout/pay when postMessage already persisted QR/VA
+    // for this order in sessionStorage.
     if (isMegapayAwaitingTransferResult(resultCd)) {
-      if (stored?.orderId && stored.orderCode && stored.paymentReference) {
-        const payPath = persistMegapayVaAndBuildPayPath({
-          orderId: stored.orderId,
-          orderCode: stored.orderCode,
-          email: stored.email ?? '',
-          paymentReference: stored.paymentReference,
-          amountFallback: stored.amount ?? null,
-          va: readMegapayVaTransferFields(searchParams),
-        });
-        if (payPath) {
+      if (stored?.orderId && stored.orderCode) {
+        const trustedVa = readPendingQrPayment(stored.orderId);
+        if (trustedVa?.bankInfo?.accountNumber) {
           clearPendingMegapayPayment();
-          router.replace(withLocalePrefix(payPath, locale));
+          router.replace(
+            withLocalePrefix(
+              buildCheckoutPayPath({
+                orderId: stored.orderId,
+                orderCode: stored.orderCode,
+                email: stored.email ?? trustedVa.email ?? '',
+              }),
+              locale,
+            ),
+          );
           return;
         }
       }
@@ -137,7 +121,7 @@ export default function CheckoutResultClient() {
       t('result.failed'),
     );
     if (resultMsg?.trim()) console.error('Gateway result message', resultMsg.trim());
-  }, [resultCd, resultMsg, router, t, locale, searchParams]);
+  }, [resultCd, resultMsg, router, t, locale]);
 
   const goToSuccess = useCallback(() => {
     if (!pending?.orderCode) return;
@@ -222,10 +206,10 @@ export default function CheckoutResultClient() {
   }, [status, authLoading, isAuthenticated, locale, pending?.orderId, pending?.orderCode, pending?.email, t]);
 
   const amountLabel = useMemo(() => {
-    const raw = vaInfo.amount ?? pending?.amount;
+    const raw = pending?.amount;
     const value = Number(raw);
     return raw && Number.isFinite(value) ? money(value) : null;
-  }, [vaInfo.amount, pending?.amount, money]);
+  }, [pending?.amount, money]);
 
   const heading =
     status === 'success'
@@ -301,62 +285,13 @@ export default function CheckoutResultClient() {
 
         {status === 'awaiting_transfer' && (
           <>
-            {/* Only show QR when this browser has a pending MegaPay session — never from naked query params. */}
-            {pending?.orderId &&
-            vaInfo.accountNumber &&
-            vaInfo.content &&
-            (vaInfo.amount || pending?.amount) &&
-            canBuildVietQrImage({
-              accountNumber: vaInfo.accountNumber,
-              bankName: vaInfo.bankName,
-              bankCode: searchParams.get('bankCode'),
-              amount: vaInfo.amount ?? pending?.amount ?? '',
-              addInfo: vaInfo.content,
-            }) ? (
-              <div className="mt-5 rounded-xl border border-cardon-border bg-white p-4 text-center">
-                <p className="text-sm font-semibold text-cardon-navy">{t('pay.scanTitle')}</p>
-                <div className="mt-3">
-                  <VietQrImage
-                    accountNumber={vaInfo.accountNumber}
-                    bankName={vaInfo.bankName}
-                    bankCode={searchParams.get('bankCode')}
-                    amount={vaInfo.amount ?? pending?.amount ?? ''}
-                    addInfo={vaInfo.content}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-cardon-gray">{t('pay.vietQrGenerated')}</p>
-              </div>
-            ) : null}
+            {/* Bank/VA details come only from origin-checked postMessage → session QR store. */}
             {pending?.orderId ? (
             <dl className="mt-5 space-y-3 rounded-xl border border-cardon-border bg-cardon-light p-4 text-sm">
               {amountLabel && (
                 <div className="flex items-baseline justify-between gap-3">
                   <dt className="text-cardon-gray">{t('result.amount')}</dt>
                   <dd className="text-lg font-bold text-cardon-danger">{amountLabel}</dd>
-                </div>
-              )}
-              {vaInfo.accountNumber && (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">{t('result.accountNo')}</dt>
-                  <dd className="font-semibold text-cardon-navy">{vaInfo.accountNumber}</dd>
-                </div>
-              )}
-              {vaInfo.accountName && (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">{t('result.holder')}</dt>
-                  <dd className="font-semibold text-cardon-navy">{vaInfo.accountName}</dd>
-                </div>
-              )}
-              {vaInfo.bankName && (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">{t('result.bank')}</dt>
-                  <dd className="font-semibold text-cardon-navy">{vaInfo.bankName}</dd>
-                </div>
-              )}
-              {vaInfo.content && (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt className="text-cardon-gray">{t('result.note')}</dt>
-                  <dd className="font-semibold text-cardon-navy">{vaInfo.content}</dd>
                 </div>
               )}
             </dl>
