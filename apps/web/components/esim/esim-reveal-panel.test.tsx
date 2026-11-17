@@ -185,6 +185,27 @@ describe('Customer eSIM reveal panel', () => {
       expect(screen.getByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeTruthy(),
     );
     expect(screen.getByText('Chỉ mở trên iPhone (Safari, iOS 17.4+).')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Thêm eSIM trên Android' })).toBeNull();
+  });
+
+  it('2c. shows Android add button on Android UA and not iPhone link', async () => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
+    });
+    revealEsim.mockResolvedValue({
+      ...mockRevealPayload(),
+      appleSetupUrl: 'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA:1$example',
+    });
+    const user = userEvent.setup();
+    render(<EsimInstallPanel esim={metadataReady('order-a', { testData: false })} />);
+    await user.click(screen.getByRole('button', { name: 'Hiện mã cài' }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Thêm eSIM trên Android' })).toBeTruthy(),
+    );
+    expect(screen.queryByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeNull();
+    expect(screen.getByText(/Android: bấm «Thêm eSIM trên Android»/)).toBeTruthy();
   });
 
   it('3. hide removes the fixture from the DOM', async () => {

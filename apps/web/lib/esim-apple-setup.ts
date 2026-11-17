@@ -11,6 +11,14 @@ export function isAppleMobileDevice(ua?: string): boolean {
   return false;
 }
 
+/** Android phone/tablet UA (not iOS, not desktop Chrome pretending via request desktop site). */
+export function isAndroidMobileDevice(ua?: string): boolean {
+  if (typeof navigator === 'undefined' && !ua) return false;
+  if (isAppleMobileDevice(ua)) return false;
+  const agent = ua ?? navigator.userAgent;
+  return /Android/i.test(agent);
+}
+
 /** Safari on iOS (not Chrome/Firefox/Edge wrappers). */
 export function isIosSafari(ua?: string): boolean {
   if (!isAppleMobileDevice(ua)) return false;

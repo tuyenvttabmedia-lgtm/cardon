@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
-import { isAppleMobileDevice, isIosSafari } from '@/lib/esim-apple-setup';
+import {
+  isAndroidMobileDevice,
+  isAppleMobileDevice,
+  isIosSafari,
+} from '@/lib/esim-apple-setup';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import {
@@ -145,7 +149,9 @@ function ReadyActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [androidCopied, setAndroidCopied] = useState(false);
   const [appleDevice, setAppleDevice] = useState(false);
+  const [androidDevice, setAndroidDevice] = useState(false);
   const [iosSafari, setIosSafari] = useState(false);
   const t = useT();
   const { locale } = useLocale();
@@ -159,6 +165,7 @@ function ReadyActions({
     setBusy(false);
     setError(null);
     setCopied(false);
+    setAndroidCopied(false);
   }
   const visibleReveal = retainRevealAfterMetadataPoll(aligned.value, {
     installSecret: esim.installSecret,
@@ -168,6 +175,7 @@ function ReadyActions({
 
   useEffect(() => {
     setAppleDevice(isAppleMobileDevice());
+    setAndroidDevice(isAndroidMobileDevice());
     setIosSafari(isIosSafari());
     return () => {
       setRevealed(null);
@@ -194,6 +202,7 @@ function ReadyActions({
   function hide() {
     setRevealed(null);
     setCopied(false);
+    setAndroidCopied(false);
     setError(null);
   }
 
@@ -207,6 +216,26 @@ function ReadyActions({
       setCopied(false);
     }
   }
+
+  async function copyForAndroid() {
+    if (!visibleReveal?.installSecret) return;
+    try {
+      await navigator.clipboard.writeText(visibleReveal.installSecret);
+      setAndroidCopied(true);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setAndroidCopied(false);
+    }
+  }
+
+  const installHint = appleDevice
+    ? iosSafari
+      ? t('esim.installHint')
+      : t('esim.installHintIosChrome')
+    : androidDevice
+      ? t('esim.installHintAndroid')
+      : t('esim.installHintDesktop');
 
   const secret = visibleReveal?.installSecret ?? '';
 
@@ -251,6 +280,15 @@ function ReadyActions({
                   {t('esim.addIphone')}
                 </a>
               ) : null}
+              {androidDevice ? (
+                <button
+                  type="button"
+                  onClick={() => void copyForAndroid()}
+                  className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
+                >
+                  {t('esim.addAndroid')}
+                </button>
+              ) : null}
             </>
           ) : (
             <button
@@ -267,16 +305,11 @@ function ReadyActions({
         {visibleReveal?.appleSetupUrl && appleDevice ? (
           <p className="mt-2 text-xs text-cardon-gray">{t('esim.appleSetupNote')}</p>
         ) : null}
+        {visibleReveal && androidDevice && androidCopied ? (
+          <p className="mt-2 text-xs text-cardon-gray">{t('esim.androidSetupNote')}</p>
+        ) : null}
         <p className="mt-2 text-xs text-cardon-gray">
-          {esim.testData
-            ? t('esim.mockOnly')
-            : esim.sandboxAccount
-              ? t('esim.sandboxWarn')
-              : appleDevice
-                ? iosSafari
-                  ? t('esim.installHint')
-                  : t('esim.installHintIosChrome')
-                : t('esim.installHintDesktop')}
+          {esim.testData ? t('esim.mockOnly') : esim.sandboxAccount ? t('esim.sandboxWarn') : installHint}
         </p>
       </div>
     </div>
