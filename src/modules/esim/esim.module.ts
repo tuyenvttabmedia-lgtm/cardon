@@ -28,6 +28,7 @@ import { EsimAiraloCatalogueService } from './esim-airalo-catalogue.service';
 import { EsimAiraloCatalogueCronService } from './esim-airalo-catalogue.cron';
 import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
 import { EsimTopupService } from './esim-topup.service';
+import { EsimTopupCheckoutService } from './esim-topup-checkout.service';
 import { EsimQueryOpenCronService } from './esim-query-open.cron';
 import { EsimFulfillStuckCronService } from './esim-fulfill-stuck.cron';
 
@@ -77,6 +78,7 @@ const httpControllers = shouldRegisterHttp()
     EsimAdminService,
     EsimAiraloWebhookService,
     EsimTopupService,
+    EsimTopupCheckoutService,
     EsimAiraloProviderBootstrap,
     EsimAiraloCatalogueRepository,
     EsimAiraloCatalogueService,
@@ -91,6 +93,7 @@ const httpControllers = shouldRegisterHttp()
     EsimAiraloAdapter,
     EsimAiraloCatalogueService,
     EsimTopupService,
+    EsimTopupCheckoutService,
   ],
 })
 export class EsimModule {}

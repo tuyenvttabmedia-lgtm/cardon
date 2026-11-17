@@ -20,6 +20,11 @@ vi.mock('@/services/api-client', () => ({
   },
   accountApi: {
     listEsimProfiles: vi.fn(),
+    getEsimUsage: vi.fn().mockResolvedValue({ iccidMasked: null, usage: null }),
+    listEsimTopups: vi.fn().mockResolvedValue({ iccidMasked: null, packages: [] }),
+  },
+  paymentApi: {
+    create: vi.fn(),
   },
 }));
 
@@ -244,9 +249,10 @@ describe('Customer eSIM reveal panel', () => {
       await Promise.resolve();
     });
     expect(listEsimProfiles).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Mã cài / QR' }));
     expect(screen.getByRole('button', { name: 'Hiện mã cài' })).toBeTruthy();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(8000);
+      await vi.advanceTimersByTimeAsync(20_000);
     });
     expect(listEsimProfiles.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(revealEsim).not.toHaveBeenCalled();
@@ -261,6 +267,7 @@ describe('Customer eSIM reveal panel', () => {
     await act(async () => {
       await Promise.resolve();
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Mã cài / QR' }));
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Hiện mã cài' }));
       await Promise.resolve();
@@ -276,7 +283,7 @@ describe('Customer eSIM reveal panel', () => {
       }),
     ]);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(8000);
+      await vi.advanceTimersByTimeAsync(20_000);
     });
     expect(listEsimProfiles.mock.calls.length).toBeGreaterThanOrEqual(2);
     expectFixtureAbsent(view.container);

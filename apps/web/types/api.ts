@@ -197,6 +197,32 @@ export interface EsimPackageSpec {
   notice: string;
 }
 
+export interface EsimUsageSnapshot {
+  status: string;
+  statusLabelVi: string;
+  statusLabelEn: string;
+  isUnlimited: boolean;
+  totalMb: number | null;
+  remainingMb: number | null;
+  usedMb: number | null;
+  remainingPercent: number | null;
+  usedPercent: number | null;
+  expiredAt: string | null;
+  expiresInDays: number | null;
+  expiringSoon: boolean;
+  canTopupHint: boolean;
+}
+
+export interface EsimTopupPackageOffer {
+  providerPackageId: string;
+  title: string;
+  dataLabel: string | null;
+  validityLabel: string | null;
+  sellPriceVnd: number;
+  dataAmountMb: number | null;
+  validityDays: number | null;
+}
+
 export interface EsimDelivery {
   kind: EsimDeliveryKind;
   destination: string;
@@ -213,6 +239,9 @@ export interface EsimDelivery {
   orderId?: string;
   orderCode?: string;
   createdAt?: string;
+  iccidMasked?: string | null;
+  hasIccid?: boolean;
+  topupSupported?: boolean;
 }
 
 export interface EsimInstallReveal {

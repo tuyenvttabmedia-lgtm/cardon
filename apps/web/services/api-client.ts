@@ -268,6 +268,24 @@ export const accountApi = {
   getEsimProfile(orderId: string) {
     return apiRequest<import('@/types/api').EsimDelivery>(`/esim/profiles/${orderId}`);
   },
+  getEsimUsage(orderId: string) {
+    return apiRequest<{
+      iccidMasked: string | null;
+      usage: import('@/types/api').EsimUsageSnapshot | null;
+    }>(`/esim/profiles/${orderId}/usage`);
+  },
+  listEsimTopups(orderId: string) {
+    return apiRequest<{
+      iccidMasked: string | null;
+      packages: import('@/types/api').EsimTopupPackageOffer[];
+    }>(`/esim/profiles/${orderId}/topups`);
+  },
+  createEsimTopup(orderId: string, body: { packageId: string; paymentMethodCode: string }) {
+    return apiRequest<import('@/types/api').Order>(`/esim/profiles/${orderId}/topups`, {
+      method: 'POST',
+      body,
+    });
+  },
   listCards(skip = 0, take = 15, homeService?: 'GAME_CARD' | 'PHONE_CARD') {
     const params = new URLSearchParams();
     if (skip > 0) params.set('skip', String(skip));

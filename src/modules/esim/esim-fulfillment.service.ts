@@ -18,6 +18,9 @@ import { airaloNumericId, airaloOrderCode } from './esim-airalo-code';
 import { ESIM_PROVIDER_PORT, EsimProviderPort } from './esim-provider.port';
 import { ESIM_LIVE_HTTP_DISABLED, ESIM_TEST_MARKER } from './esim.constants';
 import { isEsimTestSecret } from './esim-delivery.view';
+import { EsimTopupService } from './esim-topup.service';
+import { readEsimTopupTrace } from './esim-usage.rules';
+import { PrismaService } from '../../database/prisma.service';
 
 export interface EsimFulfillmentResult {
   orderId: string;
@@ -51,6 +54,8 @@ export class EsimFulfillmentService {
     @Optional() private readonly settings?: SettingsStoreService,
     @Optional() private readonly notifications?: NotificationService,
     @Optional() private readonly getLease?: EsimGetLease,
+    @Optional() private readonly prisma?: PrismaService,
+    @Optional() private readonly topups?: EsimTopupService,
   ) {}
 
   async fulfill(
@@ -69,6 +74,8 @@ export class EsimFulfillmentService {
     const skipped = await this.skippedAdminTest(orderId);
     if (skipped) return skipped;
     await this.settings?.reload();
+    const topup = await this.fulfillTopupIfNeeded(orderId);
+    if (topup) return topup;
     const quote = await this.repository.findQuoteByOrderId(orderId);
     if (!quote) {
       throw new NotFoundException('eSIM quote not found');
@@ -551,6 +558,70 @@ export class EsimFulfillmentService {
       throw new Error('QUERY claim could not be closed');
     }
     return review;
+  }
+
+  /** Paid customer top-up: Airalo POST /orders/topups — no new install profile. */
+  private async fulfillTopupIfNeeded(orderId: string): Promise<EsimFulfillmentResult | null> {
+    if (!this.prisma || !this.topups) return null;
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { clientTrace: true, fulfillmentStatus: true, paymentStatus: true },
+    });
+    const trace = readEsimTopupTrace(order?.clientTrace);
+    if (!trace) return null;
+    if (order?.fulfillmentStatus === FulfillmentStatus.COMPLETED) {
+      return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED, created: false };
+    }
+    if (order?.paymentStatus !== 'PAID') {
+      return {
+        orderId,
+        fulfillmentStatus: order?.fulfillmentStatus ?? FulfillmentStatus.PENDING,
+        created: false,
+      };
+    }
+    try {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.PROVIDER_REQUEST,
+        'eSIM top-up started',
+      );
+      const result = await this.topups.submit(
+        trace.iccid,
+        trace.packageId,
+        `cardon-topup-${orderId}`,
+      );
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.COMPLETED },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.PROVIDER_SUCCESS,
+        `eSIM top-up applied (${result.providerOrderCode ?? result.orderReference ?? trace.packageId})`,
+      );
+      return { orderId, fulfillmentStatus: FulfillmentStatus.COMPLETED, created: false };
+    } catch (error) {
+      const message = error instanceof Error ? error.message.slice(0, 200) : 'top-up failed';
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: { fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW },
+      });
+      await this.repository.recordOrderEvent?.(
+        orderId,
+        OrderEventType.ORDER_NEED_SUPPORT,
+        `eSIM top-up failed: ${message}`,
+      );
+      this.logger.warn(`eSIM top-up fulfill failed order=${orderId}: ${message}`);
+      return {
+        orderId,
+        fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+        created: false,
+      };
+    }
   }
 
   /** Persisted clientTrace.adminTest only. A replayed job still stops here. */

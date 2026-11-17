@@ -420,6 +420,13 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     };
   }
 
+  /** GET /v2/sims/{iccid}/usage — remaining data / status (rate-limited by Airalo). */
+  async getSimUsage(iccid: string): Promise<unknown> {
+    const trimmed = iccid.trim();
+    if (!trimmed) throw new AiraloRequestError('Airalo ICCID is required');
+    return this.send('GET', `/v2/sims/${encodeURIComponent(trimmed)}/usage`);
+  }
+
   /** GET /v2/sims/{iccid}/topups — packages that can top up this eSIM. */
   async listTopupPackages(iccid: string): Promise<AiraloTopupPackage[]> {
     const trimmed = iccid.trim();
@@ -471,6 +478,10 @@ export interface AiraloTopupPackage {
   validityDays: number | null;
   price: number | null;
   currency: string | null;
+  netPriceUsd: number | null;
+  netPriceVnd: number | null;
+  retailPriceUsd: number | null;
+  retailPriceVnd: number | null;
 }
 
 export function readAiraloIccid(sim: unknown): string | undefined {
@@ -496,14 +507,34 @@ export function parseAiraloTopupPackages(body: unknown): AiraloTopupPackage[] {
     if (!id) continue;
     const amount = Number(record.amount ?? record.data ?? record.data_amount);
     const day = Number(record.day ?? record.days ?? record.validity);
-    const price = Number(record.price ?? record.net_price);
+    const prices =
+      record.prices && typeof record.prices === 'object'
+        ? (record.prices as {
+            net_price?: Record<string, unknown>;
+            recommended_retail_price?: Record<string, unknown>;
+            price?: unknown;
+          })
+        : undefined;
+    const net = (prices?.net_price ?? record.net_price) as Record<string, unknown> | undefined;
+    const retail = (prices?.recommended_retail_price ?? record.recommended_retail_price) as
+      | Record<string, unknown>
+      | undefined;
+    const netUsd = readMoney(net?.USD ?? net?.usd ?? record.price ?? prices?.price);
+    const netVnd = readMoney(net?.VND ?? net?.vnd);
+    const retailUsd = readMoney(retail?.USD ?? retail?.usd);
+    const retailVnd = readMoney(retail?.VND ?? retail?.vnd);
+    const price = netUsd ?? Number(record.price ?? record.net_price);
     out.push({
       providerPackageId: id,
       title: stringOrEmpty(record.title ?? record.name) || id,
       dataAmountMb: Number.isFinite(amount) ? Math.round(amount) : null,
       validityDays: Number.isFinite(day) ? Math.round(day) : null,
       price: Number.isFinite(price) ? price : null,
-      currency: typeof record.currency === 'string' ? record.currency : null,
+      currency: typeof record.currency === 'string' ? record.currency : netUsd != null ? 'USD' : null,
+      netPriceUsd: netUsd,
+      netPriceVnd: netVnd,
+      retailPriceUsd: retailUsd,
+      retailPriceVnd: retailVnd,
     });
   }
   return out;

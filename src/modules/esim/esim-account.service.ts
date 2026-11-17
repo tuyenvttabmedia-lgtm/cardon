@@ -13,12 +13,16 @@ import {
 } from './esim-delivery.view';
 import { buildEsimPackageSpec } from './esim-package-spec';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
+import { maskEsimIccid } from './esim-usage.rules';
 
 export interface EsimAccountRow extends EsimDeliveryView {
   id: string | null;
   orderId: string;
   orderCode: string;
   createdAt: string;
+  iccidMasked: string | null;
+  hasIccid: boolean;
+  topupSupported: boolean;
 }
 
 @Injectable()
@@ -36,6 +40,8 @@ export class EsimAccountService {
         ...ACTIVE_ORDER_WHERE,
         paymentStatus: OrderPaymentStatus.PAID,
         orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+        // Top-up child orders are not separate eSIM profiles.
+        NOT: { clientTrace: { path: ['esimLane'], equals: 'topup' } },
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -49,7 +55,9 @@ export class EsimAccountService {
           select: {
             variant: { select: { name: true, product: { select: { name: true } } } },
             esimQuote: { select: { providerProductCode: true } },
-            esimProfile: { select: { id: true, createdAt: true, installSecretEnc: true } },
+            esimProfile: {
+              select: { id: true, createdAt: true, installSecretEnc: true, iccid: true },
+            },
           },
         },
       },
@@ -75,6 +83,7 @@ export class EsimAccountService {
           productName: item.variant.product.name,
           variantName: item.variant.name,
           installSecretEnc: item.esimProfile?.installSecretEnc ?? null,
+          iccid: item.esimProfile?.iccid ?? null,
           packageRow: item.esimQuote?.providerProductCode
             ? packages.get(item.esimQuote.providerProductCode)
             : undefined,
@@ -90,6 +99,7 @@ export class EsimAccountService {
         userId,
         ...ACTIVE_ORDER_WHERE,
         orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
+        NOT: { clientTrace: { path: ['esimLane'], equals: 'topup' } },
       },
       select: {
         id: true,
@@ -102,7 +112,9 @@ export class EsimAccountService {
           select: {
             variant: { select: { name: true, product: { select: { name: true } } } },
             esimQuote: { select: { providerProductCode: true } },
-            esimProfile: { select: { id: true, createdAt: true, installSecretEnc: true } },
+            esimProfile: {
+              select: { id: true, createdAt: true, installSecretEnc: true, iccid: true },
+            },
           },
         },
       },
@@ -124,6 +136,7 @@ export class EsimAccountService {
       productName: item.variant.product.name,
       variantName: item.variant.name,
       installSecretEnc: item.esimProfile?.installSecretEnc ?? null,
+      iccid: item.esimProfile?.iccid ?? null,
       packageRow: item.esimQuote?.providerProductCode
         ? packages.get(item.esimQuote.providerProductCode)
         : undefined,
@@ -140,6 +153,7 @@ export class EsimAccountService {
     productName?: string | null;
     variantName?: string | null;
     installSecretEnc: string | null;
+    iccid?: string | null;
     packageRow?: Parameters<typeof buildEsimPackageSpec>[0];
   }): EsimAccountRow {
     let secret: string | null = null;
@@ -168,12 +182,16 @@ export class EsimAccountService {
       orderId: input.orderId,
       orderCode: input.orderCode,
     });
+    const iccidMasked = maskEsimIccid(input.iccid);
     return {
       ...view,
       id: input.id,
       orderId: input.orderId,
       orderCode: input.orderCode,
       createdAt: input.createdAt,
+      iccidMasked,
+      hasIccid: Boolean(input.iccid && input.iccid.trim().length >= 10),
+      topupSupported: Boolean(input.iccid && input.iccid.trim().length >= 10 && kind === 'ready'),
     };
   }
 
