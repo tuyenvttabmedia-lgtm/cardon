@@ -607,7 +607,10 @@ function CheckoutShellInner({
         );
       }
 
-      const pay = await paymentApi.create({ orderId: order.id, gateway }, generateIdempotencyKey());
+      const pay = await paymentApi.create(
+        { orderId: order.id, gateway },
+        `pay:${order.id}:${gateway}`,
+      );
       setPayment(pay);
       setPaidOrderMeta({
         orderId: order.id,

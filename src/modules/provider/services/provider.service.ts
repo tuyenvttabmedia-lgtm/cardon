@@ -341,16 +341,21 @@ export class ProviderService {
       });
     }
 
+    // Never open a second buyCard while PROCESSING with no txn row — race with the
+    // worker that claimed fulfillment but has not persisted provider_transactions yet.
     this.logger.warn(
-      `Order ${params.orderId} is PROCESSING without recoverable provider transaction — retrying buyCard`,
+      `Order ${params.orderId} is PROCESSING without recoverable provider transaction — parking WAITING_ADMIN_RETRY (no re-buy)`,
     );
-
-    return this.executeBuyCardAttempt({
+    await this.orderRepository.updateFulfillmentStatus(
+      params.orderId,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    await this.notificationService.notifyAdminRetryRequired(params.orderId);
+    return {
       orderId: params.orderId,
-      orderItem: params.orderItem,
-      selection: params.selection,
-      isRetry: false,
-    });
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      failureCode: 'UNKNOWN',
+    };
   }
 
   private async executeBuyCardAttempt(params: {
@@ -685,28 +690,47 @@ export class ProviderService {
       const cards = result.cards;
       if (cards.length !== quantity) {
         this.logger.warn(
-          `Expected ${quantity} cards, received ${cards.length} for order ${orderId} — WAITING_ADMIN_RETRY`,
+          `Expected ${quantity} cards, received ${cards.length} for order ${orderId} — saving received cards, NEED_MANUAL_REVIEW (no re-buy)`,
         );
 
-        await this.transactionRepository.updateResult(txnId, {
-          status: ProviderTransactionStatus.FAILED,
-          providerTransactionId: result.providerTransactionId,
-          providerReference: result.providerReference ?? requestId,
-          responsePayload: {
-            ...(result.rawResponse ?? {}),
-            quantityMismatch: true,
-            expected: quantity,
-            received: cards.length,
-          } as Prisma.InputJsonValue,
-          errorCode: 'UNKNOWN',
-          errorMessage: 'QUANTITY_MISMATCH',
-          completedAt: new Date(),
+        await this.prisma.$transaction(async (tx) => {
+          await this.cardRecordRepository.createMany(
+            cards.map((card) => ({
+              orderItemId,
+              encryptedSerial: this.cardEncryption.encrypt(card.serial),
+              encryptedPin: this.cardEncryption.encrypt(card.pin),
+              providerResponse: {
+                expiredAt: card.expiredAt?.toISOString() ?? null,
+                gatewayTransactionId: result.providerTransactionId,
+                quantityMismatch: true,
+              } as Prisma.InputJsonValue,
+            })),
+            tx,
+          );
+          await this.transactionRepository.updateResult(
+            txnId,
+            {
+              status: ProviderTransactionStatus.SUCCESS,
+              providerTransactionId: result.providerTransactionId,
+              providerReference: result.providerReference ?? requestId,
+              responsePayload: {
+                ...(result.rawResponse ?? {}),
+                quantityMismatch: true,
+                expected: quantity,
+                received: cards.length,
+              } as Prisma.InputJsonValue,
+              errorCode: 'UNKNOWN',
+              errorMessage: 'QUANTITY_MISMATCH',
+              completedAt: new Date(),
+            },
+            tx,
+          );
+          await this.orderRepository.updateFulfillmentStatus(
+            orderId,
+            FulfillmentStatus.NEED_MANUAL_REVIEW,
+            tx,
+          );
         });
-
-        await this.orderRepository.updateFulfillmentStatus(
-          orderId,
-          FulfillmentStatus.WAITING_ADMIN_RETRY,
-        );
 
         await this.providerAudit.recordFailed({
           orderId,
@@ -719,10 +743,11 @@ export class ProviderService {
             received: cards.length,
           },
         });
+        await this.notificationService.notifyAdminRetryRequired(orderId);
 
         return {
           orderId,
-          fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+          fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
           providerTransactionId: result.providerTransactionId,
         };
       }

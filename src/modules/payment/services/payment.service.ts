@@ -9,6 +9,7 @@
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  FulfillmentStatus,
   Order,
   Payment,
   OrderPaymentStatus,
@@ -162,6 +163,43 @@ export class PaymentService {
       order.paymentExpiresAt.getTime() < Date.now()
     ) {
       throw new BadRequestException('Order payment window has expired');
+    }
+
+    // Reuse open PENDING invoice for this order+gateway (stable retry / avoid orphan VAs).
+    const openPending = await this.prisma.payment.findFirst({
+      where: {
+        orderId: order.id,
+        gateway: dto.gateway,
+        status: PaymentRecordStatus.PENDING,
+        deletedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (openPending && !esimPaypalCreateIncomplete(openPending) && !adminTestPaypalCreateIncomplete(openPending)) {
+      const gatewayResponse = openPending.gatewayResponse as Record<string, unknown>;
+      const checkoutFormFields = readCheckoutFormFields(gatewayResponse);
+      if (
+        gatewayResponse.paymentUrl ||
+        gatewayResponse.checkoutUrl ||
+        checkoutFormFields ||
+        readBankInfo(gatewayResponse)
+      ) {
+        return mapPayment(openPending, {
+          paymentUrl:
+            typeof gatewayResponse.paymentUrl === 'string'
+              ? gatewayResponse.paymentUrl
+              : undefined,
+          checkoutUrl:
+            typeof gatewayResponse.checkoutUrl === 'string'
+              ? gatewayResponse.checkoutUrl
+              : undefined,
+          checkoutFormFields,
+          checkoutClient: readCheckoutClient(gatewayResponse),
+          displayMode: readDisplayMode(gatewayResponse),
+          bankInfo: readBankInfo(gatewayResponse),
+        });
+      }
     }
 
     if (dto.gateway === PaymentGatewayCode.PAYPAL && order.paymentGateway !== 'PAYPAL') {
@@ -717,8 +755,37 @@ export class PaymentService {
     }
 
     if (payment.status === PaymentRecordStatus.SUCCESS) {
+      const storedTxId =
+        payment.gatewayResponse && typeof payment.gatewayResponse === 'object'
+          ? String(
+              (payment.gatewayResponse as Record<string, unknown>).gatewayTransactionId ??
+                '',
+            )
+          : '';
+      const incomingTxId = verification.providerTransactionId?.trim() ?? '';
+      // Second distinct bank txn on an already-SUCCESS payment → ops must refund manually.
+      if (
+        incomingTxId &&
+        storedTxId &&
+        incomingTxId !== storedTxId &&
+        verification.status === 'SUCCESS'
+      ) {
+        await this.handleDuplicateSuccessOnPaidOrder(payment, {
+          amount: new Decimal(verification.amount ?? payment.amount.toString()).toFixed(2),
+          providerTransactionId: incomingTxId,
+          rawPayload: verification.rawPayload,
+        });
+        return {
+          ok: true,
+          duplicate: true,
+          manualReview: true,
+          paymentReference: payment.paymentReference,
+        };
+      }
       if (payment.gateway === PaymentGatewayCode.PAYPAL) {
         await this.queuePaypalFulfillmentIfNeeded(payment);
+      } else {
+        await this.requeueRetailFulfillmentIfStillPending(payment.orderId, payment.paymentReference);
       }
       return {
         ok: true,
@@ -747,8 +814,36 @@ export class PaymentService {
         }
       }
 
-      // Amount must match before settle OR late manual-review queue — underpay must not be approvable.
-      assertWebhookAmountMatches(payment.amount, verification.amount);
+      // Amount mismatch: ack + manual review (never auto-PAID). Do not 400 — gateway stops retrying.
+      try {
+        assertWebhookAmountMatches(payment.amount, verification.amount);
+      } catch (err) {
+        const received = verification.amount
+          ? new Decimal(verification.amount).toFixed(2)
+          : '';
+        this.logger.warn(
+          `Webhook amount mismatch reference=${payment.paymentReference} expected=${payment.amount.toString()} received=${received}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await this.handleLateSuccessWebhook(payment, {
+          amount: received || payment.amount.toFixed(2),
+          providerTransactionId: verification.providerTransactionId ?? null,
+          rawPayload: {
+            ...(typeof verification.rawPayload === 'object' &&
+            verification.rawPayload &&
+            !Array.isArray(verification.rawPayload)
+              ? (verification.rawPayload as Record<string, unknown>)
+              : {}),
+            amountMismatch: true,
+            expectedAmount: payment.amount.toFixed(2),
+            receivedAmount: received || null,
+          },
+        });
+        return {
+          ok: true,
+          manualReview: true,
+          paymentReference: payment.paymentReference,
+        };
+      }
 
       // Second SUCCESS while order already PAID (e.g. customer paid superseded invoice) → ops review, no re-fulfill.
       if (payment.order.paymentStatus === OrderPaymentStatus.PAID) {
@@ -771,7 +866,8 @@ export class PaymentService {
         expiresAt: payment.expiresAt,
       });
 
-      if (expired) {
+      // Late SUCCESS on EXPIRED/FAILED payment → manual review (money may already be in bank).
+      if (expired || payment.status === PaymentRecordStatus.FAILED) {
         await this.handleLateSuccessWebhook(payment, {
           amount: new Decimal(verification.amount!).toFixed(2),
           providerTransactionId: verification.providerTransactionId ?? null,
@@ -1225,6 +1321,34 @@ export class PaymentService {
       select: { variant: { select: { type: true } } },
     });
     return items.length > 0 && items.every((item) => item.variant?.type === 'ESIM');
+  }
+
+  /**
+   * Retail IPN retry after SUCCESS: if PAID but fulfillment never left PENDING
+   * (Redis/dispatch failed after commit), enqueue again. Never re-buy.
+   */
+  private async requeueRetailFulfillmentIfStillPending(
+    orderId: string,
+    paymentReference: string,
+  ): Promise<void> {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, deletedAt: null },
+      select: { paymentStatus: true, fulfillmentStatus: true },
+    });
+    if (
+      !order ||
+      order.paymentStatus !== OrderPaymentStatus.PAID ||
+      order.fulfillmentStatus !== FulfillmentStatus.PENDING
+    ) {
+      return;
+    }
+    const queueJobIds = await this.fulfillmentDispatchService.dispatchOrderFulfillment(
+      orderId,
+      'webhook',
+    );
+    this.logger.warn(
+      `Re-queued retail fulfillment after duplicate SUCCESS IPN orderId=${orderId} paymentReference=${paymentReference} queueJobIds=${queueJobIds.join(',')}`,
+    );
   }
 
   private async queuePaypalFulfillmentIfNeeded(payment: { id: string; orderId: string }) {

@@ -12,7 +12,7 @@ import {
 } from '../../interfaces/provider.interface';
 import { ProviderProductSyncService } from '../../services/provider-product-sync.service';
 import { EsaleConfigService } from './esale.config';
-import { EsaleHttpClient } from './esale.client';
+import { EsaleHttpClient, EsaleHttpError } from './esale.client';
 import { EsaleCardAdapter } from './esale-card.adapter';
 import { EsaleTopupAdapter } from './esale-topup.adapter';
 import {
@@ -285,16 +285,23 @@ export class ESaleProvider implements ProviderInterface {
     });
   }
 
+  /**
+   * Topup request may already be applied at eSale when HTTP fails.
+   * Never return definitive FAILED for transport/timeout — recover via checkTransaction only.
+   */
   private handleTopupHttpError(error: unknown, requestId: string): ProviderResult {
     const message =
       error instanceof Error ? error.message : 'Unknown eSale HTTP error';
-    this.logger.error(`eSale topup request failed requestId=${requestId}: ${message}`);
+    const timedOut = error instanceof EsaleHttpError && error.timeout;
+    this.logger.error(
+      `eSale topup ambiguous HTTP failure requestId=${requestId} timeout=${timedOut}: ${message}`,
+    );
     return {
       success: false,
-      status: ProviderTransactionStatus.FAILED,
-      failureCode: 'UNKNOWN',
+      status: ProviderTransactionStatus.TIMEOUT,
+      failureCode: 'TIMEOUT',
       message,
-      rawResponse: { requestId },
+      rawResponse: { requestId, timeout: timedOut, ambiguousHttp: true },
     };
   }
 }

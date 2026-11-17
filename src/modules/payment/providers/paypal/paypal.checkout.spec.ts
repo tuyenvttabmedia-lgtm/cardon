@@ -323,6 +323,8 @@ describe('PayPal payment service', () => {
       findLatestByOrderId: jest.fn(async () => current()),
       findSuccessByProviderTransactionId: jest.fn(),
       recordLateWebhookManualReview: jest.fn(),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+      countPendingForOrder: jest.fn().mockResolvedValue(0),
       updateGatewayResponse: jest.fn(async (_id: string, next: Record<string, unknown>) => {
         stored = next;
       }),
@@ -353,7 +355,12 @@ describe('PayPal payment service', () => {
           update: jest.fn(),
           findUnique: jest.fn(async () => ({ clientTrace, fulfillmentStatus: 'PENDING' })),
         },
-        payment: { create: jest.fn(), findUnique: jest.fn(async () => ({ status })) },
+        payment: {
+          create: jest.fn(),
+          findUnique: jest.fn(async () => ({ status })),
+          findFirst: jest.fn().mockResolvedValue(null),
+        },
+        orderItem: { findMany: jest.fn().mockResolvedValue([]) },
         orderEvent: { create: jest.fn() },
         $transaction: jest.fn(async (cb: (tx: unknown) => Promise<unknown>) =>
           cb({
@@ -368,8 +375,14 @@ describe('PayPal payment service', () => {
                 createdAt: new Date(),
               })),
               findUnique: jest.fn(async () => ({ status })),
+              count: jest.fn().mockResolvedValue(0),
             },
-            order: { update: jest.fn() },
+            order: {
+              update: jest.fn(),
+              findUnique: jest.fn(async () => ({
+                paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+              })),
+            },
           }),
         ),
       } as never,

@@ -13,7 +13,7 @@ export function safeInternalPath(
   if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) {
     return fallback;
   }
-  if (value.includes('\\') || value.includes('\0')) {
+  if (value.includes('\\') || value.includes('\0') || /[\t\n\r]/.test(value)) {
     return fallback;
   }
 
@@ -34,6 +34,7 @@ export function safeInternalPath(
     decoded.startsWith('//') ||
     decoded.includes('\\') ||
     decoded.includes('\0') ||
+    /[\t\n\r]/.test(decoded) ||
     lower.includes('://') ||
     lower.startsWith('http:') ||
     lower.startsWith('https:') ||

@@ -146,6 +146,14 @@ export function MegapayPgCheckoutOpen({
 
   useEffect(() => {
     function onMessage(event: MessageEvent) {
+      // Only accept MegaPay PG frame messages from the configured checkout domain.
+      try {
+        const allowed = new URL(checkoutClient.domain).origin;
+        if (event.origin !== allowed) return;
+      } catch {
+        return;
+      }
+
       const data = event.data;
       if (!data || typeof data !== 'object') return;
       const close = (data as { closeLayer?: string }).closeLayer;
@@ -170,6 +178,7 @@ export function MegapayPgCheckoutOpen({
       if (resultMsg) q.set('resultMsg', resultMsg);
 
       // VA assigned: leave MegaPay permanently — show VietQR on CardOn /checkout/pay.
+      // VA fields come only from the origin-checked MegaPay message while a pending session exists.
       if (isMegapayAwaitingTransferResult(resultCd)) {
         const payload = data as Record<string, unknown>;
         if (orderId && orderCode && paymentReference) {
@@ -188,10 +197,7 @@ export function MegapayPgCheckoutOpen({
             return;
           }
         }
-        for (const field of VA_RESULT_FIELDS) {
-          const value = payload[field];
-          if (typeof value === 'string' && value.trim()) q.set(field, value.trim());
-        }
+        // Do not copy VA into the public result URL (phishing surface). Keep resultCd only.
       }
 
       router.replace(`/checkout/result?${q.toString()}`);
@@ -199,7 +205,7 @@ export function MegapayPgCheckoutOpen({
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [router, orderId, orderCode, email, paymentReference, amount]);
+  }, [router, orderId, orderCode, email, paymentReference, amount, checkoutClient.domain]);
 
   // Open once per paymentReference (module set survives Strict Mode remount).
   useEffect(() => {

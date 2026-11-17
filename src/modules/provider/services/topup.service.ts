@@ -275,19 +275,20 @@ export class TopupService {
       });
     }
 
+    // Never open a second topup while PROCESSING with no txn — race with the claiming worker.
     this.logger.warn(
-      `Order ${params.orderId} is PROCESSING without recoverable topup transaction — retrying topup`,
+      `Order ${params.orderId} is PROCESSING without recoverable topup transaction — parking WAITING_ADMIN_RETRY (no re-topup)`,
     );
-
-    return this.executeTopupAttempt({
+    await this.orderRepository.updateFulfillmentStatus(
+      params.orderId,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+    await this.notificationService.notifyAdminRetryRequired(params.orderId);
+    return {
       orderId: params.orderId,
-      orderItem: params.orderItem,
-      phoneNumber: params.phoneNumber,
-      amount: params.amount,
-      telco: params.telco,
-      selection: params.selection,
-      isRetry: false,
-    });
+      fulfillmentStatus: FulfillmentStatus.WAITING_ADMIN_RETRY,
+      failureCode: 'UNKNOWN',
+    };
   }
 
   private async executeTopupAttempt(params: {

@@ -302,7 +302,7 @@ export default function CheckoutPageClient() {
             gateway: selectedOption.gateway,
             ...(isAuthenticated ? {} : { guestEmail: email }),
           },
-          generateIdempotencyKey(),
+          `pay:${created.id}:${selectedOption.gateway}`,
         );
         if (selectedOption.gateway === 'PAYPAL') {
           if (!isPaypalApprovalUrl(pay.paymentUrl)) {
@@ -366,7 +366,7 @@ export default function CheckoutPageClient() {
           gateway,
           ...(isAuthenticated ? {} : { guestEmail: resolvedEmail }),
         },
-        generateIdempotencyKey(),
+        `pay:${order.id}:${gateway}`,
       );
       setPayment(pay);
       setPaidOrderMeta({

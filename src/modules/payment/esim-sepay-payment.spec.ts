@@ -583,7 +583,7 @@ describe('eSIM checkout leaves retail payment and redirect sync alone', () => {
           orderItemType ? [{ variant: { type: orderItemType } }] : [],
         ),
       },
-      payment: { create: jest.fn() },
+      payment: { create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb({
         payment: {
           create: jest.fn().mockResolvedValue({

@@ -177,7 +177,7 @@ describe('Phase 6G.1 Fulfillment pipeline', () => {
     expect(ctx.buyCardSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('recovers zombie PROCESSING order without provider transaction and completes', async () => {
+  it('parks zombie PROCESSING order without provider transaction (no re-buy)', async () => {
     const ctx = buildPipelineContext();
     const processingOrder = {
       ...ctx.paidCardOrder,
@@ -188,9 +188,8 @@ describe('Phase 6G.1 Fulfillment pipeline', () => {
 
     const result = await ctx.service.fulfillOrder('order-pipeline-1');
 
-    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.COMPLETED);
-    expect(ctx.transactionRepository.create).toHaveBeenCalled();
-    expect(ctx.cardRecordRepository.createMany).toHaveBeenCalled();
-    expect(ctx.buyCardSpy).toHaveBeenCalledTimes(1);
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
+    expect(ctx.buyCardSpy).not.toHaveBeenCalled();
+    expect(ctx.transactionRepository.create).not.toHaveBeenCalled();
   });
 });

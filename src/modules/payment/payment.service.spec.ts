@@ -22,7 +22,8 @@ describe('PaymentService', () => {
   let prisma: {
     order: { findFirst: jest.Mock; update: jest.Mock };
     $transaction: jest.Mock;
-    payment: { create: jest.Mock; findUnique: jest.Mock };
+    payment: { create: jest.Mock; findUnique: jest.Mock; findFirst: jest.Mock };
+    orderItem: { count: jest.Mock; findMany: jest.Mock };
   };
   let paymentRepository: {
     findByIdempotencyKey: jest.Mock;
@@ -103,6 +104,11 @@ describe('PaymentService', () => {
       payment: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn().mockResolvedValue(null),
+      },
+      orderItem: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
       },
       $transaction: jest.fn(async (cb) => cb({})),
     };
@@ -342,7 +348,7 @@ describe('PaymentService', () => {
     expect(paymentAuditService.recordPaymentSuccess).not.toHaveBeenCalled();
   });
 
-  it('rejects webhook with amount mismatch', async () => {
+  it('acks amount-mismatch SUCCESS into manual review without settling', async () => {
     paymentRepository.findByReference.mockResolvedValue(pendingPayment);
 
     const payload = {
@@ -352,15 +358,24 @@ describe('PaymentService', () => {
     };
     const signature = computeMockWebhookSignature(payload);
 
-    await expect(
-      service.handleWebhook(
-        'megapay',
-        payload,
-        { 'x-webhook-signature': signature },
-      ),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
 
+    expect(result).toEqual(
+      expect.objectContaining({ ok: true, manualReview: true, paymentReference: 'PAY-REF-001' }),
+    );
     expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: '90000.00' }),
+        lateWebhookPayload: expect.objectContaining({
+          amountMismatch: true,
+          receivedAmount: '90000.00',
+        }),
+      }),
+    );
   });
 
   it('returns OK for PENDING webhook without updating payment', async () => {
@@ -436,7 +451,7 @@ describe('PaymentService', () => {
     );
   });
 
-  it('rejects late SUCCESS underpay instead of opening approvable manual review', async () => {
+  it('records late SUCCESS underpay as manual review with received amount (not auto-PAID)', async () => {
     paymentRepository.findByReference.mockResolvedValue({
       ...pendingPayment,
       status: PaymentRecordStatus.EXPIRED,
@@ -451,10 +466,21 @@ describe('PaymentService', () => {
     };
     const signature = computeMockWebhookSignature(payload);
 
-    await expect(
-      service.handleWebhook('megapay', payload, { 'x-webhook-signature': signature }),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    expect(paymentRepository.recordLateWebhookManualReview).not.toHaveBeenCalled();
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+    expect(result.manualReview).toBe(true);
+    expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: '1000.00' }),
+        lateWebhookPayload: expect.objectContaining({
+          amountMismatch: true,
+          receivedAmount: '1000.00',
+        }),
+      }),
+    );
   });
 
   it('flags manualReview for SUCCESS when order is already PAID (duplicate money)', async () => {

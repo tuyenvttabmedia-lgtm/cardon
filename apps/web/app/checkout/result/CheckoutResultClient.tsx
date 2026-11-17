@@ -90,6 +90,8 @@ export default function CheckoutResultClient() {
     }
 
     // VA assigned (00_005): jump to CardOn QR pay page — never reopen MegaPay PG.
+    // Only trust VA fields when we already have a pending session for this browser
+    // (created after paymentApi.create). Never render bank details from a bare query link.
     if (isMegapayAwaitingTransferResult(resultCd)) {
       if (stored?.orderId && stored.orderCode && stored.paymentReference) {
         const payPath = persistMegapayVaAndBuildPayPath({
@@ -299,7 +301,9 @@ export default function CheckoutResultClient() {
 
         {status === 'awaiting_transfer' && (
           <>
-            {vaInfo.accountNumber &&
+            {/* Only show QR when this browser has a pending MegaPay session — never from naked query params. */}
+            {pending?.orderId &&
+            vaInfo.accountNumber &&
             vaInfo.content &&
             (vaInfo.amount || pending?.amount) &&
             canBuildVietQrImage({
@@ -323,6 +327,7 @@ export default function CheckoutResultClient() {
                 <p className="mt-2 text-xs text-cardon-gray">{t('pay.vietQrGenerated')}</p>
               </div>
             ) : null}
+            {pending?.orderId ? (
             <dl className="mt-5 space-y-3 rounded-xl border border-cardon-border bg-cardon-light p-4 text-sm">
               {amountLabel && (
                 <div className="flex items-baseline justify-between gap-3">
@@ -355,6 +360,9 @@ export default function CheckoutResultClient() {
                 </div>
               )}
             </dl>
+            ) : (
+              <p className="mt-5 text-sm text-cardon-gray">{t('result.confirmMissing')}</p>
+            )}
             <p className="mt-3 text-xs leading-relaxed text-cardon-gray sm:text-sm">
               {t('result.auto')}
             </p>

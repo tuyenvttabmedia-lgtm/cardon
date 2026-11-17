@@ -9,4 +9,10 @@ describe('safeInternalPath', () => {
     expect(safeInternalPath('//evil.com', '/')).toBe('/');
     expect(safeInternalPath('/\\evil.com', '/')).toBe('/');
   });
+
+  it('rejects tab/newline tricks that URL parsers treat as authority', () => {
+    expect(safeInternalPath('/\t/evil.com', '/')).toBe('/');
+    expect(safeInternalPath('/\n/evil.com', '/')).toBe('/');
+    expect(safeInternalPath('/%09/evil.com', '/')).toBe('/');
+  });
 });

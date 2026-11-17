@@ -10,7 +10,6 @@ import {
   resolveEsimVnPayResult,
 } from '@/lib/esim-vn-checkout';
 import { orderedSepayCheckoutEntries } from '@/lib/sepay-checkout-form';
-import { generateIdempotencyKey } from '@/lib/utils';
 import { formatVnd } from '@/lib/utils';
 import { accountApi, paymentApi } from '@/services/api-client';
 import type { EsimDelivery, EsimTopupPackageOffer, EsimUsageSnapshot } from '@/types/api';
@@ -106,9 +105,10 @@ export function EsimManageCard({ esim }: { esim: EsimDelivery }) {
         paymentMethodCode,
       });
       const method = methods.find((row) => row.methodCode === paymentMethodCode);
+      const gateway = method?.gatewayCode ?? 'SEPAY';
       const pay = await paymentApi.create(
-        { orderId: order.id, gateway: method?.gatewayCode ?? 'SEPAY' },
-        generateIdempotencyKey(),
+        { orderId: order.id, gateway },
+        `pay:${order.id}:${gateway}`,
       );
       const result = resolveEsimVnPayResult(pay, order);
       if (result.kind === 'qr') {

@@ -164,6 +164,8 @@ export class MegaPayProvider implements PaymentProviderInterface {
     const success = isMegapayPgSuccessCode(resultCd);
     // 00_005: mới gán mã nộp tiền, khách chưa chuyển tiền → giữ PENDING, chờ IPN 00_000.
     const awaitingTransfer = isMegapayVaAwaitingTransferCode(resultCd);
+    // 99*: processing / unknown — align with queryTransaction (do not mark FAILED yet).
+    const softPending = (resultCd ?? '').trim().toUpperCase().startsWith('99');
     const amountNum = parseFloat(amountRaw);
     const amount =
       Number.isFinite(amountNum) ? amountNum.toFixed(2) : undefined;
@@ -174,7 +176,7 @@ export class MegaPayProvider implements PaymentProviderInterface {
       status:
         valid && success
           ? 'SUCCESS'
-          : valid && !awaitingTransfer
+          : valid && !awaitingTransfer && !softPending
             ? 'FAILED'
             : 'PENDING',
       amount,
