@@ -109,7 +109,7 @@ export type MegapayVaTransferFields = {
   amount: string | null;
 };
 
-/** Read VA fields from MegaPay postMessage payload or /checkout/result query. */
+/** Read VA fields from MegaPay postMessage payload only (never trust URL query). */
 export function readMegapayVaTransferFields(
   source: Record<string, unknown> | { get(name: string): string | null },
 ): MegapayVaTransferFields {

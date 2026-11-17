@@ -37,17 +37,21 @@ describe('AgentDepositService amount lock', () => {
         fn({ $executeRaw: jest.fn() }),
       ),
     };
+    const notify = {
+      notifyAgentDepositCredited: jest.fn(),
+      notifyAgentDepositFailed: jest.fn(),
+    };
     const service = new AgentDepositService(
       depositRepository as never,
       {} as never,
       ledgerService as never,
       { get: jest.fn() } as never,
       {} as never,
-      { notifyAgentDepositCredited: jest.fn() } as never,
+      notify as never,
       { dispatch: jest.fn() } as never,
       prisma as never,
     );
-    return { service, depositRepository, ledgerService, prisma };
+    return { service, depositRepository, ledgerService, prisma, notify };
   }
 
   it('rejects underpay and does not credit the wallet', async () => {
@@ -80,5 +84,19 @@ describe('AgentDepositService amount lock', () => {
     });
     expect(result.duplicate).toBe(true);
     expect(box.ledgerService.creditInTransaction).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite CREDITED when a late FAILED IPN arrives', async () => {
+    const box = harness('100000.00', AgentDepositStatus.CREDITED);
+    box.depositRepository.claimStatus.mockResolvedValue({ count: 0 });
+    const result = await box.service.markDepositFailed('dep-1', 'Webhook status: FAILED');
+    expect(result?.status).toBe(AgentDepositStatus.CREDITED);
+    expect(box.depositRepository.claimStatus).toHaveBeenCalledWith(
+      'dep-1',
+      [AgentDepositStatus.INIT, AgentDepositStatus.AWAITING_PAYMENT],
+      AgentDepositStatus.FAILED,
+    );
+    expect(box.depositRepository.update).not.toHaveBeenCalled();
+    expect(box.notify.notifyAgentDepositFailed).not.toHaveBeenCalled();
   });
 });

@@ -21,13 +21,19 @@ export class PaymentExpirationService {
       return false;
     }
 
+    let expired = false;
     await this.prisma.$transaction(async (tx) => {
-      await this.paymentRepository.updateStatus(
+      // Atomic: never overwrite SUCCESS/FAILED if IPN settled between the read and this write.
+      const claim = await this.paymentRepository.claimPendingStatus(
         paymentId,
         PaymentRecordStatus.EXPIRED,
-        undefined,
+        {},
         tx,
       );
+      if (claim.count === 0) {
+        return;
+      }
+      expired = true;
 
       // Do not expire the order while another PENDING invoice is still open (reopen race).
       const remainingPending = await this.paymentRepository.countPendingForOrder(
@@ -52,7 +58,7 @@ export class PaymentExpirationService {
       }
     });
 
-    return true;
+    return expired;
   }
 
   async expireDuePayments(now = new Date()): Promise<number> {
