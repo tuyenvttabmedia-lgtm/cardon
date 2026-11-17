@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   transpilePackages: ['@cardon/build-info'],
   outputFileTracingRoot: path.join(__dirname, '../..'),
+  async rewrites() {
+    // Browsers still probe /favicon.ico; admin only ships favicon.png.
+    return [{ source: '/favicon.ico', destination: '/favicon.png' }];
+  },
   async redirects() {
     return [
       { source: '/settings', destination: '/configuration', permanent: false },

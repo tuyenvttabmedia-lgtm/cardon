@@ -73,6 +73,12 @@ async function bootstrap(): Promise<void> {
     });
   });
 
+  // Public CMS media is embedded by web + admin (different origins). Helmet defaults
+  // CORP to same-origin which blocks favicons/images on admin.cardon.vn.
+  app.use('/uploads', (_req: Request, res: Response, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  });
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
 

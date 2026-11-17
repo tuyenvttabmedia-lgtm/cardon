@@ -9,7 +9,7 @@ import { FinanceDateProvider, useFinanceDates } from './FinanceDateContext';
 
 const SECTIONS = [
   { href: '/finance/esim', label: 'eSIM', exact: false },
-  { href: '/finance/supplier', label: 'Đối soát NCC', exact: false },
+  { href: '/finance/supplier', label: 'Đối soát eSale', exact: false },
   { href: '/finance/retail', label: 'HĐ đầu ra bán lẻ', exact: false },
   { href: '/finance/gateway-fee', label: 'Phí cổng TT', exact: false },
   { href: '/finance/summary', label: 'Tổng hợp tháng', exact: false },
@@ -84,7 +84,7 @@ function FinanceShellInner({ children }: { children: React.ReactNode }) {
         <p className="mt-1 text-sm text-slate-500">
           {isEsim
             ? 'Lane eSIM — Doanh thu (F1) và đối soát PayPal fee CSV (F3). VND/USD tách. Không trộn VAT/Profit thẻ game.'
-            : 'Hóa đơn GTGT theo ngày — NCC · bán lẻ (tách 10%/8%) · phí cổng · tổng hợp. Không gồm đại lý / eSIM.'}
+            : 'Hóa đơn GTGT theo ngày — eSale · bán lẻ (tách 10%/8%) · phí cổng · tổng hợp. Không gồm đại lý / eSIM.'}
         </p>
       </div>
       <FinanceNav />

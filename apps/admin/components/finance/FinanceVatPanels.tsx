@@ -36,7 +36,7 @@ export function FinanceSupplierPanel() {
       );
       setData(pack);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Không tải được đối soát NCC');
+      setError(e instanceof Error ? e.message : 'Không tải được đối soát eSale');
       setData(null);
     } finally {
       setLoading(false);
@@ -49,6 +49,9 @@ export function FinanceSupplierPanel() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-slate-600">
+        Hóa đơn đầu vào <strong>eSale</strong> (thẻ / nạp). Không gồm eSIM — xem tab eSIM.
+      </p>
       <div className="flex flex-wrap gap-2">
         {(
           [
@@ -79,12 +82,12 @@ export function FinanceSupplierPanel() {
           <div className="grid gap-3 sm:grid-cols-3">
             <StatCard label="Cộng tiền hàng" value={<Money value={data.totals.afterDiscountTotal} />} />
             <StatCard label="Tiền thuế GTGT" value={<Money value={data.totals.vatTotal} />} />
-            <StatCard label="Tổng cộng thanh toán NCC" value={<Money value={data.totals.payableTotal} />} />
+            <StatCard label="Tổng cộng thanh toán eSale" value={<Money value={data.totals.payableTotal} />} />
           </div>
 
           <Card className="overflow-x-auto p-0">
             <div className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">
-              Hóa đơn đầu vào NCC · số lượng = số thẻ · CK từ SKU
+              Hóa đơn đầu vào eSale · số lượng = số thẻ · CK từ SKU
             </div>
             <table className="min-w-full text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
@@ -123,11 +126,28 @@ export function FinanceSupplierPanel() {
                 {data.rows.length === 0 && (
                   <tr>
                     <td colSpan={12} className="px-3 py-8 text-center text-slate-500">
-                      Không có đơn B2C hoàn tất trong kỳ
+                      Không có đơn eSale B2C hoàn tất trong kỳ
                     </td>
                   </tr>
                 )}
               </tbody>
+              {data.rows.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900">
+                    <td className="px-3 py-2" colSpan={4}>
+                      Tổng
+                    </td>
+                    <td className="px-3 py-2 text-right">{data.totals.quantity}</td>
+                    <td className="px-3 py-2 text-right">—</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(data.totals.preVatTotal)}</td>
+                    <td className="px-3 py-2 text-right">—</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(data.totals.discountTotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(data.totals.afterDiscountTotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(data.totals.vatTotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatVnd(data.totals.payableTotal)}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </Card>
         </>

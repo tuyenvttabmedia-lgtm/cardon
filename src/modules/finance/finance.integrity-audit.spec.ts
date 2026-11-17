@@ -135,6 +135,11 @@ describe('Phase 4B.1 — CHECK 1: Profit correctness', () => {
         fulfillmentStatus: FulfillmentStatus.COMPLETED,
       }),
     );
+    expect(vatWhere.variant).toEqual(
+      expect.objectContaining({
+        type: { not: 'ESIM' },
+      }),
+    );
     expect(JSON.stringify(vatWhere)).not.toContain('homeService');
   });
 });
