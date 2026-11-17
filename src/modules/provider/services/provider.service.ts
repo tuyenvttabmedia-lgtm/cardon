@@ -143,6 +143,17 @@ export class ProviderService {
       orderItem.id,
     );
     if (existingCards > 0) {
+      // Partial delivery (quantity mismatch) must stay NEED_MANUAL_REVIEW — never fake COMPLETED.
+      if (
+        existingCards < orderItem.quantity ||
+        order.fulfillmentStatus === FulfillmentStatus.NEED_MANUAL_REVIEW
+      ) {
+        return {
+          orderId,
+          fulfillmentStatus: FulfillmentStatus.NEED_MANUAL_REVIEW,
+          cardsDelivered: existingCards,
+        };
+      }
       return {
         orderId,
         fulfillmentStatus: FulfillmentStatus.COMPLETED,

@@ -319,6 +319,18 @@ describe('Phase 2F.2 Provider Safety Audit', () => {
         }),
       );
     });
+
+    it('keeps NEED_MANUAL_REVIEW on retry when partial cards already exist', async () => {
+      const ctx = buildSafetyContext({ quantity: 10 });
+      ctx.paidCardOrder.fulfillmentStatus = FulfillmentStatus.NEED_MANUAL_REVIEW;
+      ctx.cardRecordRepository.countByOrderItemId.mockResolvedValue(9);
+
+      const result = await ctx.service.fulfillOrder('order-safety-1');
+
+      expect(result.fulfillmentStatus).toBe(FulfillmentStatus.NEED_MANUAL_REVIEW);
+      expect(result.cardsDelivered).toBe(9);
+      expect(ctx.buyCardSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('CHECK 5: PIN encryption', () => {

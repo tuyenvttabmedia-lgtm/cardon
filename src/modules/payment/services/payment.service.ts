@@ -52,6 +52,7 @@ import { PaypalProvider } from '../providers/paypal/paypal.provider';
 import { EsimSepayPaymentService } from './esim-sepay-payment.service';
 import {
   evaluatePaypalWebhookIdentity,
+  parsePaypalWebhook,
   planPaypalSettlement,
   readPaypalSnapshot,
   type PaypalPlan,
@@ -807,8 +808,31 @@ export class PaymentService {
           this.logger.warn(
             `PayPal webhook identity rejected ${identity.reason} reference=${payment.paymentReference}`,
           );
+          const parsed = parsePaypalWebhook(payload);
+          const obs = parsed?.observation;
+          const receivedAmount =
+            obs && obs.kind === 'completed' ? new Decimal(obs.amount).toFixed(2) : '';
+          const captureId =
+            obs && obs.kind === 'completed' ? obs.captureId : verification.providerTransactionId;
+          // Never auto-PAID on identity fail — park review so ops see captured-but-unsettled money.
+          await this.handleLateSuccessWebhook(payment, {
+            amount: receivedAmount || payment.amount.toFixed(2),
+            providerTransactionId: captureId ?? null,
+            rawPayload: {
+              ...(typeof verification.rawPayload === 'object' &&
+              verification.rawPayload &&
+              !Array.isArray(verification.rawPayload)
+                ? (verification.rawPayload as Record<string, unknown>)
+                : {}),
+              paypalIdentityRejected: identity.reason,
+              expectedAmount: payment.amount.toFixed(2),
+              receivedAmount: receivedAmount || null,
+              amountMismatch: identity.reason === 'AMOUNT_MISMATCH',
+            },
+          });
           return {
             ok: true,
+            manualReview: true,
             paymentReference: payment.paymentReference,
           };
         }
@@ -1055,15 +1079,27 @@ export class PaymentService {
     try {
       assertWebhookAmountMatches(payment.amount, queried.amount);
     } catch (error) {
+      const received = queried.amount ? new Decimal(queried.amount).toFixed(2) : '';
       this.logger.warn(
         `Gateway sync amount rejected payment=${payment.paymentReference} reason=${
           error instanceof Error ? error.message : 'AMOUNT'
         }`,
       );
+      await this.handleLateSuccessWebhook(payment, {
+        amount: received || payment.amount.toFixed(2),
+        providerTransactionId: null,
+        rawPayload: {
+          source: 'gateway_query',
+          amountMismatch: true,
+          expectedAmount: payment.amount.toFixed(2),
+          receivedAmount: received || null,
+        },
+      });
       return {
         paymentReference: payment.paymentReference,
         status: PaymentRecordStatus.PENDING,
         synced: false,
+        manualReview: true,
       };
     }
 

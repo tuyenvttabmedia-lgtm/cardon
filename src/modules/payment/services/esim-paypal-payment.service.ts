@@ -159,7 +159,16 @@ export class EsimPaypalPaymentService {
       gateway: payment.gateway,
     });
     if (!decision.ok) {
-      await this.recordMismatch(payment.id, decision.reason);
+      const parsed = parsePaypalWebhook(input.payload);
+      const obs = parsed?.observation;
+      const receivedAmount =
+        obs && obs.kind === 'completed' ? new Decimal(obs.amount).toFixed(2) : null;
+      const captureId = obs && obs.kind === 'completed' ? obs.captureId : undefined;
+      await this.recordMismatch(payment.id, decision.reason, {
+        orderId: payment.orderId,
+        receivedAmount,
+        providerTransactionId: captureId,
+      });
       this.logger.warn(`eSIM PayPal webhook mismatch ${decision.reason} reference=${payment.paymentReference}`);
       return { outcome: 'IGNORED', reason: decision.reason };
     }
@@ -208,11 +217,23 @@ export class EsimPaypalPaymentService {
     }
     const observation = observed.observation;
     if (!observation || observation.kind !== 'completed' || observation.currency.trim().toUpperCase() !== 'USD') {
-      await this.recordMismatch(payment.id, 'CURRENCY');
+      await this.recordMismatch(payment.id, 'CURRENCY', {
+        orderId: payment.orderId,
+        receivedAmount:
+          observation && observation.kind === 'completed'
+            ? new Decimal(observation.amount).toFixed(2)
+            : null,
+        providerTransactionId:
+          observation && observation.kind === 'completed' ? observation.captureId : undefined,
+      });
       return { outcome: 'IGNORED', reason: 'CURRENCY' };
     }
     if (new Decimal(observation.amount).toFixed(2) !== new Decimal(payment.amount.toString()).toFixed(2)) {
-      await this.recordMismatch(payment.id, 'AMOUNT');
+      await this.recordMismatch(payment.id, 'AMOUNT', {
+        orderId: payment.orderId,
+        receivedAmount: new Decimal(observation.amount).toFixed(2),
+        providerTransactionId: observation.captureId,
+      });
       return { outcome: 'IGNORED', reason: 'AMOUNT' };
     }
     return this.settleCaptured(payment, observed.plan.captureId);
@@ -590,18 +611,60 @@ export class EsimPaypalPaymentService {
     });
   }
 
-  private async recordMismatch(paymentId: string, reason: string): Promise<void> {
+  private async recordMismatch(
+    paymentId: string,
+    reason: string,
+    meta?: {
+      orderId?: string;
+      receivedAmount?: string | null;
+      providerTransactionId?: string;
+    },
+  ): Promise<void> {
     const current = await this.prisma.payment.findFirst({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
     });
     if (!current) return;
     const previous = readGateway(current.gatewayResponse);
+    const expectedAmount = new Decimal(current.amount.toString()).toFixed(2);
+    let evidenceAmount = expectedAmount;
+    if (meta?.receivedAmount?.trim()) {
+      try {
+        evidenceAmount = new Decimal(meta.receivedAmount).toFixed(2);
+      } catch {
+        evidenceAmount = meta.receivedAmount.trim();
+      }
+    }
     await this.prisma.payment.updateMany({
       where: { id: paymentId, status: PaymentRecordStatus.PENDING, deletedAt: null },
       data: {
-        gatewayResponse: { ...previous, settlementMismatch: reason } as Prisma.InputJsonObject,
+        gatewayResponse: {
+          ...previous,
+          settlementMismatch: reason,
+          reconciliationRequired: true,
+          reconciliationReason: reason,
+          manualReview: true,
+          lateWebhookAt: new Date().toISOString(),
+          lateWebhookEvidence: {
+            amount: evidenceAmount,
+            expectedAmount,
+            ...(reason === 'AMOUNT' ? { amountMismatch: true, receivedAmount: evidenceAmount } : {}),
+            ...(meta?.providerTransactionId
+              ? { providerTransactionId: meta.providerTransactionId }
+              : {}),
+            reason,
+          },
+        } as Prisma.InputJsonObject,
       },
     });
+    if (meta?.orderId) {
+      try {
+        await this.notificationService.notifyManualPaymentReview(paymentId, meta.orderId);
+      } catch (error) {
+        this.logger.warn(
+          `eSIM PayPal mismatch alert failed paymentId=${paymentId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
   }
 
   private async noteReconciliation(paymentId: string, captureId: string): Promise<void> {
