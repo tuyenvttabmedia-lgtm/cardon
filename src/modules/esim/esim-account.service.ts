@@ -13,7 +13,7 @@ import {
 } from './esim-delivery.view';
 import { buildEsimPackageSpec } from './esim-package-spec';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
-import { maskEsimIccid } from './esim-usage.rules';
+import { maskEsimIccid, readEsimTopupTrace } from './esim-usage.rules';
 
 export interface EsimAccountRow extends EsimDeliveryView {
   id: string | null;
@@ -40,8 +40,6 @@ export class EsimAccountService {
         ...ACTIVE_ORDER_WHERE,
         paymentStatus: OrderPaymentStatus.PAID,
         orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
-        // Top-up child orders are not separate eSIM profiles.
-        NOT: { clientTrace: { path: ['esimLane'], equals: 'topup' } },
       },
       orderBy: { createdAt: 'desc' },
       select: {
@@ -50,6 +48,7 @@ export class EsimAccountService {
         createdAt: true,
         paymentStatus: true,
         fulfillmentStatus: true,
+        clientTrace: true,
         orderItems: {
           where: { variant: { type: ProductVariantType.ESIM } },
           select: {
@@ -63,13 +62,17 @@ export class EsimAccountService {
       },
     });
 
+    // Filter top-up child orders in app code. Prisma JSON `NOT path=equals` drops
+    // rows where the path is missing (SQL NULL), which hid every normal eSIM.
+    const simOrders = orders.filter((order) => !readEsimTopupTrace(order.clientTrace));
+
     const packages = await this.loadPackageMap(
-      orders.flatMap((order) =>
+      simOrders.flatMap((order) =>
         order.orderItems.map((item) => item.esimQuote?.providerProductCode).filter(Boolean) as string[],
       ),
     );
 
-    return orders.flatMap((order) => {
+    return simOrders.flatMap((order) => {
       const item = order.orderItems[0];
       if (!item) return [];
       return [
@@ -99,7 +102,6 @@ export class EsimAccountService {
         userId,
         ...ACTIVE_ORDER_WHERE,
         orderItems: { some: { variant: { type: ProductVariantType.ESIM } } },
-        NOT: { clientTrace: { path: ['esimLane'], equals: 'topup' } },
       },
       select: {
         id: true,
@@ -107,6 +109,7 @@ export class EsimAccountService {
         createdAt: true,
         paymentStatus: true,
         fulfillmentStatus: true,
+        clientTrace: true,
         orderItems: {
           where: { variant: { type: ProductVariantType.ESIM } },
           select: {
@@ -120,7 +123,7 @@ export class EsimAccountService {
       },
     });
     const item = order?.orderItems[0];
-    if (!order || !item) {
+    if (!order || !item || readEsimTopupTrace(order.clientTrace)) {
       throw new NotFoundException('eSIM profile not found');
     }
     const packages = await this.loadPackageMap(
