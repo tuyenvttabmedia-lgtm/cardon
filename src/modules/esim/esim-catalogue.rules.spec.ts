@@ -1,4 +1,5 @@
 import {
+  AIRALO_RETAIL_MIN_MARKUP,
   classifyValidityBucket,
   costVndFromAiralo,
   destPhotoPath,
@@ -16,13 +17,23 @@ import {
 } from './esim-catalogue.rules';
 
 describe('esim-catalogue.rules', () => {
-  it('prefers Airalo VND net price and sells at recommended retail when present', () => {
+  it('keeps Airalo RRP only when markup is at least +25%; else NET×1.3', () => {
     const cost = costVndFromAiralo({ netPriceVnd: 95_400, netPriceUsd: 3.5, usdVndRate: 26_000 });
     expect(cost).toEqual({ costVnd: 95_400, costCurrency: 'VND', costAmount: 95_400 });
     expect(sellPriceFromCostVnd(cost.costVnd)).toBe(125_000);
+    // Healthy RRP (~+77%) → keep RRP
     expect(sellPriceFromAiralo(cost.costVnd, 169_000)).toBe(169_000);
-    expect(sellPriceFromAiralo(cost.costVnd, 110_000)).toBe(110_000);
+    // Thin RRP (~+15% < +25%) → floor NET×1.3
+    expect(sellPriceFromAiralo(cost.costVnd, 110_000)).toBe(125_000);
+    // Missing / equal / below RRP → floor NET×1.3
     expect(sellPriceFromAiralo(cost.costVnd, 0)).toBe(125_000);
+    expect(sellPriceFromAiralo(cost.costVnd, cost.costVnd)).toBe(125_000);
+    expect(sellPriceFromAiralo(cost.costVnd, 80_000)).toBe(125_000);
+    // Exactly +25% threshold → keep RRP
+    const atThreshold = Math.round(cost.costVnd * AIRALO_RETAIL_MIN_MARKUP);
+    expect(sellPriceFromAiralo(cost.costVnd, atThreshold)).toBe(Math.ceil(atThreshold / 1000) * 1000);
+    // Asia promo SKU: RRP = net $1.53 / 39300 → sell 52000
+    expect(sellPriceFromAiralo(39_300, 39_300)).toBe(52_000);
   });
 
   it('falls back to USD × admin rate when VND is missing', () => {

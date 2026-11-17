@@ -143,7 +143,8 @@ describe('Customer eSIM reveal panel', () => {
   it('1. mounts metadata only and does not auto-reveal', () => {
     const view = render(<EsimInstallPanel esim={metadataReady('order-a')} />);
     expect(screen.getByRole('button', { name: 'Hiện mã cài' })).toBeTruthy();
-    expect(screen.getByText('QR hiện sau khi mở mã')).toBeTruthy();
+    expect(screen.getByText('Mã QR hiện sau khi bạn mở mã cài')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeNull();
     expectFixtureAbsent(view.container);
     expect(revealEsim).not.toHaveBeenCalled();
     expect(getDelivery).not.toHaveBeenCalled();
@@ -159,6 +160,26 @@ describe('Customer eSIM reveal panel', () => {
     expect(revealEsim).toHaveBeenCalledWith('order-a', undefined);
     expect(screen.getByTestId('fake-qr')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ẩn mã' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeNull();
+  });
+
+  it('2b. shows iPhone setup link only on Apple mobile UA', async () => {
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      value:
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1',
+    });
+    revealEsim.mockResolvedValue({
+      ...mockRevealPayload(),
+      appleSetupUrl: 'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA:1$example',
+    });
+    const user = userEvent.setup();
+    render(<EsimInstallPanel esim={metadataReady('order-a')} />);
+    await user.click(screen.getByRole('button', { name: 'Hiện mã cài' }));
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeTruthy(),
+    );
+    expect(screen.getByText('Chỉ mở trên iPhone (Safari, iOS 17.4+).')).toBeTruthy();
   });
 
   it('3. hide removes the fixture from the DOM', async () => {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { isAppleMobileDevice, isIosSafari } from '@/lib/esim-apple-setup';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { ACCOUNT_PATHS } from '@/lib/account-routes';
 import {
@@ -144,6 +145,8 @@ function ReadyActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [appleDevice, setAppleDevice] = useState(false);
+  const [iosSafari, setIosSafari] = useState(false);
   const t = useT();
   const { locale } = useLocale();
   const orderId = esim.orderId;
@@ -164,6 +167,8 @@ function ReadyActions({
   });
 
   useEffect(() => {
+    setAppleDevice(isAppleMobileDevice());
+    setIosSafari(isIosSafari());
     return () => {
       setRevealed(null);
     };
@@ -238,7 +243,7 @@ function ReadyActions({
               >
                 {copied ? t('esim.copied') : t('esim.copyLpa')}
               </button>
-              {visibleReveal.appleSetupUrl ? (
+              {visibleReveal.appleSetupUrl && appleDevice ? (
                 <a
                   href={visibleReveal.appleSetupUrl}
                   className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
@@ -259,12 +264,19 @@ function ReadyActions({
           )}
         </div>
         {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
+        {visibleReveal?.appleSetupUrl && appleDevice ? (
+          <p className="mt-2 text-xs text-cardon-gray">{t('esim.appleSetupNote')}</p>
+        ) : null}
         <p className="mt-2 text-xs text-cardon-gray">
           {esim.testData
             ? t('esim.mockOnly')
             : esim.sandboxAccount
               ? t('esim.sandboxWarn')
-              : t('esim.installHint')}
+              : appleDevice
+                ? iosSafari
+                  ? t('esim.installHint')
+                  : t('esim.installHintIosChrome')
+                : t('esim.installHintDesktop')}
         </p>
       </div>
     </div>

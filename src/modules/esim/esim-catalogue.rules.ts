@@ -10,7 +10,13 @@ export const ESIM_CATALOG_LIFECYCLES = [
 
 export type EsimCatalogLifecycleName = (typeof ESIM_CATALOG_LIFECYCLES)[number];
 
+/** CardOn floor sell when Airalo RRP is missing or too thin: NET × 1.3. */
 export const AIRALO_SELL_MARKUP = 1.3;
+/**
+ * Keep Airalo RRP only when it is at least this multiple of NET (25% above).
+ * Equal / below / thin RRP (under +25%) → fall back to {@link AIRALO_SELL_MARKUP}.
+ */
+export const AIRALO_RETAIL_MIN_MARKUP = 1.25;
 export const DEFAULT_USD_VND_RATE = 26_000;
 
 export const PUBLISH_COUNTRY_ISOS = [
@@ -505,10 +511,21 @@ export function sellPriceFromCostVnd(costVnd: number): number {
   return Math.ceil((costVnd * AIRALO_SELL_MARKUP) / 1000) * 1000;
 }
 
-/** Sell at Airalo recommended retail when present. Fallback +30% only if RRP is missing. */
+/**
+ * Sell pricing for Airalo packages (used by hourly catalogue import too):
+ * - Keep Airalo RRP when RRP ≥ NET × 1.25 (ceil to 1.000₫).
+ * - Otherwise (missing / equal / below / thin RRP) sell at NET × 1.3 (ceil to 1.000₫).
+ */
 export function sellPriceFromAiralo(costVnd: number, retailVnd?: number | null): number {
   const retail = Number(retailVnd);
-  if (Number.isFinite(retail) && retail > 0) {
+  const cost = Number(costVnd);
+  if (
+    Number.isFinite(retail) &&
+    retail > 0 &&
+    Number.isFinite(cost) &&
+    cost > 0 &&
+    retail >= cost * AIRALO_RETAIL_MIN_MARKUP
+  ) {
     return Math.ceil(retail / 1000) * 1000;
   }
   return sellPriceFromCostVnd(costVnd);
