@@ -10,6 +10,7 @@ import {
   readAiraloIccid,
   readAiraloInstallSecret,
   readAiraloOrderStatus,
+  readAiraloSharing,
   unwrapAiraloOrder,
 } from './esim-airalo.adapter';
 
@@ -171,8 +172,24 @@ describe('EsimAiraloAdapter', () => {
         validityDays: 7,
         price: 2.5,
         currency: 'USD',
+        netPriceUsd: 2.5,
+        netPriceVnd: null,
+        retailPriceUsd: null,
+        retailPriceVnd: null,
       },
     ]);
+  });
+
+  it('reads eSIMs Cloud sharing link and access code from order payload', () => {
+    expect(
+      readAiraloSharing({
+        sharing: { link: 'https://esims.cloud/keyon/wusvk-6pdxgzxs', access_code: '8265' },
+      }),
+    ).toEqual({
+      link: 'https://esims.cloud/keyon/wusvk-6pdxgzxs',
+      accessCode: '8265',
+    });
+    expect(readAiraloSharing({ sharing: { link: 'http://insecure', access_code: '1' } })).toBeUndefined();
   });
 
   it('builds LPA from qrcode or lpa+matching_id, not the SM-DP host alone', () => {

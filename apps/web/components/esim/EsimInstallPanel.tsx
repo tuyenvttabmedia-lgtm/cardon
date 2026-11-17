@@ -232,6 +232,31 @@ function ReadyActions({
   const androidUrl =
     visibleReveal?.androidSetupUrl ??
     (secret && !esim.testData ? androidEsimSetupUrl(secret) : null);
+  const lpaParts = secret.startsWith('LPA:1$') ? secret.split('$') : [];
+  const smdpAddress =
+    visibleReveal?.smdpAddress ??
+    (lpaParts.length === 3 ? lpaParts[1] : null) ??
+    esim.smdpAddress ??
+    null;
+  const activationCode =
+    visibleReveal?.activationCode ??
+    (lpaParts.length === 3 ? lpaParts[2] : null) ??
+    esim.activationCode ??
+    null;
+  const sharingLink =
+    visibleReveal?.sharingLink ?? esim.sharingLink ?? null;
+  const sharingAccessCode =
+    visibleReveal?.sharingAccessCode ?? esim.sharingAccessCode ?? null;
+
+  async function copyText(value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }
 
   return (
     <div className="mt-4 grid gap-4 md:grid-cols-[192px_1fr]">
@@ -301,10 +326,86 @@ function ReadyActions({
         {androidUrl && androidDevice ? (
           <p className="mt-2 text-xs text-cardon-gray">{t('esim.androidSetupNote')}</p>
         ) : null}
+        {visibleReveal && smdpAddress && activationCode ? (
+          <div className="mt-4 space-y-2 rounded-xl border border-cardon-border/70 bg-cardon-light/50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-cardon-gray">
+              {t('esim.manualTitle')}
+            </p>
+            <ManualField
+              label={t('esim.smdpAddress')}
+              value={smdpAddress}
+              copyLabel={t('esim.copyField')}
+              onCopy={() => void copyText(smdpAddress)}
+            />
+            <ManualField
+              label={t('esim.activationCode')}
+              value={activationCode}
+              copyLabel={t('esim.copyField')}
+              onCopy={() => void copyText(activationCode)}
+            />
+          </div>
+        ) : null}
+        {sharingLink && sharingAccessCode && !esim.testData ? (
+          <div className="mt-4 space-y-2 rounded-xl border border-cardon-border/70 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-cardon-gray">
+              {t('esim.cloudGuide')}
+            </p>
+            <p className="break-all font-mono text-xs text-cardon-navy">{sharingLink}</p>
+            <p className="text-sm text-cardon-navy">
+              {t('esim.cloudAccessCode')}:{' '}
+              <strong className="font-mono">{sharingAccessCode}</strong>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={sharingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
+              >
+                {t('esim.cloudOpen')}
+              </a>
+              <button
+                type="button"
+                onClick={() => void copyText(sharingAccessCode)}
+                className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
+              >
+                {t('esim.copyField')}
+              </button>
+            </div>
+          </div>
+        ) : null}
         <p className="mt-2 text-xs text-cardon-gray">
           {esim.testData ? t('esim.mockOnly') : esim.sandboxAccount ? t('esim.sandboxWarn') : installHint}
         </p>
       </div>
+    </div>
+  );
+}
+
+function ManualField({
+  label,
+  value,
+  copyLabel,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  copyLabel: string;
+  onCopy: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0">
+        <p className="text-[11px] text-cardon-gray">{label}</p>
+        <p className="break-all font-mono text-sm text-cardon-navy">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onCopy}
+        className="shrink-0 rounded-lg border border-cardon-border px-2.5 py-1.5 text-xs font-semibold text-cardon-navy"
+      >
+        {copyLabel}
+      </button>
     </div>
   );
 }

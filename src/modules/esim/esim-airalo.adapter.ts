@@ -202,10 +202,13 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     body.set('package_id', packageId);
     body.set('quantity', String(Math.max(1, Math.min(50, quantity))));
     body.set('type', 'sim');
+    const brand = (this.config?.get<string>('airalo.brandSettingsName') ?? '').trim();
+    if (brand) body.set('brand_settings_name', brand);
+    // Never pass to_email / sharing_option — CardOn sends its own customer email.
     return this.send('POST', '/v2/orders', body).then((parsed) => {
       const result = this.readOrder(parsed);
       this.logger.log(
-        `Airalo CREATE parsed ref=${result.orderReference ?? 'none'} hasLpa=${Boolean(result.installSecret)}`,
+        `Airalo CREATE parsed ref=${result.orderReference ?? 'none'} hasLpa=${Boolean(result.installSecret)} hasShare=${Boolean(result.sharingLink)}`,
       );
       return result;
     });
@@ -403,10 +406,12 @@ export class EsimAiraloAdapter implements EsimProviderPort {
     const sims = Array.isArray(data.sims) ? data.sims : [];
     let installSecret: string | undefined;
     let iccid: string | undefined;
+    let sharing = readAiraloSharing(data);
     for (const sim of sims) {
       if (!installSecret) installSecret = readAiraloInstallSecret(sim);
       if (!iccid) iccid = readAiraloIccid(sim);
-      if (installSecret && iccid) break;
+      if (!sharing) sharing = readAiraloSharing(sim);
+      if (installSecret && iccid && sharing) break;
     }
     return {
       orderReference,
@@ -417,6 +422,31 @@ export class EsimAiraloAdapter implements EsimProviderPort {
       total: typeof data.price === 'number' ? data.price : undefined,
       installSecret,
       iccid,
+      sharingLink: sharing?.link,
+      sharingAccessCode: sharing?.accessCode,
+    };
+  }
+
+  /** GET /v2/sims/{iccid} — includes sharing link/access code for backfill. */
+  async getSim(iccid: string): Promise<EsimOrderResult> {
+    const trimmed = iccid.trim();
+    if (!trimmed) throw new AiraloRequestError('Airalo ICCID is required');
+    const body = await this.send('GET', `/v2/sims/${encodeURIComponent(trimmed)}`);
+    const data =
+      body && typeof body === 'object'
+        ? ((body as { data?: unknown }).data ?? body)
+        : null;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new AiraloRequestError('Airalo sim response was empty');
+    }
+    const record = data as Record<string, unknown>;
+    const sharing = readAiraloSharing(record);
+    return {
+      installSecret: readAiraloInstallSecret(record),
+      iccid: readAiraloIccid(record) ?? trimmed,
+      sharingLink: sharing?.link,
+      sharingAccessCode: sharing?.accessCode,
+      status: readAiraloOrderStatus(record.status),
     };
   }
 
@@ -490,6 +520,25 @@ export function readAiraloIccid(sim: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
   return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
+}
+
+/** Airalo eSIMs Cloud share payload — never treat access_code as the LPA. */
+export function readAiraloSharing(
+  row: unknown,
+): { link: string; accessCode: string } | undefined {
+  if (!row || typeof row !== 'object') return undefined;
+  const sharing = (row as { sharing?: unknown }).sharing;
+  const source =
+    sharing && typeof sharing === 'object' && !Array.isArray(sharing)
+      ? (sharing as Record<string, unknown>)
+      : (row as Record<string, unknown>);
+  const link = stringOrEmpty(source.link ?? source.sharing_link);
+  const accessCode = stringOrEmpty(
+    source.access_code ?? source.accessCode ?? source.sharing_access_code,
+  );
+  if (!link.startsWith('https://') || !accessCode || accessCode.length > 32) return undefined;
+  if (link.length > 512) return undefined;
+  return { link, accessCode };
 }
 
 export function parseAiraloTopupPackages(body: unknown): AiraloTopupPackage[] {

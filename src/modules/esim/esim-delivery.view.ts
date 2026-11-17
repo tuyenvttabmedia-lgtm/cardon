@@ -15,6 +15,14 @@ export interface EsimDeliveryView {
   qrSvg: string | null;
   appleSetupUrl: string | null;
   androidSetupUrl: string | null;
+  /** SM-DP+ host from LPA (manual install). */
+  smdpAddress: string | null;
+  /** Matching / activation code from LPA (manual install). */
+  activationCode: string | null;
+  /** Airalo eSIMs Cloud share URL (optional secondary guide). */
+  sharingLink: string | null;
+  /** Access code for sharingLink — not the LPA. */
+  sharingAccessCode: string | null;
   canRevealInstallSecret: boolean;
   packageSpec: EsimPackageSpec | null;
   orderId?: string;
@@ -53,6 +61,17 @@ export function androidEsimSetupUrl(secret: string): string | null {
   const lpa = lpaForDisplay(secret);
   if (!lpa.startsWith('LPA:1$')) return null;
   return `https://esimsetup.android.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(lpa)}`;
+}
+
+/** Split LPA into SM-DP+ address + activation code for manual device entry. */
+export function splitLpaManualParts(
+  secret: string,
+): { smdpAddress: string; activationCode: string } | null {
+  const lpa = lpaForDisplay(secret);
+  if (!lpa.startsWith('LPA:1$')) return null;
+  const parts = lpa.split('$');
+  if (parts.length !== 3 || !parts[1]?.trim() || !parts[2]?.trim()) return null;
+  return { smdpAddress: parts[1].trim(), activationCode: parts[2].trim() };
 }
 
 export function destinationFromNames(
@@ -119,6 +138,10 @@ export function emptyEsimDelivery(): EsimDeliveryView {
     qrSvg: null,
     appleSetupUrl: null,
     androidSetupUrl: null,
+    smdpAddress: null,
+    activationCode: null,
+    sharingLink: null,
+    sharingAccessCode: null,
     canRevealInstallSecret: false,
     packageSpec: null,
   };
@@ -135,6 +158,8 @@ export function buildEsimDelivery(input: {
   packageSpec?: EsimPackageSpec | null;
   orderId?: string;
   orderCode?: string;
+  sharingLink?: string | null;
+  sharingAccessCode?: string | null;
 }): EsimDeliveryView {
   const secret = input.secret && isInstallableLpa(input.secret) ? input.secret : null;
   const testData = secret ? isEsimTestSecret(secret) : false;
@@ -142,6 +167,15 @@ export function buildEsimDelivery(input: {
   const display = secret ? lpaForDisplay(secret) : null;
   const kind = secret ? 'ready' : input.kind;
   const includeSecrets = input.includeSecrets !== false;
+  const manual = display ? splitLpaManualParts(display) : null;
+  const sharingLink =
+    typeof input.sharingLink === 'string' && input.sharingLink.startsWith('https://')
+      ? input.sharingLink.trim()
+      : null;
+  const sharingAccessCode =
+    typeof input.sharingAccessCode === 'string' && input.sharingAccessCode.trim()
+      ? input.sharingAccessCode.trim().slice(0, 32)
+      : null;
   return {
     kind,
     destination: input.destination?.trim() || 'điểm đến',
@@ -157,6 +191,10 @@ export function buildEsimDelivery(input: {
       includeSecrets && kind === 'ready' && display && !testData
         ? androidEsimSetupUrl(display)
         : null,
+    smdpAddress: includeSecrets && kind === 'ready' ? manual?.smdpAddress ?? null : null,
+    activationCode: includeSecrets && kind === 'ready' ? manual?.activationCode ?? null : null,
+    sharingLink: kind === 'ready' && !testData ? sharingLink : null,
+    sharingAccessCode: kind === 'ready' && !testData ? sharingAccessCode : null,
     canRevealInstallSecret: kind === 'ready' && Boolean(secret),
     packageSpec: input.packageSpec ?? null,
     orderId: input.orderId,

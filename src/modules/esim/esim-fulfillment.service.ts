@@ -680,8 +680,10 @@ export class EsimFulfillmentService {
       });
       let installSecret = this.cleanInstallSecret(result.installSecret);
       let iccid = this.cleanIccid(result.iccid);
+      let sharingLink = this.cleanSharingLink(result.sharingLink);
+      let sharingAccessCode = this.cleanSharingAccessCode(result.sharingAccessCode);
       this.logger.log(
-        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)} hasIccid=${Boolean(iccid)}`,
+        `Airalo CREATE order=${orderId} ref=${reference ?? 'none'} hasLpa=${Boolean(installSecret)} hasIccid=${Boolean(iccid)} hasShare=${Boolean(sharingLink)}`,
       );
       if (!reference && !ids.numericId && !ids.orderCode) {
         await this.repository.markUnconfirmed(inserted.attemptId, quote.orderItemId);
@@ -728,6 +730,8 @@ export class EsimFulfillmentService {
           } else {
             installSecret = leased.value.installSecret;
             iccid = iccid ?? leased.value.iccid;
+            sharingLink = sharingLink ?? leased.value.sharingLink;
+            sharingAccessCode = sharingAccessCode ?? leased.value.sharingAccessCode;
             await this.repository.closeQueryAttempt({
               attemptId: queryClaim.attemptId,
               failed: !installSecret,
@@ -745,7 +749,7 @@ export class EsimFulfillmentService {
         inserted.attemptId,
         installSecret,
         true,
-        iccid,
+        { iccid, sharingLink, sharingAccessCode },
       );
     } catch (error) {
       const message = this.safeErrorMessage(error);
@@ -801,7 +805,11 @@ export class EsimFulfillmentService {
         attemptId,
         install.installSecret,
         false,
-        install.iccid,
+        {
+          iccid: install.iccid,
+          sharingLink: install.sharingLink,
+          sharingAccessCode: install.sharingAccessCode,
+        },
       );
     } catch (error) {
       await this.repository.markUnconfirmed(
@@ -847,7 +855,12 @@ export class EsimFulfillmentService {
     numericId?: string;
     orderCode?: string;
     fallback?: string;
-  }): Promise<{ installSecret?: string; iccid?: string }> {
+  }): Promise<{
+    installSecret?: string;
+    iccid?: string;
+    sharingLink?: string;
+    sharingAccessCode?: string;
+  }> {
     if (!this.provider.getInstallDetails) return {};
     const lookups = [ids.numericId, ids.orderCode, ids.fallback].filter(
       (value, index, all): value is string => Boolean(value) && all.indexOf(value) === index,
@@ -857,7 +870,14 @@ export class EsimFulfillmentService {
         const details = await this.provider.getInstallDetails(lookup);
         const secret = this.cleanInstallSecret(details.installSecret);
         const iccid = this.cleanIccid(details.iccid);
-        if (secret) return { installSecret: secret, iccid };
+        if (secret) {
+          return {
+            installSecret: secret,
+            iccid,
+            sharingLink: this.cleanSharingLink(details.sharingLink),
+            sharingAccessCode: this.cleanSharingAccessCode(details.sharingAccessCode),
+          };
+        }
       } catch {
         // GET 422 is not proof the order was never created. Try the next identifier.
       }
@@ -886,13 +906,29 @@ export class EsimFulfillmentService {
     return trimmed.length >= 10 && trimmed.length <= 32 ? trimmed : undefined;
   }
 
+  private cleanSharingLink(value: string | null | undefined): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.startsWith('https://') && trimmed.length <= 512 ? trimmed : undefined;
+  }
+
+  private cleanSharingAccessCode(value: string | null | undefined): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed && trimmed.length <= 32 ? trimmed : undefined;
+  }
+
   private async storeInstallSecret(
     orderId: string,
     orderItemId: string,
     attemptId: string,
     installSecret: string,
     created: boolean,
-    iccid?: string,
+    extras?: {
+      iccid?: string;
+      sharingLink?: string;
+      sharingAccessCode?: string;
+    },
   ): Promise<EsimFulfillmentResult> {
     const testData = isEsimTestSecret(installSecret) || installSecret.includes(ESIM_TEST_MARKER);
     try {
@@ -900,7 +936,9 @@ export class EsimFulfillmentService {
         orderItemId,
         attemptId,
         installSecretEnc: this.encryption.encrypt(installSecret),
-        iccid: this.cleanIccid(iccid),
+        iccid: this.cleanIccid(extras?.iccid),
+        sharingLink: this.cleanSharingLink(extras?.sharingLink),
+        sharingAccessCode: this.cleanSharingAccessCode(extras?.sharingAccessCode),
         testData,
         source: 'airalo',
       });

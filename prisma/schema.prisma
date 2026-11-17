@@ -1660,13 +1660,17 @@ model EsimProviderAttempt {
 }
 
 model EsimProfile {
-  id               String   @id @default(uuid()) @db.Uuid
-  orderItemId      String   @unique @map("order_item_id") @db.Uuid
-  attemptId        String   @unique @map("attempt_id") @db.Uuid
-  installSecretEnc String   @map("install_secret_enc") @db.Text
+  id                 String   @id @default(uuid()) @db.Uuid
+  orderItemId        String   @unique @map("order_item_id") @db.Uuid
+  attemptId          String   @unique @map("attempt_id") @db.Uuid
+  installSecretEnc   String   @map("install_secret_enc") @db.Text
   /** Airalo SIM ICCID — lookup for low-data webhooks and top-up. */
-  iccid            String?  @db.VarChar(32)
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  iccid              String?  @db.VarChar(32)
+  /** Airalo eSIMs Cloud share URL (optional secondary guide). */
+  sharingLink        String?  @map("sharing_link") @db.VarChar(512)
+  /** Access code for sharingLink — not the LPA install secret. */
+  sharingAccessCode  String?  @map("sharing_access_code") @db.VarChar(32)
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   orderItem OrderItem           @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
   attempt   EsimProviderAttempt @relation(fields: [attemptId], references: [id], onDelete: Restrict)

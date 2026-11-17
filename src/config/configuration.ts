@@ -173,6 +173,8 @@ export default () => ({
     clientId: process.env.AIRALO_CLIENT_ID ?? '',
     clientSecret: process.env.AIRALO_CLIENT_SECRET ?? '',
     accountMode: process.env.AIRALO_ACCOUNT_MODE === 'production' ? 'production' : 'sandbox',
+    /** Partner brand name for eSIMs Cloud share pages (optional). */
+    brandSettingsName: process.env.AIRALO_BRAND_SETTINGS_NAME?.trim() || '',
     /** Shared secret appended as ?token= on low-data webhook opt-in URL. */
     webhookSecret: process.env.AIRALO_WEBHOOK_SECRET?.trim() || '',
     /** Prefer DNS-only host for Airalo probes (bypasses CF bot fight). */

@@ -10,6 +10,7 @@ import {
   isInstallableLpa,
   lpaForDisplay,
   resolveEsimDeliveryKind,
+  splitLpaManualParts,
 } from './esim-delivery.view';
 import { renderLpaQrSvg } from './esim-lpa-qr';
 
@@ -28,6 +29,10 @@ describe('esim delivery view', () => {
     expect(appleEsimSetupUrl(raw)).toContain('carddata=LPA');
     expect(androidEsimSetupUrl(raw)).toContain('esimsetup.android.com');
     expect(androidEsimSetupUrl(raw)).toContain('carddata=LPA');
+    expect(splitLpaManualParts(raw)).toEqual({
+      smdpAddress: 'lpa.airalo.com',
+      activationCode: 'TEST',
+    });
   });
 
   it('reads destination from product or variant name', () => {

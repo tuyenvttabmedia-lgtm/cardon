@@ -31,7 +31,13 @@ const ORDER_INCLUDE_WITH_CARDS = {
         select: { providerProductCode: true },
       },
       esimProfile: {
-        select: { id: true, installSecretEnc: true },
+        select: {
+          id: true,
+          installSecretEnc: true,
+          iccid: true,
+          sharingLink: true,
+          sharingAccessCode: true,
+        },
       },
       cardRecords: {
         select: {

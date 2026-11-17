@@ -182,6 +182,10 @@ function resolveEsimDelivery(
       qrSvg: null,
       appleSetupUrl: null,
       androidSetupUrl: null,
+      smdpAddress: null,
+      activationCode: null,
+      sharingLink: null,
+      sharingAccessCode: null,
     };
   }
   return {
@@ -195,6 +199,10 @@ function resolveEsimDelivery(
     qrSvg: null,
     appleSetupUrl: null,
     androidSetupUrl: null,
+    smdpAddress: null,
+    activationCode: null,
+    sharingLink: null,
+    sharingAccessCode: null,
     canRevealInstallSecret: false,
     packageSpec: null,
     orderCode: fallback.orderCode,

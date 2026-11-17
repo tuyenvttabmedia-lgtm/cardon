@@ -201,6 +201,23 @@ export class NotificationDispatchService {
     const accountUrl = isGuest
       ? `${publicUrl}/orders/${order.id}?email=${encodeURIComponent(guestEmail)}`
       : `${publicUrl}/tai-khoan/esim`;
+    const esimItem = order.orderItems.find((item) => item.variant?.type === 'ESIM');
+    const destination =
+      (esimItem?.variant?.product?.name ?? esimItem?.variant?.name ?? '')
+        .replace(/^eSIM\s+/i, '')
+        .trim() || null;
+    const packageName = esimItem?.variant?.name?.trim() || null;
+    const sharingLink =
+      typeof esimItem?.esimProfile?.sharingLink === 'string' &&
+      esimItem.esimProfile.sharingLink.startsWith('https://')
+        ? esimItem.esimProfile.sharingLink
+        : null;
+    const sharingAccessCode =
+      typeof esimItem?.esimProfile?.sharingAccessCode === 'string' &&
+      esimItem.esimProfile.sharingAccessCode.trim()
+        ? esimItem.esimProfile.sharingAccessCode.trim()
+        : null;
+
     const enriched: Record<string, unknown> = {
       ...safePayload,
       locale: safePayload.locale === 'en' || safePayload.locale === 'vi' ? safePayload.locale : storedLocale,
@@ -212,6 +229,10 @@ export class NotificationDispatchService {
       totalAmount: order.totalAmount.toFixed(2),
       accountUrl,
       isGuestOrder: isGuest,
+      ...(destination ? { destination } : {}),
+      ...(packageName ? { packageName } : {}),
+      ...(sharingLink ? { sharingLink } : {}),
+      ...(sharingAccessCode ? { sharingAccessCode } : {}),
     };
 
     if (
