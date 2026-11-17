@@ -142,20 +142,21 @@ export function FinanceEsimRevenuePanel() {
         />
       </div>
 
-      <Card className="space-y-2 border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-950">
-        <p className="font-semibold">Phí cổng</p>
+      <Card className="space-y-2 p-4 text-sm text-slate-700">
+        <p className="font-semibold text-slate-900">Phí cổng (ước tính lúc checkout)</p>
         <p>
-          Phí ước tính (`paymentFeeAmount`):{' '}
           {(data?.commerce.estimatedFeeByCurrency ?? []).length === 0
             ? '—'
             : data!.commerce.estimatedFeeByCurrency
                 .map((row) => `${row.currency} ${formatEsimMoney(row.amount, row.currency)}`)
                 .join(' · ')}
         </p>
-        <p>
-          Phí gateway thực: <strong>{data?.gatewayActualFees.status ?? 'UNAVAILABLE'}</strong>
-          {' — '}
-          {data?.gatewayActualFees.note ?? 'Chưa có dữ liệu trong F1.'}
+        <p className="text-slate-500">
+          Phí gateway thực đối soát riêng tại tab{' '}
+          <Link href="/finance/esim?tab=paypal" className="font-medium text-admin-700 underline">
+            PayPal fee
+          </Link>
+          . Không suy từ số ước tính trên.
         </p>
       </Card>
 

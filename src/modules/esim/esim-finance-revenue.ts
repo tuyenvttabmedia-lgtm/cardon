@@ -99,17 +99,17 @@ export function buildEsimFinanceRevenue(input: {
       sandbox:
         'MOCK quote, clientTrace.adminTest hoặc clientTrace.sandbox — tách khỏi thương mại.',
       estimatedFee:
-        'paymentFeeAmount trên snapshot đơn — phí ước tính lúc checkout. Không phải phí gateway thực từ báo cáo SePay/PayPal (F2/F3).',
+        'paymentFeeAmount trên snapshot đơn — phí ước tính lúc checkout. Không phải phí gateway thực từ báo cáo SePay/PayPal.',
       gatewayActualFee:
-        'Chưa có dữ liệu phí gateway thực trong F1. Đối soát fee thật thuộc F2 (SePay↔NH) và F3 (PayPal CSV).',
+        'Phí gateway thực đối soát tại tab PayPal fee (CSV Activity Download). Không suy từ paymentFeeAmount.',
       byDay: 'Nhóm theo ngày paidAt (Asia/Ho_Chi_Minh); thiếu paidAt thì dùng createdAt payment.',
-      noFx: 'Không quy đổi USD↔VND. Lợi nhuận kế toán chưa mở trong F1.',
+      noFx: 'Không quy đổi USD↔VND trên báo cáo doanh thu này.',
     },
     commerce,
     sandbox,
     gatewayActualFees: {
       status: 'UNAVAILABLE',
-      note: 'F1 chưa có phí gateway thực. Hiển thị trạng thái chưa có dữ liệu — không suy từ paymentFeeAmount.',
+      note: 'Đối soát phí thực tại tab PayPal fee — không suy từ paymentFeeAmount.',
     },
     matchedSuccessPayments: uniquePayments.length,
     unmatchedSuccessPayments: uniquePayments.filter((row) => !orderById.has(row.orderId)).length,
