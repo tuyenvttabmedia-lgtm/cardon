@@ -4,6 +4,7 @@ export type EsimRevealPayload = {
   installSecret: string | null;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl?: string | null;
 };
 
 /** Drop reveal state when the bound order is no longer the one on screen. */

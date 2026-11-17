@@ -233,6 +233,7 @@ export interface EsimDelivery {
   installSecret: string | null;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl?: string | null;
   canRevealInstallSecret?: boolean;
   packageSpec?: EsimPackageSpec | null;
   id?: string | null;
@@ -248,6 +249,7 @@ export interface EsimInstallReveal {
   installSecret: string;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl?: string | null;
 }
 
 export interface OrderDeliveryResponse {

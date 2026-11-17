@@ -14,6 +14,7 @@ export interface EsimDeliveryView {
   installSecret: string | null;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl: string | null;
   canRevealInstallSecret: boolean;
   packageSpec: EsimPackageSpec | null;
   orderId?: string;
@@ -45,6 +46,13 @@ export function appleEsimSetupUrl(secret: string): string | null {
   const lpa = lpaForDisplay(secret);
   if (!lpa.startsWith('LPA:1$')) return null;
   return `https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(lpa)}`;
+}
+
+/** Android one-tap install (Play services / SIM Manager). Same LPA carddata as Apple. */
+export function androidEsimSetupUrl(secret: string): string | null {
+  const lpa = lpaForDisplay(secret);
+  if (!lpa.startsWith('LPA:1$')) return null;
+  return `https://esimsetup.android.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(lpa)}`;
 }
 
 export function destinationFromNames(
@@ -110,6 +118,7 @@ export function emptyEsimDelivery(): EsimDeliveryView {
     installSecret: null,
     qrSvg: null,
     appleSetupUrl: null,
+    androidSetupUrl: null,
     canRevealInstallSecret: false,
     packageSpec: null,
   };
@@ -144,6 +153,10 @@ export function buildEsimDelivery(input: {
     qrSvg: includeSecrets && kind === 'ready' ? input.qrSvg ?? null : null,
     appleSetupUrl:
       includeSecrets && kind === 'ready' && display && !testData ? appleEsimSetupUrl(display) : null,
+    androidSetupUrl:
+      includeSecrets && kind === 'ready' && display && !testData
+        ? androidEsimSetupUrl(display)
+        : null,
     canRevealInstallSecret: kind === 'ready' && Boolean(secret),
     packageSpec: input.packageSpec ?? null,
     orderId: input.orderId,

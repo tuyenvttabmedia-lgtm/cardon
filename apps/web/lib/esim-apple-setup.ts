@@ -1,4 +1,16 @@
-/** Apple eSIM Universal Link (`esimsetup.apple.com`) only works on-device. */
+/** Apple / Android eSIM one-tap links only work on the matching device. */
+
+export function appleEsimSetupUrl(lpa: string): string | null {
+  const trimmed = lpa.trim();
+  if (!trimmed.startsWith('LPA:1$')) return null;
+  return `https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(trimmed)}`;
+}
+
+export function androidEsimSetupUrl(lpa: string): string | null {
+  const trimmed = lpa.trim();
+  if (!trimmed.startsWith('LPA:1$')) return null;
+  return `https://esimsetup.android.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(trimmed)}`;
+}
 
 export function isAppleMobileDevice(ua?: string): boolean {
   if (typeof navigator === 'undefined' && !ua) return false;

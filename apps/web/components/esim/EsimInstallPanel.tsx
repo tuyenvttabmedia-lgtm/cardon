@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { EsimInstallGuide } from '@/components/esim/EsimInstallGuide';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import {
+  androidEsimSetupUrl,
+  appleEsimSetupUrl,
   isAndroidMobileDevice,
   isAppleMobileDevice,
   isIosSafari,
@@ -149,7 +151,6 @@ function ReadyActions({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [androidCopied, setAndroidCopied] = useState(false);
   const [appleDevice, setAppleDevice] = useState(false);
   const [androidDevice, setAndroidDevice] = useState(false);
   const [iosSafari, setIosSafari] = useState(false);
@@ -165,12 +166,12 @@ function ReadyActions({
     setBusy(false);
     setError(null);
     setCopied(false);
-    setAndroidCopied(false);
   }
   const visibleReveal = retainRevealAfterMetadataPoll(aligned.value, {
     installSecret: esim.installSecret,
     qrSvg: esim.qrSvg,
     appleSetupUrl: esim.appleSetupUrl,
+    androidSetupUrl: esim.androidSetupUrl,
   });
 
   useEffect(() => {
@@ -202,7 +203,6 @@ function ReadyActions({
   function hide() {
     setRevealed(null);
     setCopied(false);
-    setAndroidCopied(false);
     setError(null);
   }
 
@@ -217,18 +217,6 @@ function ReadyActions({
     }
   }
 
-  async function copyForAndroid() {
-    if (!visibleReveal?.installSecret) return;
-    try {
-      await navigator.clipboard.writeText(visibleReveal.installSecret);
-      setAndroidCopied(true);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setAndroidCopied(false);
-    }
-  }
-
   const installHint = appleDevice
     ? iosSafari
       ? t('esim.installHint')
@@ -238,6 +226,12 @@ function ReadyActions({
       : t('esim.installHintDesktop');
 
   const secret = visibleReveal?.installSecret ?? '';
+  const appleUrl =
+    visibleReveal?.appleSetupUrl ??
+    (secret && !esim.testData ? appleEsimSetupUrl(secret) : null);
+  const androidUrl =
+    visibleReveal?.androidSetupUrl ??
+    (secret && !esim.testData ? androidEsimSetupUrl(secret) : null);
 
   return (
     <div className="mt-4 grid gap-4 md:grid-cols-[192px_1fr]">
@@ -272,22 +266,21 @@ function ReadyActions({
               >
                 {copied ? t('esim.copied') : t('esim.copyLpa')}
               </button>
-              {visibleReveal.appleSetupUrl && appleDevice ? (
+              {appleUrl && appleDevice ? (
                 <a
-                  href={visibleReveal.appleSetupUrl}
+                  href={appleUrl}
                   className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
                 >
                   {t('esim.addIphone')}
                 </a>
               ) : null}
-              {androidDevice ? (
-                <button
-                  type="button"
-                  onClick={() => void copyForAndroid()}
+              {androidUrl && androidDevice ? (
+                <a
+                  href={androidUrl}
                   className="rounded-lg border border-cardon-border px-3 py-2 text-sm font-semibold text-cardon-navy"
                 >
                   {t('esim.addAndroid')}
-                </button>
+                </a>
               ) : null}
             </>
           ) : (
@@ -302,10 +295,10 @@ function ReadyActions({
           )}
         </div>
         {error ? <p className="mt-2 text-xs text-red-600">{error}</p> : null}
-        {visibleReveal?.appleSetupUrl && appleDevice ? (
+        {appleUrl && appleDevice ? (
           <p className="mt-2 text-xs text-cardon-gray">{t('esim.appleSetupNote')}</p>
         ) : null}
-        {visibleReveal && androidDevice && androidCopied ? (
+        {androidUrl && androidDevice ? (
           <p className="mt-2 text-xs text-cardon-gray">{t('esim.androidSetupNote')}</p>
         ) : null}
         <p className="mt-2 text-xs text-cardon-gray">

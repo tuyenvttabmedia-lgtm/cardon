@@ -15,6 +15,7 @@ import { CardEncryptionService } from '../../provider/services/card-encryption.s
 import { NotificationService } from '../../notification/services/notification.service';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import {
+  androidEsimSetupUrl,
   appleEsimSetupUrl,
   buildEsimDelivery,
   destinationFromNames,
@@ -199,6 +200,7 @@ export class OrderDeliveryService {
       installSecret: display,
       qrSvg: renderLpaQrSvg(secret),
       appleSetupUrl: isEsimTestSecret(secret) ? null : appleEsimSetupUrl(display),
+      androidSetupUrl: isEsimTestSecret(secret) ? null : androidEsimSetupUrl(display),
     };
   }
 

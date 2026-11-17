@@ -499,6 +499,64 @@ export interface PaypalFeeMatchRow {
   typeRaw?: string | null;
 }
 
+export interface PaypalPayoutBatchRow {
+  id: string;
+  status: 'PLANNED' | 'SUBMITTED' | 'RECEIVED' | 'CANCELLED' | string;
+  withdrawnAt: string;
+  amountUsd: string;
+  currency: string;
+  midMarketRateVnd: string | null;
+  fxMarkupPercent: string;
+  expectedVnd: string | null;
+  actualVnd: string | null;
+  bankReference: string | null;
+  paypalTxnId: string | null;
+  note: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaypalWalletSummary {
+  feeSchedule: {
+    receivePercent: number;
+    receiveFixedUsd: number;
+    fxMarkupPercent: number;
+    flatWithdrawVndWhenNoFx: number;
+    source: string;
+    note: string;
+  };
+  sales: {
+    matchedCount: number;
+    grossUsd: string;
+    feeEstimatedUsd: string;
+    feeActualUsd: string;
+    feeDeltaUsd: string;
+    netUsd: string;
+  };
+  payouts: {
+    batchCount: number;
+    withdrawnUsd: string;
+    bookedVnd: string;
+  };
+  wallet: {
+    remainingUsd: string;
+    midMarketRateVnd: string;
+    withdrawEstimate: {
+      expectedVnd: string;
+      fxCostUsd: string;
+      fxMarkupPercent: number;
+    };
+  };
+  csvPayoutEvidence: Array<{
+    paypalTxnId: string;
+    currency: string;
+    gross: string;
+    net: string;
+    bookedAt: string | null;
+  }>;
+}
+
 export interface EsimFinanceRevenueReport {
   range: { from: string; to: string; preset: string };
   productLane: 'ESIM';
@@ -651,6 +709,7 @@ export interface EsimInstallReveal {
   installSecret: string;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl?: string | null;
 }
 
 export interface AdminOrderSummary {
@@ -2258,7 +2317,7 @@ export interface PaymentMethodConfig {
   logoUrl?: string | null;
   settlementType: 'DIRECT_TO_MERCHANT' | 'GATEWAY_SETTLEMENT';
   enabled: boolean;
-  /** eSIM VN — MegaPay VNPAYQR / ZALOPAY. Independent of retail `enabled`. */
+  /** eSIM lane. Independent of retail `enabled` (Bán thẻ). */
   esimEnabled?: boolean;
   percentageFee: number;
   fixedFee: number;
@@ -2683,6 +2742,38 @@ export interface AdminCustomerListResponse {
   total: number;
   skip: number;
   take: number;
+}
+
+export type AdminCustomerStatsPeriod = 'today' | '7d' | '30d' | '90d';
+
+export interface AdminCustomerStats {
+  period: {
+    preset: AdminCustomerStatsPeriod;
+    dateFrom: string;
+    dateTo: string;
+    timezone: 'Asia/Ho_Chi_Minh';
+    dayCount: number;
+  };
+  /** Fleet totals — không đổi khi đổi chip kỳ. */
+  lifetime: {
+    total: number;
+    active: number;
+    suspended: number;
+    banned: number;
+    emailVerified: number;
+    buyers: number;
+  };
+  /** Tài khoản đăng ký trong kỳ đang chọn (+ guest buyers). */
+  inPeriod: {
+    signups: number;
+    active: number;
+    suspended: number;
+    banned: number;
+    emailVerified: number;
+    buyers: number;
+    guestBuyers: number;
+  };
+  series: Array<{ date: string; signups: number }>;
 }
 
 export interface AdminCustomerOrderKpis {

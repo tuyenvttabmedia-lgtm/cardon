@@ -188,7 +188,7 @@ describe('Customer eSIM reveal panel', () => {
     expect(screen.queryByRole('button', { name: 'Thêm eSIM trên Android' })).toBeNull();
   });
 
-  it('2c. shows Android add button on Android UA and not iPhone link', async () => {
+  it('2c. shows Android setup link on Android UA and not iPhone link', async () => {
     Object.defineProperty(window.navigator, 'userAgent', {
       configurable: true,
       value:
@@ -197,15 +197,19 @@ describe('Customer eSIM reveal panel', () => {
     revealEsim.mockResolvedValue({
       ...mockRevealPayload(),
       appleSetupUrl: 'https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=LPA:1$example',
+      androidSetupUrl:
+        'https://esimsetup.android.com/esim_qrcode_provisioning?carddata=LPA%3A1%24example',
     });
     const user = userEvent.setup();
     render(<EsimInstallPanel esim={metadataReady('order-a', { testData: false })} />);
     await user.click(screen.getByRole('button', { name: 'Hiện mã cài' }));
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Thêm eSIM trên Android' })).toBeTruthy(),
+      expect(screen.getByRole('link', { name: 'Thêm eSIM trên Android' })).toBeTruthy(),
     );
+    const androidLink = screen.getByRole('link', { name: 'Thêm eSIM trên Android' });
+    expect(androidLink.getAttribute('href')).toContain('esimsetup.android.com');
     expect(screen.queryByRole('link', { name: 'Thêm eSIM trên iPhone' })).toBeNull();
-    expect(screen.getByText(/Android: bấm «Thêm eSIM trên Android»/)).toBeTruthy();
+    expect(screen.getByText(/Chỉ mở trên Android/)).toBeTruthy();
   });
 
   it('3. hide removes the fixture from the DOM', async () => {

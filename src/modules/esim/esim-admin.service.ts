@@ -14,7 +14,12 @@ import {
 import { PrismaService } from '../../database/prisma.service';
 import { CardEncryptionService } from '../provider/services/card-encryption.service';
 import { isRetiredAiraloSandboxHost, SettingsStoreService } from '../settings/services/settings-store.service';
-import { appleEsimSetupUrl, isEsimTestSecret, lpaForDisplay } from './esim-delivery.view';
+import {
+  androidEsimSetupUrl,
+  appleEsimSetupUrl,
+  isEsimTestSecret,
+  lpaForDisplay,
+} from './esim-delivery.view';
 import { toAiraloOrderCode } from './esim-airalo-code';
 import { EsimFulfillmentRepository } from './esim-fulfillment.repository';
 import { EsimFulfillmentService, type EsimFulfillmentResult } from './esim-fulfillment.service';
@@ -87,6 +92,7 @@ export interface EsimAdminRevealPayload {
   installSecret: string;
   qrSvg: string | null;
   appleSetupUrl: string | null;
+  androidSetupUrl: string | null;
 }
 
 /**
@@ -246,6 +252,7 @@ export class EsimAdminService {
       installSecret: display,
       qrSvg: renderLpaQrSvg(secret),
       appleSetupUrl: isEsimTestSecret(secret) ? null : appleEsimSetupUrl(display),
+      androidSetupUrl: isEsimTestSecret(secret) ? null : androidEsimSetupUrl(display),
     };
   }
 

@@ -1,6 +1,7 @@
 import { FulfillmentStatus, OrderPaymentStatus } from '@prisma/client';
 import { ESIM_TEST_MARKER } from './esim.constants';
 import {
+  androidEsimSetupUrl,
   appleEsimSetupUrl,
   buildEsimDelivery,
   destinationFromNames,
@@ -20,10 +21,13 @@ describe('esim delivery view', () => {
     expect(isInstallableLpa('not-an-install-string')).toBe(false);
   });
 
-  it('strips the internal test marker before QR / Apple URL', () => {
+  it('strips the internal test marker before QR / Apple / Android URL', () => {
     const raw = `${ESIM_TEST_MARKER}:LPA:1$lpa.airalo.com$TEST`;
     expect(lpaForDisplay(raw)).toBe('LPA:1$lpa.airalo.com$TEST');
+    expect(appleEsimSetupUrl(raw)).toContain('esimsetup.apple.com');
     expect(appleEsimSetupUrl(raw)).toContain('carddata=LPA');
+    expect(androidEsimSetupUrl(raw)).toContain('esimsetup.android.com');
+    expect(androidEsimSetupUrl(raw)).toContain('carddata=LPA');
   });
 
   it('reads destination from product or variant name', () => {
@@ -100,7 +104,8 @@ describe('esim delivery view', () => {
     });
     expect(view.testData).toBe(false);
     expect(view.sandboxAccount).toBe(true);
-    expect(view.appleSetupUrl).toContain('carddata=LPA');
+    expect(view.appleSetupUrl).toContain('esimsetup.apple.com');
+    expect(view.androidSetupUrl).toContain('esimsetup.android.com');
     expect(view.notice).toMatch(/thử nghiệm/i);
     expect(view.notice).toMatch(/không cài/i);
     expect(view.notice).not.toMatch(/airalo/i);
@@ -112,7 +117,8 @@ describe('esim delivery view', () => {
       sandboxAccount: false,
     });
     expect(live.notice).toMatch(/thiết bị của bạn/i);
-    expect(live.appleSetupUrl).toContain('carddata=LPA');
+    expect(live.appleSetupUrl).toContain('esimsetup.apple.com');
+    expect(live.androidSetupUrl).toContain('esimsetup.android.com');
   });
 
   it('can build metadata without returning install secrets', () => {
@@ -128,6 +134,7 @@ describe('esim delivery view', () => {
     expect(view.installSecret).toBeNull();
     expect(view.qrSvg).toBeNull();
     expect(view.appleSetupUrl).toBeNull();
+    expect(view.androidSetupUrl).toBeNull();
   });
 
   it('renders an SVG QR that does not embed a second copy of the secret as text', () => {

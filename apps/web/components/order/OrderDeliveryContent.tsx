@@ -181,6 +181,7 @@ function resolveEsimDelivery(
       installSecret: null,
       qrSvg: null,
       appleSetupUrl: null,
+      androidSetupUrl: null,
     };
   }
   return {
@@ -193,6 +194,7 @@ function resolveEsimDelivery(
     installSecret: null,
     qrSvg: null,
     appleSetupUrl: null,
+    androidSetupUrl: null,
     canRevealInstallSecret: false,
     packageSpec: null,
     orderCode: fallback.orderCode,
