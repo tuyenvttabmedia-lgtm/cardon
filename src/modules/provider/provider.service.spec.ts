@@ -342,6 +342,36 @@ describe('ProviderService', () => {
     );
   });
 
+  it('keeps definitive checkTransaction FAILED (does not force TIMEOUT retry)', async () => {
+    const { service, queueProducer, transactionRepository, orderRepository } =
+      buildService();
+    transactionRepository.findLatestRecoverable.mockResolvedValue({
+      id: 'txn-timeout-1',
+      requestId: 'REQ-TIMEOUT-1',
+      status: ProviderTransactionStatus.TIMEOUT,
+      providerTransactionDate: '2026-11-18',
+      providerMetadata: { requestTime: 1, kind: 'CARD' },
+      attempt: 1,
+    });
+    MockESaleProvider.timeoutRecovery.set('REQ-TIMEOUT-1', {
+      success: false,
+      status: ProviderTransactionStatus.FAILED,
+      failureCode: 'OUT_OF_STOCK',
+      message: 'Out of stock',
+      rawResponse: { mock: true },
+    });
+
+    const result = await service.fulfillOrder('order-1');
+
+    expect(result.fulfillmentStatus).toBe(FulfillmentStatus.WAITING_ADMIN_RETRY);
+    expect(result.failureCode).toBe('OUT_OF_STOCK');
+    expect(queueProducer.enqueueDelayedRetry).not.toHaveBeenCalled();
+    expect(orderRepository.updateFulfillmentStatus).toHaveBeenCalledWith(
+      'order-1',
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+    );
+  });
+
   it('manual retry creates new provider_transaction attempt', async () => {
     const ctx = buildService();
     MockESaleProvider.buyCardBehavior = 'OUT_OF_STOCK';

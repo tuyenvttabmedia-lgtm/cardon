@@ -557,15 +557,29 @@ export class ProviderService {
         });
       }
 
-      lastChecked = {
-        txn,
-        result: {
-          ...recovered,
-          status: ProviderTransactionStatus.TIMEOUT,
-          failureCode: recovered.failureCode ?? 'TIMEOUT',
-          success: false,
-        },
-      };
+      // Keep definitive Fail as Fail (same as topup); only normalize still-pending → TIMEOUT.
+      if (
+        recovered.status === ProviderTransactionStatus.FAILED ||
+        !isProviderPendingRetry(recovered.failureCode)
+      ) {
+        lastChecked = {
+          txn,
+          result: {
+            ...recovered,
+            success: false,
+          },
+        };
+      } else {
+        lastChecked = {
+          txn,
+          result: {
+            ...recovered,
+            status: ProviderTransactionStatus.TIMEOUT,
+            failureCode: recovered.failureCode ?? 'TIMEOUT',
+            success: false,
+          },
+        };
+      }
     }
 
     if (lastChecked) {

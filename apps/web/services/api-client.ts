@@ -480,12 +480,15 @@ export const paymentApi = {
       headers: { 'idempotency-key': idempotencyKey },
     });
   },
-  syncFromGateway(orderId: string) {
+  syncFromGateway(orderId: string, guestEmail?: string) {
     return apiRequest<{
       paymentReference: string;
       status: string;
       synced: boolean;
       manualReview?: boolean;
-    }>(`/payments/orders/${orderId}/sync`, { method: 'POST' });
+    }>(`/payments/orders/${orderId}/sync`, {
+      method: 'POST',
+      body: guestEmail ? { guestEmail } : {},
+    });
   },
 };

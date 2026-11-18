@@ -1,7 +1,6 @@
 ﻿import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -166,11 +165,10 @@ export class PaymentService {
       throw new BadRequestException('Order payment window has expired');
     }
 
-    // Reuse open PENDING invoice for this order+gateway (stable retry / avoid orphan VAs).
+    // Reuse any open PENDING invoice for this order (any gateway) — avoids MegaPay→SePay orphan VA.
     const openPending = await this.prisma.payment.findFirst({
       where: {
         orderId: order.id,
-        gateway: dto.gateway,
         status: PaymentRecordStatus.PENDING,
         deletedAt: null,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -257,6 +255,7 @@ export class PaymentService {
       new Date(Date.now() + 15 * 60_000);
 
     let providerResult;
+    let abandonedMegaPayReference: string | null = null;
     try {
       providerResult = await provider.createPayment({
         paymentReference,
@@ -274,6 +273,17 @@ export class PaymentService {
         gateway === PaymentGatewayCode.MEGAPAY &&
         this.canFailoverRetailToSepay()
       ) {
+        abandonedMegaPayReference = paymentReference;
+        const megapayProbe = await this.probeAbandonedMegapayReference(paymentReference);
+        if (megapayProbe === 'SUCCESS' || megapayProbe === 'PENDING') {
+          // Remote MegaPay state exists — do not open a second SePay invoice (orphan VA risk).
+          this.logger.error(
+            `MegaPay create failed but query=${megapayProbe} for ${paymentReference} — refusing SePay failover`,
+          );
+          throw new BadRequestException(
+            'MegaPay payment may already exist for this order. Wait for bank confirmation or contact support — do not pay a second invoice.',
+          );
+        }
         gateway = PaymentGatewayCode.SEPAY;
         paymentReference = generateSepayPaymentCode();
         const failoverProvider = this.providerRegistry.get(gateway);
@@ -296,6 +306,7 @@ export class PaymentService {
               primaryError instanceof Error
                 ? primaryError.message
                 : 'MegaPay createPayment failed',
+            abandonedMegaPayReference,
           },
         };
       } else {
@@ -303,7 +314,7 @@ export class PaymentService {
       }
     }
 
-    const payment = await this.prisma.$transaction(async (tx) => {
+    const { payment, expiredPending } = await this.prisma.$transaction(async (tx) => {
       const created = await tx.payment.create({
         data: {
           orderId: order.id,
@@ -334,7 +345,7 @@ export class PaymentService {
       });
 
       // Reopen / recreate must leave one active invoice — old PENDING → EXPIRED (superseded).
-      await this.paymentRepository.expireOtherPendingForOrder(
+      const expiredPending = await this.paymentRepository.expireOtherPendingForOrder(
         order.id,
         created.id,
         {
@@ -358,7 +369,7 @@ export class PaymentService {
         },
       });
 
-      return created;
+      return { payment: created, expiredPending };
     });
 
     await this.paymentAuditService.recordPaymentCreated({
@@ -372,9 +383,16 @@ export class PaymentService {
         idempotencyKey: idempotencyKey.trim(),
         failover:
           gateway !== dto.gateway
-            ? { from: dto.gateway, to: gateway }
+            ? { from: dto.gateway, to: gateway, abandonedMegaPayReference }
             : undefined,
       },
+    });
+
+    await this.alertOrphanMegapayVas({
+      orderId: order.id,
+      keepPaymentId: payment.id,
+      abandonedMegaPayReference,
+      expiredPending: expiredPending.expired,
     });
 
     return mapPayment(payment, {
@@ -1007,19 +1025,18 @@ export class PaymentService {
   /**
    * Return-URL / poll reconcile. Queries the gateway; never trusts ?payment=success.
    * On SUCCESS, same path as webhook: mark PAID then dispatch esim_queue / card / topup.
+   * Logged-in owner OR guestEmail matching orders.guest_email.
    */
-  async syncFromGateway(orderId: string, user?: AuthenticatedUser) {
-    if (!user?.id) {
-      throw new UnauthorizedException('Login required');
-    }
+  async syncFromGateway(
+    orderId: string,
+    user?: AuthenticatedUser,
+    guestEmail?: string,
+  ) {
     const payment = await this.paymentRepository.findLatestByOrderId(orderId);
     if (!payment) {
       throw new NotFoundException('Payment not found');
     }
-    // Owner only. Guest orders (userId null) settle via webhook/IPN, not sync.
-    if (!payment.order.userId || payment.order.userId !== user.id) {
-      throw new ForbiddenException();
-    }
+    this.assertPaymentOrderAccess(payment.order, user, guestEmail);
 
     if (payment.productLane === 'ESIM' && payment.gateway === PaymentGatewayCode.SEPAY) {
       if (!this.esimSepayPaymentService) {
@@ -1857,6 +1874,74 @@ export class PaymentService {
     } catch {
       return false;
     }
+  }
+
+  /** Probe abandoned MegaPay merTrxId before SePay failover (orphan VA guard). */
+  private async probeAbandonedMegapayReference(
+    paymentReference: string,
+  ): Promise<'SUCCESS' | 'PENDING' | 'FAILED' | 'UNKNOWN'> {
+    try {
+      const megapay = this.providerRegistry.get(PaymentGatewayCode.MEGAPAY);
+      const queried = await megapay.queryTransaction(paymentReference);
+      if (queried.status === 'SUCCESS') return 'SUCCESS';
+      if (queried.status === 'FAILED') return 'FAILED';
+      return 'PENDING';
+    } catch (error) {
+      this.logger.warn(
+        `MegaPay probe failed for ${paymentReference}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return 'UNKNOWN';
+    }
+  }
+
+  /**
+   * Ops alert when a MegaPay invoice may still accept bank transfer after SePay/new invoice.
+   * MegaPay VA has no refund API — manual bank reverse if customer pays the orphan.
+   */
+  private async alertOrphanMegapayVas(params: {
+    orderId: string;
+    keepPaymentId: string;
+    abandonedMegaPayReference: string | null;
+    expiredPending: Array<{
+      id: string;
+      gateway: PaymentGatewayCode;
+      paymentReference: string;
+    }>;
+  }): Promise<void> {
+    const orphanRefs = [
+      ...(params.abandonedMegaPayReference
+        ? [params.abandonedMegaPayReference]
+        : []),
+      ...params.expiredPending
+        .filter((row) => row.gateway === PaymentGatewayCode.MEGAPAY)
+        .map((row) => row.paymentReference),
+    ];
+    if (orphanRefs.length === 0) return;
+
+    this.logger.error(
+      `Possible orphan MegaPay VA order=${params.orderId} refs=${orphanRefs.join(',')}`,
+    );
+    this.activityDispatcher.dispatch({
+      eventType: SystemActivityEventType.WEBHOOK_FAILED,
+      eventCategory: SystemActivityEventCategory.PAYMENT,
+      severity: SystemActivitySeverity.CRITICAL,
+      source: SystemActivitySource.API,
+      resource: 'order',
+      resourceId: params.orderId,
+      title: 'Possible orphan MegaPay VA',
+      description: `Customer must not pay superseded MegaPay refs: ${orphanRefs.join(', ')}`,
+      metadata: {
+        orphanMegaPayReferences: orphanRefs,
+        keepPaymentId: params.keepPaymentId,
+      },
+    });
+    await this.notificationService
+      .notifyManualPaymentReview(params.keepPaymentId, params.orderId)
+      .catch((error: unknown) => {
+        this.logger.warn(
+          `Orphan MegaPay VA alert failed order=${params.orderId}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
   }
 }
 

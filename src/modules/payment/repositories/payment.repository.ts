@@ -123,7 +123,14 @@ export class PaymentRepository {
     keepPaymentId: string,
     meta: { supersededBy: string; reason: string },
     tx: Prisma.TransactionClient,
-  ): Promise<number> {
+  ): Promise<{
+    count: number;
+    expired: Array<{
+      id: string;
+      gateway: PaymentGatewayCode;
+      paymentReference: string;
+    }>;
+  }> {
     const others = await tx.payment.findMany({
       where: {
         orderId,
@@ -131,12 +138,21 @@ export class PaymentRepository {
         status: PaymentRecordStatus.PENDING,
         deletedAt: null,
       },
-      select: { id: true, gatewayResponse: true },
+      select: {
+        id: true,
+        gateway: true,
+        paymentReference: true,
+        gatewayResponse: true,
+      },
     });
-    if (others.length === 0) return 0;
+    if (others.length === 0) return { count: 0, expired: [] };
 
     const supersededAt = new Date().toISOString();
-    let expired = 0;
+    const expired: Array<{
+      id: string;
+      gateway: PaymentGatewayCode;
+      paymentReference: string;
+    }> = [];
     for (const row of others) {
       const existing =
         row.gatewayResponse &&
@@ -161,9 +177,15 @@ export class PaymentRepository {
           } as Prisma.InputJsonValue,
         },
       });
-      expired += claim.count;
+      if (claim.count > 0) {
+        expired.push({
+          id: row.id,
+          gateway: row.gateway,
+          paymentReference: row.paymentReference,
+        });
+      }
     }
-    return expired;
+    return { count: expired.length, expired };
   }
 
   countPendingForOrder(

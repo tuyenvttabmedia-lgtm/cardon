@@ -127,7 +127,7 @@ function harness(options?: {
     prisma as never,
     {
       findByIdempotencyKey: jest.fn(async (key: string) => (stored?.idempotencyKey === key ? stored : null)),
-      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue({ count: 0, expired: [] }),
     } as never,
     { create: jest.fn() } as never,
     { get: () => paypal } as never,
@@ -344,7 +344,7 @@ describe('admin-test PayPal payment amount', () => {
             order: { update: jest.fn() },
           }),
       } as never,
-      { findByIdempotencyKey: jest.fn(), expireOtherPendingForOrder: jest.fn().mockResolvedValue(0) } as never,
+      { findByIdempotencyKey: jest.fn(), expireOtherPendingForOrder: jest.fn().mockResolvedValue({ count: 0, expired: [] }) } as never,
       { create: jest.fn() } as never,
       { get: () => paypal } as never,
       {} as never,
