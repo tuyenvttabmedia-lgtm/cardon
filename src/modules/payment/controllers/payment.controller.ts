@@ -17,7 +17,6 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { Public } from '../../../common/decorators/public.decorator';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentDepositWebhookService } from '../../agent-deposit/services/agent-deposit-webhook.service';
@@ -25,6 +24,7 @@ import { PlatformMaintenanceGuard } from '../../maintenance-center/guards/platfo
 import { MaintenanceModule } from '../../maintenance-center/decorators/maintenance-module.decorator';
 import { IDEMPOTENCY_KEY_HEADER } from '../entities/payment.constants';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
+import { SyncPaymentDto } from '../dto/sync-payment.dto';
 import { PaymentService } from '../services/payment.service';
 import { EsimSepayPaymentService } from '../services/esim-sepay-payment.service';
 import {
@@ -55,13 +55,14 @@ export class PaymentController {
   }
 
   @Post('orders/:orderId/sync')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(200)
   syncFromGateway(
     @Param('orderId', ParseUUIDPipe) orderId: string,
+    @Body() dto: SyncPaymentDto = {},
     @CurrentUser() user?: AuthenticatedUser,
   ) {
-    return this.paymentService.syncFromGateway(orderId, user);
+    return this.paymentService.syncFromGateway(orderId, user, dto?.guestEmail);
   }
 
   @Post('ipn/esim/sepay')

@@ -323,7 +323,7 @@ describe('PayPal payment service', () => {
       findLatestByOrderId: jest.fn(async () => current()),
       findSuccessByProviderTransactionId: jest.fn(),
       recordLateWebhookManualReview: jest.fn(),
-      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue({ count: 0, expired: [] }),
       countPendingForOrder: jest.fn().mockResolvedValue(0),
       updateGatewayResponse: jest.fn(async (_id: string, next: Record<string, unknown>) => {
         stored = next;

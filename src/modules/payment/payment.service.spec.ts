@@ -29,6 +29,7 @@ describe('PaymentService', () => {
     findByIdempotencyKey: jest.Mock;
     findByReference: jest.Mock;
     findById: jest.Mock;
+    findLatestByOrderId: jest.Mock;
     claimPendingStatus: jest.Mock;
     recordLateWebhookManualReview: jest.Mock;
     expireOtherPendingForOrder: jest.Mock;
@@ -76,9 +77,10 @@ describe('PaymentService', () => {
       findByIdempotencyKey: jest.fn(),
       findByReference: jest.fn(),
       findById: jest.fn(),
+      findLatestByOrderId: jest.fn(),
       claimPendingStatus: jest.fn().mockResolvedValue({ count: 1 }),
       recordLateWebhookManualReview: jest.fn(),
-      expireOtherPendingForOrder: jest.fn().mockResolvedValue(0),
+      expireOtherPendingForOrder: jest.fn().mockResolvedValue({ count: 0, expired: [] }),
       countPendingForOrder: jest.fn().mockResolvedValue(0),
     };
     webhookLogRepository = { create: jest.fn() };
@@ -573,6 +575,121 @@ describe('PaymentService', () => {
         '',
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('allows guest syncFromGateway when guestEmail matches', async () => {
+    paymentRepository.findLatestByOrderId.mockResolvedValue({
+      ...pendingPayment,
+      productLane: 'RETAIL',
+      order: {
+        userId: null,
+        guestEmail: 'buyer@example.com',
+        isGuestOrder: true,
+        paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+        totalAmount: new Decimal(100000),
+      },
+    });
+    const megapay = new MockMegaPayProvider();
+    jest.spyOn(megapay, 'queryTransaction').mockResolvedValue({
+      paymentReference: 'PAY-REF-001',
+      status: 'PENDING',
+      amount: '100000.00',
+    });
+    service = new PaymentService(
+      prisma as never,
+      paymentRepository as never,
+      webhookLogRepository as never,
+      PaymentProviderRegistry.withProviders(megapay, new MockSePayProvider()),
+      orderService as never,
+      paymentAuditService as never,
+      fulfillmentDispatchService as never,
+      { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+      { dispatch: jest.fn() } as never,
+    );
+
+    const result = await service.syncFromGateway(
+      'order-1',
+      undefined,
+      'buyer@example.com',
+    );
+    expect(result.synced).toBe(false);
+    expect(result.status).toBe('PENDING');
+  });
+
+  it('rejects guest syncFromGateway with wrong email', async () => {
+    paymentRepository.findLatestByOrderId.mockResolvedValue({
+      ...pendingPayment,
+      productLane: 'RETAIL',
+      order: {
+        userId: null,
+        guestEmail: 'buyer@example.com',
+        isGuestOrder: true,
+        paymentStatus: OrderPaymentStatus.WAITING_PAYMENT,
+        totalAmount: new Decimal(100000),
+      },
+    });
+
+    await expect(
+      service.syncFromGateway('order-1', undefined, 'other@example.com'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('reuses open MegaPay PENDING instead of creating SePay (orphan VA guard)', async () => {
+    prisma.payment.findFirst.mockResolvedValue({
+      id: 'pay-megapay-open',
+      orderId: 'order-1',
+      gateway: PaymentGatewayCode.MEGAPAY,
+      paymentReference: 'PAY-OPEN-VA',
+      amount: new Decimal(100000),
+      status: PaymentRecordStatus.PENDING,
+      expiresAt: waitingOrder.paymentExpiresAt,
+      gatewayResponse: {
+        paymentUrl: 'https://mock.megapay.example/checkout/PAY-OPEN-VA',
+        checkoutUrl: 'https://mock.megapay.example/checkout/PAY-OPEN-VA',
+      },
+      paidAt: null,
+      createdAt: new Date(),
+    });
+
+    const result = await service.createPayment(
+      { orderId: 'order-1', gateway: PaymentGatewayCode.SEPAY },
+      'idem-key-sepay-while-megapay-open',
+      { id: 'user-1', email: 'u@test.com', role: 'CUSTOMER' },
+    );
+
+    expect(result.id).toBe('pay-megapay-open');
+    expect(result.gateway).toBe(PaymentGatewayCode.MEGAPAY);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('refuses SePay failover when abandoned MegaPay query is PENDING', async () => {
+    const megapay = new MockMegaPayProvider();
+    jest.spyOn(megapay, 'createPayment').mockRejectedValue(new Error('MegaPay down'));
+    jest.spyOn(megapay, 'queryTransaction').mockResolvedValue({
+      paymentReference: 'PAY-ABANDONED',
+      status: 'PENDING',
+      amount: '100000.00',
+    });
+    service = new PaymentService(
+      prisma as never,
+      paymentRepository as never,
+      webhookLogRepository as never,
+      PaymentProviderRegistry.withProviders(megapay, new MockSePayProvider()),
+      orderService as never,
+      paymentAuditService as never,
+      fulfillmentDispatchService as never,
+      { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+      { dispatch: jest.fn() } as never,
+    );
+
+    await expect(
+      service.createPayment(
+        { orderId: 'order-1', gateway: PaymentGatewayCode.MEGAPAY },
+        'idem-key-failover-refuse',
+        { id: 'user-1', email: 'u@test.com', role: 'CUSTOMER' },
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
 

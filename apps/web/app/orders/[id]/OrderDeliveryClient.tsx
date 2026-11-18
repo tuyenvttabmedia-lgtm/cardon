@@ -77,12 +77,13 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
   }, [orderId, isAuthenticated, guestEmail, authLoading]);
 
   useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
+    if (authLoading) return;
     if (paymentStatus !== 'success') return;
+    if (!isAuthenticated && !guestEmail) return;
     let active = true;
     setSyncingPayment(true);
     void paymentApi
-      .syncFromGateway(orderId)
+      .syncFromGateway(orderId, isAuthenticated ? undefined : guestEmail)
       .then(async () => {
         if (!active) return;
         try {
@@ -102,7 +103,7 @@ export default function OrderDeliveryClient({ orderId }: { orderId: string }) {
     return () => {
       active = false;
     };
-  }, [orderId, isAuthenticated, authLoading, paymentStatus]);
+  }, [orderId, isAuthenticated, guestEmail, authLoading, paymentStatus]);
 
   if (authLoading) {
     return <OrderDeliveryLoading />;
