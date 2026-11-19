@@ -313,8 +313,9 @@ services:
     image: nginx:1.27-alpine
     container_name: cardon-prod-nginx
     restart: unless-stopped
-    mem_limit: 48m
-    mem_reservation: 16m
+    # 48m was too tight — OOM/restart on edge caused intermittent :443 refused (Airalo webhook probes).
+    mem_limit: 128m
+    mem_reservation: 32m
     ports:
       - "80:80"
       - "443:443"

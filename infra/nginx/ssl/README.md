@@ -19,6 +19,10 @@ Place certificate files here before enabling HTTPS server blocks in `conf.d/`.
 Use the same cert for all subdomains when using a wildcard origin cert:
 - `partner.cardon.vn` → symlink or copy to `partner.cardon.vn.pem` / `.key`
 - `admin.cardon.vn` → symlink or copy to `admin.cardon.vn.pem` / `.key`
+- `webhooks.cardon.vn` → prefer dedicated LE/DNS-only cert (`webhooks.cardon.vn.pem` / `.key`);
+  if using wildcard origin instead: `ln -sf cardon.vn.pem webhooks.cardon.vn.pem` (and `.key`)
+
+`webhooks.cardon.vn` must stay **DNS-only** (grey cloud) so Airalo can hit origin without CF bot challenge.
 
 4. Uncomment HTTPS `server { }` blocks in:
    - `conf.d/cardon.vn.conf`
