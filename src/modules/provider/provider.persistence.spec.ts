@@ -93,6 +93,7 @@ function buildPersistenceContext() {
     updateResult: jest.fn(),
     findMaxAttempt: jest.fn().mockResolvedValue({ _max: { attempt: 0 } }),
     findLatestRecoverable: jest.fn().mockResolvedValue(null),
+    findLatestRecoverableAny: jest.fn().mockResolvedValue(null),
     findRecoverableAttempts: jest.fn().mockResolvedValue([]),
     findLatestSuccess: jest.fn().mockResolvedValue(null),
     listByOrderId: jest.fn().mockResolvedValue([]),

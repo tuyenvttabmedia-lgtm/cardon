@@ -198,7 +198,7 @@ export class ProviderService {
           // Recovery for PAID orders that never left PENDING (e.g. pre-fix maintenance throws)
           FulfillmentStatus.PENDING,
         ]
-      : [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY];
+      : [FulfillmentStatus.PENDING];
 
     if (!allowedStatuses.includes(order.fulfillmentStatus)) {
       throw new ConflictException(
@@ -206,19 +206,38 @@ export class ProviderService {
       );
     }
 
-    const recoverable = await this.transactionRepository.findLatestRecoverable(
-      orderId,
-      primarySelection.provider.id,
-      ProviderTransactionAction.BUY_CARD,
-    );
+    // Prefer any recoverable attempt on the order (not only primary provider) to avoid
+    // double-buy after switch_provider while a TIMEOUT/PENDING row still exists.
+    const recoverable =
+      (await this.transactionRepository.findLatestRecoverable(
+        orderId,
+        primarySelection.provider.id,
+        ProviderTransactionAction.BUY_CARD,
+      )) ??
+      (await this.transactionRepository.findLatestRecoverableAny(
+        orderId,
+        ProviderTransactionAction.BUY_CARD,
+      ));
     if (recoverable) {
+      // findLatestRecoverable is scoped to primary; Any may return another provider.
+      const recoverableProviderId =
+        recoverable.providerId?.trim() || primarySelection.provider.id;
+      const recoverSelection =
+        recoverableProviderId === primarySelection.provider.id
+          ? primarySelection
+          : selections.find((s) => s.provider.id === recoverableProviderId);
+      if (!recoverSelection) {
+        throw new ConflictException(
+          `Order has recoverable provider attempt on ${recoverableProviderId} — recover before switching providers`,
+        );
+      }
       // Never open a new buyCard() while a recoverable attempt exists (TIMEOUT/PENDING).
       return this.tryRecoverPersistedTransaction({
         orderId,
         orderItemId: orderItem.id,
         quantity: orderItem.quantity,
-        providerId: primarySelection.provider.id,
-        adapter: primarySelection.adapter,
+        providerId: recoverSelection.provider.id,
+        adapter: recoverSelection.adapter,
         txn: recoverable,
         isRetry: options.isRetry,
       });
@@ -227,6 +246,7 @@ export class ProviderService {
     const claim = await this.orderRepository.claimFulfillmentProcessing(
       orderId,
       this.prisma,
+      allowedStatuses,
     );
     if (claim.count === 0) {
       return this.handleUnclaimedFulfillment(orderId, orderItem.id);

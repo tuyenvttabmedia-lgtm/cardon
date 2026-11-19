@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import { getSiteUrl } from '@/lib/utils';
 
 export type BreadcrumbJsonLdItem = {
@@ -33,7 +34,7 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbJsonLdItem[] }) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }

@@ -13,9 +13,26 @@ function escapeHtmlAttr(value: string): string {
     .replace(/>/g, '&gt;');
 }
 
+/** Browsers ignore ASCII control chars/whitespace inside a URL scheme (`java\tscript:`). */
+// eslint-disable-next-line no-control-regex
+const URL_IGNORED_CHARS_RE = /[\u0000-\u0020\u007f-\u009f\u00ad\u200b-\u200f\u2028\u2029\u2060\ufeff]/g;
+const SAFE_DATA_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp|avif)[;,]/;
+
+function decodeUrlEntities(value: string): string {
+  const fromCode = (code: number) =>
+    Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+  return value
+    .replace(/&#x0*([0-9a-f]+);?/gi, (_m, hex: string) => fromCode(parseInt(hex, 16)))
+    .replace(/&#0*(\d+);?/g, (_m, dec: string) => fromCode(parseInt(dec, 10)))
+    .replace(/&colon;/gi, ':')
+    .replace(/&(?:tab|newline);/gi, '');
+}
+
 function isUnsafeUrl(url: string): boolean {
-  const t = url.trim().toLowerCase();
-  return t.startsWith('javascript:') || t.startsWith('data:text/html') || t.startsWith('vbscript:');
+  const normalized = decodeUrlEntities(url).replace(URL_IGNORED_CHARS_RE, '').toLowerCase();
+  if (normalized.startsWith('javascript:') || normalized.startsWith('vbscript:')) return true;
+  if (normalized.startsWith('data:')) return !SAFE_DATA_IMAGE_RE.test(normalized);
+  return false;
 }
 
 function sanitizeAnchor(attrs: string): string {

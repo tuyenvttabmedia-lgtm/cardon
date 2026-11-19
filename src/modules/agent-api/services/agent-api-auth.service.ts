@@ -126,6 +126,7 @@ export class AgentApiAuthService {
       );
     }
 
+    // apiEnabled is the per-agent kill-switch: admin can cut partner API access instantly.
     if (agent.status !== AgentStatus.ACTIVE || !agent.apiEnabled) {
       this.securityService.recordAuthFailure(agent.id, 'FORBIDDEN', {
         ...logBase,

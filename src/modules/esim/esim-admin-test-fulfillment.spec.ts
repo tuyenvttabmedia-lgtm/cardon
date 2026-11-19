@@ -119,6 +119,7 @@ describe('admin test never reaches an eSIM provider', () => {
     const repository = {
       findOrderForFulfillment: jest.fn(async (orderId: string) => ({
         id: orderId,
+        fulfillmentStatus: FulfillmentStatus.PENDING,
         clientTrace: orders.get(orderId)?.clientTrace ?? {},
         orderItems: [{ variant: { type: ProductVariantType.ESIM } }],
       })),

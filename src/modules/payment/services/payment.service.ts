@@ -790,7 +790,7 @@ export class PaymentService {
         verification.status === 'SUCCESS'
       ) {
         await this.handleDuplicateSuccessOnPaidOrder(payment, {
-          amount: new Decimal(verification.amount ?? payment.amount.toString()).toFixed(2),
+          amount: verification.amount ? new Decimal(verification.amount).toFixed(2) : null,
           providerTransactionId: incomingTxId,
           rawPayload: verification.rawPayload,
         });
@@ -834,7 +834,7 @@ export class PaymentService {
             obs && obs.kind === 'completed' ? obs.captureId : verification.providerTransactionId;
           // Never auto-PAID on identity fail — park review so ops see captured-but-unsettled money.
           await this.handleLateSuccessWebhook(payment, {
-            amount: receivedAmount || payment.amount.toFixed(2),
+            amount: receivedAmount || null,
             providerTransactionId: captureId ?? null,
             rawPayload: {
               ...(typeof verification.rawPayload === 'object' &&
@@ -867,7 +867,7 @@ export class PaymentService {
           `Webhook amount mismatch reference=${payment.paymentReference} expected=${payment.amount.toString()} received=${received}: ${err instanceof Error ? err.message : String(err)}`,
         );
         await this.handleLateSuccessWebhook(payment, {
-          amount: received || payment.amount.toFixed(2),
+          amount: received || null,
           providerTransactionId: verification.providerTransactionId ?? null,
           rawPayload: {
             ...(typeof verification.rawPayload === 'object' &&
@@ -1103,7 +1103,7 @@ export class PaymentService {
         }`,
       );
       await this.handleLateSuccessWebhook(payment, {
-        amount: received || payment.amount.toFixed(2),
+        amount: received || null,
         providerTransactionId: null,
         rawPayload: {
           source: 'gateway_query',
@@ -1531,7 +1531,8 @@ export class PaymentService {
       gatewayResponse: unknown;
     },
     evidence: {
-      amount: string;
+      /** Gateway-reported amount. null when the gateway did not send one — never forge from payment.amount. */
+      amount: string | null;
       providerTransactionId?: string | null;
       rawPayload?: unknown;
     },
@@ -1571,7 +1572,8 @@ export class PaymentService {
       status: PaymentRecordStatus;
     },
     evidence: {
-      amount: string;
+      /** Gateway-reported amount. null when the gateway did not send one — never forge from payment.amount. */
+      amount: string | null;
       providerTransactionId?: string | null;
       rawPayload?: unknown;
     },
@@ -1677,6 +1679,8 @@ export class PaymentService {
   async approveManualReview(paymentId: string, _adminId: string) {
     const payment = await this.requireManualReviewPayment(paymentId);
     this.assertManualReviewPaymentSafe(payment);
+    // Stored late-webhook evidence is advisory only — confirm with the gateway before settle.
+    await this.assertGatewayConfirmsManualReviewSuccess(payment);
     const existing =
       payment.gatewayResponse && typeof payment.gatewayResponse === 'object'
         ? (payment.gatewayResponse as Record<string, unknown>)
@@ -1784,13 +1788,59 @@ export class PaymentService {
       payment.gatewayResponse && typeof payment.gatewayResponse === 'object'
         ? (payment.gatewayResponse as Record<string, unknown>)
         : {};
+    // Evidence amount is null when the gateway sent none (we no longer forge payment.amount).
+    // Missing evidence is acceptable here because approve re-queries the gateway amount;
+    // a stored amount that mismatches still blocks approval.
     const evidence = readLateWebhookEvidence(gatewayResponse);
-    if (!evidence?.amount) {
+    if (evidence?.amount) {
+      assertWebhookAmountMatches(payment.amount, evidence.amount);
+    }
+  }
+
+  /**
+   * Re-query the gateway at approve time: require SUCCESS and a reported amount equal to
+   * payment.amount. Never trust stored lateWebhookEvidence alone (it may be forged/stale).
+   */
+  private async assertGatewayConfirmsManualReviewSuccess(
+    payment: NonNullable<Awaited<ReturnType<PaymentRepository['findById']>>>,
+  ): Promise<void> {
+    let gatewayAmount: string | undefined;
+    try {
+      if (payment.gateway === PaymentGatewayCode.PAYPAL) {
+        const paypalOrderId = readPaypalSnapshot(payment).paypalOrderId;
+        if (!paypalOrderId) {
+          throw new BadRequestException('PayPal order id missing — cannot re-verify payment');
+        }
+        const observation = await this.paypalPort().readOrder(paypalOrderId);
+        if (observation.kind !== 'completed') {
+          throw new BadRequestException(
+            `Gateway does not report SUCCESS for this payment (PayPal: ${observation.kind})`,
+          );
+        }
+        gatewayAmount = observation.amount;
+      } else {
+        const queried = await this.providerRegistry
+          .get(payment.gateway)
+          .queryTransaction(payment.paymentReference);
+        if (queried.status !== 'SUCCESS') {
+          throw new BadRequestException(
+            `Gateway does not report SUCCESS for this payment (status: ${queried.status})`,
+          );
+        }
+        gatewayAmount = queried.amount;
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      this.logger.warn(
+        `Manual approval gateway re-query failed payment=${payment.paymentReference}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       throw new BadRequestException(
-        'Late webhook evidence amount is required before manual approval',
+        'Gateway re-query failed — cannot approve manual review without confirmed SUCCESS',
       );
     }
-    assertWebhookAmountMatches(payment.amount, evidence.amount);
+    assertWebhookAmountMatches(payment.amount, gatewayAmount);
   }
 
   private async processManualReviewApprovalAtomically(

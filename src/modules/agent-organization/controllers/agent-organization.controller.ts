@@ -13,12 +13,13 @@ import {
 import { AgentMemberStatus } from '@prisma/client';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentPlatformRole } from '../../agent-platform/entities/agent-platform.constants';
 import { AgentOrganizationService } from '../services/agent-organization.service';
 
 @Controller('agents/me')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentOrganizationController {
   constructor(private readonly orgService: AgentOrganizationService) {}
 

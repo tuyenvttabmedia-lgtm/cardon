@@ -12,13 +12,14 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentPlatformService } from '../../agent-platform/services/agent-platform.service';
 import { AgentPlatformRole } from '../../agent-platform/entities/agent-platform.constants';
 import { AgentSecurityService } from '../services/agent-security.service';
 
 @Controller('agents/me/security')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentSecurityController {
   constructor(
     private readonly securityService: AgentSecurityService,

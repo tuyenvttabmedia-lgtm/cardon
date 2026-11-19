@@ -38,7 +38,7 @@ export class TopupQueueProducer {
   }
 
   async enqueueRetry(orderId: string, attempt: number): Promise<string> {
-    const jobId = `topup-retry-${orderId}-${attempt}`;
+    const jobId = `topup-retry-${orderId}`;
     try {
       const job = await this.topupQueue.add(
         TOPUP_QUEUE_JOB.RETRY,
@@ -61,7 +61,7 @@ export class TopupQueueProducer {
     attempt: number,
     delayMs: number,
   ): Promise<string> {
-    const jobId = `topup-check-${orderId}-${attempt}`;
+    const jobId = `topup-check-${orderId}`;
     try {
       const job = await this.topupQueue.add(
         TOPUP_QUEUE_JOB.RETRY,

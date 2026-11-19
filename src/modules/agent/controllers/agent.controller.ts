@@ -19,6 +19,7 @@ import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { Permissions } from '../../../common/decorators/permissions.decorator';
 import { Roles } from '../../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
@@ -36,7 +37,7 @@ import { AccountService } from '../../auth/services/account.service';
 import { ChangePasswordDto } from '../../admin/dto/admin-operation.dto';
 
 @Controller('agents')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentController {
   constructor(
     private readonly agentService: AgentService,

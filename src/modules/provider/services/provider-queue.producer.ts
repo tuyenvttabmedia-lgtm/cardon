@@ -43,7 +43,8 @@ export class ProviderQueueProducer {
   }
 
   async enqueueRetry(orderId: string, attempt: number): Promise<string> {
-    const jobId = `retry-${orderId}-${attempt}`;
+    // Stable per order while waiting/active — prevents parallel retry-O-2 vs retry-O-1.
+    const jobId = `retry-${orderId}`;
     try {
       const job = await this.providerQueue.add(
         PROVIDER_QUEUE_JOB.RETRY,
@@ -65,7 +66,7 @@ export class ProviderQueueProducer {
     attempt: number,
     delayMs: number,
   ): Promise<string> {
-    const jobId = `retry-${orderId}-${attempt}`;
+    const jobId = `retry-${orderId}`;
     try {
       const job = await this.providerQueue.add(
         PROVIDER_QUEUE_JOB.RETRY,

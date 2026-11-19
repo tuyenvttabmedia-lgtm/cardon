@@ -188,7 +188,7 @@ export class TopupService {
           FulfillmentStatus.NEED_MANUAL_REVIEW,
           FulfillmentStatus.PENDING,
         ]
-      : [FulfillmentStatus.PENDING, FulfillmentStatus.WAITING_ADMIN_RETRY];
+      : [FulfillmentStatus.PENDING];
 
     if (!allowedStatuses.includes(order.fulfillmentStatus)) {
       throw new ConflictException(
@@ -196,12 +196,24 @@ export class TopupService {
       );
     }
 
-    const recoverable = await this.transactionRepository.findLatestRecoverable(
-      orderId,
-      selection.provider.id,
-      ProviderTransactionAction.TOPUP,
-    );
+    const recoverable =
+      (await this.transactionRepository.findLatestRecoverable(
+        orderId,
+        selection.provider.id,
+        ProviderTransactionAction.TOPUP,
+      )) ??
+      (await this.transactionRepository.findLatestRecoverableAny(
+        orderId,
+        ProviderTransactionAction.TOPUP,
+      ));
     if (recoverable) {
+      const recoverableProviderId =
+        recoverable.providerId?.trim() || selection.provider.id;
+      if (recoverableProviderId !== selection.provider.id) {
+        throw new ConflictException(
+          `Order has recoverable topup attempt on ${recoverableProviderId} — recover before switching providers`,
+        );
+      }
       // Never open a new topup() while a recoverable attempt exists (TIMEOUT/PENDING).
       return this.tryRecoverPersistedTransaction({
         orderId,
@@ -219,6 +231,7 @@ export class TopupService {
     const claim = await this.orderRepository.claimFulfillmentProcessing(
       orderId,
       this.prisma,
+      allowedStatuses,
     );
     if (claim.count === 0) {
       return this.handleUnclaimedFulfillment(orderId, orderItem.id);

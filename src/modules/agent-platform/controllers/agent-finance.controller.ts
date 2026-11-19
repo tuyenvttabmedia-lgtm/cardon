@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { IDEMPOTENCY_KEY_HEADER } from '../../payment/entities/payment.constants';
 import { AgentPlatformService } from '../services/agent-platform.service';
@@ -8,7 +9,7 @@ import { AgentFinanceService, FinanceQuery } from '../services/agent-finance.ser
 import { CreateAgentDepositDto } from '../../agent-deposit/dto/create-agent-deposit.dto';
 
 @Controller('agents/me/finance')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentFinanceController {
   constructor(
     private readonly financeService: AgentFinanceService,

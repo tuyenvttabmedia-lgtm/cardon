@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import { FulfillmentStatus, ProductVariantType } from '@prisma/client';
 import { EsimQueueProducer } from '../../esim/esim-queue.producer';
 import { isPersistedAdminTest } from '../../esim/esim-admin-test.rules';
-import { ProductVariantType } from '@prisma/client';
 import { ProviderOrderRepository } from '../repositories/provider.repository';
 import { ProviderQueueProducer } from './provider-queue.producer';
 import { ProviderService } from './provider.service';
@@ -39,6 +39,14 @@ export class FulfillmentDispatchService {
     if (isPersistedAdminTest(order.clientTrace)) {
       await this.orderRepository.markAdminTestFulfillmentSkipped(orderId);
       this.logger.log(`admin test order ${orderId} fulfillment not enqueued`);
+      return [];
+    }
+
+    // Sync/webhook re-dispatch must not re-buy WAITING_ADMIN_RETRY / PROCESSING orders.
+    if (order.fulfillmentStatus !== FulfillmentStatus.PENDING) {
+      this.logger.log(
+        `dispatchOrderFulfillment skip order=${orderId} fulfillment=${order.fulfillmentStatus}`,
+      );
       return [];
     }
 

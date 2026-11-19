@@ -33,7 +33,10 @@ import {
   maskSignature,
   signWebhookBody,
 } from '../utils/webhook-delivery-signature.util';
-import { assertValidWebhookDestination } from '../utils/webhook-delivery-url.util';
+import {
+  assertValidWebhookDestination,
+  assertWebhookDestinationResolvesPublic,
+} from '../utils/webhook-delivery-url.util';
 import { WebhookDeliveryPayloadService } from './webhook-delivery-payload.service';
 import { WebhookDeliveryProducer } from './webhook-delivery-producer.service';
 
@@ -182,7 +185,7 @@ export class WebhookDeliveryService {
     let lastError: string | null = null;
 
     try {
-      assertValidWebhookDestination(webhookConfig.callbackUrl);
+      await assertWebhookDestinationResolvesPublic(webhookConfig.callbackUrl);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 5_000);
       const res = await fetch(webhookConfig.callbackUrl, {
@@ -190,6 +193,8 @@ export class WebhookDeliveryService {
         headers: requestHeaders,
         body: rawBody,
         signal: controller.signal,
+        // Never follow redirects: a public URL could 302 to an internal host (SSRF).
+        redirect: 'manual',
       });
       clearTimeout(timer);
       httpStatus = res.status;

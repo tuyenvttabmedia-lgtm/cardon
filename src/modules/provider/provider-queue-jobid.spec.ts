@@ -15,13 +15,16 @@ describe('provider/topup queue stable job ids', () => {
     );
 
     expect(provider).toContain('const jobId = `fulfill-${orderId}`');
-    expect(provider).toContain('const jobId = `retry-${orderId}-${attempt}`');
+    expect(provider).toContain('const jobId = `retry-${orderId}`');
+    expect(provider).not.toContain('retry-${orderId}-${attempt}');
     expect(provider).toContain('removeOnComplete: true');
     expect(provider).toContain('isJobIdExistsError');
     expect(provider).not.toContain('Date.now()');
 
     expect(topup).toContain('const jobId = `topup-fulfill-${orderId}`');
-    expect(topup).toContain('const jobId = `topup-check-${orderId}-${attempt}`');
+    expect(topup).toContain('const jobId = `topup-retry-${orderId}`');
+    expect(topup).toContain('const jobId = `topup-check-${orderId}`');
+    expect(topup).not.toContain('topup-retry-${orderId}-${attempt}');
     expect(topup).toContain('removeOnComplete: true');
     expect(topup).not.toContain('Date.now()');
   });
