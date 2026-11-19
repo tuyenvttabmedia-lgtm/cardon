@@ -219,14 +219,16 @@ export class ProviderService {
         ProviderTransactionAction.BUY_CARD,
       ));
     if (recoverable) {
+      // findLatestRecoverable is scoped to primary; Any may return another provider.
+      const recoverableProviderId =
+        recoverable.providerId?.trim() || primarySelection.provider.id;
       const recoverSelection =
-        recoverable.providerId === primarySelection.provider.id
+        recoverableProviderId === primarySelection.provider.id
           ? primarySelection
-          : selections.find((s) => s.provider.id === recoverable.providerId) ??
-            primarySelection;
-      if (recoverSelection.provider.id !== recoverable.providerId) {
+          : selections.find((s) => s.provider.id === recoverableProviderId);
+      if (!recoverSelection) {
         throw new ConflictException(
-          `Order has recoverable provider attempt on ${recoverable.providerId} — recover before switching providers`,
+          `Order has recoverable provider attempt on ${recoverableProviderId} — recover before switching providers`,
         );
       }
       // Never open a new buyCard() while a recoverable attempt exists (TIMEOUT/PENDING).

@@ -42,6 +42,7 @@ describe('B3.57A admin recovery boundaries', () => {
       claimFulfillmentProcessing: jest.fn(),
       updateFulfillmentStatus: jest.fn(),
       findLatestRecoverable: jest.fn(),
+      findLatestRecoverableAny: jest.fn(),
       listForVariant: jest.fn(),
       notifyAdminRetryRequired: jest.fn(),
       enqueueFulfillment: jest.fn(),
@@ -511,10 +512,10 @@ describe('B3.57A admin recovery boundaries', () => {
 
   it('keeps dispatch queue mapping for CARD, TOPUP, DATA, and eSIM', async () => {
     const orders = new Map([
-      ['card', order('CARD')],
-      ['topup', order('TOPUP')],
-      ['data', order('DATA')],
-      ['esim', order('ESIM')],
+      ['card', { ...order('CARD'), fulfillmentStatus: FulfillmentStatus.PENDING }],
+      ['topup', { ...order('TOPUP'), fulfillmentStatus: FulfillmentStatus.PENDING }],
+      ['data', { ...order('DATA'), fulfillmentStatus: FulfillmentStatus.PENDING }],
+      ['esim', { ...order('ESIM'), fulfillmentStatus: FulfillmentStatus.PENDING }],
     ]);
     const providerQueue = jest.fn(async (orderId: string) => `card-${orderId}`);
     const topupQueue = jest.fn(async (orderId: string) => `topup-${orderId}`);

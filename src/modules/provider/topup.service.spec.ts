@@ -95,6 +95,7 @@ function buildTopupContext() {
     updateResult: jest.fn(),
     findMaxAttempt: jest.fn().mockResolvedValue({ _max: { attempt: 0 } }),
     findLatestRecoverable: jest.fn().mockResolvedValue(null),
+    findLatestRecoverableAny: jest.fn().mockResolvedValue(null),
     findRecoverableAttempts: jest.fn().mockResolvedValue([]),
   };
 
@@ -345,6 +346,7 @@ describe('FulfillmentDispatchService routing', () => {
     const { FulfillmentDispatchService } = await import('./services/fulfillment-dispatch.service');
     const orderRepository = {
       findOrderForFulfillment: jest.fn().mockResolvedValue({
+        fulfillmentStatus: FulfillmentStatus.PENDING,
         orderItems: [{ variant: { type: ProductVariantType.TOPUP } }],
       }),
     };

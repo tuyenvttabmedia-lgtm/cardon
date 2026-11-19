@@ -1290,10 +1290,10 @@ describe('Phase A eSIM access, admin, dispatch, and logs', () => {
     const provider = { enqueueFulfillment: jest.fn().mockResolvedValue('card-job') };
     const topup = { enqueueFulfillment: jest.fn().mockResolvedValue('topup-job') };
     const orders = new Map([
-      ['esim-order', { orderItems: [{ variant: { type: 'ESIM' } }] }],
-      ['card-order', { orderItems: [{ variant: { type: 'CARD' } }] }],
-      ['topup-order', { orderItems: [{ variant: { type: 'TOPUP' } }] }],
-      ['data-order', { orderItems: [{ variant: { type: 'DATA' } }] }],
+      ['esim-order', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'ESIM' } }] }],
+      ['card-order', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'CARD' } }] }],
+      ['topup-order', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'TOPUP' } }] }],
+      ['data-order', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'DATA' } }] }],
     ]);
     const dispatch = new FulfillmentDispatchService(
       { findOrderForFulfillment: async (id: string) => orders.get(id) } as never,
@@ -1839,7 +1839,12 @@ describe('manual QUERY claim close', () => {
 });
 
 describe('B3.49 legacy dispatch boundaries', () => {
-  function dispatchFor(orders: Map<string, { orderItems: Array<{ variant: { type: string } }> }>) {
+  function dispatchFor(
+    orders: Map<
+      string,
+      { fulfillmentStatus?: FulfillmentStatus; orderItems: Array<{ variant: { type: string } }> }
+    >,
+  ) {
     const esim = { enqueueFulfillment: jest.fn().mockResolvedValue('esim-job') };
     const provider = { enqueueFulfillment: jest.fn().mockResolvedValue('card-job') };
     const topup = { enqueueFulfillment: jest.fn().mockResolvedValue('topup-job') };
@@ -1858,8 +1863,8 @@ describe('B3.49 legacy dispatch boundaries', () => {
 
   it('sends GAME_CARD and PHONE_CARD orders to provider_queue only', async () => {
     const { service, esim, provider, topup } = dispatchFor(new Map([
-      ['game', { orderItems: [{ variant: { type: 'CARD' } }] }],
-      ['phone', { orderItems: [{ variant: { type: 'CARD' } }] }],
+      ['game', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'CARD' } }] }],
+      ['phone', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'CARD' } }] }],
     ]));
     await service.dispatchOrderFulfillment('game');
     await service.dispatchOrderFulfillment('phone');
@@ -1871,8 +1876,8 @@ describe('B3.49 legacy dispatch boundaries', () => {
 
   it('sends TOPUP and DATA orders to topup_queue only', async () => {
     const { service, esim, provider, topup } = dispatchFor(new Map([
-      ['topup', { orderItems: [{ variant: { type: 'TOPUP' } }] }],
-      ['data', { orderItems: [{ variant: { type: 'DATA' } }] }],
+      ['topup', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'TOPUP' } }] }],
+      ['data', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'DATA' } }] }],
     ]));
     await service.dispatchOrderFulfillment('topup');
     await service.dispatchOrderFulfillment('data');
@@ -1906,7 +1911,7 @@ describe('B3.49 legacy dispatch boundaries', () => {
 
   it('dispatches an eSIM-only order through esim_queue', async () => {
     const { service, esim, provider, topup } = dispatchFor(new Map([
-      ['esim', { orderItems: [{ variant: { type: 'ESIM' } }] }],
+      ['esim', { fulfillmentStatus: FulfillmentStatus.PENDING, orderItems: [{ variant: { type: 'ESIM' } }] }],
     ]));
     await expect(service.dispatchOrderFulfillment('esim')).resolves.toEqual(['esim-job']);
     expect(esim.enqueueFulfillment).toHaveBeenCalledWith('esim');
@@ -1919,6 +1924,7 @@ describe('B3.49 legacy dispatch boundaries', () => {
     async (legacyType) => {
       const { service, esim, provider, topup, providerService, topupService } = dispatchFor(new Map([
         ['mixed', {
+          fulfillmentStatus: FulfillmentStatus.PENDING,
           orderItems: [
             { variant: { type: 'ESIM' } },
             { variant: { type: legacyType } },

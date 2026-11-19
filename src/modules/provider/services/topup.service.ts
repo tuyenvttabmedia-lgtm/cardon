@@ -207,9 +207,11 @@ export class TopupService {
         ProviderTransactionAction.TOPUP,
       ));
     if (recoverable) {
-      if (recoverable.providerId !== selection.provider.id) {
+      const recoverableProviderId =
+        recoverable.providerId?.trim() || selection.provider.id;
+      if (recoverableProviderId !== selection.provider.id) {
         throw new ConflictException(
-          `Order has recoverable topup attempt on ${recoverable.providerId} — recover before switching providers`,
+          `Order has recoverable topup attempt on ${recoverableProviderId} — recover before switching providers`,
         );
       }
       // Never open a new topup() while a recoverable attempt exists (TIMEOUT/PENDING).
