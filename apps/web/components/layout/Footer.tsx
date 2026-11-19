@@ -362,21 +362,25 @@ function FooterBottomBar({
 
   return (
     <div className="border-t border-white/10">
-      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-center lg:gap-6">
         {/* Mobile: BCT + social */}
         <div className="flex items-center justify-start gap-3 lg:hidden">
           <BoCongThuongBadge company={companyInfo} variant="mobile" />
           {social}
         </div>
 
-        {/* Desktop: BCT left (trust signal in bar, not under About) */}
-        <BoCongThuongBadge company={companyInfo} variant="desktop" className="hidden lg:block" />
-
         <span className="min-w-0 text-xs leading-relaxed text-white/50 lg:justify-self-start">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </span>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-end">
+        {/* Desktop: BCT centered between copyright and contact/social */}
+        <BoCongThuongBadge
+          company={companyInfo}
+          variant="desktop"
+          className="hidden justify-self-center lg:block"
+        />
+
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-self-end">
           <nav
             aria-label="Liên hệ nhanh"
             className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5"
