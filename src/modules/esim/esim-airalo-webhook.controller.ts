@@ -37,21 +37,15 @@ export class EsimAiraloWebhookController {
   ): void {
     this.assertWebhookToken(token, req);
     // Empty 200 — no JSON envelope / Content-Length body (Airalo accessibility check).
-    // Close promptly so partner HEAD probes do not sit on keep-alive.
-    res.setHeader('Connection', 'close');
+    // Do not set Connection: close — invalid on HTTP/2 and breaks partner probes.
     res.status(200).end();
   }
 
   /** Some Airalo/scanner probes use GET; must not 404 during opt-in validation. */
   @Get('low-data')
   @HttpCode(200)
-  getLowData(
-    @Query('token') token: string | undefined,
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  getLowData(@Query('token') token: string | undefined, @Req() req: Request) {
     this.assertWebhookToken(token, req);
-    res.setHeader('Connection', 'close');
     return { ok: true };
   }
 
@@ -61,11 +55,9 @@ export class EsimAiraloWebhookController {
     @Body() body: unknown,
     @Query('token') token: string | undefined,
     @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
   ) {
     this.assertWebhookToken(token, req);
     await this.webhooks.handleLowData(body);
-    res.setHeader('Connection', 'close');
     // Never reveal whether ICCID matched (enumeration).
     return { ok: true };
   }
