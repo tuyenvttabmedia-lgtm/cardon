@@ -21,6 +21,7 @@ import { EsimAiraloWebhookService } from './esim-airalo-webhook.service';
  * Prefer DNS-only host + secret token query (?token=) after opt-in.
  * Accessibility check uses HEAD/GET; alerts arrive as POST.
  */
+@SkipThrottle()
 @Controller('webhooks/airalo')
 export class EsimAiraloWebhookController {
   constructor(
@@ -29,7 +30,6 @@ export class EsimAiraloWebhookController {
   ) {}
 
   @Head('low-data')
-  @SkipThrottle()
   headLowData(
     @Query('token') token: string | undefined,
     @Req() req: Request,
@@ -37,12 +37,12 @@ export class EsimAiraloWebhookController {
   ): void {
     this.assertWebhookToken(token, req);
     // Empty 200 — no JSON envelope / Content-Length body (Airalo accessibility check).
+    // Do not set Connection: close — invalid on HTTP/2 and breaks partner probes.
     res.status(200).end();
   }
 
   /** Some Airalo/scanner probes use GET; must not 404 during opt-in validation. */
   @Get('low-data')
-  @SkipThrottle()
   @HttpCode(200)
   getLowData(@Query('token') token: string | undefined, @Req() req: Request) {
     this.assertWebhookToken(token, req);
