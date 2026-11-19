@@ -14,12 +14,16 @@ import { evaluateEsimSale, esimSaleFlagsFromRuntime } from './esim-policy';
 import { displayChargeForOffer } from './esim-checkout-options';
 import { marketFromEsimPackage } from './esim-market.rules';
 import { MANUAL_USD_VND_SOURCE, selectCheckoutFx } from '../fx/fx-rate.rules';
+import { assignEsimSeoSlugs, buildEsimOfferSeoBase } from './esim-offer-seo';
 
 export const ESIM_JAPAN_PRODUCT_SLUG = 'esim-nhat-ban';
 export const ESIM_KOREA_PRODUCT_SLUG = 'esim-han-quoc';
 
 export interface EsimPublicOffer {
+  /** Public SEO URL slug (`han-quoc-2gb-15-ngay`). */
   id: string;
+  /** Legacy Airalo-style slug (`kr-jang-15days-2gb`) for redirects. */
+  legacyId: string;
   variantId: string;
   productId: string;
   productSlug: string;
@@ -89,6 +93,8 @@ export interface EsimStorefrontCatalog {
   offers: EsimPublicOffer[];
 }
 
+type EsimOfferDraft = EsimPublicOffer & { seoBase: string };
+
 @Injectable()
 export class EsimPublicCatalogService {
   constructor(
@@ -140,10 +146,10 @@ export class EsimPublicCatalogService {
       },
     });
 
-    return rows
+    const drafted = rows
       .map((row) =>
         row.variant
-          ? this.toOffer(
+          ? this.toOfferDraft(
               row.variant.product,
               row.variant,
               {
@@ -155,7 +161,23 @@ export class EsimPublicCatalogService {
             )
           : null,
       )
-      .filter((offer): offer is EsimPublicOffer => offer !== null)
+      .filter((offer): offer is EsimOfferDraft => offer !== null);
+
+    const seoByLegacy = assignEsimSeoSlugs(
+      drafted.map((offer) => ({
+        publicSlug: offer.legacyId,
+        base: offer.seoBase,
+      })),
+    );
+
+    return drafted
+      .map((offer) => {
+        const { seoBase: _seoBase, ...rest } = offer;
+        return {
+          ...rest,
+          id: seoByLegacy.get(offer.legacyId) ?? offer.legacyId,
+        };
+      })
       .sort(
         (a, b) =>
           a.countryIso.localeCompare(b.countryIso) ||
@@ -163,13 +185,13 @@ export class EsimPublicCatalogService {
       );
   }
 
-  private toOffer(
+  private toOfferDraft(
     product: { id: string; slug: string; name: string },
     variant: { id: string; sku: string; name: string; sellPrice: { toString(): string }; metadata: unknown },
     row: { countryIso: string; destinationKey: string },
     locale: StorefrontLocale,
     fxRate: string | null,
-  ): EsimPublicOffer | null {
+  ): EsimOfferDraft | null {
     const facts = readFacts(variant.metadata);
     if (!facts?.publicSlug) return null;
     const sellPriceVnd = Math.round(Number(variant.sellPrice.toString()));
@@ -200,8 +222,18 @@ export class EsimPublicCatalogService {
       productName: product.name,
       providerDescription,
     });
+    const seoBase = buildEsimOfferSeoBase({
+      destinationKey: row.destinationKey,
+      countryIso,
+      dataAmountMb: facts.dataAmountMb,
+      unlimited: facts.unlimited === true || (facts.dataAmountMb ?? 0) < 0,
+      duration: facts.duration,
+      durationUnit: facts.durationUnit,
+    });
     return {
       id: facts.publicSlug,
+      legacyId: facts.publicSlug,
+      seoBase,
       variantId: variant.id,
       productId: product.id,
       productSlug: product.slug,

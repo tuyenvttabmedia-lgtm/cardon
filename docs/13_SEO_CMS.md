@@ -31,6 +31,7 @@ CMS content is separate from the product/order engine. Catalog prices come from 
 | FAQ detail | `/tro-giup/{category}/{slug}` | |
 | Agent register | `/dang-ky-dai-ly` | |
 | eSIM hub | `/esim` | Indexable; also `/esim/diem-den`, `/esim/quoc-gia/{iso}` |
+| eSIM package | `/esim/{seo-slug}` | SEO slug e.g. `/esim/han-quoc-2gb-15-ngay`; legacy Airalo ids 301; no `?back=` in canonical. Sitemap stays at country level. |
 | Static CMS pages | `/{slug}` | e.g. `/gioi-thieu`, policies |
 
 ### Legacy redirects (permanent)

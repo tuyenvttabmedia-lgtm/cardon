@@ -472,11 +472,7 @@ export function EsimDetailClient({
               return (
                 <li key={card.id}>
                   <Link
-                    href={
-                      plansHref
-                        ? `/esim/${card.id}?back=${encodeURIComponent(plansHref)}`
-                        : `/esim/${card.id}`
-                    }
+                    href={`/esim/${card.id}`}
                     className={`flex h-full flex-col rounded-xl border-2 bg-white p-3 transition-all duration-200 sm:p-4 ${
                       active
                         ? 'scale-[1.01] border-cardon-blue bg-brand-50 shadow-sm'
