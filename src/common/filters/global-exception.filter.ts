@@ -38,6 +38,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    // HEAD must never send a body / Content-Length (Airalo webhook accessibility probes).
+    if (String(request.method || '').toUpperCase() === 'HEAD') {
+      response.status(status).setHeader('Content-Length', '0').end();
+      return;
+    }
+
     response.status(status).json(body);
   }
 
