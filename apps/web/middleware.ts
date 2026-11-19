@@ -116,6 +116,18 @@ export async function middleware(request: NextRequest) {
     return withPortalHeader(NextResponse.redirect(new URL(localized, request.url), 301));
   }
 
+  // eSIM package pages: drop navigation-only ?back= so canonical URLs stay clean.
+  if (
+    /^\/esim\/(?!quoc-gia\/|diem-den$)[^/]+$/.test(rulesPath) &&
+    request.nextUrl.searchParams.has('back')
+  ) {
+    const clean = request.nextUrl.clone();
+    clean.pathname =
+      localeDecision.locale === 'en' ? withLocalePrefix(rulesPath, 'en') : rulesPath;
+    clean.searchParams.delete('back');
+    return withPortalHeader(NextResponse.redirect(clean, 301));
+  }
+
   // Legacy homepage tab deep-links → clean SEO paths (strip query).
   if (rulesPath === '/') {
     const category = request.nextUrl.searchParams.get('category');

@@ -3,7 +3,10 @@ import type { Locale } from '@/lib/i18n/locale';
 import { getApiBaseUrl } from '@/lib/utils';
 
 export interface EsimPreviewOffer {
+  /** Public SEO slug used in `/esim/{id}`. */
   id: string;
+  /** Legacy Airalo-style slug for 301 redirects. */
+  legacyId?: string;
   variantId: string;
   productId: string;
   productSlug: string;

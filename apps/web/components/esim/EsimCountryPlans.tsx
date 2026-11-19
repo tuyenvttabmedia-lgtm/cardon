@@ -68,7 +68,6 @@ export function EsimCountryPlans({
   }, [data, days, net, plans, sort, span, speed, type]);
 
   const activeGroup = PLAN_GROUPS.find((group) => group.id === type);
-  const plansPath = `${windowPath(iso, searchParams.toString())}`;
 
   function replaceParams(patch: Record<string, string>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -182,7 +181,7 @@ export function EsimCountryPlans({
                   <EsimShelfPrice sellPriceVnd={offer.sellPriceVnd} chargeCurrency={offer.chargeCurrency} chargeAmount={offer.chargeAmount} />
                 </p>
                 <Link
-                  href={`/esim/${offer.id}?back=${encodeURIComponent(plansPath)}`}
+                  href={`/esim/${offer.id}`}
                   className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-cardon-blue text-xs font-semibold text-white transition-colors duration-200 hover:bg-cardon-navy sm:mt-4 sm:h-11 sm:text-sm"
                 >
                   {salesOpen ? t('esim.choose') : t('esim.viewPlan')}
@@ -234,10 +233,6 @@ export function EsimCountryPlans({
       ) : null}
     </div>
   );
-}
-
-function windowPath(iso: string, query: string): string {
-  return query ? `/esim/quoc-gia/${iso}?${query}` : `/esim/quoc-gia/${iso}`;
 }
 
 const DAY_SPANS = [
