@@ -92,10 +92,10 @@ function MediaIcons({ content }: { content: string }) {
   const m = analyzeMediaCounts(content);
   if (!m.images && !m.videos && !m.tables) return null;
   return (
-    <span className="inline-flex gap-1 text-[10px] text-slate-400">
-      {m.images > 0 && <span title={`${m.images} ảnh`}>🖼{m.images}</span>}
-      {m.videos > 0 && <span title={`${m.videos} video`}>▶{m.videos}</span>}
-      {m.tables > 0 && <span title={`${m.tables} bảng`}>⊞{m.tables}</span>}
+    <span className="mt-0.5 inline-flex flex-wrap gap-1.5 text-[10px] text-slate-400">
+      {m.images > 0 ? <span title={`${m.images} ảnh trong nội dung`}>{m.images} ảnh</span> : null}
+      {m.videos > 0 ? <span title={`${m.videos} video trong nội dung`}>{m.videos} video</span> : null}
+      {m.tables > 0 ? <span title={`${m.tables} bảng trong nội dung`}>{m.tables} bảng</span> : null}
     </span>
   );
 }
@@ -435,9 +435,7 @@ export const ArticleListTable = memo(function ArticleListTable({
                     </td>
                     <td className="hidden px-2 py-1 text-xs xl:table-cell">{author}</td>
                     <td className="px-2 py-1 text-slate-500">
-                      <span title="Views">{views}</span>
-                      <span className="ml-1 text-[10px] text-slate-300" title="Comments (placeholder)">💬—</span>
-                      <span className="text-[10px] text-slate-300" title="Shares (placeholder)">↗—</span>
+                      <span title="Lượt xem">{views}</span>
                     </td>
                     <td className="px-2 py-1"><SeoScoreBadge score={score} showLabel={false} /></td>
                     <td className="px-2 py-1"><CmsStatusBadge status={p.status} scheduledAt={scheduled} /></td>
