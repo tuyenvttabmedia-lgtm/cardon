@@ -460,12 +460,12 @@ export function Footer() {
           {/* Desktop: multi-column grid — link columns only (BCT in bottom bar) */}
           <div
             className={cn(
-              'footer-links hidden items-start gap-x-10 gap-y-8 lg:grid',
-              // Brand wide; Chính sách needs room for long policy titles; About/Support shorter
+              'footer-links hidden items-start gap-x-8 gap-y-8 lg:grid',
+              // Brand for company block; Chính sách widest link col (long policy names); About/Support tighter
               linkColumns.length >= 3
-                ? 'lg:grid-cols-[minmax(16rem,1.45fr)_minmax(12rem,1.25fr)_minmax(10rem,1fr)_minmax(9rem,0.95fr)]'
+                ? 'lg:grid-cols-[minmax(15rem,1.3fr)_minmax(14rem,1.45fr)_minmax(9rem,0.9fr)_minmax(8.5rem,0.85fr)]'
                 : linkColumns.length === 2
-                  ? 'lg:grid-cols-[minmax(16rem,1.4fr)_minmax(12rem,1.1fr)_minmax(10rem,1fr)]'
+                  ? 'lg:grid-cols-[minmax(15rem,1.35fr)_minmax(14rem,1.2fr)_minmax(10rem,1fr)]'
                   : 'lg:grid-cols-2',
             )}
           >
