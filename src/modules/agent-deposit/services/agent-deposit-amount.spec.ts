@@ -41,6 +41,7 @@ describe('AgentDepositService amount lock', () => {
       notifyAgentDepositCredited: jest.fn(),
       notifyAgentDepositFailed: jest.fn(),
     };
+    const dispatcher = { dispatch: jest.fn() };
     const service = new AgentDepositService(
       depositRepository as never,
       {} as never,
@@ -48,10 +49,10 @@ describe('AgentDepositService amount lock', () => {
       { get: jest.fn() } as never,
       {} as never,
       notify as never,
-      { dispatch: jest.fn() } as never,
+      dispatcher as never,
       prisma as never,
     );
-    return { service, depositRepository, ledgerService, prisma, notify };
+    return { service, depositRepository, ledgerService, prisma, notify, dispatcher };
   }
 
   it('rejects underpay and does not credit the wallet', async () => {
@@ -64,6 +65,19 @@ describe('AgentDepositService amount lock', () => {
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(box.depositRepository.claimStatus).not.toHaveBeenCalled();
     expect(box.ledgerService.creditInTransaction).not.toHaveBeenCalled();
+    // Evidence + alert persisted even though the gateway still gets a 400.
+    expect(box.depositRepository.update).toHaveBeenCalledWith(
+      'dep-1',
+      expect.objectContaining({
+        gatewayResponse: expect.objectContaining({
+          manualReview: true,
+          manualReviewReason: 'AMOUNT_MISMATCH',
+        }),
+      }),
+    );
+    expect(box.dispatcher.dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'CRITICAL', resource: 'agent_deposit' }),
+    );
   });
 
   it('rejects missing paid amount', async () => {
@@ -84,6 +98,41 @@ describe('AgentDepositService amount lock', () => {
     });
     expect(result.duplicate).toBe(true);
     expect(box.ledgerService.creditInTransaction).not.toHaveBeenCalled();
+    expect(box.depositRepository.update).toHaveBeenCalledWith(
+      'dep-1',
+      expect.objectContaining({
+        gatewayResponse: expect.objectContaining({
+          manualReview: true,
+          manualReviewReason: 'LATE_SUCCESS_ON_TERMINAL',
+        }),
+      }),
+    );
+    expect(box.dispatcher.dispatch).toHaveBeenCalled();
+  });
+
+  it('parks money-may-have-arrived on non-SUCCESS IPN for SePay with bank txn id', async () => {
+    const box = harness('100000.00', AgentDepositStatus.AWAITING_PAYMENT);
+    (box.depositRepository.findByIdOnly as jest.Mock).mockResolvedValue({
+      id: 'dep-1',
+      agentId: 'agent-1',
+      paymentReference: 'DH1',
+      amount: new Decimal('100000.00'),
+      status: AgentDepositStatus.AWAITING_PAYMENT,
+      gateway: PaymentGatewayCode.SEPAY,
+    });
+    await box.service.handleNonSuccessWebhook('dep-1', {
+      status: 'FAILED',
+      amount: '100000.00',
+      providerTransactionId: '777',
+    });
+    expect(box.depositRepository.update).toHaveBeenCalledWith(
+      'dep-1',
+      expect.objectContaining({
+        gatewayResponse: expect.objectContaining({
+          manualReviewReason: 'NON_SUCCESS_MONEY_MAY_HAVE_ARRIVED',
+        }),
+      }),
+    );
   });
 
   it('does not overwrite CREDITED when a late FAILED IPN arrives', async () => {

@@ -257,6 +257,52 @@ describe('Phase 2B.1 Auth Security Audit', () => {
         }),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
+
+    it('denies impersonation JWT once the session is ended (JwtStrategy)', async () => {
+      prisma.user.findFirst.mockResolvedValue(activeUser);
+      const findSession = jest.fn().mockResolvedValue(null);
+      (jwtStrategy as unknown as { prisma: unknown }).prisma = {
+        ...prisma,
+        agentImpersonationSession: { findFirst: findSession },
+      };
+
+      await expect(
+        jwtStrategy.validate({
+          sub: activeUser.id,
+          email: activeUser.email,
+          role: UserRole.CUSTOMER,
+          impersonatedBy: 'admin-1',
+          impersonationSessionId: 'sess-1',
+          impersonationReadOnly: true,
+        }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(findSession).toHaveBeenCalledWith({
+        where: expect.objectContaining({ id: 'sess-1', endedAt: null }),
+      });
+    });
+
+    it('accepts impersonation JWT while the session is open and keeps read-only', async () => {
+      prisma.user.findFirst.mockResolvedValue(activeUser);
+      (jwtStrategy as unknown as { prisma: unknown }).prisma = {
+        ...prisma,
+        agentImpersonationSession: {
+          findFirst: jest.fn().mockResolvedValue({ id: 'sess-1', readOnly: true }),
+        },
+      };
+
+      await expect(
+        jwtStrategy.validate({
+          sub: activeUser.id,
+          email: activeUser.email,
+          role: UserRole.CUSTOMER,
+          impersonatedBy: 'admin-1',
+          impersonationSessionId: 'sess-1',
+        }),
+      ).resolves.toMatchObject({
+        impersonationSessionId: 'sess-1',
+        impersonationReadOnly: true,
+      });
+    });
   });
 
   describe('CHECK 3: RBAC correctness', () => {

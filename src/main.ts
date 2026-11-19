@@ -73,6 +73,15 @@ async function bootstrap(): Promise<void> {
     });
   });
 
+  // B4: KYC documents are private — never served by public static (download via authenticated
+  // API only). Files stay on disk under uploads/kyc; only the static route is closed.
+  app.use('/uploads/kyc', (_req: Request, res: Response) => {
+    res.status(401).json({
+      success: false,
+      error: { message: 'Authentication required for KYC documents' },
+    });
+  });
+
   // Public CMS media is embedded by web + admin (different origins). Helmet defaults
   // CORP to same-origin which blocks favicons/images on admin.cardon.vn.
   app.use('/uploads', (_req: Request, res: Response, next: NextFunction) => {

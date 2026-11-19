@@ -2,6 +2,8 @@ import {
 
   BadRequestException,
 
+  ConflictException,
+
   Injectable,
 
   NotFoundException,
@@ -335,21 +337,39 @@ export class AdminOrderService {
 
       case 'switch_provider': {
 
+        const unresolvedAttempt = order.providerTransactions.some(
+
+          (tx) =>
+
+            tx.status === ProviderTransactionStatus.TIMEOUT ||
+
+            tx.status === ProviderTransactionStatus.PENDING,
+
+        );
+
+
+
+        if (unresolvedAttempt) {
+
+          throw new ConflictException(
+
+            'Order has TIMEOUT/PENDING provider attempt — recover with checkTransaction before switch_provider',
+
+          );
+
+        }
+
+
+
+        // Only definitive FAILED attempts are skipped; TIMEOUT/PENDING are blocked above.
+
         const failedProviderIds = [
 
           ...new Set(
 
             order.providerTransactions
 
-              .filter(
-
-                (tx) =>
-
-                  tx.status === ProviderTransactionStatus.FAILED ||
-
-                  tx.status === ProviderTransactionStatus.TIMEOUT,
-
-              )
+              .filter((tx) => tx.status === ProviderTransactionStatus.FAILED)
 
               .map((tx) => tx.providerId),
 

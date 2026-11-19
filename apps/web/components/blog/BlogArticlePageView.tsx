@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -106,7 +107,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
   return (
     <PageContainer>
       <RecordBlogPostView slug={post.slug} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }} />
       <BreadcrumbJsonLd
         items={breadcrumbItems.map((item) => ({
           name: item.label,

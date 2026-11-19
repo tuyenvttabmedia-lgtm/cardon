@@ -522,6 +522,85 @@ describe('PaymentService', () => {
     );
   });
 
+  describe('approveManualReview gateway re-query', () => {
+    const reviewPayment = {
+      ...pendingPayment,
+      status: PaymentRecordStatus.EXPIRED,
+      gatewayResponse: {
+        manualReview: true,
+        lateWebhookEvidence: { amount: '100000.00', providerTransactionId: 'tx-1' },
+      },
+      order: {
+        id: 'order-1',
+        totalAmount: new Decimal(100000),
+        paymentStatus: OrderPaymentStatus.EXPIRED,
+      },
+    };
+
+    function spyQuery(result: { status: 'SUCCESS' | 'PENDING' | 'FAILED'; amount?: string }) {
+      return jest
+        .spyOn(MockMegaPayProvider.prototype, 'queryTransaction')
+        .mockResolvedValue({ paymentReference: 'PAY-REF-001', ...result });
+    }
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('rejects when the gateway does not report SUCCESS (forged/stale evidence)', async () => {
+      paymentRepository.findById.mockResolvedValue(reviewPayment);
+      spyQuery({ status: 'PENDING' });
+
+      await expect(service.approveManualReview('pay-1', 'admin-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(orderService.markPaidInTransaction).not.toHaveBeenCalled();
+      expect(fulfillmentDispatchService.dispatchOrderFulfillment).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the gateway amount differs from payment.amount', async () => {
+      paymentRepository.findById.mockResolvedValue(reviewPayment);
+      spyQuery({ status: 'SUCCESS', amount: '1000.00' });
+
+      await expect(service.approveManualReview('pay-1', 'admin-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(fulfillmentDispatchService.dispatchOrderFulfillment).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the gateway re-query omits the amount', async () => {
+      paymentRepository.findById.mockResolvedValue({
+        ...reviewPayment,
+        gatewayResponse: { manualReview: true, lateWebhookEvidence: { amount: null } },
+      });
+      spyQuery({ status: 'SUCCESS' });
+
+      await expect(service.approveManualReview('pay-1', 'admin-1')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+    });
+  });
+
+  it('does not forge evidence amount from payment.amount when the gateway sent none', async () => {
+    paymentRepository.findByReference.mockResolvedValue({
+      ...pendingPayment,
+      status: PaymentRecordStatus.EXPIRED,
+      order: { paymentStatus: OrderPaymentStatus.EXPIRED },
+    });
+    const payload = { paymentReference: 'PAY-REF-001', status: 'SUCCESS' };
+    const signature = computeMockWebhookSignature(payload);
+
+    const result = await service.handleWebhook('megapay', payload, {
+      'x-webhook-signature': signature,
+    });
+
+    expect(result.manualReview).toBe(true);
+    expect(paymentRepository.recordLateWebhookManualReview).toHaveBeenCalledWith(
+      'pay-1',
+      expect.objectContaining({
+        lateWebhookEvidence: expect.objectContaining({ amount: null }),
+      }),
+    );
+  });
+
   it('ignores FAILED IPN on superseded EXPIRED payment without failing the order', async () => {
     paymentRepository.findByReference.mockResolvedValue({
       ...pendingPayment,

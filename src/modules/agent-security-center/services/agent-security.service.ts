@@ -33,7 +33,7 @@ import {
 } from '../entities/agent-security.constants';
 import { isIpAllowed, validateCidrOrIp } from '../utils/ip-cidr.util';
 import { AgentApiTelemetryService } from './agent-api-telemetry.service';
-import { assertValidWebhookDestination } from '../../webhook-delivery/utils/webhook-delivery-url.util';
+import { assertWebhookDestinationResolvesPublic } from '../../webhook-delivery/utils/webhook-delivery-url.util';
 
 @Injectable()
 export class AgentSecurityService {
@@ -469,7 +469,7 @@ export class AgentSecurityService {
     const existing = await this.prisma.agentWebhookConfig.findUnique({ where: { agentId: agent.id } });
 
     if (body.callbackUrl) {
-      assertValidWebhookDestination(body.callbackUrl);
+      await assertWebhookDestinationResolvesPublic(body.callbackUrl);
     }
 
     const actor = await this.prisma.user.findUnique({

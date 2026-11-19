@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd';
 import type { HubSeoCopy } from '@/lib/hub-seo-copy';
 import { getSiteUrl } from '@/lib/utils';
@@ -38,7 +39,7 @@ export function HubSeoJsonLd({ seo }: { seo: HubSeoCopy }) {
       {crumbs ? <BreadcrumbJsonLd items={crumbs} /> : null}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webPage) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(webPage) }}
       />
     </>
   );

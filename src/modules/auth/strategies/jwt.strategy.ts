@@ -38,13 +38,33 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Account is not active');
     }
 
+    // Impersonation JWTs are only valid while the DB session is open. Stop/end must revoke
+    // the token immediately (not just at JWT expiry), and the claims must match the session.
+    let impersonationReadOnly = payload.impersonationReadOnly;
+    if (payload.impersonationSessionId || payload.impersonatedBy) {
+      const session = payload.impersonationSessionId
+        ? await this.prisma.agentImpersonationSession.findFirst({
+            where: {
+              id: payload.impersonationSessionId,
+              targetUserId: user.id,
+              adminUserId: payload.impersonatedBy,
+              endedAt: null,
+            },
+          })
+        : null;
+      if (!session) {
+        throw new UnauthorizedException('Impersonation session ended');
+      }
+      impersonationReadOnly = session.readOnly;
+    }
+
     return {
       id: user.id,
       email: user.email,
       role: user.role,
       impersonatedBy: payload.impersonatedBy,
       impersonationSessionId: payload.impersonationSessionId,
-      impersonationReadOnly: payload.impersonationReadOnly,
+      impersonationReadOnly,
     };
   }
 }

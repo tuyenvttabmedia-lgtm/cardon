@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentPlatformRole } from '../../agent-platform/entities/agent-platform.constants';
 import { AgentPlatformService } from '../../agent-platform/services/agent-platform.service';
@@ -16,7 +17,7 @@ import { WebhookDeliveryListQueryDto } from '../dto/webhook-delivery.dto';
 import { WebhookDeliveryService } from '../services/webhook-delivery.service';
 
 @Controller('agents/me/webhooks')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentWebhookDeliveryController {
   constructor(
     private readonly deliveryService: WebhookDeliveryService,

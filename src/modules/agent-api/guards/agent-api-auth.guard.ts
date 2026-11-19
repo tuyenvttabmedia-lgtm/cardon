@@ -7,6 +7,7 @@ import {
 import { Request } from 'express';
 import { AppHttpException } from '../../../common/exceptions/app-http.exception';
 import { ErrorCode } from '../../../common/constants/error-codes.constants';
+import { extractClientIp } from '../../../common/utils/request-client.util';
 import { AgentApiTelemetryService } from '../../agent-security-center/services/agent-api-telemetry.service';
 import { AgentSecurityService } from '../../agent-security-center/services/agent-security.service';
 import { AGENT_API_HEADERS, AGENT_API_PREFIX } from '../entities/agent-api.constants';
@@ -65,12 +66,12 @@ export class AgentApiAuthGuard implements CanActivate {
     return value ?? '';
   }
 
+  /**
+   * Do not read X-Forwarded-For[0] here — it is client-controlled and would bypass the
+   * partner IP allowlist. extractClientIp uses req.ip (Express `trust proxy` in main.ts).
+   */
   private resolveClientIp(request: Request): string | null {
-    const forwarded = request.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.trim()) {
-      return forwarded.split(',')[0]?.trim() ?? null;
-    }
-    return request.ip ?? null;
+    return extractClientIp(request);
   }
 
   private resolveRawBody(request: AgentApiRequest): string {

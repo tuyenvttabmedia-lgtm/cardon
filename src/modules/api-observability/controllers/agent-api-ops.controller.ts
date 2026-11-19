@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentRepository } from '../../agent/repositories/agent.repository';
 import { AgentPlatformRole } from '../../agent-platform/entities/agent-platform.constants';
@@ -22,7 +23,7 @@ import { AgentApiTestService } from '../services/agent-api-test.service';
 import { AgentApiUsageService } from '../services/agent-api-usage.service';
 
 @Controller('agents/me/api-ops')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentApiOpsController {
   constructor(
     private readonly logService: AgentApiRequestLogService,

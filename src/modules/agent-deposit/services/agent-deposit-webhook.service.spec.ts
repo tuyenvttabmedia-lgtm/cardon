@@ -5,12 +5,13 @@ describe('AgentDepositWebhookService.tryHandle routing', () => {
   function buildService(opts: {
     paymentReference: string | null;
     deposit: { id: string; gateway: PaymentGatewayCode } | null;
+    status?: 'SUCCESS' | 'FAILED' | 'PENDING';
   }) {
     const provider = {
       verifyWebhook: jest.fn().mockResolvedValue({
         valid: true,
         paymentReference: opts.paymentReference,
-        status: 'SUCCESS',
+        status: opts.status ?? 'SUCCESS',
         amount: '100000.00',
         providerTransactionId: '92704',
         rawPayload: { gateway: 'SEPAY' },
@@ -22,6 +23,7 @@ describe('AgentDepositWebhookService.tryHandle routing', () => {
     const depositService = {
       processWebhookSuccess: jest.fn().mockResolvedValue({ duplicate: false }),
       markDepositFailed: jest.fn(),
+      handleNonSuccessWebhook: jest.fn(),
     };
     const webhookLogRepository = { create: jest.fn() };
     const activityDispatcher = { dispatch: jest.fn() };
@@ -75,6 +77,24 @@ describe('AgentDepositWebhookService.tryHandle routing', () => {
       'dep-1',
       expect.objectContaining({ paymentReference: 'DH87654321' }),
     );
+  });
+
+  it('routes non-SUCCESS IPN through the review-aware handler (not a silent mark-failed)', async () => {
+    const { service, depositService } = buildService({
+      paymentReference: 'DH87654321',
+      deposit: { id: 'dep-1', gateway: PaymentGatewayCode.SEPAY },
+      status: 'FAILED',
+    });
+
+    const result = await service.tryHandle('sepay', {}, {});
+
+    expect(result.handled).toBe(true);
+    expect(depositService.handleNonSuccessWebhook).toHaveBeenCalledWith(
+      'dep-1',
+      expect.objectContaining({ status: 'FAILED', providerTransactionId: '92704' }),
+    );
+    expect(depositService.processWebhookSuccess).not.toHaveBeenCalled();
+    expect(depositService.markDepositFailed).not.toHaveBeenCalled();
   });
 
   it('still credits legacy DEP references via DB lookup', async () => {

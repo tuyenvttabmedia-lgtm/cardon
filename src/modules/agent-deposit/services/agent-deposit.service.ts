@@ -39,6 +39,26 @@ import { AgentDepositRepository } from '../repositories/agent-deposit.repository
 
 const DEPOSIT_EXPIRY_MS = 15 * 60_000;
 
+/** Terminal statuses where a gateway SUCCESS means uncredited money (needs ops review). */
+const TERMINAL_UNCREDITED_STATUSES: AgentDepositStatus[] = [
+  AgentDepositStatus.FAILED,
+  AgentDepositStatus.EXPIRED,
+  AgentDepositStatus.CANCELLED,
+];
+
+/** Statuses where money was already accepted — a later non-SUCCESS IPN is contradictory. */
+const MONEY_ACCEPTED_STATUSES: AgentDepositStatus[] = [
+  AgentDepositStatus.PAID,
+  AgentDepositStatus.RECORDED,
+  AgentDepositStatus.CREDITED,
+];
+
+export type DepositManualReviewReason =
+  | 'LATE_SUCCESS_ON_TERMINAL'
+  | 'AMOUNT_MISMATCH'
+  | 'AMOUNT_MISSING'
+  | 'NON_SUCCESS_MONEY_MAY_HAVE_ARRIVED';
+
 export interface AgentDepositPortalView {
   id: string;
   paymentReference: string;
@@ -258,26 +278,51 @@ export class AgentDepositService {
       return { duplicate: true, deposit };
     }
 
+    // Late SUCCESS on a terminal-failed deposit: money may be in the bank, wallet not credited.
+    // Park for manual review + alert (never a silent duplicate, never auto-credit).
+    if (TERMINAL_UNCREDITED_STATUSES.includes(deposit.status)) {
+      await this.parkDepositForManualReview(deposit, 'LATE_SUCCESS_ON_TERMINAL', {
+        amount: verification.amount?.trim() || null,
+        providerTransactionId: verification.providerTransactionId ?? null,
+        rawPayload: verification.rawPayload,
+      });
+      return { duplicate: true, manualReview: true, deposit };
+    }
+
     // Never credit on missing or mismatched paid amount — underpay must not top up the full request.
+    // Keep the HTTP 400 for the gateway, but persist evidence + alert so ops can see the money.
     if (!verification.amount?.trim()) {
       this.logger.warn(
         `Deposit amount missing ref=${verification.paymentReference} expected=${deposit.amount}`,
       );
+      await this.parkDepositForManualReview(deposit, 'AMOUNT_MISSING', {
+        amount: null,
+        providerTransactionId: verification.providerTransactionId ?? null,
+        rawPayload: verification.rawPayload,
+      });
       throw new BadRequestException('Deposit webhook amount is required');
     }
+    let amountMismatch = false;
     try {
       const paid = new Decimal(verification.amount);
-      if (!paid.isFinite() || !paid.eq(deposit.amount)) {
+      amountMismatch = !paid.isFinite() || !paid.eq(deposit.amount);
+      if (amountMismatch) {
         this.logger.warn(
           `Deposit amount mismatch ref=${verification.paymentReference} expected=${deposit.amount} got=${verification.amount}`,
         );
-        throw new BadRequestException('Deposit amount mismatch');
       }
-    } catch (error) {
-      if (error instanceof BadRequestException) throw error;
+    } catch {
+      amountMismatch = true;
       this.logger.warn(
         `Deposit amount invalid ref=${verification.paymentReference} got=${verification.amount}`,
       );
+    }
+    if (amountMismatch) {
+      await this.parkDepositForManualReview(deposit, 'AMOUNT_MISMATCH', {
+        amount: verification.amount,
+        providerTransactionId: verification.providerTransactionId ?? null,
+        rawPayload: verification.rawPayload,
+      });
       throw new BadRequestException('Deposit amount mismatch');
     }
 
@@ -304,11 +349,16 @@ export class AgentDepositService {
         return this.finishDepositCredit(fresh, verification, now);
       }
       // Late SUCCESS after FAILED/EXPIRED must not auto-credit (no unique TOPUP ref).
-      // Return handled no-op so the gateway IPN does not retry-storm on 409.
+      // Park for manual review + alert; ack the IPN so the gateway does not retry-storm on 409.
       this.logger.warn(
-        `Deposit webhook ignored status=${fresh.status} ref=${verification.paymentReference}`,
+        `Deposit webhook parked status=${fresh.status} ref=${verification.paymentReference}`,
       );
-      return { duplicate: true, deposit: fresh };
+      await this.parkDepositForManualReview(fresh, 'LATE_SUCCESS_ON_TERMINAL', {
+        amount: verification.amount?.trim() || null,
+        providerTransactionId: verification.providerTransactionId ?? null,
+        rawPayload: verification.rawPayload,
+      });
+      return { duplicate: true, manualReview: true, deposit: fresh };
     }
 
     await this.depositRepository.update(deposit.id, {
@@ -453,6 +503,116 @@ export class AgentDepositService {
         agentId: deposit.agentId,
         amount: deposit.netAmount.toFixed(2),
         gateway: deposit.gateway,
+      },
+    });
+  }
+
+  /**
+   * Non-SUCCESS IPN. When money may already be in the bank (deposit already PAID/RECORDED/CREDITED,
+   * or a SePay bank transfer id is present) park evidence + alert before marking FAILED.
+   */
+  async handleNonSuccessWebhook(
+    depositId: string,
+    verification: {
+      status: string;
+      amount?: string;
+      providerTransactionId?: string;
+      rawPayload?: unknown;
+    },
+  ) {
+    const existing = await this.depositRepository.findByIdOnly(depositId);
+    if (!existing) return null;
+
+    const moneyMayHaveArrived =
+      MONEY_ACCEPTED_STATUSES.includes(existing.status) ||
+      (existing.gateway === PaymentGatewayCode.SEPAY && !!verification.providerTransactionId);
+    if (moneyMayHaveArrived) {
+      await this.parkDepositForManualReview(existing, 'NON_SUCCESS_MONEY_MAY_HAVE_ARRIVED', {
+        amount: verification.amount?.trim() || null,
+        providerTransactionId: verification.providerTransactionId ?? null,
+        rawPayload: verification.rawPayload,
+        gatewayStatus: verification.status,
+      });
+    }
+
+    return this.markDepositFailed(depositId, `Webhook status: ${verification.status}`);
+  }
+
+  /**
+   * Persist evidence on gateway_response + raise a CRITICAL alert. Does not change deposit status
+   * and never credits the wallet. Evidence amount is null when the gateway sent none (no forging).
+   */
+  async parkDepositForManualReview(
+    deposit: {
+      id: string;
+      agentId: string;
+      paymentReference: string;
+      status: AgentDepositStatus;
+      amount: Decimal;
+      gatewayResponse?: Prisma.JsonValue;
+    },
+    reason: DepositManualReviewReason,
+    evidence: {
+      amount: string | null;
+      providerTransactionId?: string | null;
+      rawPayload?: unknown;
+      gatewayStatus?: string;
+    },
+  ): Promise<void> {
+    const existing =
+      deposit.gatewayResponse &&
+      typeof deposit.gatewayResponse === 'object' &&
+      !Array.isArray(deposit.gatewayResponse)
+        ? (deposit.gatewayResponse as Record<string, unknown>)
+        : {};
+    const prior = existing.manualReviewEvidence as Record<string, unknown> | undefined;
+    const alreadyRecorded =
+      existing.manualReview === true &&
+      existing.manualReviewReason === reason &&
+      !!evidence.providerTransactionId &&
+      prior?.providerTransactionId === evidence.providerTransactionId;
+    if (alreadyRecorded) {
+      return;
+    }
+
+    await this.depositRepository.update(deposit.id, {
+      gatewayResponse: {
+        ...existing,
+        manualReview: true,
+        manualReviewReason: reason,
+        manualReviewAt: new Date().toISOString(),
+        manualReviewEvidence: {
+          amount: evidence.amount,
+          expectedAmount: deposit.amount.toFixed(2),
+          providerTransactionId: evidence.providerTransactionId ?? null,
+          depositStatus: deposit.status,
+          gatewayStatus: evidence.gatewayStatus ?? null,
+        },
+        manualReviewPayload: (evidence.rawPayload ?? {}) as Prisma.InputJsonValue,
+      } as Prisma.InputJsonValue,
+    });
+
+    this.logger.error(
+      `Deposit manual review reason=${reason} ref=${deposit.paymentReference} status=${deposit.status} expected=${deposit.amount.toFixed(2)} received=${evidence.amount ?? 'n/a'}`,
+    );
+
+    this.activityDispatcher.dispatch({
+      eventType: SystemActivityEventType.WEBHOOK_FAILED,
+      eventCategory: SystemActivityEventCategory.FINANCE,
+      severity: SystemActivitySeverity.CRITICAL,
+      source: SystemActivitySource.API,
+      resource: 'agent_deposit',
+      resourceId: deposit.id,
+      resourceDisplay: deposit.paymentReference,
+      title: 'Agent deposit needs manual review',
+      description: `Gateway money signal (${reason}) not credited automatically — ${deposit.paymentReference}`,
+      metadata: {
+        agentId: deposit.agentId,
+        reason,
+        depositStatus: deposit.status,
+        expectedAmount: deposit.amount.toFixed(2),
+        receivedAmount: evidence.amount,
+        providerTransactionId: evidence.providerTransactionId ?? null,
       },
     });
   }

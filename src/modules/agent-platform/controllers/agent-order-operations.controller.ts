@@ -1,6 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentPlatformService } from '../services/agent-platform.service';
 import {
@@ -9,7 +10,7 @@ import {
 } from '../services/agent-order-operations.service';
 
 @Controller('agents/me/orders')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentOrderOperationsController {
   constructor(
     private readonly ordersService: AgentOrderOperationsService,

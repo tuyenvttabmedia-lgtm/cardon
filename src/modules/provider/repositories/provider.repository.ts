@@ -178,17 +178,19 @@ export class ProviderOrderRepository {
     return persistAdminTestFulfillmentSkip(this.prisma as never, orderId);
   }
 
-  claimFulfillmentProcessing(orderId: string, tx: Prisma.TransactionClient) {
+  claimFulfillmentProcessing(
+    orderId: string,
+    tx: Prisma.TransactionClient,
+    allowedFrom: FulfillmentStatus[] = [
+      FulfillmentStatus.PENDING,
+      FulfillmentStatus.WAITING_ADMIN_RETRY,
+      FulfillmentStatus.NEED_MANUAL_REVIEW,
+    ],
+  ) {
     return tx.order.updateMany({
       where: {
         id: orderId,
-        fulfillmentStatus: {
-          in: [
-            FulfillmentStatus.PENDING,
-            FulfillmentStatus.WAITING_ADMIN_RETRY,
-            FulfillmentStatus.NEED_MANUAL_REVIEW,
-          ],
-        },
+        fulfillmentStatus: { in: allowedFrom },
         deletedAt: null,
       },
       data: { fulfillmentStatus: FulfillmentStatus.PROCESSING },
@@ -324,6 +326,19 @@ export class ProviderTransactionRepository {
       where: {
         orderId,
         providerId,
+        ...(action ? { action } : {}),
+        status: { in: [...RECOVERABLE_PROVIDER_STATUSES] },
+        deletedAt: null,
+      },
+      orderBy: { attempt: 'desc' },
+    });
+  }
+
+  /** Any provider on the order — used to block double-buy after switch. */
+  findLatestRecoverableAny(orderId: string, action?: ProviderTransactionAction) {
+    return this.prisma.providerTransaction.findFirst({
+      where: {
+        orderId,
         ...(action ? { action } : {}),
         status: { in: [...RECOVERABLE_PROVIDER_STATUSES] },
         deletedAt: null,

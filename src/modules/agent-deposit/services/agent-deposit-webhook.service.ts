@@ -106,10 +106,13 @@ export class AgentDepositWebhookService {
     }
 
     if (verification.status !== 'SUCCESS') {
-      await this.depositService.markDepositFailed(
-        deposit.id,
-        `Webhook status: ${verification.status}`,
-      );
+      // Review path when money may already have arrived (see handleNonSuccessWebhook).
+      await this.depositService.handleNonSuccessWebhook(deposit.id, {
+        status: verification.status,
+        amount: verification.amount,
+        providerTransactionId: verification.providerTransactionId,
+        rawPayload: verification.rawPayload,
+      });
       return {
         handled: true,
         ok: true,

@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import { absolutePublicUrl } from '@/lib/seo';
 import type { PublicCmsSeoSettings } from '@/lib/cms-api';
 import { SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from '@/lib/utils';
@@ -45,11 +46,11 @@ export function SiteJsonLd({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(organization) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(organization) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(website) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(website) }}
       />
     </>
   );

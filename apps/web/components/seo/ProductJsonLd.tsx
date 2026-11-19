@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import { absolutePublicUrl } from '@/lib/seo';
 import type { Product } from '@/types/api';
 import { getSiteUrl } from '@/lib/utils';
@@ -115,7 +116,7 @@ export function ProductJsonLd({ product }: { product: Product }) {
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }

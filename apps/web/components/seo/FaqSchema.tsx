@@ -1,3 +1,4 @@
+import { safeJsonLd } from '@/lib/safe-json-ld';
 import { plainTextFromFaqHtml } from '@/lib/sanitize-faq-html';
 
 export type FaqSchemaItem = {
@@ -48,7 +49,7 @@ export function FaqSchema({
   return (
     <script
       type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+      dangerouslySetInnerHTML={{ __html: safeJsonLd(schema) }}
     />
   );
 }

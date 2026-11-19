@@ -49,6 +49,27 @@ describe('Phase 5C.4 — CMS HTML sanitize', () => {
     expect(result).toBe('<a href="#">click</a>');
   });
 
+  it.each([
+    '<a href="java&#x09;script:alert(1)">x</a>',
+    '<a href="java&#10;script:alert(1)">x</a>',
+    '<a href="&#106;avascript:alert(1)">x</a>',
+    '<a href="javascript&colon;alert(1)">x</a>',
+    '<a href="\u0001javascript:alert(1)">x</a>',
+    '<a href="  JaVaScRiPt:alert(1)">x</a>',
+    '<a href="data:text/html;base64,PHNjcmlwdD4=">x</a>',
+    '<a href="data:application/xhtml+xml,<x/>">x</a>',
+  ])('blocks obfuscated unsafe URL: %s', (input) => {
+    const result = sanitizeCmsHtml(input);
+    expect(result).toBe('<a href="#">x</a>');
+  });
+
+  it('keeps raster data:image URLs on img but drops other data: URLs', () => {
+    expect(sanitizeCmsHtml('<img src="data:image/png;base64,AAAA" alt="a">')).toContain(
+      'data:image/png',
+    );
+    expect(sanitizeCmsHtml('<img src="data:image/svg+xml;base64,AAAA" alt="a">')).toBe('');
+  });
+
   it('allows safe anchor href', () => {
     const input = '<a href="https://cardon.vn/about">About</a>';
     expect(sanitizeCmsHtml(input)).toBe(

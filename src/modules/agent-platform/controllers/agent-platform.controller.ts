@@ -1,11 +1,12 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { ImpersonationReadOnlyGuard } from '../../auth/guards/impersonation-read-only.guard';
 import { AuthenticatedUser } from '../../auth/interfaces/authenticated-user.interface';
 import { AgentPlatformService } from '../services/agent-platform.service';
 
 @Controller('agents/me/platform')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ImpersonationReadOnlyGuard)
 export class AgentPlatformController {
   constructor(private readonly platformService: AgentPlatformService) {}
 
