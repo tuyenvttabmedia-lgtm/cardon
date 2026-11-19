@@ -521,7 +521,7 @@ export class UpdateCmsThemeDto {
 
   @IsOptional()
   contactChannels?: Array<{
-    key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'address';
+    key: 'email' | 'hotline' | 'zalo' | 'fanpage' | 'telegram' | 'address';
     enabled?: boolean;
     value?: string;
     valueEn?: string;

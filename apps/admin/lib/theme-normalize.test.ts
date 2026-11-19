@@ -67,6 +67,10 @@ describe('theme normalize locale fields', () => {
       label: 'Địa chỉ',
       labelEn: 'Address',
     });
+    expect(normalized.contactChannels?.find((channel) => channel.key === 'telegram')).toMatchObject({
+      key: 'telegram',
+      enabled: false,
+    });
     expect(normalized.mobileNav?.[0].labelEn).toBe('Home');
     expect(normalized.logoDesktop).toBe('/logo.png');
   });

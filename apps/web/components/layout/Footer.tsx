@@ -62,20 +62,7 @@ function FooterHref({
   );
 }
 
-function isAboutCardonColumn(col: FooterColumn): boolean {
-  const title = `${col.title ?? ''} ${col.titleEn ?? ''}`.toLowerCase();
-  return title.includes('về cardon') || title.includes('ve cardon') || title.includes('about cardon');
-}
-
-function FooterColumnLinks({
-  col,
-  companyInfo,
-  showBoCongThuong,
-}: {
-  col: FooterColumn;
-  companyInfo?: CompanyInfo;
-  showBoCongThuong?: boolean;
-}) {
+function FooterColumnLinks({ col }: { col: FooterColumn }) {
   const { locale } = useLocale();
   const title = resolveThemeTitle(locale, col);
   const description = resolveThemeDescription(locale, col.description, col.descriptionEn);
@@ -95,9 +82,6 @@ function FooterColumnLinks({
           );
         })}
       </ul>
-      {showBoCongThuong && companyInfo ? (
-        <BoCongThuongBadge company={companyInfo} variant="desktop" className="mt-[35px]" />
-      ) : null}
     </div>
   );
 }
@@ -290,24 +274,31 @@ function FooterAccordions({ columns }: { columns: FooterColumn[] }) {
 function FooterSocialIcons({
   fanpageHref,
   zaloHref,
+  telegramHref,
   className,
 }: {
   fanpageHref?: string;
   zaloHref?: string;
+  telegramHref?: string;
   className?: string;
 }) {
-  if (!fanpageHref && !zaloHref) return null;
+  if (!fanpageHref && !zaloHref && !telegramHref) return null;
+  const iconBtn =
+    'inline-flex h-9 w-9 items-center justify-center rounded-full border transition';
   return (
-    <div className={cn('flex items-center gap-2', className)} aria-label="Mạng xã hội">
+    <div className={cn('flex items-center gap-2.5', className)} aria-label="Mạng xã hội">
       {fanpageHref ? (
         <a
           href={fanpageHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] transition hover:bg-[#1877F2]/25"
+          className={cn(
+            iconBtn,
+            'border-[#1877F2]/40 bg-[#1877F2]/15 text-[#1877F2] hover:bg-[#1877F2]/25',
+          )}
           aria-label="Facebook"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
             <path d="M14 8h3V5h-3c-2.2 0-4 1.8-4 4v2H7v3h3v7h3v-7h3l1-3h-4V9c0-.6.4-1 1-1z" />
           </svg>
         </a>
@@ -317,10 +308,29 @@ function FooterSocialIcons({
           href={zaloHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#0068FF]/40 bg-[#0068FF]/15 text-[10px] font-bold text-[#0068FF] transition hover:bg-[#0068FF]/25"
+          className={cn(
+            iconBtn,
+            'border-[#0068FF]/40 bg-[#0068FF]/15 text-[11px] font-bold text-[#0068FF] hover:bg-[#0068FF]/25',
+          )}
           aria-label="Zalo"
         >
           Zalo
+        </a>
+      ) : null}
+      {telegramHref ? (
+        <a
+          href={telegramHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            iconBtn,
+            'border-[#229ED9]/40 bg-[#229ED9]/15 text-[#229ED9] hover:bg-[#229ED9]/25',
+          )}
+          aria-label="Telegram"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M11.9 2C6.4 2 2 6.4 2 11.9c0 5.5 4.4 9.9 9.9 9.9 5.5 0 9.9-4.4 9.9-9.9C21.8 6.4 17.4 2 11.9 2zm4.6 6.8-1.5 7.2c-.1.5-.4.6-.8.4l-2.3-1.7-1.1 1.1c-.1.1-.3.3-.5.3l.2-2.4 4.3-3.9c.2-.2 0-.3-.3-.1l-5.3 3.3-2.3-.7c-.5-.2-.5-.5.1-.7l8.9-3.4c.4-.2.8.1.6.6z" />
+          </svg>
         </a>
       ) : null}
     </div>
@@ -343,17 +353,32 @@ function FooterBottomBar({
     '';
   const fanpage = contactChannels.find((c) => c.key === 'fanpage' && c.enabled);
   const zalo = contactChannels.find((c) => c.key === 'zalo' && c.enabled);
+  const telegram = contactChannels.find((c) => c.key === 'telegram' && c.enabled && c.href?.trim());
+  const social = (
+    <FooterSocialIcons
+      fanpageHref={fanpage?.href}
+      zaloHref={zalo?.href}
+      telegramHref={telegram?.href}
+    />
+  );
 
   return (
     <div className="border-t border-white/10">
-      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center lg:gap-6">
-        {/* Mobile: BCT left + FB/Zalo beside it, under the rule below “Hỗ trợ” */}
+      <div className="site-container flex flex-col gap-3 py-3.5 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-6">
+        {/* Mobile: BCT + social */}
         <div className="flex items-center justify-start gap-3 lg:hidden">
           <BoCongThuongBadge company={companyInfo} variant="mobile" />
-          <FooterSocialIcons fanpageHref={fanpage?.href} zaloHref={zalo?.href} />
+          {social}
         </div>
 
-        <span className="shrink-0 text-xs leading-none text-white/50">
+        {/* Desktop: BCT left (trust signal in bar, not under About) */}
+        <BoCongThuongBadge
+          company={companyInfo}
+          variant="desktop"
+          className="hidden w-auto max-w-[160px] shrink-0 lg:block"
+        />
+
+        <span className="min-w-0 text-xs leading-relaxed text-white/50 lg:justify-self-start">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
         </span>
 
@@ -383,11 +408,7 @@ function FooterBottomBar({
             </Link>
           </nav>
 
-          <FooterSocialIcons
-            fanpageHref={fanpage?.href}
-            zaloHref={zalo?.href}
-            className="hidden lg:flex"
-          />
+          <div className="hidden lg:block">{social}</div>
         </div>
       </div>
     </div>
@@ -407,8 +428,6 @@ export function Footer() {
 
   const brandColumn = footerColumns[0];
   const linkColumns = footerColumns.slice(1);
-  const aboutLinkIndex = linkColumns.findIndex(isAboutCardonColumn);
-  const boCongThuongColumnIndex = aboutLinkIndex >= 0 ? aboutLinkIndex : 0;
 
   useEffect(() => {
     console.log(`WEB_BUILD_VERSION=${WEB_BUILD_VERSION}`);
@@ -434,7 +453,7 @@ export function Footer() {
 
       <div className="border-t border-white/10 bg-[#111827]">
         <div className="site-container py-10 lg:py-12">
-          {/* Mobile: brand + Keyon-style accordion (BCT is in FooterBottomBar) */}
+          {/* Mobile: brand + accordion (BCT + social live in FooterBottomBar) */}
           <div className="lg:hidden">
             {brandColumn ? (
               <div className="mb-8">
@@ -444,7 +463,7 @@ export function Footer() {
             <FooterAccordions columns={linkColumns} />
           </div>
 
-          {/* Desktop: multi-column grid */}
+          {/* Desktop: multi-column grid — link columns only (BCT in bottom bar) */}
           <div
             className={cn(
               'footer-links hidden items-start gap-x-10 gap-y-8 lg:grid',
@@ -458,11 +477,7 @@ export function Footer() {
             {brandColumn ? <BrandColumn col={brandColumn} logoSrc={logoFooter} /> : null}
             {linkColumns.map((col, index) => (
               <div key={`${col.title}-${index}`} className="min-w-0">
-                <FooterColumnLinks
-                  col={col}
-                  companyInfo={companyInfo}
-                  showBoCongThuong={index === boCongThuongColumnIndex}
-                />
+                <FooterColumnLinks col={col} />
               </div>
             ))}
           </div>

@@ -1,4 +1,11 @@
-export const CONTACT_CHANNEL_KEYS = ['email', 'hotline', 'zalo', 'fanpage', 'address'] as const;
+export const CONTACT_CHANNEL_KEYS = [
+  'email',
+  'hotline',
+  'zalo',
+  'fanpage',
+  'telegram',
+  'address',
+] as const;
 
 export type ContactChannelKey = (typeof CONTACT_CHANNEL_KEYS)[number];
 
@@ -23,6 +30,7 @@ export const CONTACT_CHANNEL_META: Record<
   hotline: { label: 'Hotline', icon: '📞' },
   zalo: { label: 'Zalo', icon: '💬' },
   fanpage: { label: 'Fanpage', icon: '📘' },
+  telegram: { label: 'Telegram', icon: '✈️' },
   address: { label: 'Địa chỉ', icon: '📍', labelKey: 'contact.address' },
 };
 
@@ -31,6 +39,7 @@ export const DEFAULT_CONTACT_CHANNELS: ContactChannel[] = [
   { key: 'hotline', enabled: true, value: '0984877066', href: 'tel:0984877066' },
   { key: 'zalo', enabled: true, value: 'Keyon Care', href: 'https://zalo.me/0984877066' },
   { key: 'fanpage', enabled: true, value: 'facebook.com/cardon.vn', href: 'https://facebook.com' },
+  { key: 'telegram', enabled: false, value: 'Telegram', href: '' },
   { key: 'address', enabled: true, value: 'Hà Nội, Việt Nam' },
 ];
 
@@ -51,13 +60,17 @@ export function normalizeContactChannels(
     const href =
       key === 'address'
         ? undefined
-        : (saved?.href ?? defaults.href)?.trim() || defaults.href;
+        : key === 'telegram'
+          ? (saved?.href?.trim() || defaults.href?.trim() || undefined)
+          : ((saved?.href ?? defaults.href)?.trim() || defaults.href || undefined);
     const label = saved?.label?.trim();
     const labelEn = saved?.labelEn?.trim();
     const valueEn = saved?.valueEn?.trim();
+    // Respect per-channel defaults (Telegram starts disabled until admin fills a link).
+    const enabled = (saved?.enabled ?? defaults.enabled) !== false;
     return {
       key,
-      enabled: saved?.enabled !== false,
+      enabled,
       value,
       href,
       ...(label ? { label } : {}),
@@ -84,7 +97,7 @@ export function resolveContactChannelValue(
   return channel.value.trim();
 }
 
-export type SpeedDialActionId = 'hotline' | 'zalo' | 'messenger';
+export type SpeedDialActionId = 'hotline' | 'zalo' | 'messenger' | 'telegram';
 
 export interface SpeedDialAction {
   id: SpeedDialActionId;
@@ -118,6 +131,16 @@ export function resolveMessengerHref(fanpageHref: string): string {
   return raw.startsWith('http') ? raw : `https://${raw}`;
 }
 
+/** Normalize t.me / telegram.me links for the speed dial. */
+export function resolveTelegramHref(rawHref: string): string {
+  const raw = rawHref.trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (raw.startsWith('t.me/') || raw.startsWith('telegram.me/')) return `https://${raw}`;
+  if (raw.startsWith('@')) return `https://t.me/${raw.slice(1)}`;
+  return `https://t.me/${raw.replace(/^\/+/, '')}`;
+}
+
 export function buildSpeedDialActions(channels: ContactChannel[]): SpeedDialAction[] {
   const actions: SpeedDialAction[] = [];
   const byKey = new Map(channels.map((c) => [c.key, c]));
@@ -141,6 +164,14 @@ export function buildSpeedDialActions(channels: ContactChannel[]): SpeedDialActi
   if (fanpage?.enabled && fanpage.href?.trim()) {
     const href = resolveMessengerHref(fanpage.href);
     actions.push({ id: 'messenger', label: 'Facebook', href, external: true });
+  }
+
+  const telegram = byKey.get('telegram');
+  if (telegram?.enabled && telegram.href?.trim()) {
+    const href = resolveTelegramHref(telegram.href);
+    if (href) {
+      actions.push({ id: 'telegram', label: 'Telegram', href, external: true });
+    }
   }
 
   return actions;
