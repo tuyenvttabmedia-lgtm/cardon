@@ -86,17 +86,30 @@ function IconMessenger() {
   );
 }
 
+function IconTelegram() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M11.9 2C6.4 2 2 6.4 2 11.9c0 5.5 4.4 9.9 9.9 9.9 5.5 0 9.9-4.4 9.9-9.9C21.8 6.4 17.4 2 11.9 2zm4.6 6.8-1.5 7.2c-.1.5-.4.6-.8.4l-2.3-1.7-1.1 1.1c-.1.1-.3.3-.5.3l.2-2.4 4.3-3.9c.2-.2 0-.3-.3-.1l-5.3 3.3-2.3-.7c-.5-.2-.5-.5.1-.7l8.9-3.4c.4-.2.8.1.6.6z"
+      />
+    </svg>
+  );
+}
+
 const ACTION_ICON: Record<SpeedDialActionId, () => ReactElement> = {
   hotline: IconPhone,
   zalo: IconZalo,
   messenger: IconMessenger,
+  telegram: IconTelegram,
 };
 
-/** Brand colors for icon + label (đỏ đô / Zalo / Facebook). */
+/** Brand colors for icon + label (đỏ đô / Zalo / Facebook / Telegram). */
 const ACTION_TONE: Record<SpeedDialActionId, string> = {
   hotline: 'text-[#8B1A2B]',
   zalo: 'text-[#0068FF]',
   messenger: 'text-[#1877F2]',
+  telegram: 'text-[#229ED9]',
 };
 
 function SpeedDialActionButton({

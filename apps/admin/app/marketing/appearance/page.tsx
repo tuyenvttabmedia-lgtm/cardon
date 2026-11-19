@@ -9,7 +9,7 @@ import { Card, ErrorMessage } from '@/components/ui/Display';
 import { Button, Input, Label } from '@/components/ui/Form';
 import { vi } from '@/lib/i18n/vi';
 import { normalizeThemeSettings } from '@/lib/theme-normalize';
-import { CONTACT_CHANNEL_META } from '@/lib/contact-channels';
+import { CONTACT_CHANNEL_META, isSpeedDialChannel } from '@/lib/contact-channels';
 import { extractGoogleMapsEmbedUrl } from '@/lib/google-map';
 import { cmsAdminApi, ApiClientError } from '@/services/api-client';
 import type { CmsThemeSettings } from '@/types/api';
@@ -568,20 +568,30 @@ export default function AppearancePage() {
 
           <Card id="contact" className="scroll-mt-16 space-y-4 xl:col-span-2">
             <div>
-              <h2 className="font-semibold">Kênh liên hệ (trang /lien-he)</h2>
+              <h2 className="font-semibold">Kênh liên hệ &amp; hỗ trợ nhanh</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                Khối &quot;Thông tin liên hệ&quot; bên trái trang Liên hệ. Nhãn = tiêu đề dòng; nội dung = giá trị bên
-                dưới. Email / số điện thoại dùng chung. Địa chỉ có thêm bản tiếng Anh riêng.
+                Dùng cho trang /lien-he, footer (Facebook / Zalo / Telegram) và nút hỗ trợ nhanh góc phải.
+                Bật kênh + điền link thì icon hiện trên speed dial (Hotline, Zalo, Fanpage→Messenger, Telegram).
+                Telegram mặc định tắt — bật và dán link <code className="text-xs">https://t.me/...</code> hoặc{' '}
+                <code className="text-xs">@username</code>.
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {(form.contactChannels ?? []).map((channel, i) => {
                 const meta = CONTACT_CHANNEL_META[channel.key];
+                const onSpeedDial = isSpeedDialChannel(channel.key);
                 return (
                   <div key={channel.key} className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium">
-                        {meta.icon} {meta.label}
+                      <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium">
+                        <span>
+                          {meta.icon} {meta.label}
+                        </span>
+                        {onSpeedDial ? (
+                          <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                            Hỗ trợ nhanh
+                          </span>
+                        ) : null}
                       </span>
                       <label className="flex items-center gap-1.5 text-xs text-slate-600">
                         <input
@@ -655,7 +665,13 @@ export default function AppearancePage() {
                     ) : null}
                     {channel.key !== 'address' ? (
                       <Input
-                        placeholder="mailto: / tel: / https://…"
+                        placeholder={
+                          channel.key === 'telegram'
+                            ? 'https://t.me/username hoặc @username'
+                            : channel.key === 'fanpage'
+                              ? 'https://facebook.com/... (speed dial → Messenger)'
+                              : 'mailto: / tel: / https://…'
+                        }
                         value={channel.href ?? ''}
                         onChange={(e) => {
                           const contactChannels = [...(form.contactChannels ?? [])];

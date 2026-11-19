@@ -1,4 +1,11 @@
-export const CONTACT_CHANNEL_KEYS = ['email', 'hotline', 'zalo', 'fanpage', 'address'] as const;
+export const CONTACT_CHANNEL_KEYS = [
+  'email',
+  'hotline',
+  'zalo',
+  'fanpage',
+  'telegram',
+  'address',
+] as const;
 
 export type ContactChannelKey = (typeof CONTACT_CHANNEL_KEYS)[number];
 
@@ -17,14 +24,25 @@ export const CONTACT_CHANNEL_META: Record<ContactChannelKey, { label: string; ic
   hotline: { label: 'Hotline', icon: '📞' },
   zalo: { label: 'Zalo', icon: '💬' },
   fanpage: { label: 'Fanpage', icon: '📘' },
+  telegram: { label: 'Telegram', icon: '✈️' },
   address: { label: 'Địa chỉ', icon: '📍' },
 };
+
+/** Channels that can appear on the floating quick-support speed dial. */
+export const SPEED_DIAL_CHANNEL_KEYS = ['hotline', 'zalo', 'fanpage', 'telegram'] as const;
+
+export type SpeedDialChannelKey = (typeof SPEED_DIAL_CHANNEL_KEYS)[number];
+
+export function isSpeedDialChannel(key: ContactChannelKey): key is SpeedDialChannelKey {
+  return (SPEED_DIAL_CHANNEL_KEYS as readonly string[]).includes(key);
+}
 
 export const DEFAULT_CONTACT_CHANNELS: ContactChannel[] = [
   { key: 'email', enabled: true, value: 'support@cardon.vn', href: 'mailto:support@cardon.vn' },
   { key: 'hotline', enabled: true, value: '0984877066', href: 'tel:0984877066' },
   { key: 'zalo', enabled: true, value: 'Keyon Care', href: 'https://zalo.me/0984877066' },
   { key: 'fanpage', enabled: true, value: 'facebook.com/cardon.vn', href: 'https://facebook.com' },
+  { key: 'telegram', enabled: false, value: 'Telegram', href: '' },
   { key: 'address', enabled: true, value: 'Hà Nội, Việt Nam' },
 ];
 
@@ -45,13 +63,17 @@ export function normalizeContactChannels(
     const href =
       key === 'address'
         ? undefined
-        : (saved?.href ?? defaults.href)?.trim() || defaults.href;
+        : key === 'telegram'
+          ? (saved?.href?.trim() || defaults.href?.trim() || undefined)
+          : ((saved?.href ?? defaults.href)?.trim() || defaults.href || undefined);
     const label = saved?.label?.trim();
     const labelEn = saved?.labelEn?.trim();
     const valueEn = saved?.valueEn?.trim();
+    // Respect per-channel defaults (Telegram starts disabled until admin fills a link).
+    const enabled = (saved?.enabled ?? defaults.enabled) !== false;
     return {
       key,
-      enabled: saved?.enabled !== false,
+      enabled,
       value,
       href,
       ...(label ? { label } : {}),

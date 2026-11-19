@@ -66,7 +66,12 @@ export function ContactPageClient({
       : companyInfo.address?.trim() || '';
   const quickActions = visibleChannels.filter(
     (c): c is ContactChannel & { href: string } =>
-      Boolean(c.href) && (c.key === 'hotline' || c.key === 'zalo' || c.key === 'fanpage' || c.key === 'email'),
+      Boolean(c.href) &&
+      (c.key === 'hotline' ||
+        c.key === 'zalo' ||
+        c.key === 'fanpage' ||
+        c.key === 'telegram' ||
+        c.key === 'email'),
   );
   const mapEmbedUrl =
     companyInfo.googleMapEnabled === true
@@ -267,6 +272,8 @@ function quickActionLabel(key: ContactChannelKey, t: ReturnType<typeof useT>): s
       return 'Zalo';
     case 'fanpage':
       return 'Fanpage';
+    case 'telegram':
+      return 'Telegram';
     case 'email':
       return t('contact.email');
     case 'address':
