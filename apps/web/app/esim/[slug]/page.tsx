@@ -40,13 +40,12 @@ export async function generateMetadata({
     });
   }
   const { offer } = matched;
-  const path = esimOfferPath(offer);
   return localizedMetadata({
     title: esimOfferSeoTitle(offer, 'vi'),
     description: esimOfferSeoDescription(offer, 'vi'),
     enTitle: esimOfferSeoTitle(offer, 'en'),
     enDescription: esimOfferSeoDescription(offer, 'en'),
-    path,
+    path: esimOfferPath(offer),
     ogImage: offer.countryImageUrl || offer.photo || undefined,
   });
 }
@@ -60,9 +59,6 @@ async function EsimDetailLoader({ slug }: { slug: string }) {
   const matched = findEsimOfferBySlug(result.offers, slug);
   if (!matched) {
     notFound();
-  }
-  if (matched.viaLegacy) {
-    permanentRedirect(esimOfferPath(matched.offer));
   }
   const { offer } = matched;
   const plansHref = countryPlansHref(offer.countryIso);
@@ -85,6 +81,16 @@ export default async function EsimDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  // Resolve legacy Airalo slugs outside Suspense so 301 is not swallowed by streaming.
+  const locale = await readRequestLocale();
+  const result = await listEsimPreviewOffers(locale);
+  if (result.ok) {
+    const matched = findEsimOfferBySlug(result.offers, slug);
+    if (matched?.viaLegacy) {
+      permanentRedirect(esimOfferPath(matched.offer));
+    }
+  }
+
   return (
     <div className="site-container py-6 md:py-8">
       <Suspense fallback={<EsimDetailSkeleton />}>
