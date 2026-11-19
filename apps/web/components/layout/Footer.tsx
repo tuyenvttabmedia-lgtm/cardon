@@ -174,7 +174,7 @@ function BoCongThuongBadge({
 }: {
   company: CompanyInfo;
   className?: string;
-  /** desktop: fixed max width; mobile: match footer logo height (h-8). */
+  /** desktop/mobile: size by height so absolute img still has a box (w-auto alone collapses). */
   variant?: 'desktop' | 'mobile';
 }) {
   const { locale } = useLocale();
@@ -187,11 +187,9 @@ function BoCongThuongBadge({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        // Clip left PNG pad; size by one axis so aspect stays true (no stretch)
-        'relative block overflow-hidden',
-        variant === 'mobile'
-          ? 'h-8 w-auto shrink-0 sm:h-9'
-          : 'w-full max-w-[176px]',
+        // Clip left PNG pad; height drives width via aspect-ratio (img is absolute)
+        'relative block shrink-0 overflow-hidden',
+        variant === 'mobile' ? 'h-8 sm:h-9' : 'h-10',
         className,
       )}
       style={{ aspectRatio: `${BCT_BADGE_VISIBLE_W} / ${BCT_BADGE_NATIVE_H}` }}
@@ -372,11 +370,7 @@ function FooterBottomBar({
         </div>
 
         {/* Desktop: BCT left (trust signal in bar, not under About) */}
-        <BoCongThuongBadge
-          company={companyInfo}
-          variant="desktop"
-          className="hidden w-auto max-w-[160px] shrink-0 lg:block"
-        />
+        <BoCongThuongBadge company={companyInfo} variant="desktop" className="hidden lg:block" />
 
         <span className="min-w-0 text-xs leading-relaxed text-white/50 lg:justify-self-start">
           © {new Date().getFullYear()} {copyrightName}. {t('footer.rights')}
@@ -467,10 +461,11 @@ export function Footer() {
           <div
             className={cn(
               'footer-links hidden items-start gap-x-10 gap-y-8 lg:grid',
+              // Brand wide; Chính sách needs room for long policy titles; About/Support shorter
               linkColumns.length >= 3
-                ? 'lg:grid-cols-[minmax(0,1.55fr)_minmax(0,0.8fr)_minmax(0,1.05fr)_minmax(0,0.9fr)]'
+                ? 'lg:grid-cols-[minmax(16rem,1.45fr)_minmax(12rem,1.25fr)_minmax(10rem,1fr)_minmax(9rem,0.95fr)]'
                 : linkColumns.length === 2
-                  ? 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)]'
+                  ? 'lg:grid-cols-[minmax(16rem,1.4fr)_minmax(12rem,1.1fr)_minmax(10rem,1fr)]'
                   : 'lg:grid-cols-2',
             )}
           >
