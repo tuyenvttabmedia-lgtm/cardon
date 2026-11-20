@@ -62,11 +62,6 @@ export default function AccountProfilePage() {
       <h2 className="text-lg font-bold text-cardon-navy">{t('account.profile')}</h2>
       <form className="mt-4 max-w-lg space-y-4" onSubmit={(e) => void save(e)}>
         <div>
-          <label className="text-sm font-medium">{t('account.username')}</label>
-          <Input value={profile.username ?? ''} disabled className="mt-1 bg-gray-50" />
-          <p className="mt-1 text-xs text-cardon-gray">{t('account.usernameLocked')}</p>
-        </div>
-        <div>
           <label className="text-sm font-medium">Email</label>
           <Input value={profile.email} disabled className="mt-1 bg-gray-50" />
         </div>
