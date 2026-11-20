@@ -31,6 +31,7 @@ import { generatePaymentReference, generateSepayPaymentCode } from '../entities/
 import { mapPayment } from '../entities/payment.mapper';
 import { sanitizeGatewayPayload } from '../entities/gateway-payload-safety';
 import { isPersistedAdminTest, persistAdminTestFulfillmentSkip, readAdminTestCharge } from '../../esim/esim-admin-test.rules';
+import { DEFAULT_PAYMENT_TIMEOUT_MINUTES } from '../../order/entities/order.constants';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { evaluatePaypalCheckoutReady } from '../providers/paypal/paypal.rules';
 import {
@@ -252,7 +253,7 @@ export class PaymentService {
         : generatePaymentReference();
     const expiresAt =
       order.paymentExpiresAt ??
-      new Date(Date.now() + 15 * 60_000);
+      new Date(Date.now() + DEFAULT_PAYMENT_TIMEOUT_MINUTES * 60_000);
 
     let providerResult;
     let abandonedMegaPayReference: string | null = null;
@@ -428,7 +429,9 @@ export class PaymentService {
       );
     }
 
-    const expiresAt = order.paymentExpiresAt ?? new Date(Date.now() + 15 * 60_000);
+    const expiresAt =
+      order.paymentExpiresAt ??
+      new Date(Date.now() + DEFAULT_PAYMENT_TIMEOUT_MINUTES * 60_000);
     const prepared = await this.prisma.$transaction(
       async (tx) => {
         await tx.$executeRaw`SELECT id FROM orders WHERE id = CAST(${order.id} AS uuid) FOR UPDATE`;

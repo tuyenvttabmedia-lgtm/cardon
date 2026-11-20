@@ -12,7 +12,12 @@ export const ORDER_AUDIT_ACTIONS = {
 export type OrderAuditAction =
   (typeof ORDER_AUDIT_ACTIONS)[keyof typeof ORDER_AUDIT_ACTIONS];
 
-export const DEFAULT_PAYMENT_TIMEOUT_MINUTES = 15;
+/**
+ * B2C payment window (WAITING_PAYMENT → EXPIRED).
+ * Floor matches MegaPay VA/VNPAYQR session (~30 phút); shorter CardOn windows
+ * cause FL_902 when a new session is created while the gateway session still lives.
+ */
+export const DEFAULT_PAYMENT_TIMEOUT_MINUTES = 30;
 
 /** MegaPay giữ phiên VA/VNPAYQR 30 phút; đơn CardOn không được hết hạn sớm hơn phiên cổng. */
 export const EXTERNAL_QR_MIN_TIMEOUT_MINUTES = 30;
