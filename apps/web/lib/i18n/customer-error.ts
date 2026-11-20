@@ -10,6 +10,7 @@ const VI_MESSAGE_KEYS: Record<string, MessageKey> = {
   'Unable to register with the provided details': 'auth.registerConflict',
   'Password confirmation does not match': 'auth.passwordMismatch',
   'You must accept the terms and conditions': 'auth.needTerms',
+  'Invalid email or password': 'auth.loginFailed',
   'Sản phẩm này chỉ bán tại Việt Nam.': 'market.vnOnly',
   'Chưa mở bán': 'error.salesOff',
   'Tạm dừng bán eSIM': 'error.salesOff',

@@ -184,10 +184,7 @@ describe('AuthService', () => {
       expect(prisma.user.findFirst).toHaveBeenCalledWith({
         where: {
           deletedAt: null,
-          OR: [
-            { email: 'test@cardon.vn' },
-            { username: 'test@cardon.vn' },
-          ],
+          email: 'test@cardon.vn',
         },
       });
       expect(auditService.recordSecurityEvent).toHaveBeenCalledWith(
@@ -195,34 +192,30 @@ describe('AuthService', () => {
       );
     });
 
-    it('logs in with username identifier', async () => {
-      prisma.user.findFirst.mockResolvedValue({
-        ...activeUser,
-        emailVerifiedAt: new Date(),
-      });
-      prisma.user.update.mockResolvedValue(activeUser);
-      prisma.refreshToken.create.mockResolvedValue({});
-
-      const result = await authService.login({
-        identifier: 'TestUser',
-        password: 'password123',
-      });
-
-      expect(result.accessToken).toBe('access-token');
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: {
-          deletedAt: null,
-          OR: [{ email: 'testuser' }, { username: 'testuser' }],
-        },
-      });
-    });
-
-    it('rejects unknown username with generic message', async () => {
+    it('does not look up by username — email is the only login identity', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
 
       await expect(
         authService.login({
-          identifier: 'unknown_user',
+          identifier: 'testuser@cardon.vn',
+          password: 'password123',
+        }),
+      ).rejects.toThrow('Invalid email or password');
+
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          deletedAt: null,
+          email: 'testuser@cardon.vn',
+        },
+      });
+    });
+
+    it('rejects unknown email with generic message', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        authService.login({
+          identifier: 'unknown@cardon.vn',
           password: 'password123',
         }),
       ).rejects.toThrow('Invalid email or password');

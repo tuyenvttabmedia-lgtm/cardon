@@ -31,6 +31,7 @@ import {
   ResendVerificationDto,
   VerifyEmailDto,
 } from './dto/agent-register.dto';
+import { normalizeRegisterUsername } from './entities/normalize-register-username';
 import { AuthResult, AuthUserSummary } from './interfaces/auth-result.interface';
 import { TokenService } from './token.service';
 import { MaintenanceAvailabilityService } from '../maintenance-center/services/maintenance-availability.service';
@@ -63,8 +64,12 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthResult> {
     this.maintenanceAvailability.assertLoginAllowed(UserRole.CUSTOMER);
     const email = dto.email.trim().toLowerCase();
-    const preferredUsername = dto.username.trim().toLowerCase();
     const phone = dto.phone.trim();
+    // Username is an internal alias only — never the login identity.
+    const preferredUsername =
+      normalizeRegisterUsername(dto.username) ||
+      normalizeRegisterUsername(email) ||
+      'user';
 
     this.emailPolicy.assertRegistrationEmailAllowed(email);
 
@@ -226,11 +231,11 @@ export class AuthService {
 
   async login(dto: LoginDto, context?: ActivityRequestContext): Promise<AuthResult> {
     const ipAddress = context?.ipAddress;
-    const identifier = dto.identifier.trim().toLowerCase();
+    const email = dto.identifier.trim().toLowerCase();
     const user = await this.prisma.user.findFirst({
       where: {
         deletedAt: null,
-        OR: [{ email: identifier }, { username: identifier }],
+        email,
       },
     });
 

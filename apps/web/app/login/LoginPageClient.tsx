@@ -28,7 +28,7 @@ function LoginForm() {
   const { login, logout } = useAuth();
   const t = useT();
   const { locale } = useLocale();
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [partnerHint, setPartnerHint] = useState(false);
@@ -40,7 +40,7 @@ function LoginForm() {
     setError(null);
     setPartnerHint(false);
     try {
-      const result = await login(identifier, password);
+      const result = await login(email.trim().toLowerCase(), password);
       if (!isRetailCustomerRole(result.user.role)) {
         logout();
         setError(wrongRetailPortalMessage(result.user.role));
@@ -76,13 +76,13 @@ function LoginForm() {
       )}
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
-          <label className="text-sm font-medium text-cardon-navy">{t('auth.identifier')}</label>
+          <label className="text-sm font-medium text-cardon-navy">{t('auth.email')}</label>
           <Input
             className="mt-1"
-            type="text"
-            autoComplete="username"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
         </div>
