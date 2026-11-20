@@ -974,24 +974,9 @@ export class PaymentService {
         };
       }
 
-      await this.paymentAuditService.recordPaymentSuccess({
-        orderId: payment.orderId,
-        paymentId: payment.id,
-        metadata: { paymentReference: payment.paymentReference },
-      });
-
-      if (payment.gateway === PaymentGatewayCode.PAYPAL) {
-        await this.queuePaypalFulfillmentIfNeeded(payment);
-      } else {
-        const queueJobIds = await this.fulfillmentDispatchService.dispatchOrderFulfillment(
-          payment.orderId,
-          'webhook',
-        );
-        this.logger.log(
-          `Payment success enqueued fulfillment orderId=${payment.orderId} paymentReference=${payment.paymentReference} queueJobIds=${queueJobIds.join(',')}`,
-        );
-      }
-      await this.notificationService.notifyPaymentSuccess(payment.orderId);
+      // Order is already PAID in DB. Side effects must not fail the IPN response
+      // (MegaPay would stop retrying on ResponseCode 11 while money is settled).
+      await this.runPostPaidWebhookSideEffects(payment);
     } else {
       const duplicate = await this.processFailedWebhookAtomically(
         payment.id,
@@ -1447,6 +1432,59 @@ export class PaymentService {
       ...raw,
       fulfillmentQueued: true,
     } as Prisma.InputJsonValue);
+  }
+
+  /**
+   * Stability pack step 3 (MegaPay IPN phase A): after PAID is committed, audit /
+   * fulfill enqueue / email must not throw back to the gateway handler.
+   */
+  private async runPostPaidWebhookSideEffects(payment: {
+    id: string;
+    orderId: string;
+    paymentReference: string;
+    gateway: PaymentGatewayCode;
+  }): Promise<void> {
+    try {
+      await this.paymentAuditService.recordPaymentSuccess({
+        orderId: payment.orderId,
+        paymentId: payment.id,
+        metadata: { paymentReference: payment.paymentReference },
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `recordPaymentSuccess failed after PAID paymentReference=${payment.paymentReference}: ${message}`,
+      );
+    }
+
+    try {
+      if (payment.gateway === PaymentGatewayCode.PAYPAL) {
+        await this.queuePaypalFulfillmentIfNeeded(payment);
+      } else {
+        const queueJobIds =
+          await this.fulfillmentDispatchService.dispatchOrderFulfillment(
+            payment.orderId,
+            'webhook',
+          );
+        this.logger.log(
+          `Payment success enqueued fulfillment orderId=${payment.orderId} paymentReference=${payment.paymentReference} queueJobIds=${queueJobIds.join(',')}`,
+        );
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `fulfillment dispatch failed after PAID paymentReference=${payment.paymentReference} — rely on sweeper/watchdog: ${message}`,
+      );
+    }
+
+    try {
+      await this.notificationService.notifyPaymentSuccess(payment.orderId);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `notifyPaymentSuccess failed after PAID paymentReference=${payment.paymentReference}: ${message}`,
+      );
+    }
   }
 
   private async processSuccessWebhookAtomically(

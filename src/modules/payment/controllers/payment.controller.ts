@@ -3,6 +3,7 @@ import {
   Controller,
   Headers,
   HttpCode,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -33,10 +34,13 @@ import {
   depositCodeNotifyDuplicate,
   depositCodeNotifyFailed,
   depositCodeNotifySuccess,
+  isTransientMegapayWebhookError,
 } from '../providers/megapay/depositcode.types';
 
 @Controller('payments')
 export class PaymentController {
+  private readonly logger = new Logger(PaymentController.name);
+
   constructor(
     private readonly paymentService: PaymentService,
     private readonly esimSepayPaymentService: EsimSepayPaymentService,
@@ -146,9 +150,16 @@ export class PaymentController {
       if (error instanceof NotFoundException) {
         return depositCodeNotifyFailed('Payment not found');
       }
-      return depositCodeNotifyFailed(
-        error instanceof Error ? error.message : 'Webhook failed',
-      );
+      // Transient infra → HTTP 5xx so MegaPay retries (pre-PAID / unexpected).
+      if (isTransientMegapayWebhookError(error)) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`MegaPay IPN transient error (will 5xx): ${message}`);
+        throw error;
+      }
+      // Other business/unknown: keep DepositCode 200 body, do not leak internals.
+      const message = error instanceof Error ? error.message : 'Webhook failed';
+      this.logger.error(`MegaPay IPN business/unknown error: ${message}`);
+      return depositCodeNotifyFailed('Webhook processing failed');
     }
   }
 
