@@ -1,0 +1,46 @@
+---
+description: Ổn định prod — quy tắc fix/deploy để không rung sàn (sau outage 2026-11-20)
+alwaysApply: true
+---
+
+# Prod stability — không rung sàn
+
+Owner ưu tiên **ổn định prod** hơn săn finding. Mỗi lần chạm tiền/auth/webhook/NCC/deploy phải giảm blast radius.
+
+## Trước khi fix
+
+1. **Phân loại:** P0 (tiền sai / không login / double-buy / API down) → làm ngay. P1 (hardening, rate-limit, strict verify) → có flag hoặc cửa sổ quan sát. Audit-only → **không** mở PR trừ khi owner yêu cầu.
+2. **Một PR = một hành vi quan sát được.** Cấm gói ops+auth+pay+provider trong cùng PR.
+3. **Không đụng đường tiền** trừ khi ticket/P0 nói rõ (payment webhook, fulfill, ledger, provider buyCard/topup).
+4. Viết trước: *hành vi cũ → mới*, *cách rollback*, *chỉ số quan sát 24h*.
+
+## Khi code
+
+- Thay đổi hành vi nguy hiểm → **feature flag mặc định OFF** (sweeper, strict eSale signature, IPN 5xx…).
+- Tái sử dụng đường cũ idempotent (`dispatchOrderFulfillment`, claim DB, jobId ổn định). Không gọi lại `buyCard`/`topup` khi timeout.
+- Không “silent mock” trên production; không nuốt lỗi webhook thành success nếu chưa hiểu protocol cổng.
+- Test tối thiểu: unit cho nhánh đổi + không phá money-flow smoke.
+
+## Khi deploy prod
+
+```text
+✅ ./scripts/deploy/prod-compose.sh build|up …
+✅ docker compose -f docker-compose.production.yml --env-file .env.production …
+
+❌ docker compose -f docker-compose.production.yml up/build   # thiếu env-file → POSTGRES_* rỗng → 502 toàn site
+```
+
+- Chỉ recreate service cần thiết (`api` / `worker` / `web`…). **Không** `up` cả stack nếu chỉ đổi API — tránh recreate postgres/redis nhầm.
+- Sau deploy: đợi `healthy`, smoke `POST /auth/login` (JSON), một GET health/public. Thấy 502/P1010 → dừng, không “fix tiếp trên cháy”.
+- Rollback: revert PR hoặc tắt flag; không chồng commit nóng trên prod.
+
+## Sau fix (24h)
+
+Theo dõi tối thiểu: API/worker healthy; không spike 5xx; đơn PAID→fulfill không tăng kẹt; IPN MegaPay/SePay không HTML/challenge.
+
+## Cấm
+
+- Audit lan man → PR “gom 5–10 finding” một lần.
+- Đổi throttle/guard/webhook response code mà không ghi rủi ro cổng/NCC.
+- Deploy tay không `prod-compose` / không `--env-file`.
+- Sửa tiếp khi prod đang 502 thay vì rollback env/compose trước.
