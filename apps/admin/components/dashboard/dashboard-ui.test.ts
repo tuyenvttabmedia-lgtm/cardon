@@ -122,6 +122,15 @@ describe('Operations Cockpit C2 — health / labels / soft-fail', () => {
     expect(slots.find((s) => s.service === 'TOPUP')?.revenue).toBe('0.00');
   });
 
+  it('donut uses stable TOPUP color and charts feed category slots', () => {
+    const charts = read('components/dashboard/dashboard-charts.tsx');
+    const section = read('components/dashboard/DashboardChartsSection.tsx');
+    expect(charts).toContain('TOPUP: \'#d97706\'');
+    expect(charts).toContain('donutColorForService');
+    expect(section).toContain('buildCategorySlots');
+    expect(section).toContain('donutItems');
+  });
+
   it('health section is compact chip (no SectionShell title block)', () => {
     const health = read('components/dashboard/DashboardHealthSection.tsx');
     expect(health).toContain('Compact health chip');

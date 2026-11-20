@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Card, EmptyState } from '@/components/ui/Display';
 import { SectionShell } from '@/components/dashboard/SectionShell';
+import { buildCategorySlots } from '@/components/dashboard/DashboardCategorySection';
 import {
   BreakdownDonut,
   RevenueLineChart,
@@ -41,11 +42,12 @@ export function DashboardChartsSection({
           : Number(p.revenue) > 0,
     ),
   );
+  /** Always include eSIM / game / phone / topup so legend shows Nạp cước color at 0%. */
+  const donutItems = useMemo(() => buildCategorySlots(breakdown), [breakdown]);
   const hasBreakdown = Boolean(breakdown && breakdown.length > 0);
   const breakdownTotal = useMemo(() => {
-    if (!breakdown?.length) return 0;
-    return breakdown.reduce((sum, row) => sum + (Number(row.revenue) || 0), 0);
-  }, [breakdown]);
+    return donutItems.reduce((sum, row) => sum + (Number(row.revenue) || 0), 0);
+  }, [donutItems]);
 
   return (
     <SectionShell
@@ -94,12 +96,12 @@ export function DashboardChartsSection({
 
           <Card className="space-y-3 p-4 lg:col-span-2">
             <p className="text-sm font-semibold text-slate-800">{vi.dashboard.breakdownTitle}</p>
-            {!hasBreakdown ? (
+            {!hasBreakdown && breakdownTotal === 0 ? (
               <EmptyState message={vi.dashboard.breakdownEmpty} />
             ) : (
               <>
                 <BreakdownDonut
-                  items={breakdown}
+                  items={donutItems}
                   centerLabel={
                     breakdownTotal > 0
                       ? formatVnd(breakdownTotal)
@@ -107,12 +109,16 @@ export function DashboardChartsSection({
                   }
                 />
                 <ul className="divide-y divide-slate-100 border-t border-slate-100 pt-2">
-                  {breakdown.map((item) => (
+                  {donutItems.map((item) => (
                     <li
                       key={item.service}
                       className="flex items-center justify-between gap-2 py-1.5 text-xs"
                     >
-                      <span className="text-slate-600">
+                      <span
+                        className={
+                          item.orderCount > 0 ? 'text-slate-600' : 'text-slate-400'
+                        }
+                      >
                         {item.label} · {item.orderCount} đơn
                       </span>
                       <span className="font-medium tabular-nums text-slate-800">
