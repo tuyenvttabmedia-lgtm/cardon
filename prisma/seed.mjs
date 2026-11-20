@@ -136,7 +136,7 @@ const ROLE_PERMISSION_MATRIX = {
 const SYSTEM_SETTINGS = [
   {
     key: 'payment.timeout_minutes',
-    value: 15,
+    value: 30,
     description: 'B2C payment window before order expires (WAITING_PAYMENT)',
   },
   {

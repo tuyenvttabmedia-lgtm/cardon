@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PaymentGatewayCode } from '@prisma/client';
+import { DEFAULT_PAYMENT_TIMEOUT_MINUTES } from '../../../order/entities/order.constants';
 import {
   CreateProviderPaymentParams,
   PaymentProviderInterface,
@@ -68,7 +69,9 @@ export class SePayProvider implements PaymentProviderInterface {
 
     const expiredAt =
       params.expiresAt?.toISOString() ??
-      new Date(Date.now() + 15 * 60_000).toISOString();
+      new Date(
+        Date.now() + DEFAULT_PAYMENT_TIMEOUT_MINUTES * 60_000,
+      ).toISOString();
 
     this.logSafe('createPayment', {
       paymentReference: params.paymentReference,

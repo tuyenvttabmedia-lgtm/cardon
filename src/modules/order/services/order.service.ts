@@ -671,10 +671,12 @@ export class OrderService {
     });
 
     const value = setting?.value;
-    if (typeof value === 'number' && value > 0) {
-      return value;
-    }
+    const configured =
+      typeof value === 'number' && value > 0
+        ? value
+        : DEFAULT_PAYMENT_TIMEOUT_MINUTES;
 
-    return DEFAULT_PAYMENT_TIMEOUT_MINUTES;
+    // Never shorter than the MegaPay session floor (also the product default).
+    return Math.max(configured, DEFAULT_PAYMENT_TIMEOUT_MINUTES);
   }
 }

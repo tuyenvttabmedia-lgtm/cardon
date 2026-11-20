@@ -374,10 +374,10 @@ async function ensureAgent(superAdminId: string) {
 async function ensureSystemSettings() {
   await prisma.systemSetting.upsert({
     where: { key: 'payment.timeout_minutes' },
-    update: { value: 15 },
+    update: { value: 30 },
     create: {
       key: 'payment.timeout_minutes',
-      value: 15,
+      value: 30,
       description: 'Smoke — payment window minutes',
     },
   });
