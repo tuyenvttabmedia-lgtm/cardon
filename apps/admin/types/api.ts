@@ -40,6 +40,46 @@ export interface DashboardBusinessStats {
   gatewayFee: string;
   paidOrderCount: number;
   createdOrderCount: number;
+  /** revenue / paidOrderCount when paidOrderCount > 0, else "0.00". */
+  averageOrderValue: string;
+}
+
+export type DashboardHomeService =
+  | 'GAME_CARD'
+  | 'PHONE_CARD'
+  | 'TOPUP'
+  | 'DATA'
+  | 'ESIM'
+  | 'OTHER';
+
+export interface DashboardSeriesPoint {
+  date: string;
+  revenue: string;
+  profit: string;
+  paidOrders: number;
+}
+
+export interface DashboardBreakdownItem {
+  service: DashboardHomeService;
+  label: string;
+  revenue: string;
+  orderCount: number;
+  sharePercent: number;
+}
+
+export interface DashboardCompareStats {
+  revenuePercent: number | null;
+  profitPercent: number | null;
+  paidOrderPercent: number | null;
+  averageOrderValuePercent: number | null;
+  previous: {
+    dateFrom: string;
+    dateTo: string;
+    revenue: string;
+    profit: string;
+    paidOrderCount: number;
+    averageOrderValue: string;
+  };
 }
 
 export interface DashboardPaymentAttempts {
@@ -62,7 +102,7 @@ export interface DashboardAgentStatistics {
   rejected: number;
 }
 
-/** Operations Cockpit — GET /admin/dashboard?period=… (C1). */
+/** Operations Cockpit — GET /admin/dashboard?period=… (C1 + business overview). */
 export interface DashboardStats {
   period: DashboardPeriodInfo;
   asOf: string;
@@ -73,6 +113,12 @@ export interface DashboardStats {
   providerErrors: number;
   providerErrorsScope: 'SYSTEM';
   agentStatistics: DashboardAgentStatistics;
+  /** Daily ICT series for the selected period (B2C retail, exclude eSIM). */
+  series: DashboardSeriesPoint[];
+  /** Revenue mix by product homeService (same retail scope). */
+  breakdown: DashboardBreakdownItem[];
+  /** % change vs previous window of equal length. */
+  compare: DashboardCompareStats;
   /** Legacy fields kept for compatibility; cockpit UI must not use pendingFulfillment. */
   todayRevenue: string;
   ordersCount: number;

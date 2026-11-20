@@ -1,6 +1,8 @@
 import {
   normalizeDashboardPeriod,
+  percentChange,
   resolveDashboardPeriodRange,
+  resolvePreviousDashboardPeriodRange,
 } from './dashboard-period';
 
 describe('dashboard period (Asia/Ho_Chi_Minh)', () => {
@@ -49,5 +51,20 @@ describe('dashboard period (Asia/Ho_Chi_Minh)', () => {
     expect(range.dateFrom).toBe('2026-03-14');
     expect(range.fromInclusive.toISOString()).toBe('2026-03-13T17:00:00.000Z');
     expect(range.toExclusive.toISOString()).toBe('2026-03-14T17:00:00.000Z');
+  });
+
+  it('previous window mirrors day count ending before current from', () => {
+    const now = new Date('2026-03-15T03:00:00.000Z');
+    const last7 = resolveDashboardPeriodRange('last7', now);
+    const prev = resolvePreviousDashboardPeriodRange(last7);
+    expect(prev.dateFrom).toBe('2026-03-02');
+    expect(prev.dateTo).toBe('2026-03-08');
+    expect(prev.toExclusive.toISOString()).toBe(last7.fromInclusive.toISOString());
+  });
+
+  it('percentChange returns null when previous is zero and current is not', () => {
+    expect(percentChange(100, 80)).toBe(25);
+    expect(percentChange(0, 0)).toBe(0);
+    expect(percentChange(10, 0)).toBeNull();
   });
 });

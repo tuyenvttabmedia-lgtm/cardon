@@ -128,6 +128,7 @@ describe('admin dashboard revenue skips boolean admin tests', () => {
       payment: { count: jest.fn(async () => 1) },
       providerLog: { count: jest.fn(async () => 0) },
       agent: { groupBy: jest.fn(async () => []) },
+      $queryRaw: jest.fn(async () => []),
     };
     const repo = new AdminRepository(prisma as never);
     const stats = await repo.getDashboardStats();

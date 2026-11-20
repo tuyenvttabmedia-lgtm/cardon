@@ -23,7 +23,9 @@ import { resolveAdminPagination } from '../utils/admin-pagination.util';
 import { AdminOrderQueryDto } from '../dto/admin.dto';
 import { buildAdminOrderWhere } from '../utils/admin-order-filter.util';
 import {
+  percentChange,
   resolveDashboardPeriodRange,
+  resolvePreviousDashboardPeriodRange,
   type DashboardPeriodPreset,
 } from '../entities/dashboard-period';
 import { dashboardRetailOrderWhere } from '../entities/dashboard-retail-scope';
@@ -32,14 +34,41 @@ import {
   resolveCustomerStatsPeriodRange,
 } from '../entities/customer-stats-period';
 
+const DASHBOARD_HOME_SERVICE_LABELS: Record<string, string> = {
+  GAME_CARD: 'Thẻ game',
+  PHONE_CARD: 'Thẻ điện thoại',
+  TOPUP: 'Nạp tiền',
+  DATA: 'Data / 3G-4G',
+  ESIM: 'eSIM',
+  OTHER: 'Khác',
+};
+
+type DashboardSeriesRow = {
+  day: string;
+  revenue: Decimal | string | number;
+  profit: Decimal | string | number;
+  paid_orders: bigint | number;
+};
+
+type DashboardBreakdownRow = {
+  service: string | null;
+  order_count: bigint | number;
+  revenue: Decimal | string | number;
+};
+
 @Injectable()
 export class AdminRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async getDashboardStats(periodRaw?: string | null) {
     const range = resolveDashboardPeriodRange(periodRaw);
+    const previousRange = resolvePreviousDashboardPeriodRange(range);
     const { fromInclusive, toExclusive } = range;
     const periodFilter = { gte: fromInclusive, lt: toExclusive };
+    const previousFilter = {
+      gte: previousRange.fromInclusive,
+      lt: previousRange.toExclusive,
+    };
 
     const retailPaidInPeriod: Prisma.OrderWhereInput = dashboardRetailOrderWhere({
       paymentStatus: OrderPaymentStatus.PAID,
@@ -48,6 +77,17 @@ export class AdminRepository {
           ...ACTIVE_PAYMENT_WHERE,
           status: PaymentRecordStatus.SUCCESS,
           paidAt: periodFilter,
+        },
+      },
+    });
+
+    const retailPaidPrevious: Prisma.OrderWhereInput = dashboardRetailOrderWhere({
+      paymentStatus: OrderPaymentStatus.PAID,
+      payments: {
+        some: {
+          ...ACTIVE_PAYMENT_WHERE,
+          status: PaymentRecordStatus.SUCCESS,
+          paidAt: previousFilter,
         },
       },
     });
@@ -70,6 +110,10 @@ export class AdminRepository {
       needManualReview,
       providerErrors,
       agentStats,
+      previousAgg,
+      previousPaidOrderCount,
+      seriesRows,
+      breakdownRows,
     ] = await Promise.all([
       this.prisma.order.aggregate({
         where: retailPaidInPeriod,
@@ -132,12 +176,36 @@ export class AdminRepository {
         where: { deletedAt: null },
         _count: { id: true },
       }),
+      this.prisma.order.aggregate({
+        where: retailPaidPrevious,
+        _sum: {
+          sellAmount: true,
+          providerCost: true,
+          paymentFeeAmount: true,
+        },
+      }),
+      this.prisma.order.count({ where: retailPaidPrevious }),
+      this.queryDashboardSeries(fromInclusive, toExclusive),
+      this.queryDashboardBreakdown(fromInclusive, toExclusive),
     ]);
 
     const revenue = businessAgg._sum.sellAmount ?? new Decimal(0);
     const providerCost = businessAgg._sum.providerCost ?? new Decimal(0);
     const gatewayFee = businessAgg._sum.paymentFeeAmount ?? new Decimal(0);
     const profit = revenue.sub(providerCost).sub(gatewayFee);
+    const averageOrderValue =
+      paidOrderCount > 0 ? revenue.div(paidOrderCount) : new Decimal(0);
+
+    const previousRevenue = previousAgg._sum.sellAmount ?? new Decimal(0);
+    const previousProviderCost = previousAgg._sum.providerCost ?? new Decimal(0);
+    const previousGatewayFee = previousAgg._sum.paymentFeeAmount ?? new Decimal(0);
+    const previousProfit = previousRevenue
+      .sub(previousProviderCost)
+      .sub(previousGatewayFee);
+    const previousAverageOrderValue =
+      previousPaidOrderCount > 0
+        ? previousRevenue.div(previousPaidOrderCount)
+        : new Decimal(0);
 
     const agentsByStatus = Object.fromEntries(
       agentStats.map((row) => [row.status, row._count.id]),
@@ -158,6 +226,49 @@ export class AdminRepository {
       needManualReview,
     };
 
+    const seriesByDay = new Map(
+      seriesRows.map((row) => [
+        row.day,
+        {
+          revenue: new Decimal(row.revenue ?? 0).toFixed(2),
+          profit: new Decimal(row.profit ?? 0).toFixed(2),
+          paidOrders: Number(row.paid_orders ?? 0),
+        },
+      ]),
+    );
+    const series = enumerateVietnamDates(range.dateFrom, range.dateTo).map(
+      (date) => ({
+        date,
+        revenue: seriesByDay.get(date)?.revenue ?? '0.00',
+        profit: seriesByDay.get(date)?.profit ?? '0.00',
+        paidOrders: seriesByDay.get(date)?.paidOrders ?? 0,
+      }),
+    );
+
+    const totalBreakdownRevenue = breakdownRows.reduce(
+      (sum, row) => sum.add(new Decimal(row.revenue ?? 0)),
+      new Decimal(0),
+    );
+    const breakdown = breakdownRows.map((row) => {
+      const serviceKey = (row.service ?? 'OTHER').toUpperCase();
+      const service =
+        serviceKey in DASHBOARD_HOME_SERVICE_LABELS ? serviceKey : 'OTHER';
+      const rowRevenue = new Decimal(row.revenue ?? 0);
+      const sharePercent =
+        totalBreakdownRevenue.gt(0)
+          ? Number(
+              rowRevenue.div(totalBreakdownRevenue).mul(100).toFixed(1),
+            )
+          : 0;
+      return {
+        service,
+        label: DASHBOARD_HOME_SERVICE_LABELS[service] ?? service,
+        revenue: rowRevenue.toFixed(2),
+        orderCount: Number(row.order_count ?? 0),
+        sharePercent,
+      };
+    });
+
     return {
       period: {
         preset: range.preset satisfies DashboardPeriodPreset,
@@ -174,6 +285,7 @@ export class AdminRepository {
         gatewayFee: gatewayFee.toFixed(2),
         paidOrderCount,
         createdOrderCount,
+        averageOrderValue: averageOrderValue.toFixed(2),
       },
       payments: {
         successAttemptCount,
@@ -183,6 +295,34 @@ export class AdminRepository {
       providerErrors,
       providerErrorsScope: 'SYSTEM' as const,
       agentStatistics,
+      series,
+      breakdown,
+      compare: {
+        revenuePercent: percentChange(
+          Number(revenue.toFixed(2)),
+          Number(previousRevenue.toFixed(2)),
+        ),
+        profitPercent: percentChange(
+          Number(profit.toFixed(2)),
+          Number(previousProfit.toFixed(2)),
+        ),
+        paidOrderPercent: percentChange(
+          paidOrderCount,
+          previousPaidOrderCount,
+        ),
+        averageOrderValuePercent: percentChange(
+          Number(averageOrderValue.toFixed(2)),
+          Number(previousAverageOrderValue.toFixed(2)),
+        ),
+        previous: {
+          dateFrom: previousRange.dateFrom,
+          dateTo: previousRange.dateTo,
+          revenue: previousRevenue.toFixed(2),
+          profit: previousProfit.toFixed(2),
+          paidOrderCount: previousPaidOrderCount,
+          averageOrderValue: previousAverageOrderValue.toFixed(2),
+        },
+      },
       // Legacy fields for pre-C2 frontend (same period aggregates).
       todayRevenue: revenue.toFixed(2),
       ordersCount: createdOrderCount,
@@ -190,6 +330,95 @@ export class AdminRepository {
       failedPayments: failedAttemptCount,
       pendingFulfillment: pendingDelivery + processing + waitingAdminRetry,
     };
+  }
+
+  /** Daily B2C retail paid series (exclude eSIM + admin-test). */
+  private queryDashboardSeries(fromInclusive: Date, toExclusive: Date) {
+    return this.prisma.$queryRaw<DashboardSeriesRow[]>`
+      WITH paid AS (
+        SELECT DISTINCT ON (o.id)
+          o.id,
+          o.sell_amount,
+          o.provider_cost,
+          o.payment_fee_amount,
+          pay.paid_at
+        FROM orders o
+        INNER JOIN payments pay
+          ON pay.order_id = o.id
+          AND pay.deleted_at IS NULL
+          AND pay.status = 'SUCCESS'
+          AND pay.paid_at >= ${fromInclusive}
+          AND pay.paid_at < ${toExclusive}
+        WHERE o.deleted_at IS NULL
+          AND o.channel = 'B2C'
+          AND o.payment_status = 'PAID'
+          AND (o.client_trace->>'adminTest') IS DISTINCT FROM 'true'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM order_items oi
+            INNER JOIN product_variants pv ON pv.id = oi.variant_id
+            WHERE oi.order_id = o.id
+              AND pv.type = 'ESIM'
+          )
+        ORDER BY o.id, pay.paid_at ASC
+      )
+      SELECT
+        to_char((paid_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD') AS day,
+        COALESCE(SUM(sell_amount), 0) AS revenue,
+        COALESCE(SUM(sell_amount - provider_cost - payment_fee_amount), 0) AS profit,
+        COUNT(*)::int AS paid_orders
+      FROM paid
+      GROUP BY 1
+      ORDER BY 1
+    `;
+  }
+
+  /** Revenue mix by product home_service for paid B2C retail orders. */
+  private queryDashboardBreakdown(fromInclusive: Date, toExclusive: Date) {
+    return this.prisma.$queryRaw<DashboardBreakdownRow[]>`
+      WITH paid AS (
+        SELECT DISTINCT ON (o.id)
+          o.id,
+          o.sell_amount
+        FROM orders o
+        INNER JOIN payments pay
+          ON pay.order_id = o.id
+          AND pay.deleted_at IS NULL
+          AND pay.status = 'SUCCESS'
+          AND pay.paid_at >= ${fromInclusive}
+          AND pay.paid_at < ${toExclusive}
+        WHERE o.deleted_at IS NULL
+          AND o.channel = 'B2C'
+          AND o.payment_status = 'PAID'
+          AND (o.client_trace->>'adminTest') IS DISTINCT FROM 'true'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM order_items oi
+            INNER JOIN product_variants pv ON pv.id = oi.variant_id
+            WHERE oi.order_id = o.id
+              AND pv.type = 'ESIM'
+          )
+        ORDER BY o.id, pay.paid_at ASC
+      ),
+      order_service AS (
+        SELECT DISTINCT ON (oi.order_id)
+          oi.order_id,
+          COALESCE(pr.home_service::text, 'OTHER') AS service
+        FROM order_items oi
+        INNER JOIN product_variants pv ON pv.id = oi.variant_id
+        INNER JOIN products pr ON pr.id = pv.product_id
+        WHERE oi.order_id IN (SELECT id FROM paid)
+        ORDER BY oi.order_id, oi.created_at ASC
+      )
+      SELECT
+        os.service,
+        COUNT(*)::int AS order_count,
+        COALESCE(SUM(p.sell_amount), 0) AS revenue
+      FROM order_service os
+      INNER JOIN paid p ON p.id = os.order_id
+      GROUP BY 1
+      ORDER BY revenue DESC
+    `;
   }
 
   findOrdersAdmin(query: AdminOrderQueryDto) {
