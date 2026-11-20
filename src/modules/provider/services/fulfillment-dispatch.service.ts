@@ -28,7 +28,7 @@ export class FulfillmentDispatchService {
 
   async dispatchOrderFulfillment(
     orderId: string,
-    triggeredBy: 'webhook' | 'manual' | 'agent' = 'webhook',
+    triggeredBy: 'webhook' | 'manual' | 'agent' | 'sweeper' = 'webhook',
   ): Promise<string[]> {
     const order = await this.orderRepository.findOrderForFulfillment(orderId);
     if (!order) {
