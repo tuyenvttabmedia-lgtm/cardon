@@ -91,14 +91,41 @@ describe('Operations Cockpit C2 — health / labels / soft-fail', () => {
     const charts = read('components/dashboard/DashboardChartsSection.tsx');
     expect(cockpit).toContain('DashboardChartsSection');
     expect(cockpit).toContain('DashboardEsimLaneSection');
+    expect(cockpit).toContain('DashboardCategorySection');
     expect(cockpit).toContain("useState<DashboardPeriodPreset>('last7')");
     expect(cockpit).toContain('setSeries');
     expect(cockpit).toContain('setBreakdown');
     expect(cockpit).toContain('setCompare');
     expect(cockpit).toContain('setEsim');
-    expect(cockpit).not.toContain('DashboardCategorySection');
     expect(charts).toContain('RevenueLineChart');
     expect(charts).toContain('BreakdownDonut');
+    expect(charts).toContain('chartTabOrders');
+  });
+
+  it('category slots always include TOPUP even when missing from breakdown', async () => {
+    const { buildCategorySlots } = await import('./DashboardCategorySection');
+    const slots = buildCategorySlots([
+      {
+        service: 'GAME_CARD',
+        label: 'Thẻ game',
+        revenue: '100',
+        orderCount: 1,
+        sharePercent: 100,
+      },
+    ]);
+    expect(slots.map((s) => s.service)).toEqual([
+      'ESIM',
+      'GAME_CARD',
+      'PHONE_CARD',
+      'TOPUP',
+    ]);
+    expect(slots.find((s) => s.service === 'TOPUP')?.revenue).toBe('0.00');
+  });
+
+  it('health section is compact chip (no SectionShell title block)', () => {
+    const health = read('components/dashboard/DashboardHealthSection.tsx');
+    expect(health).toContain('Compact health chip');
+    expect(health).not.toContain('SectionShell');
   });
 
   it('C2.1: AdminShell hides role chip below sm (no overflow-x cover)', () => {
