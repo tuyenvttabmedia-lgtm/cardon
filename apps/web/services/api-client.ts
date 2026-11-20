@@ -43,12 +43,17 @@ async function parseResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get('content-type') ?? '';
   const cfMitigated = response.headers.get('cf-mitigated');
   if (!contentType.includes('application/json')) {
-    // Cloudflare Managed Challenge / WAF often returns HTML 403 to XHR without reaching origin.
-    if (
-      response.status === 403 ||
-      cfMitigated === 'challenge' ||
-      contentType.includes('text/html')
-    ) {
+    // Upstream/origin down (nginx/CF 502 HTML) — not a Managed Challenge.
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      throw new ApiClientError(
+        'Dịch vụ tạm thời không phản hồi. Vui lòng thử lại sau ít phút.',
+        response.status,
+        'UPSTREAM_UNAVAILABLE',
+      );
+    }
+    // Cloudflare Managed Challenge / WAF: HTML 403 or cf-mitigated=challenge without JSON.
+    // Do not treat every HTML body as edge block — nginx error pages are also HTML.
+    if (response.status === 403 || cfMitigated === 'challenge') {
       throw new ApiClientError(
         'Yêu cầu bị chặn bởi bảo vệ biên (Cloudflare). Tải lại trang và thử lại; nếu vẫn lỗi, tắt Managed Challenge trên /auth/register vì Turnstile đã bảo vệ.',
         response.status || 403,
