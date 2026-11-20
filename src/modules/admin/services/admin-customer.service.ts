@@ -52,6 +52,10 @@ export class AdminCustomerService {
     });
   }
 
+  getCustomerStats(period?: string | null) {
+    return this.repository.getCustomerGrowthStats(period);
+  }
+
   async getCustomer(id: string, query: AdminCustomerDetailQueryDto = {}) {
     const orderSkip = query.orderSkip ?? 0;
     const orderTake = query.orderTake ?? 10;

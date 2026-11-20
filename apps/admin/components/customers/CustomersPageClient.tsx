@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RequirePermission } from '@/components/layout/AdminShell';
 import { CustomerDetailPanel, type CustomerDetailTab } from '@/components/customers/CustomerDetailPanel';
+import { CustomerGrowthPanel } from '@/components/customers/CustomerGrowthPanel';
 import { CustomersListPanel } from '@/components/customers/CustomersListPanel';
 import { Dialog } from '@/components/ui/Dialog';
 import { Card, ErrorMessage } from '@/components/ui/Display';
@@ -14,7 +15,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { vi } from '@/lib/i18n/vi';
 import { cn } from '@/lib/utils';
 import { adminApi, ApiClientError } from '@/services/api-client';
-import type { AdminCustomer, AdminCustomerDetail } from '@/types/api';
+import type {
+  AdminCustomer,
+  AdminCustomerDetail,
+  AdminCustomerStats,
+  AdminCustomerStatsPeriod,
+} from '@/types/api';
 
 type ResetResult =
   | { mode: 'link'; email: string; resetLink: string; message: string }
@@ -59,6 +65,11 @@ export function CustomersPageClient() {
   const [resetResult, setResetResult] = useState<ResetResult | null>(null);
   const [isMobileDetail, setIsMobileDetail] = useState(false);
 
+  const [statsPeriod, setStatsPeriod] = useState<AdminCustomerStatsPeriod>('30d');
+  const [stats, setStats] = useState<AdminCustomerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
   const filtersActive = Boolean(q || status || createdFrom || createdTo);
 
   const setSelectedId = useCallback(
@@ -93,6 +104,18 @@ export function CustomersPageClient() {
     }
   }, [q, status, createdFrom, createdTo, skip, take]);
 
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError(null);
+    try {
+      setStats(await adminApi.getCustomerStats(statsPeriod));
+    } catch (err) {
+      setStatsError(err instanceof ApiClientError ? err.message : vi.customers.loadError);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [statsPeriod]);
+
   const loadDetail = useCallback(
     async (id: string) => {
       setDetailLoading(true);
@@ -119,6 +142,10 @@ export function CustomersPageClient() {
   useEffect(() => {
     void loadList();
   }, [loadList]);
+
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
 
   useEffect(() => {
     setOrderSkip(0);
@@ -170,6 +197,7 @@ export function CustomersPageClient() {
       }
       await loadDetail(detail.profile.id);
       await loadList();
+      await loadStats();
     } catch (err) {
       toast.error(err instanceof ApiClientError ? err.message : vi.app.requestFailed);
     }
@@ -203,6 +231,15 @@ export function CustomersPageClient() {
       <div className="flex min-h-[calc(100vh-7rem)] flex-col gap-4">
         <PageHeader title={vi.customers.title} subtitle={vi.customers.subtitle} />
         {error ? <ErrorMessage message={error} /> : null}
+
+        <CustomerGrowthPanel
+          stats={stats}
+          period={statsPeriod}
+          loading={statsLoading}
+          error={statsError}
+          onPeriodChange={setStatsPeriod}
+          onRetry={() => void loadStats()}
+        />
 
         <Card className="space-y-3 p-3 sm:p-4">
           <div className="grid gap-2 lg:grid-cols-[1fr_auto_auto_auto_auto]">

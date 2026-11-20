@@ -29,6 +29,7 @@ import {
   AdminCreateStaffDto,
   AdminCustomerDetailQueryDto,
   AdminCustomerQueryDto,
+  AdminCustomerStatsQueryDto,
   AdminResetCustomerPasswordDto,
   AdminSearchQueryDto,
   AdminUpdateCustomerDto,
@@ -156,6 +157,13 @@ export class AdminOperationController {
   @Permissions(ADMIN_PERMISSIONS.CUSTOMERS_READ)
   listCustomers(@Query() query: AdminCustomerQueryDto) {
     return this.customerService.listCustomers(query);
+  }
+
+  /** Must stay above `customers/:id` so `stats` is not parsed as a UUID. */
+  @Get('customers/stats')
+  @Permissions(ADMIN_PERMISSIONS.CUSTOMERS_READ)
+  getCustomerStats(@Query() query: AdminCustomerStatsQueryDto) {
+    return this.customerService.getCustomerStats(query.period);
   }
 
   @Get('customers/:id')
