@@ -139,3 +139,24 @@ export function depositCodeNotifyBadAmount(): DepositCodeNotifyResponse {
 export function depositCodeNotifyFailed(message: string): DepositCodeNotifyResponse {
   return { ResponseCode: '11', ResponseMessage: message };
 }
+
+/**
+ * Errors that should surface as HTTP 5xx on MegaPay IPN so the gateway retries.
+ * Business outcomes (bad signature / amount / not found) stay HTTP 200 + ResponseCode.
+ */
+export function isTransientMegapayWebhookError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const status =
+    typeof (error as { getStatus?: () => number }).getStatus === 'function'
+      ? (error as { getStatus: () => number }).getStatus()
+      : undefined;
+  if (typeof status === 'number' && status >= 500) {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return /P1001|P1017|P2024|ECONNREFUSED|ETIMEDOUT|ECONNRESET|Connection is closed|Socket closed|Redis|timed?\s*out/i.test(
+    message,
+  );
+}

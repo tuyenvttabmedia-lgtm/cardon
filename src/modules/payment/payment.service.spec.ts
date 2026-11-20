@@ -47,6 +47,10 @@ describe('PaymentService', () => {
     recordDuplicateWebhook: jest.Mock;
   };
   let fulfillmentDispatchService: { dispatchOrderFulfillment: jest.Mock };
+  let notificationService: {
+    notifyPaymentSuccess: jest.Mock;
+    notifyManualPaymentReview: jest.Mock;
+  };
 
   const waitingOrder = {
     id: 'order-1',
@@ -115,6 +119,11 @@ describe('PaymentService', () => {
       $transaction: jest.fn(async (cb) => cb({})),
     };
 
+    notificationService = {
+      notifyPaymentSuccess: jest.fn().mockResolvedValue(undefined),
+      notifyManualPaymentReview: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new PaymentService(
       prisma as never,
       paymentRepository as never,
@@ -126,7 +135,7 @@ describe('PaymentService', () => {
       orderService as never,
       paymentAuditService as never,
       fulfillmentDispatchService as never,
-      { notifyPaymentSuccess: jest.fn(), notifyManualPaymentReview: jest.fn() } as never,
+      notificationService as never,
       { dispatch: jest.fn() } as never,
     );
   });
@@ -295,6 +304,34 @@ describe('PaymentService', () => {
       'order-1',
       'webhook',
     );
+    expect(notificationService.notifyPaymentSuccess).toHaveBeenCalledWith('order-1');
+  });
+
+  it('keeps webhook OK when notify/dispatch fail after PAID is committed', async () => {
+    paymentRepository.findByReference.mockResolvedValue(pendingPayment);
+    notificationService.notifyPaymentSuccess.mockRejectedValue(
+      new Error('smtp down'),
+    );
+    fulfillmentDispatchService.dispatchOrderFulfillment.mockRejectedValue(
+      new Error('redis queue down'),
+    );
+
+    const payload = {
+      paymentReference: 'PAY-REF-001',
+      status: 'SUCCESS',
+      amount: '100000.00',
+    };
+    const signature = computeMockWebhookSignature(payload);
+
+    const result = await service.handleWebhook(
+      'megapay',
+      payload,
+      { 'x-webhook-signature': signature },
+      '127.0.0.1',
+    );
+
+    expect(result.ok).toBe(true);
+    expect(orderService.markPaidInTransaction).toHaveBeenCalled();
   });
 
   it('returns OK for duplicate SUCCESS webhook without reprocessing or audit', async () => {
