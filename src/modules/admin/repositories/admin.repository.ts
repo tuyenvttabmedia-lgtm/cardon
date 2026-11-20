@@ -497,7 +497,12 @@ export class AdminRepository {
       order_service AS (
         SELECT DISTINCT ON (oi.order_id)
           oi.order_id,
-          COALESCE(pr.home_service::text, 'OTHER') AS service
+          CASE
+            WHEN pv.type = 'TOPUP' THEN 'TOPUP'
+            WHEN pv.type = 'DATA' THEN 'DATA'
+            WHEN pv.type = 'ESIM' THEN 'ESIM'
+            ELSE COALESCE(pr.home_service::text, 'OTHER')
+          END AS service
         FROM order_items oi
         INNER JOIN product_variants pv ON pv.id = oi.variant_id
         INNER JOIN products pr ON pr.id = pv.product_id

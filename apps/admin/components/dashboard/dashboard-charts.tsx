@@ -80,39 +80,47 @@ export function Sparkline({
   );
 }
 
-/** Multi-series line chart (revenue + profit) over daily points. */
+export type DashboardChartMetric = 'revenue' | 'orders' | 'profit';
+
+/** Line chart for one daily metric (mockup tabs: doanh thu / đơn / lợi nhuận). */
 export function RevenueLineChart({
   series,
+  metric = 'revenue',
   className,
 }: {
   series: DashboardSeriesPoint[];
+  metric?: DashboardChartMetric;
   className?: string;
 }) {
-  const revenues = series.map((p) => Number(p.revenue) || 0);
-  const profits = series.map((p) => Number(p.profit) || 0);
-  const max = Math.max(1, ...revenues, ...profits);
+  const values = series.map((p) => {
+    if (metric === 'orders') return p.paidOrders;
+    if (metric === 'profit') return Number(p.profit) || 0;
+    return Number(p.revenue) || 0;
+  });
+  const max = Math.max(1, ...values);
   const w = 640;
   const h = 220;
   const padX = 12;
   const padY = 16;
   const innerW = w - padX * 2;
   const innerH = h - padY * 2;
+  const stroke = metric === 'orders' ? '#d97706' : metric === 'profit' ? '#2563eb' : '#0f766e';
 
-  function pathFor(values: number[]) {
-    if (values.length === 0) return '';
-    return values
+  function pathFor(vals: number[]) {
+    if (vals.length === 0) return '';
+    return vals
       .map((v, i) => {
         const x =
-          values.length === 1
+          vals.length === 1
             ? padX + innerW / 2
-            : padX + (i / (values.length - 1)) * innerW;
+            : padX + (i / (vals.length - 1)) * innerW;
         const y = padY + innerH - (v / max) * innerH;
         return `${i === 0 ? 'M' : 'L'}${x} ${y}`;
       })
       .join(' ');
   }
 
-  const hasData = revenues.some((v) => v > 0) || profits.some((v) => v > 0);
+  const hasData = values.some((v) => v > 0);
 
   return (
     <div className={cn('relative', className)}>
@@ -133,19 +141,10 @@ export function RevenueLineChart({
             );
           })}
           <path
-            d={pathFor(revenues)}
+            d={pathFor(values)}
             fill="none"
-            stroke="#0f766e"
+            stroke={stroke}
             strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
-          />
-          <path
-            d={pathFor(profits)}
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="2"
-            strokeDasharray="5 4"
             strokeLinejoin="round"
             strokeLinecap="round"
           />
@@ -164,9 +163,12 @@ export function RevenueLineChart({
 export function BreakdownDonut({
   items,
   className,
+  centerLabel,
 }: {
   items: DashboardBreakdownItem[];
   className?: string;
+  /** Optional center label (e.g. total revenue). */
+  centerLabel?: string;
 }) {
   const size = 160;
   const stroke = 28;
@@ -177,37 +179,44 @@ export function BreakdownDonut({
 
   return (
     <div className={cn('flex flex-col items-center gap-3 sm:flex-row sm:items-start', className)}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke="#e2e8f0"
-          strokeWidth={stroke}
-        />
-        {segments.map((item, idx) => {
-          const len = (item.sharePercent / 100) * c;
-          const dash = `${len} ${c - len}`;
-          const el = (
-            <circle
-              key={item.service}
-              cx={size / 2}
-              cy={size / 2}
-              r={r}
-              fill="none"
-              stroke={DONUT_COLORS[idx % DONUT_COLORS.length]}
-              strokeWidth={stroke}
-              strokeDasharray={dash}
-              strokeDashoffset={-offset}
-              strokeLinecap="butt"
-              transform={`rotate(-90 ${size / 2} ${size / 2})`}
-            />
-          );
-          offset += len;
-          return el;
-        })}
-      </svg>
+      <div className="relative shrink-0" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="#e2e8f0"
+            strokeWidth={stroke}
+          />
+          {segments.map((item, idx) => {
+            const len = (item.sharePercent / 100) * c;
+            const dash = `${len} ${c - len}`;
+            const el = (
+              <circle
+                key={item.service}
+                cx={size / 2}
+                cy={size / 2}
+                r={r}
+                fill="none"
+                stroke={DONUT_COLORS[idx % DONUT_COLORS.length]}
+                strokeWidth={stroke}
+                strokeDasharray={dash}
+                strokeDashoffset={-offset}
+                strokeLinecap="butt"
+                transform={`rotate(-90 ${size / 2} ${size / 2})`}
+              />
+            );
+            offset += len;
+            return el;
+          })}
+        </svg>
+        {centerLabel ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center">
+            <p className="text-[11px] font-semibold leading-tight text-slate-800">{centerLabel}</p>
+          </div>
+        ) : null}
+      </div>
       <ul className="min-w-0 flex-1 space-y-1.5">
         {items.map((item, idx) => (
           <li key={item.service} className="flex items-center justify-between gap-2 text-xs">

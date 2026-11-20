@@ -5,6 +5,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardHealthSection } from '@/components/dashboard/DashboardHealthSection';
 import { DashboardBusinessSection } from '@/components/dashboard/DashboardBusinessSection';
 import { DashboardChartsSection } from '@/components/dashboard/DashboardChartsSection';
+import { DashboardCategorySection } from '@/components/dashboard/DashboardCategorySection';
 import { DashboardEsimLaneSection } from '@/components/dashboard/DashboardEsimLaneSection';
 import { DashboardOrderOpsSection } from '@/components/dashboard/DashboardOrderOpsSection';
 import { DashboardPayProviderSection } from '@/components/dashboard/DashboardPayProviderSection';
@@ -253,6 +254,13 @@ export function DashboardCockpit() {
         breakdown={breakdown}
         loading={metricsBusy && !series}
         error={metricsError && !series ? metricsError : null}
+        onRetry={() => void loadMetrics(period, 'full')}
+      />
+
+      <DashboardCategorySection
+        breakdown={breakdown}
+        loading={metricsBusy && !breakdown}
+        error={metricsError && !breakdown ? metricsError : null}
         onRetry={() => void loadMetrics(period, 'full')}
       />
 
