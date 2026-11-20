@@ -25,6 +25,14 @@ type Props = {
   action?: string;
   /** Override site key (tests). Default: admin public API + ENV. */
   siteKey?: string;
+  /** Optional section title above the widget. */
+  label?: string;
+  /** Explains that a green check is not account/signup success. */
+  hint?: string;
+  /** Shown while waiting for a token. */
+  pendingText?: string;
+  /** Shown after Turnstile returns a token (still need form submit). */
+  readyText?: string;
 };
 
 declare global {
@@ -85,7 +93,19 @@ function loadTurnstileScript(): Promise<void> {
 }
 
 export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
-  function TurnstileField({ onTokenChange, className, action, siteKey: siteKeyProp }, ref) {
+  function TurnstileField(
+    {
+      onTokenChange,
+      className,
+      action,
+      siteKey: siteKeyProp,
+      label,
+      hint,
+      pendingText,
+      readyText,
+    },
+    ref,
+  ) {
     const resolvedKey = useTurnstileSiteKey();
     const siteKey = (siteKeyProp ?? resolvedKey).trim();
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -94,10 +114,12 @@ export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
     const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error' | 'unconfigured'>(
       siteKey ? 'loading' : 'unconfigured',
     );
+    const [verified, setVerified] = useState(false);
 
     const setToken = useCallback(
       (token: string | null) => {
         tokenRef.current = token;
+        setVerified(Boolean(token));
         onTokenChange?.(token);
       },
       [onTokenChange],
@@ -190,16 +212,32 @@ export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
     }
 
     return (
-      <div className={className}>
+      <div
+        className={`rounded-lg border border-slate-200 bg-slate-50/80 p-3 ${className ?? ''}`}
+      >
+        {label ? (
+          <p className="text-sm font-medium text-cardon-navy">{label}</p>
+        ) : null}
+        {hint ? <p className="mt-1 text-xs leading-relaxed text-cardon-gray">{hint}</p> : null}
         {status === 'loading' && (
-          <p className="mb-2 text-xs text-cardon-gray">Đang tải xác minh bảo mật…</p>
+          <p className="mt-2 text-xs text-cardon-gray">Đang tải xác minh bảo mật…</p>
         )}
         {status === 'error' && (
-          <p className="mb-2 text-xs text-red-600">
+          <p className="mt-2 text-xs text-red-600">
             Không tải được xác minh bảo mật. Vui lòng tải lại trang hoặc thử lại.
           </p>
         )}
-        <div ref={containerRef} className="cf-turnstile" />
+        <div ref={containerRef} className="cf-turnstile mt-2" />
+        {verified && readyText ? (
+          <p className="mt-2 text-xs font-medium text-amber-800" role="status">
+            {readyText}
+          </p>
+        ) : null}
+        {!verified && status === 'ready' && pendingText ? (
+          <p className="mt-2 text-xs text-cardon-gray" role="status">
+            {pendingText}
+          </p>
+        ) : null}
       </div>
     );
   },
