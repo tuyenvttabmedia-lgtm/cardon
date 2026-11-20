@@ -21,6 +21,21 @@ import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
 import { normalizeRegisterPhone } from '@/lib/normalize-register-phone';
 import { safeInternalPath } from '@/lib/safe-redirect';
+import { cn } from '@/lib/utils';
+
+type FieldKey = 'fullName' | 'email' | 'phone' | 'password' | 'confirmPassword' | 'acceptTerms' | 'captcha';
+type FieldErrors = Partial<Record<FieldKey, string>>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="mt-1 text-xs text-red-600" role="alert">
+      {message}
+    </p>
+  );
+}
 
 function RegisterForm() {
   const router = useRouter();
@@ -42,7 +57,8 @@ function RegisterForm() {
     confirmPassword: '',
     acceptTerms: false,
   });
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -51,35 +67,123 @@ function RegisterForm() {
     setForm((prev) => (prev.email ? prev : { ...prev, email: prefillEmail }));
   }, [prefillEmail]);
 
+  function clearFieldError(key: FieldKey) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }
+
+  function validateField(key: FieldKey, draft = form, token = captchaToken): string | undefined {
+    switch (key) {
+      case 'fullName': {
+        const name = draft.fullName.trim();
+        if (name.length < 2) return t('auth.fullNameRequired');
+        return undefined;
+      }
+      case 'email': {
+        const email = draft.email.trim().toLowerCase();
+        if (!email) return t('auth.emailRequired');
+        if (!EMAIL_RE.test(email)) return t('auth.emailInvalid');
+        return undefined;
+      }
+      case 'phone': {
+        const phone = normalizeRegisterPhone(draft.phone);
+        if (!/^(\+84|0)[0-9]{9,10}$/.test(phone)) return t('auth.phoneInvalid');
+        return undefined;
+      }
+      case 'password': {
+        if (!draft.password) return t('auth.passwordRequired');
+        if (draft.password.length < 8) return t('auth.passwordTooShort');
+        return undefined;
+      }
+      case 'confirmPassword': {
+        if (!draft.confirmPassword) return t('auth.confirmRequired');
+        if (draft.password !== draft.confirmPassword) return t('auth.passwordMismatch');
+        return undefined;
+      }
+      case 'acceptTerms':
+        return draft.acceptTerms ? undefined : t('auth.needTerms');
+      case 'captcha':
+        return captchaRequired && !token ? t('auth.captchaRequired') : undefined;
+      default:
+        return undefined;
+    }
+  }
+
+  function validateAll(draft = form, token = captchaToken): FieldErrors {
+    const keys: FieldKey[] = [
+      'fullName',
+      'email',
+      'phone',
+      'password',
+      'confirmPassword',
+      'acceptTerms',
+      'captcha',
+    ];
+    const next: FieldErrors = {};
+    for (const key of keys) {
+      const message = validateField(key, draft, token);
+      if (message) next[key] = message;
+    }
+    return next;
+  }
+
+  function onBlurValidate(key: FieldKey) {
+    const message = validateField(key);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[key] = message;
+      else delete next[key];
+      return next;
+    });
+  }
+
+  function updateField<K extends keyof RegisterPayload>(key: K, value: RegisterPayload[K]) {
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      return next;
+    });
+    if (key === 'fullName' || key === 'email' || key === 'phone' || key === 'password' || key === 'confirmPassword') {
+      clearFieldError(key);
+    }
+    if (key === 'password' || key === 'confirmPassword') {
+      clearFieldError('confirmPassword');
+    }
+    if (key === 'acceptTerms') {
+      clearFieldError('acceptTerms');
+    }
+    setFormError(null);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.acceptTerms) {
-      setError(t('auth.needTerms'));
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      setError(t('auth.passwordMismatch'));
-      return;
-    }
-    if (captchaRequired && !captchaToken) {
-      setError('Vui lòng hoàn tất xác minh bảo mật trước khi đăng ký.');
-      return;
-    }
     const phone = normalizeRegisterPhone(form.phone);
-    if (!/^(\+84|0)[0-9]{9,10}$/.test(phone)) {
-      setError(t('auth.phoneInvalid'));
+    const draft = { ...form, phone, email: form.email.trim().toLowerCase(), fullName: form.fullName.trim() };
+    const errors = validateAll(draft, captchaToken);
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      setFormError(t('auth.formFixFields'));
+      const first = Object.keys(errors)[0] as FieldKey;
+      const el = document.getElementById(`register-${first}`);
+      el?.focus();
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
+
     setLoading(true);
-    setError(null);
+    setFormError(null);
     try {
       await register({
-        fullName: form.fullName.trim(),
+        fullName: draft.fullName,
         phone,
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
-        confirmPassword: form.confirmPassword,
-        acceptTerms: form.acceptTerms,
+        email: draft.email,
+        password: draft.password,
+        confirmPassword: draft.confirmPassword,
+        acceptTerms: draft.acceptTerms,
         captchaToken: captchaToken || undefined,
       });
       setToast(t('auth.registerOk'));
@@ -87,18 +191,22 @@ function RegisterForm() {
     } catch (err) {
       const captchaErr = captchaErrorFromApi(err);
       if (captchaErr) {
-        setError(captchaErr.message);
+        setFieldErrors((prev) => ({ ...prev, captcha: captchaErr.message }));
+        setFormError(captchaErr.message);
         if (captchaErr.shouldReset) {
           captchaRef.current?.reset();
           setCaptchaToken(null);
         }
       } else {
-        setError(customerFacingError(locale, err));
+        const message = customerFacingError(locale, err);
+        setFormError(message);
       }
     } finally {
       setLoading(false);
     }
   }
+
+  const inputErrorClass = 'border-red-400 focus:border-red-500 focus:ring-red-500/20';
 
   return (
     <>
@@ -118,105 +226,158 @@ function RegisterForm() {
           </p>
         }
       >
-        <form className="space-y-4" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit} noValidate>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">{t('auth.fullName')}</label>
+            <label className="text-sm font-medium text-cardon-navy" htmlFor="register-fullName">
+              {t('auth.fullName')}
+            </label>
             <Input
-              className="mt-1"
+              id="register-fullName"
+              className={cn('mt-1', fieldErrors.fullName && inputErrorClass)}
               value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              required
+              onChange={(e) => updateField('fullName', e.target.value)}
+              onBlur={() => onBlurValidate('fullName')}
               autoComplete="name"
+              aria-invalid={Boolean(fieldErrors.fullName)}
             />
+            <FieldError message={fieldErrors.fullName} />
           </div>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">{t('auth.email')}</label>
+            <label className="text-sm font-medium text-cardon-navy" htmlFor="register-email">
+              {t('auth.email')}
+            </label>
             <Input
-              className="mt-1"
+              id="register-email"
+              className={cn('mt-1', fieldErrors.email && inputErrorClass)}
               type="email"
               value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              required
+              onChange={(e) => updateField('email', e.target.value)}
+              onBlur={() => onBlurValidate('email')}
               autoComplete="email"
+              aria-invalid={Boolean(fieldErrors.email)}
             />
+            <FieldError message={fieldErrors.email} />
           </div>
           <div>
-            <label className="text-sm font-medium text-cardon-navy">{t('auth.phone')}</label>
+            <label className="text-sm font-medium text-cardon-navy" htmlFor="register-phone">
+              {t('auth.phone')}
+            </label>
             <Input
-              className="mt-1"
+              id="register-phone"
+              className={cn('mt-1', fieldErrors.phone && inputErrorClass)}
               type="tel"
               placeholder="0912345678"
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              onBlur={() =>
+              onChange={(e) => updateField('phone', e.target.value)}
+              onBlur={() => {
                 setForm((prev) => ({
                   ...prev,
                   phone: normalizeRegisterPhone(prev.phone) || prev.phone,
-                }))
-              }
-              required
+                }));
+                onBlurValidate('phone');
+              }}
               autoComplete="tel"
+              aria-invalid={Boolean(fieldErrors.phone)}
             />
             <p className="mt-1 text-xs text-cardon-gray">{t('auth.phoneHint')}</p>
+            <FieldError message={fieldErrors.phone} />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-medium text-cardon-navy">{t('auth.password')}</label>
+              <label className="text-sm font-medium text-cardon-navy" htmlFor="register-password">
+                {t('auth.password')}
+              </label>
               <Input
-                className="mt-1"
+                id="register-password"
+                className={cn('mt-1', fieldErrors.password && inputErrorClass)}
                 type="password"
                 value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                minLength={8}
+                onChange={(e) => updateField('password', e.target.value)}
+                onBlur={() => onBlurValidate('password')}
                 autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.password)}
               />
+              <FieldError message={fieldErrors.password} />
             </div>
             <div>
-              <label className="text-sm font-medium text-cardon-navy">{t('auth.confirmPassword')}</label>
+              <label className="text-sm font-medium text-cardon-navy" htmlFor="register-confirmPassword">
+                {t('auth.confirmPassword')}
+              </label>
               <Input
-                className="mt-1"
+                id="register-confirmPassword"
+                className={cn('mt-1', fieldErrors.confirmPassword && inputErrorClass)}
                 type="password"
                 value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                required
-                minLength={8}
+                onChange={(e) => updateField('confirmPassword', e.target.value)}
+                onBlur={() => onBlurValidate('confirmPassword')}
                 autoComplete="new-password"
+                aria-invalid={Boolean(fieldErrors.confirmPassword)}
               />
+              <FieldError message={fieldErrors.confirmPassword} />
             </div>
           </div>
-          <label className="flex items-start gap-2 text-sm text-cardon-gray">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={form.acceptTerms}
-              onChange={(e) => setForm({ ...form, acceptTerms: e.target.checked })}
-              required
+          <div>
+            <label
+              id="register-acceptTerms"
+              className={cn(
+                'flex items-start gap-2 text-sm text-cardon-gray',
+                fieldErrors.acceptTerms && 'rounded-md ring-1 ring-red-300',
+              )}
+            >
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={form.acceptTerms}
+                onChange={(e) => updateField('acceptTerms', e.target.checked)}
+                onBlur={() => onBlurValidate('acceptTerms')}
+                aria-invalid={Boolean(fieldErrors.acceptTerms)}
+              />
+              <span>
+                {t('auth.accept')}{' '}
+                <Link href="/dieu-khoan-su-dung" className="text-cardon-blue hover:underline" target="_blank">
+                  {t('auth.terms')}
+                </Link>{' '}
+                {t('auth.and')}{' '}
+                <Link href="/chinh-sach-bao-mat" className="text-cardon-blue hover:underline" target="_blank">
+                  {t('auth.privacy')}
+                </Link>
+              </span>
+            </label>
+            <FieldError message={fieldErrors.acceptTerms} />
+          </div>
+          <div id="register-captcha">
+            <TurnstileField
+              ref={captchaRef}
+              action="register"
+              onTokenChange={(token) => {
+                setCaptchaToken(token);
+                if (token) clearFieldError('captcha');
+              }}
+              label={t('auth.captchaLabel')}
+              hint={t('auth.captchaHint')}
+              pendingText={t('auth.captchaPending')}
+              readyText={t('auth.captchaReady')}
+              className={fieldErrors.captcha ? 'border-red-300' : undefined}
             />
-            <span>
-              {t('auth.accept')}{' '}
-              <Link href="/dieu-khoan-su-dung" className="text-cardon-blue hover:underline" target="_blank">
-                {t('auth.terms')}
-              </Link>{' '}
-              {t('auth.and')}{' '}
-              <Link href="/chinh-sach-bao-mat" className="text-cardon-blue hover:underline" target="_blank">
-                {t('auth.privacy')}
-              </Link>
-            </span>
-          </label>
-          <TurnstileField
-            ref={captchaRef}
-            action="register"
-            onTokenChange={setCaptchaToken}
-          />
-          {error && <p className="text-sm text-red-600">{error}</p>}
+            <FieldError message={fieldErrors.captcha} />
+          </div>
+          {formError && (
+            <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+              {formError}
+            </p>
+          )}
           <Button
             className="w-full"
             type="submit"
-            disabled={loading || (captchaRequired && !captchaToken)}
+            disabled={loading}
           >
             {loading ? t('auth.registering') : t('auth.register')}
           </Button>
+          {captchaRequired && captchaToken ? (
+            <p className="text-center text-xs text-cardon-gray">
+              {t('auth.captchaReady')}
+            </p>
+          ) : null}
         </form>
       </AuthLayout>
     </>
