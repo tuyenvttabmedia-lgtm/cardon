@@ -30,22 +30,17 @@ export class EsimAiraloWebhookController {
   ) {}
 
   @Head('low-data')
-  headLowData(
-    @Query('token') token: string | undefined,
-    @Req() req: Request,
-    @Res() res: Response,
-  ): void {
-    this.assertWebhookToken(token, req);
-    // Empty 200 — no JSON envelope / Content-Length body (Airalo accessibility check).
+  headLowData(@Res() res: Response): void {
+    // Accessibility probe only — Airalo often HEADs without preserving ?token=.
+    // Auth stays on POST (real notifications). Empty 200, no JSON body.
     // Do not set Connection: close — invalid on HTTP/2 and breaks partner probes.
     res.status(200).end();
   }
 
-  /** Some Airalo/scanner probes use GET; must not 404 during opt-in validation. */
+  /** Some Airalo/scanner probes use GET; must not 401/404 during URL validation. */
   @Get('low-data')
   @HttpCode(200)
-  getLowData(@Query('token') token: string | undefined, @Req() req: Request) {
-    this.assertWebhookToken(token, req);
+  getLowData() {
     return { ok: true };
   }
 
