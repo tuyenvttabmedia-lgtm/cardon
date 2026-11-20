@@ -36,6 +36,24 @@ describe('AbuseRateLimitService', () => {
     expect(evalImpl.mock.calls[0][0]).toBe(ABUSE_INCR_EXPIRE_LUA);
   });
 
+  it('auth_login rates both IP and emailHash when identifier is present', async () => {
+    const evalImpl = jest.fn().mockResolvedValue(1);
+    const service = build(evalImpl);
+    await service.consumeOrThrow({
+      bucket: 'auth_login',
+      ip: '1.2.3.4',
+      email: 'user@cardon.vn',
+    });
+    expect(evalImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('auth_login without email only rates IP', async () => {
+    const evalImpl = jest.fn().mockResolvedValue(1);
+    const service = build(evalImpl);
+    await service.consumeOrThrow({ bucket: 'auth_login', ip: '1.2.3.4' });
+    expect(evalImpl).toHaveBeenCalledTimes(1);
+  });
+
   it('returns 429 when any dimension exceeds limit', async () => {
     const evalImpl = jest
       .fn()

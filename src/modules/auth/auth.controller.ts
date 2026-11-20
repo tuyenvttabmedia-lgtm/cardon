@@ -111,6 +111,7 @@ export class AuthController {
     await this.abuseRateLimit.consumeOrThrow({
       bucket: 'auth_login',
       ip: extractClientIp(req),
+      email: dto.identifier,
     });
     const result = await this.authService.login(dto, activityContextFromRequest(req));
     const permissions = await this.rbacService.getPermissionsForRole(result.user.role as never);
