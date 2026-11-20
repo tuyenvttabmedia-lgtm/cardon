@@ -5,7 +5,7 @@ import { TOPUP_QUEUE_JOB } from '../entities/provider.constants';
 
 export interface TopupQueueJobData {
   orderId: string;
-  triggeredBy: 'webhook' | 'manual' | 'agent';
+  triggeredBy: 'webhook' | 'manual' | 'agent' | 'sweeper';
   attempt?: number;
 }
 

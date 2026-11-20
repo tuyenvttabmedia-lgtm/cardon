@@ -4,6 +4,7 @@ import {
   OrderPaymentStatus,
   PaymentRecordStatus,
   Prisma,
+  ProductVariantType,
 } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 
@@ -87,6 +88,52 @@ export class PaidOrderWatchdogRepository {
       orderBy: { createdAt: 'asc' },
       take: thresholds.take,
       select: this.orderSelect(),
+    });
+  }
+
+  /**
+   * PAID + PENDING long enough to re-dispatch (sweeper). CARD/TOPUP/DATA only.
+   * Excludes sandbox and eSIM-only (eSIM has its own path).
+   */
+  findPaidPendingForSweep(params: {
+    paidBefore: Date;
+    take: number;
+  }) {
+    return this.prisma.order.findMany({
+      where: {
+        deletedAt: null,
+        paymentStatus: OrderPaymentStatus.PAID,
+        fulfillmentStatus: FulfillmentStatus.PENDING,
+        ...NOT_SANDBOX,
+        OR: [
+          { activePayment: { paidAt: { lte: params.paidBefore } } },
+          {
+            activePayment: null,
+            createdAt: { lte: params.paidBefore },
+          },
+        ],
+        orderItems: {
+          some: {
+            variant: {
+              type: {
+                in: [
+                  ProductVariantType.CARD,
+                  ProductVariantType.TOPUP,
+                  ProductVariantType.DATA,
+                ],
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: params.take,
+      select: {
+        id: true,
+        orderCode: true,
+        createdAt: true,
+        activePayment: { select: { paidAt: true } },
+      },
     });
   }
 

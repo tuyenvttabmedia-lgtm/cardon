@@ -95,6 +95,22 @@ export const envValidationSchema = Joi.object({
   PAYPAL_CLIENT_ID: Joi.string().optional().allow(''),
   PAYPAL_CLIENT_SECRET: Joi.string().optional().allow(''),
   PAYPAL_WEBHOOK_ID: Joi.string().optional().allow(''),
+  PAID_PENDING_FULFILLMENT_SWEEPER_ENABLED: Joi.string().optional().allow(''),
+  PAID_PENDING_FULFILLMENT_SWEEPER_GRACE_MS: Joi.number()
+    .integer()
+    .min(30_000)
+    .max(30 * 60_000)
+    .optional(),
+  PAID_PENDING_FULFILLMENT_SWEEPER_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(15_000)
+    .max(15 * 60_000)
+    .optional(),
+  PAID_PENDING_FULFILLMENT_SWEEPER_BATCH: Joi.number()
+    .integer()
+    .min(1)
+    .max(100)
+    .optional(),
 }).custom((env, helpers) => {
   try {
     assertProductionEnv(env as Record<string, unknown>);

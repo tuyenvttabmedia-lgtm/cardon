@@ -205,4 +205,23 @@ export default () => ({
     verifyResponseSignature:
       process.env.ESALE_VERIFY_RESPONSE_SIGNATURE !== 'false',
   },
+  /**
+   * Stability pack step 2 — re-dispatch PAID+PENDING via existing fulfillment queue.
+   * Default OFF; enable only after observing stuck-order alerts.
+   */
+  fulfillmentSweeper: {
+    enabled: process.env.PAID_PENDING_FULFILLMENT_SWEEPER_ENABLED === 'true',
+    graceMs: parseInt(
+      process.env.PAID_PENDING_FULFILLMENT_SWEEPER_GRACE_MS ?? String(2 * 60 * 1000),
+      10,
+    ),
+    intervalMs: parseInt(
+      process.env.PAID_PENDING_FULFILLMENT_SWEEPER_INTERVAL_MS ?? String(60 * 1000),
+      10,
+    ),
+    batchSize: parseInt(
+      process.env.PAID_PENDING_FULFILLMENT_SWEEPER_BATCH ?? '20',
+      10,
+    ),
+  },
 });
