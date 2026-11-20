@@ -82,6 +82,22 @@ export interface DashboardCompareStats {
   };
 }
 
+/** eSIM lane summary (B2C orders with ESIM variant) — separate from retail KPIs. */
+export interface DashboardEsimLaneStats {
+  revenue: string;
+  profit: string;
+  paidOrderCount: number;
+  compare: {
+    revenuePercent: number | null;
+    paidOrderPercent: number | null;
+    previous: {
+      revenue: string;
+      profit: string;
+      paidOrderCount: number;
+    };
+  };
+}
+
 export interface DashboardPaymentAttempts {
   successAttemptCount: number;
   failedAttemptCount: number;
@@ -108,6 +124,8 @@ export interface DashboardStats {
   asOf: string;
   currency: 'VND';
   business: DashboardBusinessStats;
+  /** eSIM period summary — not mixed into retail AOV. */
+  esim: DashboardEsimLaneStats;
   payments: DashboardPaymentAttempts;
   backlog: DashboardBacklog;
   providerErrors: number;
@@ -115,9 +133,9 @@ export interface DashboardStats {
   agentStatistics: DashboardAgentStatistics;
   /** Daily ICT series for the selected period (B2C retail, exclude eSIM). */
   series: DashboardSeriesPoint[];
-  /** Revenue mix by product homeService (same retail scope). */
+  /** Revenue mix: retail homeService + eSIM lane when present. */
   breakdown: DashboardBreakdownItem[];
-  /** % change vs previous window of equal length. */
+  /** % change vs previous window of equal length (retail KPIs). */
   compare: DashboardCompareStats;
   /** Legacy fields kept for compatibility; cockpit UI must not use pendingFulfillment. */
   todayRevenue: string;

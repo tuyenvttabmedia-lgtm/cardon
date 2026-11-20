@@ -90,10 +90,13 @@ describe('Operations Cockpit C2 — health / labels / soft-fail', () => {
     const cockpit = read('components/dashboard/DashboardCockpit.tsx');
     const charts = read('components/dashboard/DashboardChartsSection.tsx');
     expect(cockpit).toContain('DashboardChartsSection');
+    expect(cockpit).toContain('DashboardEsimLaneSection');
     expect(cockpit).toContain("useState<DashboardPeriodPreset>('last7')");
     expect(cockpit).toContain('setSeries');
     expect(cockpit).toContain('setBreakdown');
     expect(cockpit).toContain('setCompare');
+    expect(cockpit).toContain('setEsim');
+    expect(cockpit).not.toContain('DashboardCategorySection');
     expect(charts).toContain('RevenueLineChart');
     expect(charts).toContain('BreakdownDonut');
   });
