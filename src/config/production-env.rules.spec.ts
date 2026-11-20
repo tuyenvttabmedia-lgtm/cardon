@@ -1,10 +1,34 @@
-import { assertProductionEnv, isUnsafeSecret } from './production-env.rules';
+import {
+  assertProductionEnv,
+  isEmptyDatabaseUrlCredentials,
+  isUnsafeSecret,
+} from './production-env.rules';
 
 describe('Production environment rules', () => {
   it('rejects unsafe JWT/ENCRYPTION placeholders', () => {
     expect(isUnsafeSecret('change-me-to-a-secure-random-string-min-32-chars')).toBe(true);
     expect(isUnsafeSecret('01234567890123456789012345678901')).toBe(true);
+    expect(isUnsafeSecret('dev-jwt-secret-change-before-production-min32')).toBe(
+      true,
+    );
+    expect(isUnsafeSecret('dev-encryption-key-change-before-production')).toBe(
+      true,
+    );
     expect(isUnsafeSecret('a'.repeat(64))).toBe(false);
+  });
+
+  it('detects empty DATABASE_URL credentials from bare compose', () => {
+    expect(isEmptyDatabaseUrlCredentials('postgresql://:@postgres:5432/db')).toBe(
+      true,
+    );
+    expect(isEmptyDatabaseUrlCredentials('postgresql://@postgres:5432/db')).toBe(
+      true,
+    );
+    expect(
+      isEmptyDatabaseUrlCredentials(
+        'postgresql://cardon:secret@postgres:5432/cardon',
+      ),
+    ).toBe(false);
   });
 
   it('requires payment, provider, SMTP keys in production', () => {

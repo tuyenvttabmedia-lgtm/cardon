@@ -1,10 +1,15 @@
 # CardOn.vn — Production Docker Compose
-# Usage:
-#   cp .env.production.example .env.production
-#   # fill secrets, then:
-#   docker compose -f docker-compose.production.yml up -d --build
 #
-# Do NOT deploy to real server until ops review is complete.
+# REQUIRED — always interpolate secrets from .env.production:
+#   ./scripts/deploy/prod-compose.sh up -d --build
+#   # equivalent:
+#   docker compose -f docker-compose.production.yml --env-file .env.production up -d --build
+#
+# NEVER omit --env-file: empty ${POSTGRES_*} recreates postgres with blank
+# credentials → API P1010 → site-wide 502 (2026-11-20 outage).
+#
+# First-time:
+#   cp .env.production.example .env.production   # fill secrets, then prod-compose.sh
 
 # Memory budget for ~2GB VPS (leave ~250MB for OS / page cache):
 # postgres 320m + redis 96m + api 384m + worker 256m + web 256m + partner 192m + admin 192m + nginx 48m

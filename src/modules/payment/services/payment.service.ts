@@ -128,22 +128,36 @@ export class PaymentService {
         }
         return this.esimPaypalPaymentService.completeOpenPayment(existing.id);
       }
-      const gatewayResponse = existing.gatewayResponse as Record<string, unknown>;
-      const checkoutFormFields = readCheckoutFormFields(gatewayResponse);
-      return mapPayment(existing, {
-        paymentUrl:
-          typeof gatewayResponse.paymentUrl === 'string'
-            ? gatewayResponse.paymentUrl
-            : undefined,
-        checkoutUrl:
-          typeof gatewayResponse.checkoutUrl === 'string'
-            ? gatewayResponse.checkoutUrl
-            : undefined,
-        checkoutFormFields,
-        checkoutClient: readCheckoutClient(gatewayResponse),
-        displayMode: readDisplayMode(gatewayResponse),
-        bankInfo: readBankInfo(gatewayResponse),
-      });
+      const replayable =
+        existing.status === PaymentRecordStatus.PENDING ||
+        existing.status === PaymentRecordStatus.SUCCESS;
+      if (!replayable) {
+        // FE reuses pay:${orderId}:${gateway}. Release the key from a dead
+        // payment so a fresh VA/QR can be created instead of replaying EXPIRED.
+        await this.prisma.payment.update({
+          where: { id: existing.id },
+          data: {
+            idempotencyKey: `released-${existing.id}-${Date.now()}`.slice(0, 128),
+          },
+        });
+      } else {
+        const gatewayResponse = existing.gatewayResponse as Record<string, unknown>;
+        const checkoutFormFields = readCheckoutFormFields(gatewayResponse);
+        return mapPayment(existing, {
+          paymentUrl:
+            typeof gatewayResponse.paymentUrl === 'string'
+              ? gatewayResponse.paymentUrl
+              : undefined,
+          checkoutUrl:
+            typeof gatewayResponse.checkoutUrl === 'string'
+              ? gatewayResponse.checkoutUrl
+              : undefined,
+          checkoutFormFields,
+          checkoutClient: readCheckoutClient(gatewayResponse),
+          displayMode: readDisplayMode(gatewayResponse),
+          bankInfo: readBankInfo(gatewayResponse),
+        });
+      }
     }
 
     const order = await this.prisma.order.findFirst({

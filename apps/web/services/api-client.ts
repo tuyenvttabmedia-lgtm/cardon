@@ -55,7 +55,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
     // Do not treat every HTML body as edge block — nginx error pages are also HTML.
     if (response.status === 403 || cfMitigated === 'challenge') {
       throw new ApiClientError(
-        'Yêu cầu bị chặn bởi bảo vệ biên (Cloudflare). Tải lại trang và thử lại; nếu vẫn lỗi, tắt Managed Challenge trên /auth/register vì Turnstile đã bảo vệ.',
+        'Yêu cầu bị chặn bởi bảo vệ biên. Tải lại trang và thử lại sau ít phút.',
         response.status || 403,
         'EDGE_BLOCKED',
       );

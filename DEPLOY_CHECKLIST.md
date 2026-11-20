@@ -27,14 +27,16 @@
 ## During deploy
 
 - [ ] Dừng traffic cũ (maintenance page nếu cần)
-- [ ] `docker compose --env-file .env.production -f docker-compose.production.yml pull` (nếu dùng registry)
-- [ ] `docker compose ... up -d postgres redis` — đợi healthy
-- [ ] `docker compose ... up -d api` — migration tự chạy (`RUN_MIGRATIONS=true`)
-- [ ] Kiểm tra log API: `prisma migrate deploy` thành công
+- [ ] **Chỉ** dùng wrapper (bắt buộc `--env-file`):
+  - `./scripts/deploy/prod-compose.sh pull` (nếu dùng registry)
+  - hoặc `docker compose -f docker-compose.production.yml --env-file .env.production …`
+- [ ] `./scripts/deploy/prod-compose.sh up -d postgres redis` — đợi healthy
+- [ ] `./scripts/deploy/prod-compose.sh up -d api` — migration tự chạy (`RUN_MIGRATIONS=true`)
+- [ ] Kiểm tra log API: `prisma migrate deploy` thành công; **không** thấy `FATAL: DATABASE_URL missing`
 - [ ] **Không** chạy `prisma db seed` trên production
-- [ ] `docker compose ... up -d worker` — đợi heartbeat
-- [ ] `docker compose ... up -d web partner admin nginx`
-- [ ] `docker compose ps` — tất cả healthy
+- [ ] `./scripts/deploy/prod-compose.sh up -d worker` — đợi heartbeat
+- [ ] `./scripts/deploy/prod-compose.sh up -d web partner admin nginx`
+- [ ] `./scripts/deploy/prod-compose.sh ps` — tất cả healthy
 
 ## After deploy
 
@@ -65,3 +67,4 @@
 - Expose postgres/redis ports ra public
 - Commit `.env.production` hoặc SSL private keys
 - Deploy với `localhost` trong `NEXT_PUBLIC_*` URLs
+- **`docker compose -f docker-compose.production.yml up/build` không có `--env-file .env.production`** (làm trống POSTGRES_* → outage toàn site)

@@ -83,6 +83,8 @@ export class NotificationQueueProducer {
   }
 
   enqueueCardDelivery(orderId: string, email: string) {
+    // Include timestamp so admin/customer "resend email" is not silently
+    // dropped by BullMQ when a prior jobId still sits in completed/failed.
     return this.enqueue(
       {
         channel: NOTIFICATION_CHANNEL.EMAIL,
@@ -90,7 +92,7 @@ export class NotificationQueueProducer {
         recipientEmail: email,
         payload: { orderId },
       },
-      `email-card-delivery-${orderId}`,
+      `email-card-delivery-${orderId}-${Date.now()}`,
     );
   }
 

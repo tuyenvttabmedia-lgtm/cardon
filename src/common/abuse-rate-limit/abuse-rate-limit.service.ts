@@ -184,14 +184,23 @@ export class AbuseRateLimitService implements OnModuleDestroy {
       maxRetriesPerRequest: 1,
       enableReadyCheck: true,
       connectTimeout: Math.max(commandTimeoutMs, 1000),
-      commandTimeout: commandTimeoutMs,
+      // 100ms was too aggressive under Redis blips → login/register 503 storms.
+      commandTimeout: Math.max(commandTimeoutMs, 500),
       lazyConnect: true,
-      retryStrategy: (times) => (times > 2 ? null : Math.min(times * 100, 500)),
+      // Never give up reconnecting; clear cached client so the next call reconnects.
+      retryStrategy: (times) => Math.min(times * 200, 2000),
     });
 
     client.on('error', (err) => {
       this.logger.warn(`abuse_redis_client_error ${err.message}`);
     });
+    const dropClient = () => {
+      if (this.client === client) {
+        this.client = null;
+      }
+    };
+    client.on('end', dropClient);
+    client.on('close', dropClient);
 
     try {
       await client.connect();

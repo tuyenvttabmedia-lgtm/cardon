@@ -4,8 +4,19 @@ export const UNSAFE_SECRET_PATTERNS = [
   /^your-secret/i,
   /^test-secret/i,
   /^dev-secret/i,
+  /^dev-jwt-secret/i,
+  /^dev-encryption-key/i,
   /^01234567890123456789012345678901$/,
 ];
+
+/** Compose without --env-file yields postgresql://:@host/... (empty user). */
+export function isEmptyDatabaseUrlCredentials(url: string | undefined): boolean {
+  if (!url || !url.trim()) {
+    return true;
+  }
+  // After scheme://, a leading ":" or "@" means the username is empty.
+  return /^(postgres|postgresql):\/\/[:@]/i.test(url.trim());
+}
 
 export function isUnsafeSecret(value: string | undefined): boolean {
   if (!value || value.trim().length === 0) {
@@ -30,6 +41,15 @@ export function assertProductionEnv(env: Record<string, unknown>): void {
     if (typeof value === 'string' && isUnsafeSecret(value)) {
       errors.push(`${key} uses an unsafe development placeholder`);
     }
+  }
+
+  if (
+    typeof env.DATABASE_URL === 'string' &&
+    isEmptyDatabaseUrlCredentials(env.DATABASE_URL)
+  ) {
+    errors.push(
+      'DATABASE_URL is missing DB user/password (deploy with --env-file .env.production)',
+    );
   }
 
   if (!env.APP_PUBLIC_URL) {

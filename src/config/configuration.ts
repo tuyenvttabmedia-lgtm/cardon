@@ -60,7 +60,7 @@ export default () => ({
   abuseRateLimit: {
     enabled: process.env.ABUSE_RATE_LIMIT_ENABLED !== 'false',
     redisUrl: process.env.REDIS_ABUSE_URL || undefined,
-    commandTimeoutMs: parseInt(process.env.ABUSE_REDIS_COMMAND_TIMEOUT_MS ?? '100', 10),
+    commandTimeoutMs: parseInt(process.env.ABUSE_REDIS_COMMAND_TIMEOUT_MS ?? '500', 10),
     supportOpenCapEnabled: process.env.SUPPORT_OPEN_CAP_ENABLED !== 'false',
     supportOpenCap: parseInt(process.env.SUPPORT_OPEN_CAP ?? '5', 10),
   },
