@@ -21,17 +21,14 @@ export class NotificationService {
     private readonly orderEvents: OrderEventService,
   ) {}
 
-  notifyUserRegister(email: string, verifyToken: string, fullName?: string) {
-    const baseUrl = this.configService.get<string>('appPublicUrl') ?? 'https://cardon.vn';
-    return this.producer.enqueueUserRegister(
-      email,
-      `${baseUrl}/verify-email?token=${encodeURIComponent(verifyToken)}`,
-      fullName,
-    );
+  /** Retail welcome — no email-verification CTA (account is active at register). */
+  notifyUserRegister(email: string, fullName?: string) {
+    return this.producer.enqueueUserRegister(email, fullName);
   }
 
+  /** Agent onboarding — includes partner verify URL. */
   notifyAgentRegister(email: string, verifyUrl: string, fullName?: string) {
-    return this.producer.enqueueUserRegister(email, verifyUrl, fullName);
+    return this.producer.enqueueUserRegister(email, fullName, verifyUrl);
   }
 
   notifyPasswordReset(email: string, resetToken: string) {

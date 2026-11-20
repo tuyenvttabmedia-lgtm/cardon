@@ -31,13 +31,16 @@ export class NotificationQueueProducer {
     });
   }
 
-  enqueueUserRegister(email: string, verifyUrl: string, fullName?: string) {
+  enqueueUserRegister(email: string, fullName?: string, verifyUrl?: string) {
     return this.enqueue(
       {
         channel: NOTIFICATION_CHANNEL.EMAIL,
         template: EMAIL_TEMPLATE.USER_REGISTER,
         recipientEmail: email,
-        payload: { verifyUrl, fullName: fullName ?? '' },
+        payload: {
+          fullName: fullName ?? '',
+          ...(verifyUrl ? { verifyUrl } : {}),
+        },
       },
       `email-user-register-${email}`,
     );

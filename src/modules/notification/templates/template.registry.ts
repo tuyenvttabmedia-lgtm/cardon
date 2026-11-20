@@ -104,12 +104,22 @@ function renderEnglishEmail(
   data: Record<string, unknown>,
 ): RenderedEmail | null {
   switch (template) {
-    case 'USER_REGISTER':
+    case 'USER_REGISTER': {
+      const name = escapeHtml(String(data.fullName ?? 'there'));
+      const verifyUrl = String(data.verifyUrl ?? '').trim();
+      if (verifyUrl) {
+        return {
+          subject: 'Welcome to CardOn.vn — verify your email',
+          html: `<p>Hello ${name},</p><p>Thanks for creating a CardOn partner account.</p><p><a href="${escapeHtml(verifyUrl)}">Verify your email</a></p>`,
+          text: `Welcome to CardOn.vn. Verify your email: ${verifyUrl}`,
+        };
+      }
       return {
         subject: 'Welcome to CardOn.vn',
-        html: `<p>Hello ${escapeHtml(String(data.fullName ?? 'there'))},</p><p>Thanks for creating a CardOn.vn account.</p><p><a href="${escapeHtml(String(data.verifyUrl ?? ''))}">Verify your email</a></p>`,
-        text: `Welcome to CardOn.vn. Verify your email: ${String(data.verifyUrl ?? '')}`,
+        html: `<p>Hello ${name},</p><p>Your CardOn.vn account is ready. Sign in with this email to buy cards, top up, and track orders.</p>`,
+        text: `Welcome to CardOn.vn. Your account is ready — sign in with this email to buy cards and track orders.`,
       };
+    }
     case 'PASSWORD_RESET':
       return {
         subject: 'Reset your CardOn.vn password',
@@ -197,10 +207,18 @@ export function renderEmailTemplate(
     case 'USER_REGISTER': {
       const name = String(data.fullName ?? '').trim();
       const greeting = name ? escapeHtml(name) : 'bạn';
+      const verifyUrl = String(data.verifyUrl ?? '').trim();
+      if (verifyUrl) {
+        return {
+          subject: 'Xác minh tài khoản đối tác CardOn.vn',
+          html: `<p>Xin chào ${greeting},</p><p>Cảm ơn bạn đã đăng ký tài khoản đối tác CardOn.vn.</p><p>Vui lòng xác minh email: <a href="${escapeHtml(verifyUrl)}">Xác minh tài khoản</a></p>`,
+          text: `Xin chào ${name || 'bạn'},\nCảm ơn bạn đã đăng ký đối tác CardOn.vn.\nXác minh email: ${verifyUrl}`,
+        };
+      }
       return {
         subject: 'Chào mừng đến với CardOn.vn',
-        html: `<p>Xin chào ${greeting},</p><p>Cảm ơn bạn đã đăng ký tài khoản CardOn.vn.</p><p>Vui lòng xác minh email: <a href="${escapeHtml(String(data.verifyUrl ?? ''))}">Xác minh tài khoản</a></p>`,
-        text: `Xin chào ${name || 'bạn'},\nCảm ơn bạn đã đăng ký CardOn.vn.\nXác minh email: ${String(data.verifyUrl ?? '')}`,
+        html: `<p>Xin chào ${greeting},</p><p>Tài khoản CardOn.vn của bạn đã sẵn sàng. Đăng nhập bằng email này để mua thẻ, nạp cước và theo dõi đơn hàng.</p>`,
+        text: `Xin chào ${name || 'bạn'},\nTài khoản CardOn.vn đã sẵn sàng. Đăng nhập bằng email này để mua thẻ và theo dõi đơn hàng.`,
       };
     }
     case 'PASSWORD_RESET':

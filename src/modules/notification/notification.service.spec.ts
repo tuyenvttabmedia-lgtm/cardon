@@ -38,13 +38,9 @@ describe('Phase 4C Notification', () => {
         { record: jest.fn() } as never,
       );
 
-      await service.notifyUserRegister('user@cardon.vn', 'verify-token-abc');
+      await service.notifyUserRegister('user@cardon.vn', 'Nguyen Van A');
 
-      expect(enqueue).toHaveBeenCalledWith(
-        'user@cardon.vn',
-        'https://cardon.vn/verify-email?token=verify-token-abc',
-        undefined,
-      );
+      expect(enqueue).toHaveBeenCalledWith('user@cardon.vn', 'Nguyen Van A');
     });
 
     it('NotificationQueueProducer configures retry on enqueue', async () => {
