@@ -14,13 +14,11 @@ import { TokenService } from './token.service';
 
 function validRegisterDto(): RegisterDto {
   const dto = new RegisterDto();
-  dto.username = 'customer01';
   dto.fullName = 'Nguyen Van A';
   dto.email = 'customer@cardon.vn';
   dto.phone = '0912345678';
   dto.password = 'password123';
   dto.confirmPassword = 'password123';
-  dto.identityNumber = '123456789012';
   dto.acceptTerms = true;
   return dto;
 }
@@ -164,7 +162,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     );
   });
 
-  it('stores profile fields, encrypts identity number, and issues a session', async () => {
+  it('stores profile fields, derives username from email, and issues a session', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue(activeUser);
     prisma.emailVerificationToken.create.mockResolvedValue({});
@@ -175,20 +173,25 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
 
     expect(result.accessToken).toBeDefined();
     expect(result.user.email).toBe('customer@cardon.vn');
-    expect(settingsEncryption.encrypt).toHaveBeenCalledWith('123456789012');
+    expect(settingsEncryption.encrypt).not.toHaveBeenCalled();
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          username: 'customer01',
+          username: 'customer',
           fullName: 'Nguyen Van A',
           phone: '0912345678',
-          identityNumberEnc: 'enc:identity',
+          email: 'customer@cardon.vn',
           acceptedTermsAt: expect.any(Date),
           emailVerifiedAt: expect.any(Date),
         }),
       }),
     );
     expect(prisma.refreshToken.create).toHaveBeenCalled();
+  });
+
+  it('accepts registration without username or identity number', async () => {
+    const errors = await validate(validRegisterDto());
+    expect(errors).toHaveLength(0);
   });
 
   it('rejects duplicate email with generic conflict', async () => {
@@ -217,13 +220,13 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     expect(prisma.user.create).toHaveBeenCalled();
   });
 
-  it('allocates a suffixed username when preferred username is taken', async () => {
+  it('allocates a suffixed username when email local-part handle is taken', async () => {
     prisma.user.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) => {
       if (where.email) return Promise.resolve(null);
-      if (where.username === 'customer01') return Promise.resolve({ id: 'other-user' });
+      if (where.username === 'customer') return Promise.resolve({ id: 'other-user' });
       return Promise.resolve(null);
     });
-    prisma.user.create.mockResolvedValue({ ...activeUser, username: 'customer01_1234' });
+    prisma.user.create.mockResolvedValue({ ...activeUser, username: 'customer_1234' });
     prisma.emailVerificationToken.create.mockResolvedValue({});
     prisma.refreshToken.create.mockResolvedValue({});
 
@@ -232,7 +235,7 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     expect(prisma.user.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          username: expect.stringMatching(/^customer01_\d{4}$/),
+          username: expect.stringMatching(/^customer_\d{4}$/),
           email: 'customer@cardon.vn',
         }),
       }),

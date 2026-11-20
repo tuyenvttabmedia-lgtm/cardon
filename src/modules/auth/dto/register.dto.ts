@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { Match } from '../../../common/decorators/match.decorator';
 import {
@@ -17,7 +18,15 @@ import {
 import { normalizeRegisterUsername } from '../entities/normalize-register-username';
 
 export class RegisterDto {
-  @Transform(({ value }) => normalizeRegisterUsername(value))
+  /**
+   * Optional display alias — login identity is email.
+   * Empty/omitted → server derives a free handle from the email local-part.
+   */
+  @Transform(({ value }) => {
+    const normalized = normalizeRegisterUsername(value);
+    return normalized.length > 0 ? normalized : undefined;
+  })
+  @IsOptional()
   @IsString()
   @MinLength(3, {
     message: 'Username must be at least 3 characters (letters, numbers, underscores)',
@@ -26,7 +35,7 @@ export class RegisterDto {
   @Matches(/^[a-zA-Z0-9_]+$/, {
     message: 'Username may only contain letters, numbers, and underscores',
   })
-  username!: string;
+  username?: string;
 
   @IsString()
   @MinLength(2)
@@ -55,8 +64,10 @@ export class RegisterDto {
   @Match('password', { message: 'Password confirmation does not match' })
   confirmPassword!: string;
 
+  /** Optional legacy field — retail form no longer collects CCCD/CMND. */
   @Transform(({ value }) => normalizeIdentityNumber(value))
   @IsOptional()
+  @ValidateIf((_, v) => v != null && v !== '')
   @IsString()
   @Matches(/^[0-9]{9,12}$/, {
     message: 'Identity number must be 9–12 digits',

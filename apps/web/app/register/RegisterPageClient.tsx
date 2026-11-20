@@ -19,11 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { RegisterPayload } from '@/types/api';
 import { useLocale, useT } from '@/components/i18n/LocaleProvider';
 import { customerFacingError } from '@/lib/i18n/customer-error';
-import {
-  normalizeIdentityNumber,
-  normalizeRegisterPhone,
-} from '@/lib/normalize-register-phone';
-import { normalizeRegisterUsername } from '@/lib/normalize-register-username';
+import { normalizeRegisterPhone } from '@/lib/normalize-register-phone';
 import { safeInternalPath } from '@/lib/safe-redirect';
 
 function RegisterForm() {
@@ -39,13 +35,11 @@ function RegisterForm() {
   const captchaRequired = isTurnstileSiteKeyConfigured(turnstileSiteKey);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [form, setForm] = useState<RegisterPayload>({
-    username: '',
     fullName: '',
     email: prefillEmail,
     phone: '',
     password: '',
     confirmPassword: '',
-    identityNumber: '',
     acceptTerms: false,
   });
   const [error, setError] = useState<string | null>(null);
@@ -71,30 +65,21 @@ function RegisterForm() {
       setError('Vui lòng hoàn tất xác minh bảo mật trước khi đăng ký.');
       return;
     }
-    const username = normalizeRegisterUsername(form.username) || normalizeRegisterUsername(form.email);
-    if (username.length < 3) {
-      setError(t('auth.usernameHint'));
-      return;
-    }
     const phone = normalizeRegisterPhone(form.phone);
     if (!/^(\+84|0)[0-9]{9,10}$/.test(phone)) {
       setError(t('auth.phoneInvalid'));
-      return;
-    }
-    const identityNumber = normalizeIdentityNumber(form.identityNumber);
-    if (identityNumber && !/^[0-9]{9,12}$/.test(identityNumber)) {
-      setError(t('auth.identityHint'));
       return;
     }
     setLoading(true);
     setError(null);
     try {
       await register({
-        ...form,
-        username,
+        fullName: form.fullName.trim(),
         phone,
         email: form.email.trim().toLowerCase(),
-        identityNumber,
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        acceptTerms: form.acceptTerms,
         captchaToken: captchaToken || undefined,
       });
       setToast(t('auth.registerOk'));
@@ -134,36 +119,15 @@ function RegisterForm() {
         }
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="text-sm font-medium text-cardon-navy">{t('auth.username')}</label>
-              <Input
-                className="mt-1"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                onBlur={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    username: normalizeRegisterUsername(prev.username) || prev.username,
-                  }))
-                }
-                required
-                minLength={3}
-                autoComplete="username"
-                placeholder="vd: nguyen_van_a"
-              />
-              <p className="mt-1 text-xs text-cardon-gray">{t('auth.usernameHint')}</p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-cardon-navy">{t('auth.fullName')}</label>
-              <Input
-                className="mt-1"
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-                required
-                autoComplete="name"
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium text-cardon-navy">{t('auth.fullName')}</label>
+            <Input
+              className="mt-1"
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              required
+              autoComplete="name"
+            />
           </div>
           <div>
             <label className="text-sm font-medium text-cardon-navy">{t('auth.email')}</label>
@@ -194,23 +158,6 @@ function RegisterForm() {
               autoComplete="tel"
             />
             <p className="mt-1 text-xs text-cardon-gray">{t('auth.phoneHint')}</p>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-cardon-navy">{t('auth.identity')}</label>
-            <Input
-              className="mt-1"
-              inputMode="numeric"
-              value={form.identityNumber ?? ''}
-              onChange={(e) => setForm({ ...form, identityNumber: e.target.value })}
-              onBlur={() =>
-                setForm((prev) => ({
-                  ...prev,
-                  identityNumber: normalizeIdentityNumber(prev.identityNumber) ?? '',
-                }))
-              }
-              autoComplete="off"
-            />
-            <p className="mt-1 text-xs text-cardon-gray">{t('auth.identityHint')}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

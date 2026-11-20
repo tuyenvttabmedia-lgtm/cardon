@@ -292,12 +292,14 @@ export interface AuthUser {
 }
 
 export interface RegisterPayload {
-  username: string;
+  /** Optional; server derives from email when omitted. */
+  username?: string;
   fullName: string;
   email: string;
   phone: string;
   password: string;
   confirmPassword: string;
+  /** Optional legacy field — retail form no longer collects CCCD/CMND. */
   identityNumber?: string;
   acceptTerms: boolean;
   /** Cloudflare Turnstile token when Site Key is configured. */
