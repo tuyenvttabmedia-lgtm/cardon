@@ -57,3 +57,33 @@ export function resolveDashboardPeriodRange(
     timezone: 'Asia/Ho_Chi_Minh',
   };
 }
+
+/** Previous window of the same length, ending the day before `range.dateFrom`. */
+export function resolvePreviousDashboardPeriodRange(
+  range: DashboardPeriodRange,
+): Pick<
+  DashboardPeriodRange,
+  'dateFrom' | 'dateTo' | 'fromInclusive' | 'toExclusive' | 'timezone'
+> {
+  const dayCount =
+    Math.round(
+      (vietnamDayBounds(range.dateTo).start.getTime() -
+        vietnamDayBounds(range.dateFrom).start.getTime()) /
+        (24 * 60 * 60 * 1000),
+    ) + 1;
+  const dateTo = shiftVietnamDate(range.dateFrom, -1);
+  const dateFrom = shiftVietnamDate(dateTo, -(Math.max(dayCount, 1) - 1));
+  return {
+    dateFrom,
+    dateTo,
+    fromInclusive: vietnamDayBounds(dateFrom).start,
+    toExclusive: vietnamDayBounds(dateTo).endExclusive,
+    timezone: range.timezone,
+  };
+}
+
+export function percentChange(current: number, previous: number): number | null {
+  if (!Number.isFinite(current) || !Number.isFinite(previous)) return null;
+  if (previous === 0) return current === 0 ? 0 : null;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}

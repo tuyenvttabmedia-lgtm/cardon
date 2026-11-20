@@ -25,6 +25,7 @@ function createPrismaMock() {
     agent: {
       groupBy: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   };
 }
 
@@ -41,21 +42,31 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
   });
 
   function setupCounts(prisma: ReturnType<typeof createPrismaMock>) {
-    prisma.order.aggregate.mockResolvedValue({
-      _sum: {
-        sellAmount: new Decimal('100000.00'),
-        providerCost: new Decimal('70000.00'),
-        paymentFeeAmount: new Decimal('1500.00'),
-      },
-    });
-    // paid, created, pending, processing, waitingAdminRetry, needManualReview
+    // current period + previous period aggregates
+    prisma.order.aggregate
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('100000.00'),
+          providerCost: new Decimal('70000.00'),
+          paymentFeeAmount: new Decimal('1500.00'),
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('80000.00'),
+          providerCost: new Decimal('56000.00'),
+          paymentFeeAmount: new Decimal('1200.00'),
+        },
+      });
+    // paid, created, pending, processing, waitingAdminRetry, needManualReview, previousPaid
     prisma.order.count
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(9)
       .mockResolvedValueOnce(2)
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(3);
+      .mockResolvedValueOnce(3)
+      .mockResolvedValueOnce(2);
     prisma.payment.count.mockResolvedValueOnce(5).mockResolvedValueOnce(2);
     prisma.providerLog.count.mockResolvedValue(7);
     prisma.agent.groupBy.mockResolvedValue([
@@ -64,6 +75,27 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
       { status: AgentStatus.SUSPENDED, _count: { id: 0 } },
       { status: AgentStatus.REJECTED, _count: { id: 1 } },
     ]);
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        {
+          day: '2026-03-15',
+          revenue: new Decimal('100000.00'),
+          profit: new Decimal('28500.00'),
+          paid_orders: 4,
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          service: 'GAME_CARD',
+          order_count: 3,
+          revenue: new Decimal('75000.00'),
+        },
+        {
+          service: 'TOPUP',
+          order_count: 1,
+          revenue: new Decimal('25000.00'),
+        },
+      ]);
   }
 
   it('aggregates business / payment / backlog / provider / agent without findMany', async () => {
@@ -73,10 +105,11 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
 
     const result = await repo.getDashboardStats('today');
 
-    expect(prisma.order.aggregate).toHaveBeenCalledTimes(1);
-    expect(prisma.order.count).toHaveBeenCalledTimes(6);
+    expect(prisma.order.aggregate).toHaveBeenCalledTimes(2);
+    expect(prisma.order.count).toHaveBeenCalledTimes(7);
     expect(prisma.payment.count).toHaveBeenCalledTimes(2);
     expect(prisma.providerLog.count).toHaveBeenCalledTimes(1);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
     expect((prisma as { order: { findMany?: unknown } }).order.findMany).toBeUndefined();
 
     expect(result.period).toEqual({
@@ -93,6 +126,7 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
       gatewayFee: '1500.00',
       paidOrderCount: 4,
       createdOrderCount: 9,
+      averageOrderValue: '25000.00',
     });
     expect(result.payments).toEqual({
       successAttemptCount: 5,
@@ -112,6 +146,41 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
       pendingKyc: 1,
       suspended: 0,
       rejected: 1,
+    });
+    expect(result.series).toEqual([
+      {
+        date: '2026-03-15',
+        revenue: '100000.00',
+        profit: '28500.00',
+        paidOrders: 4,
+      },
+    ]);
+    expect(result.breakdown).toEqual([
+      {
+        service: 'GAME_CARD',
+        label: 'Thẻ game',
+        revenue: '75000.00',
+        orderCount: 3,
+        sharePercent: 75,
+      },
+      {
+        service: 'TOPUP',
+        label: 'Nạp tiền',
+        revenue: '25000.00',
+        orderCount: 1,
+        sharePercent: 25,
+      },
+    ]);
+    expect(result.compare).toMatchObject({
+      revenuePercent: 25,
+      paidOrderPercent: 100,
+      previous: {
+        dateFrom: '2026-03-14',
+        dateTo: '2026-03-14',
+        revenue: '80000.00',
+        paidOrderCount: 2,
+        averageOrderValue: '40000.00',
+      },
     });
     // Legacy fields for pre-C2 FE
     expect(result.todayRevenue).toBe('100000.00');
@@ -148,19 +217,29 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
   it('profit formula matches Orders Summary: sellAmount − providerCost − paymentFeeAmount', async () => {
     const prisma = createPrismaMock();
     setupCounts(prisma);
-    prisma.order.aggregate.mockResolvedValue({
-      _sum: {
-        sellAmount: new Decimal('50000.00'),
-        providerCost: new Decimal('30000.00'),
-        paymentFeeAmount: new Decimal('500.00'),
-      },
-    });
+    prisma.order.aggregate
+      .mockReset()
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('50000.00'),
+          providerCost: new Decimal('30000.00'),
+          paymentFeeAmount: new Decimal('500.00'),
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('0'),
+          providerCost: new Decimal('0'),
+          paymentFeeAmount: new Decimal('0'),
+        },
+      });
     const repo = new AdminRepository(prisma as never);
     const result = await repo.getDashboardStats('today');
     expect(result.business.revenue).toBe('50000.00');
     expect(result.business.providerCost).toBe('30000.00');
     expect(result.business.gatewayFee).toBe('500.00');
     expect(result.business.profit).toBe('19500.00');
+    expect(result.business.averageOrderValue).toBe('12500.00');
   });
 
   it('B5 uses paidAt; D1 uses updatedAt; both scope via retail order', async () => {

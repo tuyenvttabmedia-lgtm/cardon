@@ -78,13 +78,24 @@ describe('Operations Cockpit C2 — health / labels / soft-fail', () => {
   it('labels payment attempts and system-wide provider errors', () => {
     const business = read('components/dashboard/DashboardBusinessSection.tsx');
     const pay = read('components/dashboard/DashboardPayProviderSection.tsx');
-    expect(business).toContain('paymentSuccessHint');
-    // VQA-2: hint only on StatCard — not duplicated under the grid.
-    expect(business.match(/paymentSuccessHint/g)?.length).toBe(1);
-    expect(business).not.toMatch(/<\/div>\s*<p className="text-xs text-slate-400">\{vi\.dashboard\.paymentSuccessHint\}<\/p>/);
+    expect(business).toContain('averageOrderValue');
+    expect(business).toContain('CompareBadge');
     expect(pay).toContain('providerErrorsSystem');
     expect(pay).toContain('providerErrorsHint');
+    expect(pay).toContain('alertsTitle');
     expect(pay).not.toContain('pendingFulfillment');
+  });
+
+  it('renders charts + series/breakdown wiring in cockpit', () => {
+    const cockpit = read('components/dashboard/DashboardCockpit.tsx');
+    const charts = read('components/dashboard/DashboardChartsSection.tsx');
+    expect(cockpit).toContain('DashboardChartsSection');
+    expect(cockpit).toContain("useState<DashboardPeriodPreset>('last7')");
+    expect(cockpit).toContain('setSeries');
+    expect(cockpit).toContain('setBreakdown');
+    expect(cockpit).toContain('setCompare');
+    expect(charts).toContain('RevenueLineChart');
+    expect(charts).toContain('BreakdownDonut');
   });
 
   it('C2.1: AdminShell hides role chip below sm (no overflow-x cover)', () => {

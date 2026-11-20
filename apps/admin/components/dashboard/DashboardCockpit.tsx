@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardHealthSection } from '@/components/dashboard/DashboardHealthSection';
 import { DashboardBusinessSection } from '@/components/dashboard/DashboardBusinessSection';
+import { DashboardChartsSection } from '@/components/dashboard/DashboardChartsSection';
+import { DashboardCategorySection } from '@/components/dashboard/DashboardCategorySection';
 import { DashboardOrderOpsSection } from '@/components/dashboard/DashboardOrderOpsSection';
 import { DashboardPayProviderSection } from '@/components/dashboard/DashboardPayProviderSection';
 import { DashboardAgentSection } from '@/components/dashboard/DashboardAgentSection';
@@ -23,10 +25,13 @@ import {
 import type {
   DashboardAgentStatistics,
   DashboardBacklog,
+  DashboardBreakdownItem,
   DashboardBusinessStats,
+  DashboardCompareStats,
   DashboardPaymentAttempts,
   DashboardPeriodInfo,
   DashboardPeriodPreset,
+  DashboardSeriesPoint,
   DashboardStats,
   SystemActivityLog,
   SystemHealthSummary,
@@ -42,7 +47,7 @@ export function DashboardCockpit() {
   const { can } = useAuth();
   const trackerRef = useRef(new LatestRequestTracker<LoadKey>());
 
-  const [period, setPeriod] = useState<DashboardPeriodPreset>('today');
+  const [period, setPeriod] = useState<DashboardPeriodPreset>('last7');
   const [periodInfo, setPeriodInfo] = useState<DashboardPeriodInfo | null>(null);
   const [asOf, setAsOf] = useState<string | null>(null);
 
@@ -52,6 +57,9 @@ export function DashboardCockpit() {
   const [providerErrorsScope, setProviderErrorsScope] = useState<'SYSTEM' | null>(null);
   const [backlog, setBacklog] = useState<DashboardBacklog | null>(null);
   const [agents, setAgents] = useState<DashboardAgentStatistics | null>(null);
+  const [series, setSeries] = useState<DashboardSeriesPoint[] | null>(null);
+  const [breakdown, setBreakdown] = useState<DashboardBreakdownItem[] | null>(null);
+  const [compare, setCompare] = useState<DashboardCompareStats | null>(null);
 
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [periodLoading, setPeriodLoading] = useState(false);
@@ -77,6 +85,9 @@ export function DashboardCockpit() {
     setProviderErrorsScope(data.providerErrorsScope);
     setBacklog(data.backlog);
     setAgents(data.agentStatistics);
+    setSeries(data.series ?? []);
+    setBreakdown(data.breakdown ?? []);
+    setCompare(data.compare ?? null);
   }, []);
 
   /** Period change: update period-bound KPIs only; keep backlog/agent snapshot. */
@@ -87,6 +98,9 @@ export function DashboardCockpit() {
     setPayments(data.payments);
     setProviderErrors(data.providerErrors);
     setProviderErrorsScope(data.providerErrorsScope);
+    setSeries(data.series ?? []);
+    setBreakdown(data.breakdown ?? []);
+    setCompare(data.compare ?? null);
   }, []);
 
   const loadMetrics = useCallback(
@@ -110,6 +124,9 @@ export function DashboardCockpit() {
           setProviderErrorsScope(null);
           setBacklog(null);
           setAgents(null);
+          setSeries(null);
+          setBreakdown(null);
+          setCompare(null);
         }
       } finally {
         if (trackerRef.current.isLatest(token)) {
@@ -169,7 +186,7 @@ export function DashboardCockpit() {
   }, [loadActivity, loadHealth, loadMetrics, period]);
 
   useEffect(() => {
-    void loadMetrics('today', 'full');
+    void loadMetrics('last7', 'full');
     void loadHealth();
     void loadActivity();
   }, [loadActivity, loadHealth, loadMetrics]);
@@ -211,28 +228,54 @@ export function DashboardCockpit() {
         period={periodInfo}
         business={business}
         payments={payments}
+        compare={compare}
+        series={series}
         loading={metricsBusy && !business}
         error={metricsError && !business ? metricsError : null}
         onRetry={() => void loadMetrics(period, 'full')}
       />
 
-      <DashboardOrderOpsSection
-        backlog={backlog}
-        loading={metricsLoading && !backlog}
-        error={metricsError && !backlog ? metricsError : null}
+      <DashboardChartsSection
+        series={series}
+        breakdown={breakdown}
+        loading={metricsBusy && !series}
+        error={metricsError && !series ? metricsError : null}
         onRetry={() => void loadMetrics(period, 'full')}
       />
 
-      <DashboardPayProviderSection
-        failedAttemptCount={payments?.failedAttemptCount ?? null}
-        providerErrors={providerErrors}
-        providerErrorsScope={providerErrorsScope}
-        loading={metricsBusy && payments == null}
-        error={metricsError && payments == null ? metricsError : null}
-        canPayments={can('payments.view')}
-        canProviders={can('providers.manage')}
-        canOperations={can('reconciliation.read') || can('finance.view') || can('operations.manage')}
+      <DashboardCategorySection
+        breakdown={breakdown}
+        loading={metricsBusy && !breakdown}
+        error={metricsError && !breakdown ? metricsError : null}
         onRetry={() => void loadMetrics(period, 'full')}
+      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <DashboardOrderOpsSection
+          backlog={backlog}
+          loading={metricsLoading && !backlog}
+          error={metricsError && !backlog ? metricsError : null}
+          onRetry={() => void loadMetrics(period, 'full')}
+        />
+
+        <DashboardPayProviderSection
+          failedAttemptCount={payments?.failedAttemptCount ?? null}
+          providerErrors={providerErrors}
+          providerErrorsScope={providerErrorsScope}
+          loading={metricsBusy && payments == null}
+          error={metricsError && payments == null ? metricsError : null}
+          canPayments={can('payments.view')}
+          canProviders={can('providers.manage')}
+          canOperations={can('reconciliation.read') || can('finance.view') || can('operations.manage')}
+          onRetry={() => void loadMetrics(period, 'full')}
+        />
+      </div>
+
+      <DashboardActivitySection
+        visible={canActivity && activityVisible}
+        items={activityItems}
+        loading={activityLoading}
+        onRetry={() => void loadActivity()}
       />
 
       <DashboardAgentSection
@@ -241,13 +284,6 @@ export function DashboardCockpit() {
         error={metricsError && !agents ? metricsError : null}
         canAgents={can('users.read')}
         onRetry={() => void loadMetrics(period, 'full')}
-      />
-
-      <DashboardActivitySection
-        visible={canActivity && activityVisible}
-        items={activityItems}
-        loading={activityLoading}
-        onRetry={() => void loadActivity()}
       />
     </div>
   );
