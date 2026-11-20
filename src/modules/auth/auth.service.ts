@@ -12,6 +12,7 @@ import {
   SystemActivitySeverity,
   SystemActivitySource,
 } from '@prisma/client';
+import { randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { ErrorCode } from '../../common/constants/error-codes.constants';
 import { EmailPolicyService } from '../../common/email-policy/email-policy.service';
@@ -41,6 +42,8 @@ import {
 
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000;
+const REGISTER_USERNAME_MAX_LEN = 32;
+const REGISTER_USERNAME_ATTEMPTS = 8;
 
 @Injectable()
 export class AuthService {
@@ -60,25 +63,19 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthResult> {
     this.maintenanceAvailability.assertLoginAllowed(UserRole.CUSTOMER);
     const email = dto.email.trim().toLowerCase();
-    const username = dto.username.trim().toLowerCase();
+    const preferredUsername = dto.username.trim().toLowerCase();
     const phone = dto.phone.trim();
 
     this.emailPolicy.assertRegistrationEmailAllowed(email);
 
-    const [existingEmail, existingUsername, existingPhone] = await Promise.all([
-      this.prisma.user.findFirst({
-        where: { email, deletedAt: null },
-      }),
-      this.prisma.user.findFirst({
-        where: { username, deletedAt: null },
-      }),
-      this.prisma.user.findFirst({
-        where: { phone, deletedAt: null },
-      }),
-    ]);
-
-    // Single conflict copy — do not reveal which field collided (enumeration).
-    if (existingEmail || existingUsername || existingPhone) {
+    // Login identity is email — only email uniqueness blocks registration.
+    // Phone is not unique in schema (shared family numbers OK). Username is
+    // display/alias: if taken we allocate a free variant instead of failing.
+    const existingEmail = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+      select: { id: true },
+    });
+    if (existingEmail) {
       throw new ConflictException('Unable to register with the provided details');
     }
 
@@ -88,31 +85,49 @@ export class AuthService {
       ? this.settingsEncryption.encrypt(dto.identityNumber.trim())
       : undefined;
 
+    let username = await this.allocateAvailableUsername(preferredUsername);
     let user;
     try {
-      user = await this.prisma.user.create({
-        data: {
+      user = await this.createCustomerUser({
+        username,
+        fullName: dto.fullName.trim(),
+        email,
+        phone,
+        identityNumberEnc,
+        passwordHash,
+        acceptedTermsAt,
+      });
+    } catch (error) {
+      if (!this.isPrismaUniqueViolation(error)) {
+        throw error;
+      }
+      if (this.prismaUniqueTargetsEmail(error)) {
+        throw new ConflictException('Unable to register with the provided details');
+      }
+      // Race on username unique — retry once with a fresh suffix.
+      username = await this.allocateAvailableUsername(preferredUsername, true);
+      try {
+        user = await this.createCustomerUser({
           username,
           fullName: dto.fullName.trim(),
           email,
           phone,
           identityNumberEnc,
           passwordHash,
-          role: UserRole.CUSTOMER,
-          status: UserStatus.ACTIVE,
-          // Retail customers (game/phone/topup) do not require email verification.
-          emailVerifiedAt: acceptedTermsAt,
           acceptedTermsAt,
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Unable to register with the provided details');
+        });
+      } catch (retryError) {
+        if (
+          this.isPrismaUniqueViolation(retryError) &&
+          this.prismaUniqueTargetsEmail(retryError)
+        ) {
+          throw new ConflictException('Unable to register with the provided details');
+        }
+        if (this.isPrismaUniqueViolation(retryError)) {
+          throw new ConflictException('Unable to register with the provided details');
+        }
+        throw retryError;
       }
-      throw error;
     }
 
     // Welcome email is optional; agents still use verify-email onboarding separately.
@@ -130,6 +145,83 @@ export class AuthService {
     }
 
     return this.issueAuthResult(user, undefined);
+  }
+
+  private async createCustomerUser(input: {
+    username: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    identityNumberEnc?: string;
+    passwordHash: string;
+    acceptedTermsAt: Date;
+  }) {
+    return this.prisma.user.create({
+      data: {
+        username: input.username,
+        fullName: input.fullName,
+        email: input.email,
+        phone: input.phone,
+        identityNumberEnc: input.identityNumberEnc,
+        passwordHash: input.passwordHash,
+        role: UserRole.CUSTOMER,
+        status: UserStatus.ACTIVE,
+        // Retail customers (game/phone/topup) do not require email verification.
+        emailVerifiedAt: input.acceptedTermsAt,
+        acceptedTermsAt: input.acceptedTermsAt,
+      },
+    });
+  }
+
+  /**
+   * Prefer the requested username; if taken, append `_####` (DB still has @unique).
+   * Does not surface username collisions as registration failures.
+   */
+  private async allocateAvailableUsername(
+    preferred: string,
+    forceSuffix = false,
+  ): Promise<string> {
+    const base = preferred
+      .slice(0, REGISTER_USERNAME_MAX_LEN)
+      .replace(/_+$/g, '') || 'user';
+
+    for (let attempt = 0; attempt < REGISTER_USERNAME_ATTEMPTS; attempt++) {
+      let candidate = base;
+      if (forceSuffix || attempt > 0) {
+        const suffix = `_${randomInt(1000, 9999)}`;
+        candidate = `${base.slice(0, REGISTER_USERNAME_MAX_LEN - suffix.length)}${suffix}`;
+      }
+      const taken = await this.prisma.user.findFirst({
+        where: { username: candidate, deletedAt: null },
+        select: { id: true },
+      });
+      if (!taken) {
+        return candidate;
+      }
+    }
+
+    const fallbackSuffix = `_${Date.now().toString(36)}`;
+    return `${base.slice(0, REGISTER_USERNAME_MAX_LEN - fallbackSuffix.length)}${fallbackSuffix}`;
+  }
+
+  private isPrismaUniqueViolation(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
+    );
+  }
+
+  private prismaUniqueTargetsEmail(error: unknown): boolean {
+    if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+      return false;
+    }
+    const target = error.meta?.target;
+    if (Array.isArray(target)) {
+      return target.some((t) => String(t).toLowerCase().includes('email'));
+    }
+    if (typeof target === 'string') {
+      return target.toLowerCase().includes('email');
+    }
+    return false;
   }
 
   async login(dto: LoginDto, context?: ActivityRequestContext): Promise<AuthResult> {

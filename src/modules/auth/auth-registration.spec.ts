@@ -191,15 +191,51 @@ describe('Phase 5A.2 — AuthService register & password reset', () => {
     expect(prisma.refreshToken.create).toHaveBeenCalled();
   });
 
-  it('rejects duplicate username with generic conflict', async () => {
+  it('rejects duplicate email with generic conflict', async () => {
     prisma.user.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) => {
-      if (where.email) return Promise.resolve(null);
-      if (where.username) return Promise.resolve({ id: 'other-user' });
+      if (where.email) return Promise.resolve({ id: 'other-user' });
       return Promise.resolve(null);
     });
 
     await expect(authService.register(validRegisterDto())).rejects.toBeInstanceOf(
       ConflictException,
+    );
+    expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it('does not fail when phone is already used by another account', async () => {
+    prisma.user.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) => {
+      // Email check: free. Username allocation: free.
+      if (where.email || where.username) return Promise.resolve(null);
+      return Promise.resolve(null);
+    });
+    prisma.user.create.mockResolvedValue(activeUser);
+    prisma.emailVerificationToken.create.mockResolvedValue({});
+    prisma.refreshToken.create.mockResolvedValue({});
+
+    await expect(authService.register(validRegisterDto())).resolves.toBeDefined();
+    expect(prisma.user.create).toHaveBeenCalled();
+  });
+
+  it('allocates a suffixed username when preferred username is taken', async () => {
+    prisma.user.findFirst.mockImplementation(({ where }: { where: Record<string, unknown> }) => {
+      if (where.email) return Promise.resolve(null);
+      if (where.username === 'customer01') return Promise.resolve({ id: 'other-user' });
+      return Promise.resolve(null);
+    });
+    prisma.user.create.mockResolvedValue({ ...activeUser, username: 'customer01_1234' });
+    prisma.emailVerificationToken.create.mockResolvedValue({});
+    prisma.refreshToken.create.mockResolvedValue({});
+
+    const result = await authService.register(validRegisterDto());
+    expect(result.accessToken).toBeDefined();
+    expect(prisma.user.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          username: expect.stringMatching(/^customer01_\d{4}$/),
+          email: 'customer@cardon.vn',
+        }),
+      }),
     );
   });
 
