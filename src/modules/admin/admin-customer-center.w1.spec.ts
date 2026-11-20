@@ -197,6 +197,30 @@ describe('Wave 1 — Admin Customer Center', () => {
     expect(detail.loginEvents.total).toBe(0);
   });
 
+  it('getCustomerStats forwards period to repository', async () => {
+    const repository = {
+      getCustomerGrowthStats: jest.fn().mockResolvedValue({
+        period: { preset: 'today', dateFrom: '2026-11-15', dateTo: '2026-11-15' },
+        lifetime: { total: 33, active: 33, buyers: 11 },
+        inPeriod: { signups: 1, active: 1, buyers: 0, guestBuyers: 0 },
+        series: [{ date: '2026-11-15', signups: 1 }],
+      }),
+    };
+    const service = new AdminCustomerService(
+      repository as never,
+      {} as never,
+      { record: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      { get: jest.fn() } as never,
+    );
+
+    const result = await service.getCustomerStats('today');
+    expect(repository.getCustomerGrowthStats).toHaveBeenCalledWith('today');
+    expect(result.inPeriod.signups).toBe(1);
+    expect(result.lifetime.total).toBe(33);
+  });
+
   it('locks customer and writes admin audit', async () => {
     const repository = {
       findCustomerById: jest.fn().mockResolvedValue({ id: 'c1', email: 'c@test.com', orders: [] }),

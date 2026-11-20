@@ -23,6 +23,13 @@ export class AdminSearchQueryDto {
   q!: string;
 }
 
+export class AdminCustomerStatsQueryDto {
+  /** Signup series window: today / last 7 / 30 / 90 Vietnam calendar days (inclusive). Default 30d. */
+  @IsOptional()
+  @IsIn(['today', '7d', '30d', '90d'])
+  period?: 'today' | '7d' | '30d' | '90d';
+}
+
 export class AdminCustomerQueryDto {
   @IsOptional()
   @IsString()

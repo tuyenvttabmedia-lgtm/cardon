@@ -50,6 +50,8 @@ import type {
   AdminCustomer,
   AdminCustomerDetail,
   AdminCustomerListResponse,
+  AdminCustomerStats,
+  AdminCustomerStatsPeriod,
   AdminOrderDetail,
   AdminOrderListItem,
   AdminOrderSummary,
@@ -701,6 +703,10 @@ export const adminApi = {
       if (v !== undefined && v !== '') q.set(k, String(v));
     });
     return apiRequest<AdminCustomerListResponse>(`/admin/customers?${q}`);
+  },
+  getCustomerStats(period: AdminCustomerStatsPeriod = '30d') {
+    const q = new URLSearchParams({ period });
+    return apiRequest<AdminCustomerStats>(`/admin/customers/stats?${q}`);
   },
   getCustomer(
     id: string,

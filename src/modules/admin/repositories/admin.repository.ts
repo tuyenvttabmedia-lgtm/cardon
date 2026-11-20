@@ -27,6 +27,10 @@ import {
   type DashboardPeriodPreset,
 } from '../entities/dashboard-period';
 import { dashboardRetailOrderWhere } from '../entities/dashboard-retail-scope';
+import {
+  enumerateVietnamDates,
+  resolveCustomerStatsPeriodRange,
+} from '../entities/customer-stats-period';
 
 @Injectable()
 export class AdminRepository {
@@ -584,6 +588,148 @@ export class AdminRepository {
       this.prisma.user.count({ where }),
     ]);
     return { items, total, skip: pagination.skip, take: pagination.take };
+  }
+
+  /**
+   * Customer Center growth KPIs (CUSTOMER role only).
+   * - `lifetime`: fleet totals (ignore period chip)
+   * - `inPeriod`: accounts registered in the selected ICT window (+ guest buyers)
+   * - `series`: daily signups for that window
+   */
+  async getCustomerGrowthStats(periodRaw?: string | null) {
+    const range = resolveCustomerStatsPeriodRange(periodRaw);
+
+    const baseCustomer: Prisma.UserWhereInput = {
+      role: 'CUSTOMER',
+      deletedAt: null,
+    };
+    const inPeriodCustomer: Prisma.UserWhereInput = {
+      ...baseCustomer,
+      createdAt: { gte: range.fromInclusive, lt: range.toExclusive },
+    };
+
+    const paidOrderSome: Prisma.OrderListRelationFilter = {
+      some: {
+        ...ACTIVE_ORDER_WHERE,
+        ...EXCLUDE_ADMIN_TEST_ORDERS,
+        paymentStatus: OrderPaymentStatus.PAID,
+      },
+    };
+
+    const guestPaidInPeriod: Prisma.OrderWhereInput = {
+      ...ACTIVE_ORDER_WHERE,
+      ...EXCLUDE_ADMIN_TEST_ORDERS,
+      paymentStatus: OrderPaymentStatus.PAID,
+      agentId: null,
+      userId: null,
+      guestEmail: { not: null },
+      createdAt: { gte: range.fromInclusive, lt: range.toExclusive },
+    };
+
+    const [
+      lifetimeTotal,
+      lifetimeActive,
+      lifetimeSuspended,
+      lifetimeBanned,
+      lifetimeVerified,
+      lifetimeBuyers,
+      periodSignups,
+      periodActive,
+      periodSuspended,
+      periodBanned,
+      periodVerified,
+      periodBuyers,
+      seriesRows,
+      guestBuyerEmails,
+    ] = await Promise.all([
+      this.prisma.user.count({ where: baseCustomer }),
+      this.prisma.user.count({
+        where: { ...baseCustomer, status: UserStatus.ACTIVE },
+      }),
+      this.prisma.user.count({
+        where: { ...baseCustomer, status: UserStatus.SUSPENDED },
+      }),
+      this.prisma.user.count({
+        where: { ...baseCustomer, status: UserStatus.BANNED },
+      }),
+      this.prisma.user.count({
+        where: { ...baseCustomer, emailVerifiedAt: { not: null } },
+      }),
+      this.prisma.user.count({
+        where: { ...baseCustomer, orders: paidOrderSome },
+      }),
+      this.prisma.user.count({ where: inPeriodCustomer }),
+      this.prisma.user.count({
+        where: { ...inPeriodCustomer, status: UserStatus.ACTIVE },
+      }),
+      this.prisma.user.count({
+        where: { ...inPeriodCustomer, status: UserStatus.SUSPENDED },
+      }),
+      this.prisma.user.count({
+        where: { ...inPeriodCustomer, status: UserStatus.BANNED },
+      }),
+      this.prisma.user.count({
+        where: { ...inPeriodCustomer, emailVerifiedAt: { not: null } },
+      }),
+      this.prisma.user.count({
+        where: { ...inPeriodCustomer, orders: paidOrderSome },
+      }),
+      this.prisma.$queryRaw<Array<{ day: string; signups: bigint | number }>>`
+        SELECT to_char((u.created_at AT TIME ZONE 'Asia/Ho_Chi_Minh'), 'YYYY-MM-DD') AS day,
+               COUNT(*)::int AS signups
+        FROM users u
+        WHERE u.role = 'CUSTOMER'
+          AND u.deleted_at IS NULL
+          AND u.created_at >= ${range.fromInclusive}
+          AND u.created_at < ${range.toExclusive}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      this.prisma.order.findMany({
+        where: guestPaidInPeriod,
+        select: { guestEmail: true },
+        distinct: ['guestEmail'],
+      }),
+    ]);
+
+    const byDay = new Map<string, number>();
+    for (const row of seriesRows) {
+      byDay.set(row.day, Number(row.signups));
+    }
+    const series = enumerateVietnamDates(range.dateFrom, range.dateTo).map(
+      (date) => ({
+        date,
+        signups: byDay.get(date) ?? 0,
+      }),
+    );
+
+    return {
+      period: {
+        preset: range.preset,
+        dateFrom: range.dateFrom,
+        dateTo: range.dateTo,
+        timezone: range.timezone,
+        dayCount: range.dayCount,
+      },
+      lifetime: {
+        total: lifetimeTotal,
+        active: lifetimeActive,
+        suspended: lifetimeSuspended,
+        banned: lifetimeBanned,
+        emailVerified: lifetimeVerified,
+        buyers: lifetimeBuyers,
+      },
+      inPeriod: {
+        signups: periodSignups,
+        active: periodActive,
+        suspended: periodSuspended,
+        banned: periodBanned,
+        emailVerified: periodVerified,
+        buyers: periodBuyers,
+        guestBuyers: guestBuyerEmails.length,
+      },
+      series,
+    };
   }
 
   findCustomerById(id: string, orderSkip = 0, orderTake = 10) {
