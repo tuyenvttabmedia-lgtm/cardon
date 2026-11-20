@@ -1,6 +1,31 @@
 #!/bin/sh
 set -e
 
+# Fail fast when compose was started without --env-file (.env.production).
+# Empty POSTGRES_* yields DATABASE_URL like postgresql://:@postgres:5432/...
+assert_runtime_secrets() {
+  case "${DATABASE_URL:-}" in
+    ""|postgresql://:@*|postgres://:@*|postgresql://@*|postgres://@*|postgresql://:*@*|postgres://:*@*)
+      echo "[entrypoint] FATAL: DATABASE_URL missing user/password — deploy with --env-file .env.production (see scripts/deploy/prod-compose.sh)" >&2
+      exit 1
+      ;;
+  esac
+  case "${JWT_SECRET:-}" in
+    ""|dev-jwt-secret*|change-me*|changeme*)
+      echo "[entrypoint] FATAL: JWT_SECRET missing or development placeholder — check --env-file .env.production" >&2
+      exit 1
+      ;;
+  esac
+  case "${ENCRYPTION_KEY:-}" in
+    ""|dev-encryption-key*|change-me*|changeme*)
+      echo "[entrypoint] FATAL: ENCRYPTION_KEY missing or development placeholder — check --env-file .env.production" >&2
+      exit 1
+      ;;
+  esac
+}
+
+assert_runtime_secrets
+
 run_with_db_retry() {
   label="$1"
   shift

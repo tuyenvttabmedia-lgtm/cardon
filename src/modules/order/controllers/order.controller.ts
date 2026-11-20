@@ -104,20 +104,22 @@ export class OrderController {
     return this.orderService.listCustomerOrders(user.id);
   }
 
+  // Guest checkout polls these every ~4–8s. Old 5/15min caused 429 mid-payment.
+  // 120/min still stops scrape abuse; identity is orderCode+email on the service.
   @Get('lookup/delivery')
-  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   lookupGuestDelivery(@Query() query: GuestOrderLookupDto) {
     return this.orderDeliveryService.lookupGuestDelivery(query.orderCode, query.email);
   }
 
   @Get('lookup/cards')
-  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   lookupGuestOrderCards(@Query() query: GuestOrderLookupDto) {
     return this.orderService.getGuestOrderCardsSummary(query.orderCode, query.email);
   }
 
   @Get('lookup')
-  @Throttle({ default: { limit: 5, ttl: 900_000 } })
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   lookupGuestOrder(@Query() query: GuestOrderLookupDto) {
     return this.orderDeliveryService.lookupGuestDelivery(query.orderCode, query.email);
   }

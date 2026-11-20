@@ -8,7 +8,7 @@
 
 | # | Debt | Location | Impact |
 |---|------|----------|--------|
-| TD-C01 | Docker compose without `--env-file` breaks entire stack | `docker-compose.local-full.yml` | Production-like local outages |
+| TD-C01 | Docker compose without `--env-file` breaks entire stack | Mitigated 2026-11-20: `scripts/deploy/prod-compose.sh` + entrypoint/assertProductionEnv guards; still use wrapper on VPS | Was full prod 502 |
 | TD-C02 | Admin permission seed out of sync with Phase 6 controllers | `scripts/create-admin-local.ts` vs monitoring modules | SUPER_ADMIN 403 |
 | TD-C03 | Partner RBAC not enforced on backend | `agent-platform.service.ts` getSession() | Any JWT agent = OWNER |
 | TD-C04 | NestJS circular import risk in payment/agent-deposit/audit | Multiple modules | API bootstrap failure |

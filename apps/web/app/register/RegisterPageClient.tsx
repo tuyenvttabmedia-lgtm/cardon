@@ -193,14 +193,14 @@ function RegisterForm() {
       if (captchaErr) {
         setFieldErrors((prev) => ({ ...prev, captcha: captchaErr.message }));
         setFormError(captchaErr.message);
-        if (captchaErr.shouldReset) {
-          captchaRef.current?.reset();
-          setCaptchaToken(null);
-        }
       } else {
         const message = customerFacingError(locale, err);
         setFormError(message);
       }
+      // Turnstile token is single-use; always refresh after any failed submit
+      // (409 email taken, 429, validation, etc.) so the next attempt can verify.
+      captchaRef.current?.reset();
+      setCaptchaToken(null);
     } finally {
       setLoading(false);
     }
