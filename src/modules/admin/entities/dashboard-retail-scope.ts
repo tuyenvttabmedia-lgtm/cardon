@@ -27,3 +27,20 @@ export function dashboardRetailOrderWhere(
     ...extra,
   };
 }
+
+/** B2C eSIM lane (orders that contain at least one ESIM variant). */
+export function dashboardEsimOrderWhere(
+  extra: Prisma.OrderWhereInput = {},
+): Prisma.OrderWhereInput {
+  return {
+    ...ACTIVE_ORDER_WHERE,
+    ...EXCLUDE_ADMIN_TEST_ORDERS,
+    channel: OrderChannel.B2C,
+    orderItems: {
+      some: {
+        variant: { type: ProductVariantType.ESIM },
+      },
+    },
+    ...extra,
+  };
+}

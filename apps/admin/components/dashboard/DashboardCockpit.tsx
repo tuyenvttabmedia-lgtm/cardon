@@ -5,7 +5,7 @@ import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { DashboardHealthSection } from '@/components/dashboard/DashboardHealthSection';
 import { DashboardBusinessSection } from '@/components/dashboard/DashboardBusinessSection';
 import { DashboardChartsSection } from '@/components/dashboard/DashboardChartsSection';
-import { DashboardCategorySection } from '@/components/dashboard/DashboardCategorySection';
+import { DashboardEsimLaneSection } from '@/components/dashboard/DashboardEsimLaneSection';
 import { DashboardOrderOpsSection } from '@/components/dashboard/DashboardOrderOpsSection';
 import { DashboardPayProviderSection } from '@/components/dashboard/DashboardPayProviderSection';
 import { DashboardAgentSection } from '@/components/dashboard/DashboardAgentSection';
@@ -28,6 +28,7 @@ import type {
   DashboardBreakdownItem,
   DashboardBusinessStats,
   DashboardCompareStats,
+  DashboardEsimLaneStats,
   DashboardPaymentAttempts,
   DashboardPeriodInfo,
   DashboardPeriodPreset,
@@ -52,6 +53,7 @@ export function DashboardCockpit() {
   const [asOf, setAsOf] = useState<string | null>(null);
 
   const [business, setBusiness] = useState<DashboardBusinessStats | null>(null);
+  const [esim, setEsim] = useState<DashboardEsimLaneStats | null>(null);
   const [payments, setPayments] = useState<DashboardPaymentAttempts | null>(null);
   const [providerErrors, setProviderErrors] = useState<number | null>(null);
   const [providerErrorsScope, setProviderErrorsScope] = useState<'SYSTEM' | null>(null);
@@ -80,6 +82,7 @@ export function DashboardCockpit() {
     setPeriodInfo(data.period);
     setAsOf(data.asOf);
     setBusiness(data.business);
+    setEsim(data.esim ?? null);
     setPayments(data.payments);
     setProviderErrors(data.providerErrors);
     setProviderErrorsScope(data.providerErrorsScope);
@@ -95,6 +98,7 @@ export function DashboardCockpit() {
     setPeriodInfo(data.period);
     setAsOf(data.asOf);
     setBusiness(data.business);
+    setEsim(data.esim ?? null);
     setPayments(data.payments);
     setProviderErrors(data.providerErrors);
     setProviderErrorsScope(data.providerErrorsScope);
@@ -119,6 +123,7 @@ export function DashboardCockpit() {
         setMetricsError(errMessage(err, vi.dashboard.loadError));
         if (mode === 'full') {
           setBusiness(null);
+          setEsim(null);
           setPayments(null);
           setProviderErrors(null);
           setProviderErrorsScope(null);
@@ -209,6 +214,7 @@ export function DashboardCockpit() {
     <div className="space-y-6 overflow-x-hidden">
       <DashboardHeader
         period={period}
+        periodInfo={periodInfo}
         asOf={asOf}
         refreshing={refreshing || metricsBusy || healthLoading}
         onPeriodChange={(p) => void handlePeriodChange(p)}
@@ -235,18 +241,18 @@ export function DashboardCockpit() {
         onRetry={() => void loadMetrics(period, 'full')}
       />
 
+      <DashboardEsimLaneSection
+        esim={esim}
+        loading={metricsBusy && !esim}
+        error={metricsError && !esim ? metricsError : null}
+        onRetry={() => void loadMetrics(period, 'full')}
+      />
+
       <DashboardChartsSection
         series={series}
         breakdown={breakdown}
         loading={metricsBusy && !series}
         error={metricsError && !series ? metricsError : null}
-        onRetry={() => void loadMetrics(period, 'full')}
-      />
-
-      <DashboardCategorySection
-        breakdown={breakdown}
-        loading={metricsBusy && !breakdown}
-        error={metricsError && !breakdown ? metricsError : null}
         onRetry={() => void loadMetrics(period, 'full')}
       />
 

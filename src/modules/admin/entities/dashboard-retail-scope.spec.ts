@@ -1,5 +1,8 @@
 import { OrderChannel, ProductVariantType } from '@prisma/client';
-import { dashboardRetailOrderWhere } from './dashboard-retail-scope';
+import {
+  dashboardEsimOrderWhere,
+  dashboardRetailOrderWhere,
+} from './dashboard-retail-scope';
 
 describe('dashboardRetailOrderWhere', () => {
   it('scopes B2C, excludes soft-deleted, admin-test, and ESIM variants', () => {
@@ -31,5 +34,16 @@ describe('dashboardRetailOrderWhere', () => {
     expect(where.paymentStatus).toBe('PAID');
     expect(where.fulfillmentStatus).toBe('PENDING');
     expect(where.NOT).toBeDefined();
+  });
+});
+
+describe('dashboardEsimOrderWhere', () => {
+  it('scopes B2C orders that include an ESIM variant', () => {
+    const where = dashboardEsimOrderWhere();
+    expect(where.channel).toBe(OrderChannel.B2C);
+    expect(where.orderItems).toEqual({
+      some: { variant: { type: ProductVariantType.ESIM } },
+    });
+    expect(where.NOT).toBeUndefined();
   });
 });

@@ -42,7 +42,7 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
   });
 
   function setupCounts(prisma: ReturnType<typeof createPrismaMock>) {
-    // current period + previous period aggregates
+    // retail current, retail previous, esim current, esim previous
     prisma.order.aggregate
       .mockResolvedValueOnce({
         _sum: {
@@ -57,8 +57,22 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
           providerCost: new Decimal('56000.00'),
           paymentFeeAmount: new Decimal('1200.00'),
         },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('30000.00'),
+          providerCost: new Decimal('20000.00'),
+          paymentFeeAmount: new Decimal('500.00'),
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('10000.00'),
+          providerCost: new Decimal('7000.00'),
+          paymentFeeAmount: new Decimal('200.00'),
+        },
       });
-    // paid, created, pending, processing, waitingAdminRetry, needManualReview, previousPaid
+    // paid, created, backlog×4, previousPaid, esimPaid, previousEsimPaid
     prisma.order.count
       .mockResolvedValueOnce(4)
       .mockResolvedValueOnce(9)
@@ -66,7 +80,9 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(1)
       .mockResolvedValueOnce(3)
-      .mockResolvedValueOnce(2);
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce(1);
     prisma.payment.count.mockResolvedValueOnce(5).mockResolvedValueOnce(2);
     prisma.providerLog.count.mockResolvedValue(7);
     prisma.agent.groupBy.mockResolvedValue([
@@ -105,8 +121,8 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
 
     const result = await repo.getDashboardStats('today');
 
-    expect(prisma.order.aggregate).toHaveBeenCalledTimes(2);
-    expect(prisma.order.count).toHaveBeenCalledTimes(7);
+    expect(prisma.order.aggregate).toHaveBeenCalledTimes(4);
+    expect(prisma.order.count).toHaveBeenCalledTimes(9);
     expect(prisma.payment.count).toHaveBeenCalledTimes(2);
     expect(prisma.providerLog.count).toHaveBeenCalledTimes(1);
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
@@ -155,20 +171,41 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
         paidOrders: 4,
       },
     ]);
+    expect(result.esim).toMatchObject({
+      revenue: '30000.00',
+      profit: '9500.00',
+      paidOrderCount: 2,
+      compare: {
+        revenuePercent: 200,
+        paidOrderPercent: 100,
+        previous: {
+          revenue: '10000.00',
+          paidOrderCount: 1,
+        },
+      },
+    });
+    // Retail mix + eSIM lane; shares vs combined 130k
     expect(result.breakdown).toEqual([
       {
         service: 'GAME_CARD',
         label: 'Thẻ game',
         revenue: '75000.00',
         orderCount: 3,
-        sharePercent: 75,
+        sharePercent: 57.7,
+      },
+      {
+        service: 'ESIM',
+        label: 'eSIM',
+        revenue: '30000.00',
+        orderCount: 2,
+        sharePercent: 23.1,
       },
       {
         service: 'TOPUP',
         label: 'Nạp tiền',
         revenue: '25000.00',
         orderCount: 1,
-        sharePercent: 25,
+        sharePercent: 19.2,
       },
     ]);
     expect(result.compare).toMatchObject({
@@ -224,6 +261,20 @@ describe('AdminRepository.getDashboardStats (Operations Cockpit C1)', () => {
           sellAmount: new Decimal('50000.00'),
           providerCost: new Decimal('30000.00'),
           paymentFeeAmount: new Decimal('500.00'),
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('0'),
+          providerCost: new Decimal('0'),
+          paymentFeeAmount: new Decimal('0'),
+        },
+      })
+      .mockResolvedValueOnce({
+        _sum: {
+          sellAmount: new Decimal('0'),
+          providerCost: new Decimal('0'),
+          paymentFeeAmount: new Decimal('0'),
         },
       })
       .mockResolvedValueOnce({

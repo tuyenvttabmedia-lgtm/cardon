@@ -118,7 +118,6 @@ export function DashboardBusinessSection({
             compare={compare?.revenuePercent}
             spark={spark}
             sparkStroke="#0f766e"
-            hint={period ? vi.dashboard.paidAtVsCreatedAtHint : undefined}
           />
           <KpiCard
             label={vi.dashboard.profit}
@@ -148,7 +147,7 @@ export function DashboardBusinessSection({
             label={vi.dashboard.createdOrders}
             value={String(business.createdOrderCount)}
             href={createdHref}
-            hint={vi.dashboard.paymentSuccessAttempts + ': ' + payments.successAttemptCount}
+            hint={`${vi.dashboard.paymentSuccessAttempts}: ${payments.successAttemptCount}`}
           />
         </div>
       ) : null}

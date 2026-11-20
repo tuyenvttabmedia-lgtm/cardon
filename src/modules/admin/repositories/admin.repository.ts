@@ -28,7 +28,10 @@ import {
   resolvePreviousDashboardPeriodRange,
   type DashboardPeriodPreset,
 } from '../entities/dashboard-period';
-import { dashboardRetailOrderWhere } from '../entities/dashboard-retail-scope';
+import {
+  dashboardEsimOrderWhere,
+  dashboardRetailOrderWhere,
+} from '../entities/dashboard-retail-scope';
 import {
   enumerateVietnamDates,
   resolveCustomerStatsPeriodRange,
@@ -98,6 +101,28 @@ export class AdminRepository {
 
     const retailPaymentOrderScope: Prisma.OrderWhereInput = dashboardRetailOrderWhere();
 
+    const esimPaidInPeriod: Prisma.OrderWhereInput = dashboardEsimOrderWhere({
+      paymentStatus: OrderPaymentStatus.PAID,
+      payments: {
+        some: {
+          ...ACTIVE_PAYMENT_WHERE,
+          status: PaymentRecordStatus.SUCCESS,
+          paidAt: periodFilter,
+        },
+      },
+    });
+
+    const esimPaidPrevious: Prisma.OrderWhereInput = dashboardEsimOrderWhere({
+      paymentStatus: OrderPaymentStatus.PAID,
+      payments: {
+        some: {
+          ...ACTIVE_PAYMENT_WHERE,
+          status: PaymentRecordStatus.SUCCESS,
+          paidAt: previousFilter,
+        },
+      },
+    });
+
     const [
       businessAgg,
       paidOrderCount,
@@ -114,6 +139,10 @@ export class AdminRepository {
       previousPaidOrderCount,
       seriesRows,
       breakdownRows,
+      esimAgg,
+      esimPaidOrderCount,
+      previousEsimAgg,
+      previousEsimPaidOrderCount,
     ] = await Promise.all([
       this.prisma.order.aggregate({
         where: retailPaidInPeriod,
@@ -187,6 +216,24 @@ export class AdminRepository {
       this.prisma.order.count({ where: retailPaidPrevious }),
       this.queryDashboardSeries(fromInclusive, toExclusive),
       this.queryDashboardBreakdown(fromInclusive, toExclusive),
+      this.prisma.order.aggregate({
+        where: esimPaidInPeriod,
+        _sum: {
+          sellAmount: true,
+          providerCost: true,
+          paymentFeeAmount: true,
+        },
+      }),
+      this.prisma.order.count({ where: esimPaidInPeriod }),
+      this.prisma.order.aggregate({
+        where: esimPaidPrevious,
+        _sum: {
+          sellAmount: true,
+          providerCost: true,
+          paymentFeeAmount: true,
+        },
+      }),
+      this.prisma.order.count({ where: esimPaidPrevious }),
     ]);
 
     const revenue = businessAgg._sum.sellAmount ?? new Decimal(0);
@@ -245,29 +292,56 @@ export class AdminRepository {
       }),
     );
 
-    const totalBreakdownRevenue = breakdownRows.reduce(
-      (sum, row) => sum.add(new Decimal(row.revenue ?? 0)),
-      new Decimal(0),
-    );
-    const breakdown = breakdownRows.map((row) => {
+    const esimRevenue = esimAgg._sum.sellAmount ?? new Decimal(0);
+    const esimProviderCost = esimAgg._sum.providerCost ?? new Decimal(0);
+    const esimGatewayFee = esimAgg._sum.paymentFeeAmount ?? new Decimal(0);
+    const esimProfit = esimRevenue.sub(esimProviderCost).sub(esimGatewayFee);
+    const previousEsimRevenue = previousEsimAgg._sum.sellAmount ?? new Decimal(0);
+    const previousEsimProviderCost =
+      previousEsimAgg._sum.providerCost ?? new Decimal(0);
+    const previousEsimGatewayFee =
+      previousEsimAgg._sum.paymentFeeAmount ?? new Decimal(0);
+    const previousEsimProfit = previousEsimRevenue
+      .sub(previousEsimProviderCost)
+      .sub(previousEsimGatewayFee);
+
+    const retailBreakdown = breakdownRows.map((row) => {
       const serviceKey = (row.service ?? 'OTHER').toUpperCase();
       const service =
         serviceKey in DASHBOARD_HOME_SERVICE_LABELS ? serviceKey : 'OTHER';
-      const rowRevenue = new Decimal(row.revenue ?? 0);
-      const sharePercent =
-        totalBreakdownRevenue.gt(0)
-          ? Number(
-              rowRevenue.div(totalBreakdownRevenue).mul(100).toFixed(1),
-            )
-          : 0;
       return {
         service,
         label: DASHBOARD_HOME_SERVICE_LABELS[service] ?? service,
-        revenue: rowRevenue.toFixed(2),
+        revenue: new Decimal(row.revenue ?? 0),
         orderCount: Number(row.order_count ?? 0),
-        sharePercent,
       };
     });
+    if (esimPaidOrderCount > 0 || esimRevenue.gt(0)) {
+      retailBreakdown.push({
+        service: 'ESIM',
+        label: DASHBOARD_HOME_SERVICE_LABELS.ESIM,
+        revenue: esimRevenue,
+        orderCount: esimPaidOrderCount,
+      });
+    }
+    const totalBreakdownRevenue = retailBreakdown.reduce(
+      (sum, row) => sum.add(row.revenue),
+      new Decimal(0),
+    );
+    const breakdown = retailBreakdown
+      .map((row) => ({
+        service: row.service,
+        label: row.label,
+        revenue: row.revenue.toFixed(2),
+        orderCount: row.orderCount,
+        sharePercent:
+          totalBreakdownRevenue.gt(0)
+            ? Number(row.revenue.div(totalBreakdownRevenue).mul(100).toFixed(1))
+            : 0,
+      }))
+      .sort(
+        (a, b) => Number(b.revenue) - Number(a.revenue) || b.orderCount - a.orderCount,
+      );
 
     return {
       period: {
@@ -286,6 +360,26 @@ export class AdminRepository {
         paidOrderCount,
         createdOrderCount,
         averageOrderValue: averageOrderValue.toFixed(2),
+      },
+      esim: {
+        revenue: esimRevenue.toFixed(2),
+        profit: esimProfit.toFixed(2),
+        paidOrderCount: esimPaidOrderCount,
+        compare: {
+          revenuePercent: percentChange(
+            Number(esimRevenue.toFixed(2)),
+            Number(previousEsimRevenue.toFixed(2)),
+          ),
+          paidOrderPercent: percentChange(
+            esimPaidOrderCount,
+            previousEsimPaidOrderCount,
+          ),
+          previous: {
+            revenue: previousEsimRevenue.toFixed(2),
+            profit: previousEsimProfit.toFixed(2),
+            paidOrderCount: previousEsimPaidOrderCount,
+          },
+        },
       },
       payments: {
         successAttemptCount,
