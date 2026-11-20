@@ -5,6 +5,25 @@ const FIXTURE_ORDER = 'ORD-TEST-SANDBOX';
 const FIXTURE_ACCOUNT = 'https://cardon.vn/tai-khoan/esim';
 const SANDBOX_NOTICE = esimDeliveryNotice('ready', false, true) ?? '';
 
+describe('USER_REGISTER templates', () => {
+  it('retail welcome has no verify CTA', () => {
+    const vi = renderEmailTemplate('USER_REGISTER', { fullName: 'An' });
+    const en = renderEmailTemplate('USER_REGISTER', { fullName: 'An', locale: 'en' });
+    expect(vi.html).toContain('sẵn sàng');
+    expect(vi.html).not.toMatch(/xác minh/i);
+    expect(vi.html).not.toContain('verify-email');
+    expect(en.html).toContain('ready');
+    expect(en.html).not.toMatch(/Verify your email/i);
+  });
+
+  it('agent welcome keeps verify link when verifyUrl is present', () => {
+    const url = 'https://partner.cardon.vn/verify-email?token=abc';
+    const vi = renderEmailTemplate('USER_REGISTER', { fullName: 'An', verifyUrl: url });
+    expect(vi.html).toContain(url);
+    expect(vi.html).toMatch(/Xác minh/i);
+  });
+});
+
 describe('transactional email locale', () => {
   it('keeps Vietnamese password reset copy by default and switches when locale is en', () => {
     const vi = renderEmailTemplate('PASSWORD_RESET', { resetUrl: 'https://cardon.vn/reset' });

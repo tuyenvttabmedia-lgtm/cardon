@@ -135,14 +135,10 @@ export class AuthService {
       }
     }
 
-    // Welcome email is optional; agents still use verify-email onboarding separately.
+    // Welcome only — retail accounts are active without email verification.
+    // Agents still use verify-email onboarding via notifyAgentRegister.
     try {
-      const verifyToken = await this.createEmailVerificationToken(user.id);
-      await this.notificationService.notifyUserRegister(
-        email,
-        verifyToken,
-        dto.fullName.trim(),
-      );
+      await this.notificationService.notifyUserRegister(email, dto.fullName.trim());
     } catch (error) {
       this.logger.warn(
         `Customer welcome email failed for ${email}: ${error instanceof Error ? error.message : String(error)}`,
@@ -602,7 +598,12 @@ export class AuthService {
       where: { email, deletedAt: null },
     });
 
-    if (user && user.emailVerifiedAt === null && user.status === UserStatus.ACTIVE) {
+    if (
+      user &&
+      user.role === UserRole.AGENT &&
+      user.emailVerifiedAt === null &&
+      user.status === UserStatus.ACTIVE
+    ) {
       await this.prisma.emailVerificationToken.updateMany({
         where: { userId: user.id, usedAt: null },
         data: { usedAt: new Date() },
@@ -610,11 +611,11 @@ export class AuthService {
       const verifyToken = await this.createEmailVerificationToken(user.id);
       const partnerBase = process.env.PARTNER_PUBLIC_URL ?? 'http://partner.localhost';
       const verifyUrl = `${partnerBase.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(verifyToken)}`;
-      if (user.role === UserRole.AGENT) {
-        await this.notificationService.notifyAgentRegister(email, verifyUrl, user.fullName ?? undefined);
-      } else {
-        await this.notificationService.notifyUserRegister(email, verifyToken, user.fullName ?? undefined);
-      }
+      await this.notificationService.notifyAgentRegister(
+        email,
+        verifyUrl,
+        user.fullName ?? undefined,
+      );
     }
 
     return {
