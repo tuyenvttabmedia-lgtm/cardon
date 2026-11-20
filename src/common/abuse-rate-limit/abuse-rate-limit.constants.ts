@@ -46,10 +46,12 @@ export function resolveAbuseBucketConfig(bucket: AbuseBucket): AbuseBucketConfig
         dimensions: ['ip', 'emailHash'],
       };
     case 'auth_login':
+      // IP: CGNAT/office still share a bucket. emailHash: stop stuffing one mailbox
+      // across many IPs. Same numeric limit on both dimensions (no per-dimension knobs).
       return {
         limit: envInt('ABUSE_LIMIT_AUTH_LOGIN', 5),
         ttlSeconds: envInt('ABUSE_TTL_AUTH_LOGIN_SEC', FIFTEEN_MIN),
-        dimensions: ['ip'],
+        dimensions: ['ip', 'emailHash'],
       };
     case 'support_ticket_create':
       return {
