@@ -5,6 +5,22 @@ import type { DashboardBreakdownItem, DashboardSeriesPoint } from '@/types/api';
 
 const DONUT_COLORS = ['#0f766e', '#2563eb', '#d97706', '#7c3aed', '#64748b', '#db2777'];
 
+/** Stable swatch per service so Nạp cước keeps its color even at 0%. */
+const DONUT_COLOR_BY_SERVICE: Record<string, string> = {
+  ESIM: '#7c3aed',
+  GAME_CARD: '#0f766e',
+  PHONE_CARD: '#2563eb',
+  TOPUP: '#d97706',
+  DATA: '#64748b',
+  OTHER: '#db2777',
+};
+
+export function donutColorForService(service: string, fallbackIndex = 0): string {
+  return (
+    DONUT_COLOR_BY_SERVICE[service] ?? DONUT_COLORS[fallbackIndex % DONUT_COLORS.length]
+  );
+}
+
 export function formatComparePercent(value: number | null): string {
   if (value == null || !Number.isFinite(value)) return '—';
   const abs = Math.abs(value);
@@ -199,7 +215,7 @@ export function BreakdownDonut({
                 cy={size / 2}
                 r={r}
                 fill="none"
-                stroke={DONUT_COLORS[idx % DONUT_COLORS.length]}
+                stroke={donutColorForService(item.service, idx)}
                 strokeWidth={stroke}
                 strokeDasharray={dash}
                 strokeDashoffset={-offset}
@@ -223,9 +239,16 @@ export function BreakdownDonut({
             <span className="flex min-w-0 items-center gap-2">
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                style={{ background: DONUT_COLORS[idx % DONUT_COLORS.length] }}
+                style={{ background: donutColorForService(item.service, idx) }}
               />
-              <span className="truncate text-slate-700">{item.label}</span>
+              <span
+                className={cn(
+                  'truncate',
+                  item.sharePercent > 0 ? 'text-slate-700' : 'text-slate-400',
+                )}
+              >
+                {item.label}
+              </span>
             </span>
             <span className="shrink-0 tabular-nums text-slate-500">{item.sharePercent}%</span>
           </li>

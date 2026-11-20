@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   OTHER: 'Khác',
 };
 
+/** Match donut swatches: ESIM / game / phone / topup. */
 const ACCENTS = [
   'border-violet-200 bg-violet-50/60',
   'border-teal-200 bg-teal-50/60',
