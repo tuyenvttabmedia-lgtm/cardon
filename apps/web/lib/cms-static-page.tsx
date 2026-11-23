@@ -111,7 +111,7 @@ export async function renderContactPage() {
   const intro =
     page?.content?.trim() ||
     (locale === 'vi' ? CMS_STATIC_FALLBACK['lien-he'] : undefined);
-  const contentFallback = locale === 'en' && Boolean(page) && page.fallback === true;
+  const contentFallback = locale === 'en' && page?.fallback === true;
 
   return (
     <ContactPageClient
