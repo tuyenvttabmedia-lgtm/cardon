@@ -2,6 +2,7 @@
 
 import { ArticleBuySuggestions } from '@/components/blog/ArticleBuySuggestions';
 import { BlogCard } from '@/components/blog/BlogCard';
+import { useT } from '@/components/i18n/LocaleProvider';
 import type { PublicBlogPost } from '@/lib/cms-api';
 
 import { BLOG_BASE_PATH } from '@/lib/routes';
@@ -39,10 +40,11 @@ export function ArticleSidebar({
   latest: PublicBlogPost[];
   blogBasePath?: string;
 }) {
+  const t = useT();
   return (
     <aside className="space-y-4 lg:sticky lg:top-[88px]">
-      <PostLinks title="Bài viết liên quan" posts={related.slice(0, 5)} basePath={blogBasePath} />
-      <PostLinks title="Bài viết mới" posts={latest.slice(0, 5)} basePath={blogBasePath} />
+      <PostLinks title={t('news.related')} posts={related.slice(0, 5)} basePath={blogBasePath} />
+      <PostLinks title={t('news.latest')} posts={latest.slice(0, 5)} basePath={blogBasePath} />
       <ArticleBuySuggestions />
     </aside>
   );
@@ -55,10 +57,11 @@ export function RelatedPostsGrid({
   posts: PublicBlogPost[];
   basePath?: string;
 }) {
+  const t = useT();
   if (!posts.length) return null;
   return (
     <section className="mt-10 border-t border-cardon-border pt-8">
-      <h2 className="text-lg font-bold text-cardon-navy">Bài viết liên quan</h2>
+      <h2 className="text-lg font-bold text-cardon-navy">{t('news.related')}</h2>
       <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6">
         {posts.map((p) => (
           <BlogCard key={p.id} post={p} basePath={basePath} />

@@ -12,8 +12,11 @@ export const dynamic = 'force-dynamic';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await readRequestLocale();
   return buildMetadata({
-    title: 'Tin tức',
-    description: 'Tin tức, khuyến mãi và hướng dẫn mua thẻ game, nạp cước tại CardOn.vn',
+    title: locale === 'en' ? 'News' : 'Tin tức',
+    description:
+      locale === 'en'
+        ? 'News, promotions and guides for game cards, phone top-up and travel eSIM on CardOn.vn'
+        : 'Tin tức, khuyến mãi và hướng dẫn mua thẻ game, nạp cước tại CardOn.vn',
     path: BLOG_BASE_PATH,
     locale,
     includeEnglishAlternate: false,
@@ -39,7 +42,7 @@ export default async function TinTucPage({
         posts={posts}
         postBasePath={BLOG_BASE_PATH}
         listBasePath={BLOG_BASE_PATH}
-        contentFallback={locale === 'en' && posts.some((post) => post.fallback !== false)}
+        contentFallback={locale === 'en' && posts.some((post) => post.fallback === true)}
       />
     </Suspense>
   );

@@ -10,6 +10,8 @@ import { readRequestLocale } from '@/lib/i18n/request-locale';
 import { getBlogPost, getCmsPage } from '@/lib/cms-api';
 import { blogPostPath } from '@/lib/routes';
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({
   params,
 }: {

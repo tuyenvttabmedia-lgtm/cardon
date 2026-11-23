@@ -96,10 +96,15 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
   };
 
   const breadcrumbItems = [
-    { label: 'Trang chủ', href: '/' },
-    { label: 'Tin tức', href: BLOG_BASE_PATH },
+    { label: translate(locale, 'nav.home'), href: withLocalePrefix('/', locale) },
+    { label: translate(locale, 'nav.news'), href: withLocalePrefix(BLOG_BASE_PATH, locale) },
     ...(post.category && post.categorySlug
-      ? [{ label: post.category, href: blogCategoryPath(post.categorySlug) }]
+      ? [
+          {
+            label: post.category,
+            href: withLocalePrefix(blogCategoryPath(post.categorySlug), locale),
+          },
+        ]
       : []),
     { label: post.title },
   ];
@@ -111,7 +116,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
       <BreadcrumbJsonLd
         items={breadcrumbItems.map((item) => ({
           name: item.label,
-          url: 'href' in item && item.href ? `${getSiteUrl()}${withLocalePrefix(item.href, locale)}` : undefined,
+          url: 'href' in item && item.href ? `${getSiteUrl()}${item.href}` : undefined,
         }))}
       />
 
@@ -128,7 +133,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
               ) : null}
               {post.category && post.categorySlug && (
                 <Link
-                  href={blogCategoryPath(post.categorySlug)}
+                  href={withLocalePrefix(blogCategoryPath(post.categorySlug), locale)}
                   className="inline-flex rounded-full bg-brand-50 px-3 py-0.5 text-xs font-semibold uppercase tracking-wide text-cardon-blue"
                 >
                   {post.category}
@@ -138,7 +143,7 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
               <div className="flex flex-wrap items-center gap-3 text-sm text-cardon-gray">
                 {post.publishedAt && (
                   <time>
-                    {new Date(post.publishedAt).toLocaleDateString('vi-VN', {
+                    {new Date(post.publishedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'vi-VN', {
                       day: 'numeric',
                       month: 'long',
                       year: 'numeric',

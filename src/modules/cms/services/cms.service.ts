@@ -773,6 +773,7 @@ export class CmsService {
     }
     const saved = await this.repository.upsertEnglishCategoryTranslation(id, dto);
     if (!saved) throw new NotFoundException('Category not found');
+    await this.webRevalidate.notifyBlogCategory(saved.slug);
     return saved;
   }
 

@@ -10,7 +10,7 @@ import type { PublicBlogPost } from '@/lib/cms-api';
 import { BLOG_BASE_PATH, blogCategoryPath } from '@/lib/routes';
 import { matchesViSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
-import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { useLocale, useLocalizedHref, useT } from '@/components/i18n/LocaleProvider';
 
 const GRID_COLUMNS = 3;
 /** Cards in the grid section (must be multiple of GRID_COLUMNS for a full last row). */
@@ -32,9 +32,9 @@ function getPageSlice<T>(items: T[], page: number): T[] {
 
 export function BlogListClient({
   posts,
-  pageTitle = 'Tin tức CardOn',
-  pageSubtitle = 'Tin tức, khuyến mãi và hướng dẫn mua thẻ',
-  breadcrumbLabel = 'Tin tức',
+  pageTitle,
+  pageSubtitle,
+  breadcrumbLabel,
   lockedCategory,
   categoryIntro,
   postBasePath = BLOG_BASE_PATH,
@@ -53,9 +53,15 @@ export function BlogListClient({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const localizedHref = useLocalizedHref();
+  const resolvedTitle = pageTitle?.trim() || t('news.title');
+  const resolvedSubtitle = pageSubtitle?.trim() || t('news.hubSubtitle');
+  const resolvedBreadcrumb = breadcrumbLabel?.trim() || t('nav.news');
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  const localizedListBase = localizedHref(listBasePath);
+  const localizedBlogBase = localizedHref(BLOG_BASE_PATH);
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const composingRef = useRef(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -76,12 +82,12 @@ export function BlogListClient({
       else params.delete('q');
       params.delete('page');
       const qs = params.toString();
-      const url = qs ? `${listBasePath}?${qs}` : listBasePath;
+      const url = qs ? `${localizedListBase}?${qs}` : localizedListBase;
       window.history.replaceState(window.history.state, '', url);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, listBasePath]);
+  }, [query, localizedListBase]);
 
   const categories = useMemo(() => {
     const map = new Map<string, string>();
@@ -118,16 +124,16 @@ export function BlogListClient({
     if (next <= 1) params.delete('page');
     else params.set('page', String(next));
     const qs = params.toString();
-    router.push(qs ? `${listBasePath}?${qs}` : listBasePath);
+    router.push(qs ? `${localizedListBase}?${qs}` : localizedListBase);
   }
 
   const breadcrumbItems = lockedCategory
     ? [
-        { label: 'Trang chủ', href: '/' },
-        { label: 'Tin tức', href: BLOG_BASE_PATH },
-        { label: breadcrumbLabel },
+        { label: t('nav.home'), href: localizedHref('/') },
+        { label: t('nav.news'), href: localizedBlogBase },
+        { label: resolvedBreadcrumb },
       ]
-    : [{ label: 'Trang chủ', href: '/' }, { label: breadcrumbLabel }];
+    : [{ label: t('nav.home'), href: localizedHref('/') }, { label: resolvedBreadcrumb }];
 
   return (
     <PageContainer>
@@ -135,11 +141,11 @@ export function BlogListClient({
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{pageTitle}</h1>
+          <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{resolvedTitle}</h1>
           {locale === 'en' && contentFallback ? (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
           ) : null}
-          <p className="mt-1 text-sm text-cardon-gray">{categoryIntro ?? pageSubtitle}</p>
+          <p className="mt-1 text-sm text-cardon-gray">{categoryIntro ?? resolvedSubtitle}</p>
         </div>
         <div className="relative w-full md:max-w-xs">
           <input
@@ -154,7 +160,7 @@ export function BlogListClient({
               composingRef.current = false;
               setQuery(e.currentTarget.value);
             }}
-            placeholder="Tìm bài viết..."
+            placeholder={t('news.searchPlaceholder')}
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -167,18 +173,18 @@ export function BlogListClient({
       {!lockedCategory && categories.length > 0 && (
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
-            href={BLOG_BASE_PATH}
+            href={localizedBlogBase}
             className={cn(
               'rounded-full px-4 py-1.5 text-sm font-medium transition',
               'bg-cardon-blue text-white',
             )}
           >
-            Tất cả
+            {t('news.all')}
           </Link>
           {categories.map((c) => (
             <Link
               key={c.slug}
-              href={blogCategoryPath(c.slug)}
+              href={localizedHref(blogCategoryPath(c.slug))}
               className="rounded-full border border-cardon-border bg-white px-4 py-1.5 text-sm font-medium text-cardon-navy transition hover:border-cardon-blue"
             >
               {c.label}
@@ -188,7 +194,7 @@ export function BlogListClient({
       )}
 
       {filtered.length === 0 ? (
-        <p className="mt-10 text-center text-cardon-gray">Chưa có bài viết phù hợp.</p>
+        <p className="mt-10 text-center text-cardon-gray">{t('news.empty')}</p>
       ) : (
         <div className="mt-8 space-y-8">
           {featured && <BlogCard post={featured} featured basePath={postBasePath} />}
@@ -202,14 +208,14 @@ export function BlogListClient({
           )}
 
           {totalPages > 1 && (
-            <nav className="flex items-center justify-center gap-2 pt-2" aria-label="Phân trang">
+            <nav className="flex items-center justify-center gap-2 pt-2" aria-label={t('news.pagination')}>
               <button
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => goToPage(currentPage - 1)}
                 className="rounded-lg border border-cardon-border px-3 py-2 text-sm disabled:opacity-40"
               >
-                ← Trước
+                ← {t('news.prev')}
               </button>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
                 <button
@@ -230,7 +236,7 @@ export function BlogListClient({
                 onClick={() => goToPage(currentPage + 1)}
                 className="rounded-lg border border-cardon-border px-3 py-2 text-sm disabled:opacity-40"
               >
-                Sau →
+                {t('news.next')} →
               </button>
             </nav>
           )}

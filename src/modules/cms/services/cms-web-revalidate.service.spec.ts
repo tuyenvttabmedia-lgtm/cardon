@@ -38,3 +38,22 @@ describe('CmsWebRevalidateService.pathsForPage', () => {
   });
 });
 
+describe('CmsWebRevalidateService.notifyBlogCategory', () => {
+  it('queues Vietnamese and English hub paths', async () => {
+    const revalidate = jest.fn().mockResolvedValue(undefined);
+    const service = new CmsWebRevalidateService({ get: () => undefined } as never);
+    (service as unknown as { revalidate: typeof revalidate }).revalidate = revalidate;
+    await service.notifyBlogCategory('kien-thuc-esim');
+    expect(revalidate).toHaveBeenCalledWith({
+      paths: [
+        '/tin-tuc',
+        '/en/tin-tuc',
+        '/tin-tuc/kien-thuc-esim',
+        '/en/tin-tuc/kien-thuc-esim',
+      ],
+      tags: ['cms'],
+    });
+  });
+});
+
+

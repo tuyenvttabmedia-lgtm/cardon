@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useMemo, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
@@ -10,6 +10,7 @@ import {
   type Locale,
   localeSwitchTarget,
   stripLocalePrefix,
+  withLocalePrefix,
 } from '@/lib/i18n/locale';
 import { translate, type MessageKey } from '@/lib/i18n/messages';
 
@@ -30,7 +31,6 @@ export function LocaleProvider({
   initialLocale: Locale;
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname() || '/';
   const [locale, setLocaleState] = useState<Locale>(initialLocale || DEFAULT_LOCALE);
 
@@ -42,13 +42,12 @@ export function LocaleProvider({
         writeLocaleCookie(next);
         setLocaleState(next);
         const query = window.location.search;
-        // Hard-refresh RSC: /en/* rewrites onto the same VI route, so soft nav can reuse a
-        // stale Vietnamese payload for pages whose English translation was published later.
-        router.push(localeSwitchTarget(pathname, query, next));
-        router.refresh();
+        // Full document navigation: /en/* rewrites onto the VI route tree, so soft
+        // router.push can reuse a cached Vietnamese RSC (news + policy pages).
+        window.location.assign(localeSwitchTarget(pathname, query, next));
       },
     }),
-    [locale, pathname, router],
+    [locale, pathname],
   );
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
@@ -73,6 +72,12 @@ export function useT() {
 export function useBarePath() {
   const pathname = usePathname() || '/';
   return stripLocalePrefix(pathname).pathname || '/';
+}
+
+/** Prefix internal hrefs with /en when the UI locale is English. */
+export function useLocalizedHref() {
+  const { locale } = useLocale();
+  return (path: string) => withLocalePrefix(path, locale);
 }
 
 export function useMoney() {

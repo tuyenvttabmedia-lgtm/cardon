@@ -86,6 +86,24 @@ export class CmsWebRevalidateService {
     });
   }
 
+  /** Category name/intro translations feed /tin-tuc and /en/tin-tuc hubs. */
+  async notifyBlogCategory(slug: string): Promise<void> {
+    const trimmed = slug.trim();
+    if (!trimmed) {
+      await this.revalidate({ paths: ['/tin-tuc', '/en/tin-tuc'], tags: ['cms'] });
+      return;
+    }
+    await this.revalidate({
+      paths: [
+        '/tin-tuc',
+        '/en/tin-tuc',
+        `/tin-tuc/${trimmed}`,
+        `/en/tin-tuc/${trimmed}`,
+      ],
+      tags: ['cms'],
+    });
+  }
+
   async notifyProducts(slugs: string[] = []): Promise<void> {
     const paths = new Set<string>(['/sitemap.xml', '/the-game', '/the-dien-thoai', '/nap-cuoc', '/nap-data']);
     for (const slug of slugs) {
