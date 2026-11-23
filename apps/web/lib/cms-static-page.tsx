@@ -87,7 +87,7 @@ async function resolvePageContent(slug: string) {
     excerpt,
     pageLayout,
     navItems,
-    contentFallback: locale === 'en' && page?.fallback !== false,
+    contentFallback: locale === 'en' && (page == null || page.fallback === true),
   };
 }
 
@@ -111,7 +111,7 @@ export async function renderContactPage() {
   const intro =
     page?.content?.trim() ||
     (locale === 'vi' ? CMS_STATIC_FALLBACK['lien-he'] : undefined);
-  const contentFallback = locale === 'en' && Boolean(page) && page?.fallback !== false;
+  const contentFallback = locale === 'en' && Boolean(page) && page.fallback === true;
 
   return (
     <ContactPageClient

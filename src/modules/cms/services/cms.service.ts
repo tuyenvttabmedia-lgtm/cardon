@@ -737,6 +737,14 @@ export class CmsService {
       },
     });
     if (!saved) throw new NotFoundException('CMS page not found');
+    // EN publish/edit must bust Next data cache — otherwise /en/<slug> keeps the old VI fallback.
+    const enStatus =
+      dto.status ??
+      saved.translations?.find((row) => row.locale === 'en')?.status ??
+      CmsPageStatus.DRAFT;
+    if (saved.status === CmsPageStatus.PUBLISHED || enStatus === CmsPageStatus.PUBLISHED) {
+      await this.webRevalidate.notifyPublish(saved);
+    }
     return saved;
   }
 
