@@ -16,19 +16,30 @@ export class CmsWebRevalidateService {
   constructor(private readonly config: ConfigService) {}
 
   pathsForPage(page: CmsPageLike): string[] {
-    const paths = new Set<string>(['/tin-tuc', '/sitemap.xml']);
+    const paths = new Set<string>(['/tin-tuc', '/sitemap.xml', '/en/tin-tuc', '/en/sitemap.xml']);
     const categorySlug = page.categoryRel?.slug ?? page.categorySlug ?? null;
+
+    const addLocalized = (path: string) => {
+      paths.add(path);
+      if (path === '/') {
+        paths.add('/en');
+        return;
+      }
+      if (!path.startsWith('/en/') && path !== '/en') {
+        paths.add(`/en${path}`);
+      }
+    };
 
     if (page.type === CmsPageType.BLOG_POST || page.type === 'BLOG_POST') {
       if (categorySlug) {
-        paths.add(`/tin-tuc/${categorySlug}`);
-        paths.add(`/tin-tuc/${categorySlug}/${page.slug}`);
+        addLocalized(`/tin-tuc/${categorySlug}`);
+        addLocalized(`/tin-tuc/${categorySlug}/${page.slug}`);
       } else {
-        paths.add(`/${page.slug}`);
+        addLocalized(`/${page.slug}`);
       }
     } else {
-      paths.add(`/${page.slug}`);
-      paths.add(`/pages/${page.slug}`);
+      addLocalized(`/${page.slug}`);
+      addLocalized(`/pages/${page.slug}`);
     }
 
     return [...paths];

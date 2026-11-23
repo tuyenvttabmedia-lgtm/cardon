@@ -42,7 +42,10 @@ export function LocaleProvider({
         writeLocaleCookie(next);
         setLocaleState(next);
         const query = window.location.search;
+        // Hard-refresh RSC: /en/* rewrites onto the same VI route, so soft nav can reuse a
+        // stale Vietnamese payload for pages whose English translation was published later.
         router.push(localeSwitchTarget(pathname, query, next));
+        router.refresh();
       },
     }),
     [locale, pathname, router],
