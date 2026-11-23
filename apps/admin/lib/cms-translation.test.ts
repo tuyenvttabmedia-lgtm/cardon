@@ -31,4 +31,13 @@ describe('admin CMS translation drafts', () => {
     });
     expect(draft).toMatchObject({ title: 'English', content: '<p>English</p>', status: 'DRAFT', metaTitle: '' });
   });
+
+  it('treats a list page without translations as missing English (stale cache shape)', () => {
+    const draft = englishDraftFromPage({
+      translations: undefined,
+    });
+    expect(draft.status).toBeNull();
+    expect(draft.title).toBe('');
+    expect(draft.content).toBe('');
+  });
 });

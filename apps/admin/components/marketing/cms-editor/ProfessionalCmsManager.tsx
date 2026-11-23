@@ -91,9 +91,11 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   const formRef = useRef(form);
   const editorLocaleRef = useRef(editorLocale);
   const englishRef = useRef(english);
+  const editingIdRef = useRef(editingId);
   editorLocaleRef.current = editorLocale;
   englishRef.current = english;
   formRef.current = form;
+  editingIdRef.current = editingId;
   const savingRef = useRef(false);
   savingRef.current = saving;
   const saveStatusRef = useRef(saveStatus);
@@ -170,24 +172,49 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
         : `/${form.slug || '...'}`
       : `/${form.slug || '...'}`;
 
+  function applyPageToEditor(page: CmsPage) {
+    editingIdRef.current = page.id;
+    setEditingId(page.id);
+    setEnglish(englishDraftFromPage(page));
+    setForm(pageToEditorForm(page, getScheduledPublish(page.id) ?? ''));
+    const author = (page as CmsPage & { author?: { email?: string } }).author?.email;
+    if (author) setAuthorLabel(author);
+    setLastSavedAt(getLastAutosaveAt(page.id));
+    setItems((prev) => {
+      const idx = prev.findIndex((p) => p.id === page.id);
+      if (idx < 0) return [page, ...prev];
+      const next = prev.slice();
+      next[idx] = page;
+      return next;
+    });
+  }
+
   function openEditor(page?: CmsPage) {
     setEditorLocale('vi');
-    setEnglish(englishDraftFromPage(page));
-    if (page) {
-      setEditingId(page.id);
-      setForm(pageToEditorForm(page, getScheduledPublish(page.id) ?? ''));
-      const author = (page as CmsPage & { author?: { email?: string } }).author?.email;
-      if (author) setAuthorLabel(author);
-      setLastSavedAt(getLastAutosaveAt(page.id));
-    } else {
-      setEditingId(null);
-      setForm(emptyCmsForm());
-      setAuthorLabel('CardOn');
-      setLastSavedAt(null);
-    }
     setSaveStatus('idle');
     setSaveError(null);
     setView('editor');
+    if (!page) {
+      editingIdRef.current = null;
+      setEditingId(null);
+      setEnglish(emptyEnglishPageDraft());
+      setForm(emptyCmsForm());
+      setAuthorLabel('CardOn');
+      setLastSavedAt(null);
+      return;
+    }
+    // Paint from list row immediately, then refetch EN only — list cache was often
+    // stale after savePageTranslation (VI persist refreshed items; EN did not).
+    const pageId = page.id;
+    applyPageToEditor(page);
+    void cmsAdminApi
+      .getPage(pageId)
+      .then((fresh) => {
+        if (editingIdRef.current !== pageId) return;
+        setEnglish(englishDraftFromPage(fresh));
+        setItems((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
+      })
+      .catch(() => undefined);
   }
 
   function openSpecialPage(slug: 'gioi-thieu' | 'lien-he') {
@@ -266,6 +293,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
   }
 
   function closeEditor() {
+    editingIdRef.current = null;
     setEditorLocale('vi');
     setEnglish(emptyEnglishPageDraft());
     setView('list');
@@ -273,6 +301,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     setForm(emptyCmsForm());
     setSaveStatus('idle');
     setSaveError(null);
+    void load();
   }
 
   function clearSaveErrorIfNeeded() {
@@ -554,6 +583,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
     try {
       const saved = await cmsAdminApi.savePageTranslation(editingId, 'en', englishPagePayload(draft, status));
       setEnglish(englishDraftFromPage(saved));
+      setItems((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
       setSaveStatus('saved');
       setLastSavedAt(new Date().toISOString());
     } catch (err) {
@@ -689,6 +719,7 @@ export function ProfessionalCmsManager({ pageType, title }: Props) {
                   </div>
                 ) : null}
                 <ProfessionalEditor
+                  key={`${editingId ?? 'new'}-${editorLocale}`}
                   value={editorLocale === 'en' ? english.content : form.content}
                   onChange={stableContentChange}
                   onPickImage={pickImageUrl}
