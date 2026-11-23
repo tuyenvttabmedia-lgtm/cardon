@@ -100,7 +100,10 @@ export default async function TinTucCategoryPage({
         categoryIntro={categoryData.intro ?? categoryData.description}
         postBasePath={BLOG_BASE_PATH}
         listBasePath={blogCategoryPath(category)}
-        contentFallback={locale === 'en' && (categoryData.fallback === true || posts.some((post) => post.fallback !== false))}
+        contentFallback={
+          locale === 'en' &&
+          (categoryData.fallback === true || posts.some((post) => post.fallback === true))
+        }
       />
     </Suspense>
   );

@@ -62,9 +62,15 @@ interface ApiSuccess<T> {
 
 async function cmsFetch<T>(path: string, revalidateSeconds = 60): Promise<T | null> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
-      next: { revalidate: revalidateSeconds, tags: ['cms'] },
-    });
+    // Locale-specific CMS bodies must not share a stale Next data-cache entry with VI
+    // (EN publish previously left /en/tin-tuc and policy pages on Vietnamese fallback).
+    const localeScoped = /(?:\?|&)locale=/.test(path);
+    const res = await fetch(
+      `${getApiBaseUrl()}${path}`,
+      localeScoped
+        ? { cache: 'no-store' }
+        : { next: { revalidate: revalidateSeconds, tags: ['cms'] } },
+    );
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') ?? '';
     if (!contentType.includes('application/json')) return null;

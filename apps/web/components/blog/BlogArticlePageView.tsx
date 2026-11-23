@@ -96,8 +96,8 @@ export async function BlogArticlePageView({ slug }: { slug: string }) {
   };
 
   const breadcrumbItems = [
-    { label: 'Trang chủ', href: '/' },
-    { label: 'Tin tức', href: BLOG_BASE_PATH },
+    { label: translate(locale, 'nav.home'), href: '/' },
+    { label: translate(locale, 'nav.news'), href: BLOG_BASE_PATH },
     ...(post.category && post.categorySlug
       ? [{ label: post.category, href: blogCategoryPath(post.categorySlug) }]
       : []),

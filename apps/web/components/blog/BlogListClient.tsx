@@ -32,9 +32,9 @@ function getPageSlice<T>(items: T[], page: number): T[] {
 
 export function BlogListClient({
   posts,
-  pageTitle = 'Tin tức CardOn',
-  pageSubtitle = 'Tin tức, khuyến mãi và hướng dẫn mua thẻ',
-  breadcrumbLabel = 'Tin tức',
+  pageTitle,
+  pageSubtitle,
+  breadcrumbLabel,
   lockedCategory,
   categoryIntro,
   postBasePath = BLOG_BASE_PATH,
@@ -53,6 +53,9 @@ export function BlogListClient({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const resolvedTitle = pageTitle?.trim() || t('news.title');
+  const resolvedSubtitle = pageSubtitle?.trim() || t('news.hubSubtitle');
+  const resolvedBreadcrumb = breadcrumbLabel?.trim() || t('nav.news');
   const router = useRouter();
   const searchParams = useSearchParams();
   const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
@@ -123,11 +126,11 @@ export function BlogListClient({
 
   const breadcrumbItems = lockedCategory
     ? [
-        { label: 'Trang chủ', href: '/' },
-        { label: 'Tin tức', href: BLOG_BASE_PATH },
-        { label: breadcrumbLabel },
+        { label: t('nav.home'), href: '/' },
+        { label: t('nav.news'), href: BLOG_BASE_PATH },
+        { label: resolvedBreadcrumb },
       ]
-    : [{ label: 'Trang chủ', href: '/' }, { label: breadcrumbLabel }];
+    : [{ label: t('nav.home'), href: '/' }, { label: resolvedBreadcrumb }];
 
   return (
     <PageContainer>
@@ -135,11 +138,11 @@ export function BlogListClient({
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{pageTitle}</h1>
+          <h1 className="text-2xl font-bold text-cardon-navy md:text-3xl">{resolvedTitle}</h1>
           {locale === 'en' && contentFallback ? (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
           ) : null}
-          <p className="mt-1 text-sm text-cardon-gray">{categoryIntro ?? pageSubtitle}</p>
+          <p className="mt-1 text-sm text-cardon-gray">{categoryIntro ?? resolvedSubtitle}</p>
         </div>
         <div className="relative w-full md:max-w-xs">
           <input
@@ -154,7 +157,7 @@ export function BlogListClient({
               composingRef.current = false;
               setQuery(e.currentTarget.value);
             }}
-            placeholder="Tìm bài viết..."
+            placeholder={t('news.searchPlaceholder')}
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
@@ -188,7 +191,7 @@ export function BlogListClient({
       )}
 
       {filtered.length === 0 ? (
-        <p className="mt-10 text-center text-cardon-gray">Chưa có bài viết phù hợp.</p>
+        <p className="mt-10 text-center text-cardon-gray">{t('news.empty')}</p>
       ) : (
         <div className="mt-8 space-y-8">
           {featured && <BlogCard post={featured} featured basePath={postBasePath} />}
