@@ -94,7 +94,11 @@ export default async function TinTucCategoryPage({
       <BlogListClient
         posts={posts}
         pageTitle={categoryData.name}
-        pageSubtitle={categoryData.intro ?? categoryData.description ?? 'Tin tức theo danh mục'}
+        pageSubtitle={
+          categoryData.intro ??
+          categoryData.description ??
+          (locale === 'en' ? 'News by category' : 'Tin tức theo danh mục')
+        }
         breadcrumbLabel={categoryData.name}
         lockedCategory={category}
         categoryIntro={categoryData.intro ?? categoryData.description}

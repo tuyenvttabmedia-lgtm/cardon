@@ -1,9 +1,20 @@
 import Link from 'next/link';
 import { BlogListImage } from '@/components/blog/BlogListImage';
+import { useLocale, useLocalizedHref } from '@/components/i18n/LocaleProvider';
 import type { PublicBlogPost } from '@/lib/cms-api';
 import { blogPostPath } from '@/lib/routes';
 import { stripHtmlForSearch } from '@/lib/vi-search';
 import { cn } from '@/lib/utils';
+
+function formatCardDate(value: string, locale: 'vi' | 'en'): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString(locale === 'en' ? 'en-US' : 'vi-VN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
 
 export type BlogCardVariant = 'grid' | 'featured' | 'compact' | 'homeGrid';
 
@@ -36,10 +47,13 @@ export function BlogCard({
   className?: string;
   compactContext?: 'home' | 'sidebar';
 }) {
+  const { locale } = useLocale();
+  const localizedHref = useLocalizedHref();
   const resolvedVariant: BlogCardVariant = featured ? 'featured' : variant;
   const summary = getBlogPostSummary(post, resolvedVariant === 'featured' ? 220 : 160);
 
-  const href = blogPostPath(post.categorySlug, post.slug);
+  const href = localizedHref(blogPostPath(post.categorySlug, post.slug));
+  const publishedLabel = post.publishedAt ? formatCardDate(post.publishedAt, locale) : '';
 
   if (resolvedVariant === 'compact') {
     const isHome = compactContext === 'home';
@@ -84,11 +98,11 @@ export function BlogCard({
           <h3 className="line-clamp-2 text-sm font-semibold leading-[1.35] text-cardon-navy group-hover:text-cardon-blue">
             {post.title}
           </h3>
-          {post.publishedAt && (
+          {publishedLabel ? (
             <time className={cn('mt-1 block text-xs', isHome ? 'text-[#6B7280]' : 'text-cardon-gray')}>
-              {new Date(post.publishedAt).toLocaleDateString('vi-VN')}
+              {publishedLabel}
             </time>
-          )}
+          ) : null}
         </div>
       </Link>
     );
@@ -128,15 +142,7 @@ export function BlogCard({
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-cardon-navy group-hover:text-cardon-blue">
             {post.title}
           </h3>
-          {post.publishedAt && (
-            <time className="mt-1.5 text-xs text-[#6B7280]">
-              {new Date(post.publishedAt).toLocaleDateString('vi-VN', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </time>
-          )}
+          {publishedLabel ? <time className="mt-1.5 text-xs text-[#6B7280]">{publishedLabel}</time> : null}
         </div>
       </Link>
     );
@@ -195,15 +201,11 @@ export function BlogCard({
             {summary}
           </p>
         ) : null}
-        {post.publishedAt && (
+        {publishedLabel ? (
           <time className={cn('text-xs text-cardon-gray', summary ? 'mt-4' : 'mt-auto pt-3')}>
-            {new Date(post.publishedAt).toLocaleDateString('vi-VN', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
+            {publishedLabel}
           </time>
-        )}
+        ) : null}
       </div>
     </Link>
   );

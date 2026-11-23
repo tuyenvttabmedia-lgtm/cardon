@@ -3,13 +3,14 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { BlogCard } from '@/components/blog/BlogCard';
-import { useLocale, useT } from '@/components/i18n/LocaleProvider';
+import { useLocale, useLocalizedHref, useT } from '@/components/i18n/LocaleProvider';
 import type { PublicBlogPost } from '@/lib/cms-api';
 import { BLOG_BASE_PATH } from '@/lib/routes';
 
 export function NewsSection({ posts, icon }: { posts: PublicBlogPost[]; icon?: ReactNode }) {
   const t = useT();
   const { locale } = useLocale();
+  const localizedHref = useLocalizedHref();
   const desktopItems = posts.slice(0, 8);
 
   if (!desktopItems.length) {
@@ -30,11 +31,14 @@ export function NewsSection({ posts, icon }: { posts: PublicBlogPost[]; icon?: R
           {icon ? <span className="inline-flex shrink-0 text-cardon-blue">{icon}</span> : null}
           {t('news.title')}
         </h2>
-        <Link href={BLOG_BASE_PATH} className="shrink-0 text-sm font-semibold text-cardon-blue hover:underline">
+        <Link
+          href={localizedHref(BLOG_BASE_PATH)}
+          className="shrink-0 text-sm font-semibold text-cardon-blue hover:underline"
+        >
           {t('common.viewAll')} →
         </Link>
       </div>
-      {locale === 'en' && posts.some((post) => post.fallback !== false) ? (
+      {locale === 'en' && posts.some((post) => post.fallback === true) ? (
         <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{t('common.untranslated')}</p>
       ) : null}
 
