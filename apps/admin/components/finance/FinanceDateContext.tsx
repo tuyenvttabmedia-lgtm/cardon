@@ -1,21 +1,18 @@
 'use client';
 
 import { createContext, useContext, useMemo, useState } from 'react';
-import { shiftVietnamDate, vietnamCalendarDate } from '@/lib/vietnam-date';
+import {
+  financePresetRange,
+  type FinanceDatePreset,
+  type FinanceQuickPreset,
+} from '@/lib/finance-date-presets';
 
-export type FinanceDatePreset = 'today' | '7d' | 'month' | 'custom';
-
-function presetRange(preset: FinanceDatePreset): { from: string; to: string } {
-  const today = vietnamCalendarDate();
-  if (preset === 'today') {
-    return { from: today, to: today };
-  }
-  if (preset === '7d') {
-    return { from: shiftVietnamDate(today, -6), to: today };
-  }
-  const start = `${today.slice(0, 8)}01`;
-  return { from: start, to: today };
-}
+export type { FinanceDatePreset, FinanceQuickPreset };
+export {
+  financeDefaultPresetForPath,
+  financePresetRange,
+  isFinanceYesterdayDefaultPath,
+} from '@/lib/finance-date-presets';
 
 interface FinanceDateContextValue {
   dateFrom: string;
@@ -28,11 +25,17 @@ interface FinanceDateContextValue {
 
 const FinanceDateContext = createContext<FinanceDateContextValue | null>(null);
 
-export function FinanceDateProvider({ children }: { children: React.ReactNode }) {
-  const initial = presetRange('month');
+export function FinanceDateProvider({
+  children,
+  initialPreset = 'month',
+}: {
+  children: React.ReactNode;
+  initialPreset?: FinanceQuickPreset;
+}) {
+  const initial = financePresetRange(initialPreset);
   const [dateFrom, setDateFrom] = useState(initial.from);
   const [dateTo, setDateTo] = useState(initial.to);
-  const [preset, setPreset] = useState<FinanceDatePreset>('month');
+  const [preset, setPreset] = useState<FinanceDatePreset>(initialPreset);
 
   const value = useMemo(
     () => ({
@@ -50,7 +53,7 @@ export function FinanceDateProvider({ children }: { children: React.ReactNode })
       applyPreset: (next: FinanceDatePreset) => {
         setPreset(next);
         if (next !== 'custom') {
-          const range = presetRange(next);
+          const range = financePresetRange(next);
           setDateFrom(range.from);
           setDateTo(range.to);
         }
