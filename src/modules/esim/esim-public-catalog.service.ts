@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { SettingsStoreService } from '../settings/services/settings-store.service';
 import { ESIM_AIRALO_PROVIDER_CODE } from './esim.constants';
 import {
+  clarifyDataDurationPhrase,
   displayProviderText,
   presentStorefrontOfferText,
   storefrontLocale,
@@ -240,7 +241,10 @@ export class EsimPublicCatalogService {
       productName: copy.productName,
       sku: variant.sku,
       title: copy.title,
-      providerDescription: displayProviderText(providerDescription, locale),
+      providerDescription: clarifyDataDurationPhrase(
+        displayProviderText(providerDescription, locale),
+        locale,
+      ),
       summary: copy.summary,
       dataLabel: copy.dataLabel,
       durationLabel: copy.durationLabel,
@@ -259,8 +263,14 @@ export class EsimPublicCatalogService {
       operatorInfo: hideSupplierTokens(facts.operatorInfo)
         .map((item) => displayProviderText(item, locale))
         .filter(Boolean),
-      shortInfo: displayProviderText(hideSupplierBrand(facts.shortInfo ?? ''), locale),
-      otherInfo: displayProviderText(hideSupplierBrand(facts.otherInfo ?? ''), locale),
+      shortInfo: clarifyDataDurationPhrase(
+        displayProviderText(hideSupplierBrand(facts.shortInfo ?? ''), locale),
+        locale,
+      ),
+      otherInfo: clarifyDataDurationPhrase(
+        displayProviderText(hideSupplierBrand(facts.otherInfo ?? ''), locale),
+        locale,
+      ),
       activationPolicy: facts.activationPolicy ?? '',
       activationLabel: copy.activationLabel,
       apnType: facts.apnType ?? '',

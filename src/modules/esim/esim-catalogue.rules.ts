@@ -590,14 +590,17 @@ export function parseDataAmountMb(amount: unknown, data: unknown, isUnlimited: b
   return 0;
 }
 
+const KNOWN_ACTIVATION_POLICY =
+  /first[-_ ]?us|on[-_ ]?usage|network|arriv|connect|install/i;
+
 export function activationLabelVi(policy: string): string {
   const value = policy.trim().toLowerCase();
   if (!value) return 'Theo hướng dẫn kèm mã cài';
   if (/first[-_ ]?us|on[-_ ]?usage|network|arriv|connect/.test(value)) {
-    return 'Bắt đầu tính ngày khi eSIM kết nối mạng lần đầu tại điểm đến';
+    return 'Thời hạn bắt đầu khi eSIM kết nối mạng lần đầu tại điểm đến — có thể cài trước khi bay';
   }
   if (/install/.test(value)) {
-    return 'Bắt đầu tính ngày ngay khi cài eSIM lên máy';
+    return 'Thời hạn bắt đầu ngay khi cài eSIM lên máy — chỉ cài khi sẵn sàng dùng';
   }
   return policy.trim();
 }
@@ -607,12 +610,25 @@ export function activationLabelFor(policy: string, locale: StorefrontLocale = 'v
   const value = policy.trim().toLowerCase();
   if (!value) return 'Follow the steps that come with the install code';
   if (/first[-_ ]?us|on[-_ ]?usage|network|arriv|connect/.test(value)) {
-    return 'The plan starts when the eSIM first connects at the destination';
+    return 'Validity starts when the eSIM first connects at the destination — you can install before you fly';
   }
   if (/install/.test(value)) {
-    return 'The plan starts as soon as the eSIM is installed';
+    return 'Validity starts as soon as the eSIM is installed — install only when you are ready to use it';
   }
   return policy.trim();
+}
+
+/** Prefer generated copy for known Airalo policies so stale DB labels cannot mislead customers. */
+export function resolveActivationLabel(
+  policy: string,
+  locale: StorefrontLocale,
+  storedLabel?: string,
+): string {
+  const generated = activationLabelFor(policy, locale);
+  if (KNOWN_ACTIVATION_POLICY.test(policy.trim())) return generated;
+  const stored = storedLabel?.trim();
+  if (locale === 'vi' && stored) return stored;
+  return generated;
 }
 
 export function formatStorefrontDataLabel(
@@ -621,9 +637,14 @@ export function formatStorefrontDataLabel(
   locale: StorefrontLocale,
 ): string {
   if (unlimited || amountMb < 0) return locale === 'en' ? 'Unlimited' : 'Không giới hạn';
-  if (amountMb >= 1024 && amountMb % 1024 === 0) return `${amountMb / 1024} GB`;
-  if (amountMb >= 1000 && amountMb % 1000 === 0) return `${amountMb / 1000} GB`;
-  return `${amountMb} MB`;
+  const amount =
+    amountMb >= 1024 && amountMb % 1024 === 0
+      ? `${amountMb / 1024} GB`
+      : amountMb >= 1000 && amountMb % 1000 === 0
+        ? `${amountMb / 1000} GB`
+        : `${amountMb} MB`;
+  // Fixed packs are a total pool over the validity window — not per day.
+  return locale === 'en' ? `${amount} total` : `${amount} tổng`;
 }
 
 export function formatStorefrontDurationLabel(
@@ -631,8 +652,36 @@ export function formatStorefrontDurationLabel(
   unit: string | undefined,
   locale: StorefrontLocale,
 ): string {
-  if (unit === 'day') return locale === 'en' ? `${duration} days` : `${duration} ngày`;
+  if (unit === 'day') {
+    return locale === 'en' ? `${duration} days validity` : `${duration} ngày sử dụng`;
+  }
   return `${duration} ${unit ?? ''}`.trim();
+}
+
+/** Clarify provider phrases like "5 GB - 30 ngày" so customers do not read them as per-day. */
+export function clarifyDataDurationPhrase(text: string, locale: StorefrontLocale): string {
+  const raw = text.trim();
+  if (!raw) return '';
+  if (locale === 'en') {
+    return raw
+      .replace(
+        /(\d+(?:[.,]\d+)?)\s*(GB|MB)\s*[-–—/]\s*(\d+)\s*days?/gi,
+        '$1 $2 total over $3 days',
+      )
+      .replace(
+        /(\d+(?:[.,]\d+)?)\s*(GB|MB)\s*[-–—/]\s*(\d+)\s*ngày/gi,
+        '$1 $2 total over $3 days',
+      );
+  }
+  return raw
+    .replace(
+      /(\d+(?:[.,]\d+)?)\s*(GB|MB)\s*[-–—/]\s*(\d+)\s*ngày/gi,
+      '$1 $2 tổng trong $3 ngày',
+    )
+    .replace(
+      /(\d+(?:[.,]\d+)?)\s*(GB|MB)\s*[-–—/]\s*(\d+)\s*days?/gi,
+      '$1 $2 tổng trong $3 ngày',
+    );
 }
 
 export function resolveCountryName(
@@ -671,7 +720,10 @@ export function localizeStoredTitle(title: string, locale: StorefrontLocale): st
     next = next.split(viName).join(enName);
   }
   next = next.replace(/Không giới hạn/g, 'Unlimited');
+  next = next.replace(/\btổng\b/gi, 'total');
+  next = next.replace(/(\d+)\s*ngày sử dụng/g, '$1 days validity');
   next = next.replace(/(\d+)\s*ngày/g, '$1 days');
+  next = next.replace(/tổng trong/gi, 'total over');
   return next;
 }
 
@@ -722,11 +774,20 @@ export function presentStorefrontOfferText(input: {
   );
   const dataLabel = formatStorefrontDataLabel(input.dataAmountMb, input.unlimited, input.locale);
   const durationLabel = formatStorefrontDurationLabel(input.duration, input.durationUnit, input.locale);
-  const activationLabel =
-    input.locale === 'en'
-      ? activationLabelFor(input.activationPolicy, 'en')
-      : input.storedActivationLabel || activationLabelVi(input.activationPolicy);
-  const parts = [`${dataLabel}, ${durationLabel}, ${countryName}.`];
+  const activationLabel = resolveActivationLabel(
+    input.activationPolicy,
+    input.locale,
+    input.storedActivationLabel,
+  );
+  const planLead =
+    input.unlimited || input.dataAmountMb < 0
+      ? input.locale === 'en'
+        ? `Unlimited data for ${durationLabel} in ${countryName}.`
+        : `Data không giới hạn trong ${durationLabel} tại ${countryName}.`
+      : input.locale === 'en'
+        ? `${dataLabel} over ${durationLabel} in ${countryName} (not per day).`
+        : `${dataLabel} trong ${durationLabel} tại ${countryName} (không phải dung lượng mỗi ngày).`;
+  const parts = [planLead];
   if (input.speedLabel) {
     parts.push(input.locale === 'en' ? `Speed: ${input.speedLabel}.` : `Tốc độ: ${input.speedLabel}.`);
   }
@@ -735,15 +796,22 @@ export function presentStorefrontOfferText(input: {
     parts.push(input.locale === 'en' ? `Network: ${networks}.` : `Nhà mạng: ${networks}.`);
   }
   if (activationLabel) parts.push(activationLabel);
-  const providerDescription = displayProviderText(input.providerDescription, input.locale);
+  const providerDescription = clarifyDataDurationPhrase(
+    displayProviderText(input.providerDescription, input.locale),
+    input.locale,
+  );
   if (providerDescription) parts.push(providerDescription);
+  const clearTitle =
+    dataLabel && durationLabel
+      ? `${countryName} — ${dataLabel} · ${durationLabel}`
+      : localizeStoredTitle(input.title, input.locale);
   return {
     countryName,
     dataLabel,
     durationLabel,
     activationLabel,
     summary: parts.join(' '),
-    title: localizeStoredTitle(input.title, input.locale),
+    title: clearTitle,
     productName: localizeStoredTitle(input.productName, input.locale),
   };
 }

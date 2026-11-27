@@ -24,8 +24,8 @@ describe('eSIM package spec from current catalogue', () => {
     });
     expect(published.specSource).toBe('catalogue_current');
     expect(published.title).toBe('Korea 3GB');
-    expect(published.dataAllowanceLabel).toBe('3 GB');
-    expect(published.validityLabel).toBe('7 ngày');
+    expect(published.dataAllowanceLabel).toBe('3 GB tổng');
+    expect(published.validityLabel).toBe('7 ngày sử dụng');
     expect(published.activationLabel).toMatch(/kết nối mạng lần đầu/);
     expect(published.fairUsagePolicy).toBe('CardOn fair use 1GB/day');
     expect(published.catalogueLifecycle).toBe('PUBLISHED');
@@ -41,7 +41,7 @@ describe('eSIM package spec from current catalogue', () => {
       lifecycle: EsimCatalogLifecycle.INACTIVE,
     });
     expect(inactive.catalogueLifecycle).toBe('INACTIVE');
-    expect(inactive.dataAllowanceLabel).toBe('1 GB');
+    expect(inactive.dataAllowanceLabel).toBe('1 GB tổng');
     expect(inactive.notice).toBe(CATALOGUE_CURRENT_NOTICE);
   });
 
@@ -58,9 +58,9 @@ describe('eSIM package spec from current catalogue', () => {
 
   it('labels unlimited, megabytes, and day units from catalogue fields only', () => {
     expect(formatCatalogueDataLabel(0, true)).toBe('Không giới hạn');
-    expect(formatCatalogueDataLabel(500, false)).toBe('500 MB');
-    expect(formatCatalogueDataLabel(2000, false)).toBe('2 GB');
-    expect(formatCatalogueDurationLabel(15, 'day')).toBe('15 ngày');
+    expect(formatCatalogueDataLabel(500, false)).toBe('500 MB tổng');
+    expect(formatCatalogueDataLabel(2000, false)).toBe('2 GB tổng');
+    expect(formatCatalogueDurationLabel(15, 'day')).toBe('15 ngày sử dụng');
     const unlimited = buildEsimPackageSpec({
       title: 'Unlimited Asia',
       dataAmountMb: 0,
