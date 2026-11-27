@@ -1,8 +1,10 @@
+import { ESIM_INSTALL_QR_CID } from '../../esim/esim-lpa-qr';
 import { esimDeliveryNotice } from '../../esim/esim-delivery.view';
 import { renderEmailTemplate } from './template.registry';
 
 const FIXTURE_ORDER = 'ORD-TEST-SANDBOX';
 const FIXTURE_ACCOUNT = 'https://cardon.vn/tai-khoan/esim';
+const FIXTURE_LPA = 'LPA:1$smdp.example.com$MATCHID';
 const SANDBOX_NOTICE = esimDeliveryNotice('ready', false, true) ?? '';
 
 describe('USER_REGISTER templates', () => {
@@ -68,34 +70,52 @@ describe('eSIM email templates', () => {
       expect(part).not.toMatch(/LPA:1/i);
       expect(part).not.toMatch(/lpa\.airalo\.com/i);
       expect(part).not.toMatch(/<svg/i);
-      expect(part).not.toMatch(/qr/i);
       expect(part).toMatch(/không chứa mã cài đặt|Không có mã cài đặt/i);
     }
     expect(rendered.html).toContain(FIXTURE_ACCOUNT);
     expect(rendered.text).toContain(FIXTURE_ACCOUNT);
   });
 
-  it('ESIM_READY and ESIM_TEST_READY also omit install secrets', () => {
+  it('ESIM_READY embeds install QR, LPA, and detailed install steps', () => {
     const ready = renderEmailTemplate('ESIM_READY', {
       orderCode: FIXTURE_ORDER,
-      installSecret: 'LPA:1$lpa.airalo.com$TEST',
+      installSecret: FIXTURE_LPA,
+      hasQrImage: true,
+      smdpAddress: 'smdp.example.com',
+      activationCode: 'MATCHID',
+      appleSetupUrl: `https://esimsetup.apple.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(FIXTURE_LPA)}`,
+      androidSetupUrl: `https://esimsetup.android.com/esim_qrcode_provisioning?carddata=${encodeURIComponent(FIXTURE_LPA)}`,
       destination: 'Asia',
       packageName: '500MB',
       sharingLink: 'https://esims.cloud/keyon/demo',
       sharingAccessCode: '8265',
       accountUrl: FIXTURE_ACCOUNT,
-    });
-    const test = renderEmailTemplate('ESIM_TEST_READY', {
-      orderCode: FIXTURE_ORDER,
-      installSecret: 'LPA:1$lpa.airalo.com$TEST',
+      isGuestOrder: true,
     });
     expect(ready.html).toContain('Asia');
     expect(ready.html).toContain('esims.cloud/keyon/demo');
     expect(ready.html).toContain('8265');
     expect(ready.html).toContain(FIXTURE_ACCOUNT);
-    for (const part of [ready.html, ready.text, test.html, test.text]) {
+    expect(ready.html).toContain(FIXTURE_LPA);
+    expect(ready.html).toContain(`cid:${ESIM_INSTALL_QR_CID}`);
+    expect(ready.html).toContain('smdp.example.com');
+    expect(ready.html).toContain('MATCHID');
+    expect(ready.html).toMatch(/Cài trên iPhone|Install on iPhone/);
+    expect(ready.html).toMatch(/Cài trên Android|Install on Android/);
+    expect(ready.html).toContain('esimsetup.apple.com');
+    expect(ready.html).toContain('esimsetup.android.com');
+    expect(ready.text).toContain(FIXTURE_LPA);
+    expect(ready.html).not.toMatch(/không[\s\S]{0,24}chứa mã cài đặt/i);
+  });
+
+  it('ESIM_TEST_READY still omits install secrets', () => {
+    const test = renderEmailTemplate('ESIM_TEST_READY', {
+      orderCode: FIXTURE_ORDER,
+      installSecret: FIXTURE_LPA,
+    });
+    for (const part of [test.html, test.text]) {
       expect(part).not.toMatch(/LPA:1/i);
-      expect(part).toMatch(/không[\s\S]{0,24}chứa mã cài đặt|Không có mã cài đặt/i);
+      expect(part).toMatch(/không[\s\S]{0,24}chứa mã cài đặt|Không có mã cài đặt|no install code/i);
     }
   });
 });

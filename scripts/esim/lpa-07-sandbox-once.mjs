@@ -375,7 +375,8 @@ async function main() {
   report.persistReason = 'No CardOn order/quote write. Would require local order + payment path.';
   report.deliverySkipped = true;
   report.emailSkipped = true;
-  report.emailTemplateNote = 'ESIM_READY / ESIM_TEST_READY templates already omit LPA (unit-tested).';
+  report.emailTemplateNote =
+    'ESIM_READY embeds live LPA/QR; ESIM_TEST_READY / ESIM_SANDBOX_READY still omit secrets (unit-tested).';
   console.log(JSON.stringify(report, null, 2));
 }
 

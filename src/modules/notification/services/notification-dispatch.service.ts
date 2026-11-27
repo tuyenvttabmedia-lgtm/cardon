@@ -5,6 +5,15 @@ import {
   NotificationRecipientType,
   Prisma,
 } from '@prisma/client';
+import {
+  appleEsimSetupUrl,
+  androidEsimSetupUrl,
+  isEsimTestSecret,
+  isInstallableLpa,
+  lpaForDisplay,
+  splitLpaManualParts,
+} from '../../esim/esim-delivery.view';
+import { ESIM_INSTALL_QR_CID, renderLpaQrPngBase64 } from '../../esim/esim-lpa-qr';
 import { CardEncryptionService } from '../../provider/services/card-encryption.service';
 import { SettingsStoreService } from '../../settings/services/settings-store.service';
 import { TelegramNotificationService } from '../providers/telegram-notification.service';
@@ -17,7 +26,7 @@ import {
   safeEmailLogMeta,
   sanitizeNotificationLogContext,
 } from '../entities/notification-log-safety';
-import { NotificationQueueJobData } from '../entities/notification.types';
+import { NotificationQueueJobData, SendEmailParams } from '../entities/notification.types';
 import { EmailProviderInterface } from '../providers/email-provider.interface';
 import { MockEmailProvider } from '../providers/mock-email.provider';
 import { SmtpEmailProvider } from '../providers/smtp-email.provider';
@@ -25,6 +34,13 @@ import { NotificationRepository } from '../repositories/notification.repository'
 import { renderEmailTemplate } from '../templates/template.registry';
 import { formatCardDeliveryEmailBlocks } from '../templates/card-delivery-email.format';
 import { EmailTemplateService } from '../../email-template/services/email-template.service';
+
+/** Structured eSIM ready mail must stay on the code registry (QR + LPA + steps). */
+const ESIM_READY_REGISTRY_ONLY = new Set<string>([
+  EMAIL_TEMPLATE.ESIM_READY,
+  EMAIL_TEMPLATE.ESIM_TEST_READY,
+  EMAIL_TEMPLATE.ESIM_SANDBOX_READY,
+]);
 
 const DB_TEMPLATE_ALIASES: Record<string, string> = {
   CARD_DELIVERY: 'CARD_DELIVERED',
@@ -96,9 +112,10 @@ export class NotificationDispatchService {
     this.smtpProvider.clearTransporterCache();
 
     const payload = await this.buildEmailPayload(job.template, job.payload);
-    const rendered =
-      (await this.renderFromDatabase(job.template, payload)) ??
-      renderEmailTemplate(job.template as never, payload);
+    const rendered = ESIM_READY_REGISTRY_ONLY.has(job.template)
+      ? renderEmailTemplate(job.template as never, payload)
+      : ((await this.renderFromDatabase(job.template, payload)) ??
+        renderEmailTemplate(job.template as never, payload));
 
     if (containsSensitiveContent(rendered.text)) {
       this.logger.log(
@@ -120,6 +137,7 @@ export class NotificationDispatchService {
       );
     }
 
+    const attachments = this.buildEsimReadyAttachments(job.template, payload);
     const provider = this.resolveEmailProvider();
     const result = await provider.sendEmail({
       to: job.recipientEmail,
@@ -127,6 +145,7 @@ export class NotificationDispatchService {
       html: rendered.html,
       text: rendered.text,
       template: job.template,
+      ...(attachments ? { attachments } : {}),
     });
 
     if (!result.ok) {
@@ -190,7 +209,7 @@ export class NotificationDispatchService {
       /\/$/,
       '',
     );
-    const { installSecret: _omitSecret, ...safePayload } = payload;
+    const { installSecret: _omitSecret, qrPngBase64: _omitQr, ...safePayload } = payload;
     const trace = order.clientTrace;
     const storedLocale =
       trace && typeof trace === 'object' && !Array.isArray(trace) && (trace as { locale?: unknown }).locale === 'en'
@@ -252,6 +271,58 @@ export class NotificationDispatchService {
       Object.assign(enriched, formatCardDeliveryEmailBlocks(cards));
     }
 
+    if (template === EMAIL_TEMPLATE.ESIM_READY) {
+      await this.attachLiveEsimInstallMaterial(enriched, esimItem?.esimProfile?.installSecretEnc);
+    }
+
     return enriched;
+  }
+
+  private async attachLiveEsimInstallMaterial(
+    enriched: Record<string, unknown>,
+    installSecretEnc?: string | null,
+  ): Promise<void> {
+    if (!installSecretEnc) return;
+    let secret: string | null = null;
+    try {
+      const decrypted = this.cardEncryption.decrypt(installSecretEnc);
+      secret = isInstallableLpa(decrypted) ? decrypted : null;
+    } catch {
+      secret = null;
+    }
+    if (!secret || isEsimTestSecret(secret)) return;
+
+    const display = lpaForDisplay(secret);
+    const manual = splitLpaManualParts(display);
+    const qrPngBase64 = await renderLpaQrPngBase64(secret);
+    enriched.installSecret = display;
+    enriched.hasQrImage = Boolean(qrPngBase64);
+    if (qrPngBase64) enriched.qrPngBase64 = qrPngBase64;
+    if (manual) {
+      enriched.smdpAddress = manual.smdpAddress;
+      enriched.activationCode = manual.activationCode;
+    }
+    const apple = appleEsimSetupUrl(display);
+    const android = androidEsimSetupUrl(display);
+    if (apple) enriched.appleSetupUrl = apple;
+    if (android) enriched.androidSetupUrl = android;
+  }
+
+  private buildEsimReadyAttachments(
+    template: string,
+    payload: Record<string, unknown>,
+  ): SendEmailParams['attachments'] | undefined {
+    if (template !== EMAIL_TEMPLATE.ESIM_READY) return undefined;
+    const qrPngBase64 = typeof payload.qrPngBase64 === 'string' ? payload.qrPngBase64.trim() : '';
+    if (!qrPngBase64) return undefined;
+    return [
+      {
+        filename: 'esim-install-qr.png',
+        content: qrPngBase64,
+        encoding: 'base64',
+        contentType: 'image/png',
+        cid: ESIM_INSTALL_QR_CID,
+      },
+    ];
   }
 }

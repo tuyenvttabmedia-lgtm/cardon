@@ -1331,14 +1331,16 @@ describe('Phase A eSIM access, admin, dispatch, and logs', () => {
     expect(mail.html).not.toContain('TEST-LPA');
     expect(mail.text).not.toContain(secret);
     expect(mail.text).toMatch(/không (có|chứa) mã cài đặt/i);
+    const liveLpa = 'LPA:1$smdp.example.com$LIVE';
     const ready = renderEmailTemplate('ESIM_READY', {
       orderCode: 'CO1',
-      installSecret: secret,
+      installSecret: liveLpa,
+      hasQrImage: true,
       accountUrl: 'http://localhost/tai-khoan/esim',
     });
-    expect(ready.html).not.toContain('TEST-LPA');
-    expect(ready.text).not.toContain(secret);
-    expect(ready.text).toMatch(/không (có|chứa) mã cài đặt/i);
+    expect(ready.html).toContain(liveLpa);
+    expect(ready.text).toContain(liveLpa);
+    expect(ready.html).toContain('cid:esim-install-qr@cardon');
     const sandbox = renderEmailTemplate('ESIM_SANDBOX_READY', {
       orderCode: 'CO1',
       installSecret: secret,

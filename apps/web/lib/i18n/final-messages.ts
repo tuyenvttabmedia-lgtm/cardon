@@ -78,7 +78,7 @@ export const finalVi = {
   'esim.benefitConnectBody': 'Dữ liệu di động tại điểm đến, không cần mua SIM tại sân bay.',
   'esim.benefitCode': 'Nhận mã cài nhanh',
   'esim.benefitCodeBody':
-    'Sau thanh toán, CardOn gửi email thông báo + hướng dẫn; mã cài/QR xem trong Tài khoản → eSIM.',
+    'Sau thanh toán, CardOn gửi email kèm mã QR cài đặt và hướng dẫn chi tiết.',
   'esim.benefitDevice': 'Máy hỗ trợ eSIM',
   'esim.benefitDeviceBody': 'Dùng trên điện thoại hoặc máy tính bảng hỗ trợ eSIM. Kiểm tra máy trước khi mua.',
   'esim.benefitClear': 'Gói rõ ràng',
@@ -106,7 +106,7 @@ export const finalVi = {
   'install.topup': 'Một số gói cho phép nạp thêm khi hết dung lượng, nếu còn trong thời hạn.',
   'install.fup': 'Chính sách dùng công bằng',
   'install.afterPay':
-    'Sau thanh toán, CardOn gửi email thông báo kèm hướng dẫn cài. Mở Tài khoản → eSIM (hoặc trang đơn) để lấy mã cài/QR — mã không đính kèm trong email để bảo mật.',
+    'Sau thanh toán, CardOn gửi email kèm mã QR cài đặt, mã LPA và hướng dẫn chi tiết (iPhone/Android). Bạn cũng có thể mở lại trang đơn hoặc Tài khoản → eSIM.',
   'install.apnManual': 'Cần nhập APN thủ công',
   'order.syncing': 'Đang xác nhận thanh toán và chuẩn bị mã eSIM. Trang này tự cập nhật.',
   'order.esimFetching': 'Thanh toán đã xác nhận. Đang chuẩn bị mã cài eSIM.',
@@ -148,7 +148,7 @@ export const finalVi = {
   'pay.amountDue': 'Số tiền cần chuyển',
   'pay.details': 'Chi tiết đơn',
   'pay.loadingItems': 'Đang tải chi tiết sản phẩm…',
-  'pay.email': 'Email nhận thông báo eSIM',
+  'pay.email': 'Email nhận mã QR eSIM',
   'pay.deadline': 'Hạn thanh toán',
   'pay.how': 'Cách thanh toán',
   'pay.viewStatus': 'Xem trạng thái đơn (chưa xác nhận thanh toán)',
@@ -371,7 +371,7 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'esim.benefitConnectBody': 'Mobile data at the destination, without buying a SIM at the airport.',
   'esim.benefitCode': 'Install code after payment',
   'esim.benefitCodeBody':
-    'After payment, CardOn emails a notice and install guide; open Account → eSIM for the code/QR.',
+    'After payment, CardOn emails the install QR and detailed setup steps.',
   'esim.benefitDevice': 'eSIM phone required',
   'esim.benefitDeviceBody': 'Use a phone or tablet that supports eSIM. Check the device before you buy.',
   'esim.benefitClear': 'Clear plan details',
@@ -399,7 +399,7 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'install.topup': 'Some plans allow a top-up after the data runs out, if still within the validity window.',
   'install.fup': 'Fair use policy',
   'install.afterPay':
-    'After payment, CardOn emails a notice with install steps. Open Account → eSIM (or your order page) for the install code/QR — the secret is not attached to the email for security.',
+    'After payment, CardOn emails the install QR, LPA code, and iPhone/Android steps. You can also reopen the order page or Account → eSIM.',
   'install.apnManual': 'Enter the APN manually',
   'order.syncing': 'Confirming payment and preparing your eSIM code. This page updates automatically.',
   'order.esimFetching': 'Payment confirmed. Preparing the eSIM install code.',
@@ -441,7 +441,7 @@ export const finalEn: Record<keyof typeof finalVi, string> = {
   'pay.amountDue': 'Amount to transfer',
   'pay.details': 'Order details',
   'pay.loadingItems': 'Loading product details…',
-  'pay.email': 'Email for eSIM notices',
+  'pay.email': 'Email for the eSIM QR',
   'pay.deadline': 'Pay before',
   'pay.how': 'How to pay',
   'pay.viewStatus': 'View order status (payment not confirmed)',

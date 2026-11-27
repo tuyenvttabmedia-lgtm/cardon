@@ -49,7 +49,11 @@ export class NotificationRepository {
               },
             },
             esimProfile: {
-              select: { sharingLink: true, sharingAccessCode: true },
+              select: {
+                installSecretEnc: true,
+                sharingLink: true,
+                sharingAccessCode: true,
+              },
             },
             cardRecords: {
               select: {

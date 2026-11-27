@@ -29,6 +29,8 @@ export interface SendEmailParams {
     content: Buffer | string;
     contentType?: string;
     encoding?: string;
+    /** Inline CID for HTML <img src="cid:..."> */
+    cid?: string;
   }>;
 }
 

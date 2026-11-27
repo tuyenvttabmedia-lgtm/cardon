@@ -1,4 +1,5 @@
 import { esimDeliveryNotice } from '../../esim/esim-delivery.view';
+import { ESIM_INSTALL_QR_CID } from '../../esim/esim-lpa-qr';
 import { EmailTemplateType } from '../entities/notification.constants';
 import { formatCardDeliveryEmailBlocks } from './card-delivery-email.format';
 
@@ -31,15 +32,22 @@ function renderEsimReadyEmail(
   const packageName = String(data.packageName ?? '').trim();
   const sharingLink = String(data.sharingLink ?? '').trim();
   const sharingAccessCode = String(data.sharingAccessCode ?? '').trim();
+  const installSecret = String(data.installSecret ?? '').trim();
+  const smdpAddress = String(data.smdpAddress ?? '').trim();
+  const activationCode = String(data.activationCode ?? '').trim();
+  const appleSetupUrl = String(data.appleSetupUrl ?? '').trim();
+  const androidSetupUrl = String(data.androidSetupUrl ?? '').trim();
+  const hasQrImage = data.hasQrImage === true;
   const guest = data.isGuestOrder === true;
   const planLine = [destination, packageName].filter(Boolean).join(' · ');
   const safeAccount = escapeHtml(accountUrl);
   const safeName = escapeHtml(name);
   const safeOrder = escapeHtml(orderCode);
   const safePlan = escapeHtml(planLine);
+  const hasInstall = installSecret.startsWith('LPA:1$');
 
   if (locale === 'en') {
-    const openLabel = guest ? 'Open your order page' : 'Open your CardOn eSIM account';
+    const openLabel = guest ? 'Open your order page again' : 'Open your CardOn eSIM account';
     const cloudHtml =
       sharingLink.startsWith('https://') && sharingAccessCode
         ? `<p>Optional guide page: <a href="${escapeHtml(sharingLink)}">${escapeHtml(sharingLink)}</a><br/>Access code: <strong>${escapeHtml(sharingAccessCode)}</strong></p>`
@@ -48,28 +56,53 @@ function renderEsimReadyEmail(
       sharingLink.startsWith('https://') && sharingAccessCode
         ? `\nOptional guide: ${sharingLink} (access code ${sharingAccessCode})`
         : '';
+    const qrHtml = hasInstall
+      ? `<p><strong>Install QR</strong></p>
+${hasQrImage ? `<p><img src="cid:${ESIM_INSTALL_QR_CID}" alt="eSIM install QR" width="220" height="220" style="display:block;border:0;max-width:220px;height:auto;" /></p>` : ''}
+<p>Install code (LPA): <code style="word-break:break-all;">${escapeHtml(installSecret)}</code></p>
+${smdpAddress && activationCode ? `<p>Manual entry — SM-DP+: <strong>${escapeHtml(smdpAddress)}</strong><br/>Activation code: <strong>${escapeHtml(activationCode)}</strong></p>` : ''}
+${appleSetupUrl.startsWith('https://') ? `<p><a href="${escapeHtml(appleSetupUrl)}">Add eSIM on iPhone</a></p>` : ''}
+${androidSetupUrl.startsWith('https://') ? `<p><a href="${escapeHtml(androidSetupUrl)}">Add eSIM on Android</a></p>` : ''}`
+      : `<p>Open your order to reveal the install QR: <a href="${safeAccount}">${safeAccount}</a></p>`;
+    const qrText = hasInstall
+      ? `
+Install code (LPA): ${installSecret}
+${smdpAddress && activationCode ? `SM-DP+: ${smdpAddress}\nActivation code: ${activationCode}\n` : ''}${appleSetupUrl.startsWith('https://') ? `Add eSIM on iPhone: ${appleSetupUrl}\n` : ''}${androidSetupUrl.startsWith('https://') ? `Add eSIM on Android: ${androidSetupUrl}\n` : ''}`
+      : `Open your order for the install QR: ${accountUrl}\n`;
+
     return {
       subject: `Your eSIM is ready — order ${orderCode}`,
       html: `<p>Hello ${safeName},</p>
 <p>Your travel eSIM for order <strong>${safeOrder}</strong>${safePlan ? ` (${safePlan})` : ''} is ready on CardOn.</p>
-<p><strong>How to install</strong></p>
+${qrHtml}
+<p><strong>Install on iPhone / iPad</strong></p>
 <ol>
 <li>Stay on Wi‑Fi.</li>
-<li>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></li>
-<li>Open the install code / QR, then use <em>Add eSIM on iPhone</em> or <em>Add eSIM on Android</em>, or enter the manual SM-DP+ details.</li>
+<li>Open Settings → Cellular → Add eSIM (or use <em>Add eSIM on iPhone</em> above).</li>
+<li>Scan the QR in this email, or enter SM-DP+ / activation code manually.</li>
+<li>Label the eSIM, then turn it on for mobile data when you arrive.</li>
 </ol>
+<p><strong>Install on Android</strong></p>
+<ol>
+<li>Stay on Wi‑Fi.</li>
+<li>Open Settings → Network &amp; internet → SIMs → Add eSIM (or use <em>Add eSIM on Android</em> above).</li>
+<li>Scan the QR, or paste the install code / SM-DP+ details.</li>
+<li>Set this eSIM for data when you arrive.</li>
+</ol>
+<p>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></p>
 ${cloudHtml}
-<p>This email does <strong>not</strong> include the install code. Keep QR and LPA private.</p>`,
+<p>Do <strong>not</strong> forward this email. Keep the QR and install code private.</p>`,
       text: `Hello ${name},
 Your travel eSIM for order ${orderCode}${planLine ? ` (${planLine})` : ''} is ready on CardOn.
-1) Stay on Wi-Fi
-2) ${openLabel}: ${accountUrl}
-3) Open install code / QR, then Add eSIM on iPhone or Android, or enter SM-DP+ manually.${cloudText}
-This email does not include the install code.`,
+${qrText}
+iPhone: Wi-Fi → Settings → Cellular → Add eSIM → scan QR or enter SM-DP+ manually.
+Android: Wi-Fi → Settings → Network & internet → SIMs → Add eSIM → scan QR or paste the code.
+${openLabel}: ${accountUrl}${cloudText}
+Do not forward this email. Keep the QR and install code private.`,
     };
   }
 
-  const openLabel = guest ? 'Mở trang đơn hàng' : 'Mở tài khoản eSIM CardOn';
+  const openLabel = guest ? 'Mở lại trang đơn hàng' : 'Mở tài khoản eSIM CardOn';
   const cloudHtml =
     sharingLink.startsWith('https://') && sharingAccessCode
       ? `<p>Hướng dẫn phụ (eSIMs Cloud): <a href="${escapeHtml(sharingLink)}">${escapeHtml(sharingLink)}</a><br/>Mã truy cập: <strong>${escapeHtml(sharingAccessCode)}</strong></p>`
@@ -78,24 +111,49 @@ This email does not include the install code.`,
     sharingLink.startsWith('https://') && sharingAccessCode
       ? `\nHướng dẫn phụ: ${sharingLink} (mã truy cập ${sharingAccessCode})`
       : '';
+  const qrHtml = hasInstall
+    ? `<p><strong>Mã QR cài đặt</strong></p>
+${hasQrImage ? `<p><img src="cid:${ESIM_INSTALL_QR_CID}" alt="QR cài eSIM" width="220" height="220" style="display:block;border:0;max-width:220px;height:auto;" /></p>` : ''}
+<p>Mã cài (LPA): <code style="word-break:break-all;">${escapeHtml(installSecret)}</code></p>
+${smdpAddress && activationCode ? `<p>Cài thủ công — SM-DP+: <strong>${escapeHtml(smdpAddress)}</strong><br/>Mã kích hoạt: <strong>${escapeHtml(activationCode)}</strong></p>` : ''}
+${appleSetupUrl.startsWith('https://') ? `<p><a href="${escapeHtml(appleSetupUrl)}">Thêm eSIM trên iPhone</a></p>` : ''}
+${androidSetupUrl.startsWith('https://') ? `<p><a href="${escapeHtml(androidSetupUrl)}">Thêm eSIM trên Android</a></p>` : ''}`
+    : `<p>Mở trang đơn để lấy mã QR: <a href="${safeAccount}">${safeAccount}</a></p>`;
+  const qrText = hasInstall
+    ? `
+Mã cài (LPA): ${installSecret}
+${smdpAddress && activationCode ? `SM-DP+: ${smdpAddress}\nMã kích hoạt: ${activationCode}\n` : ''}${appleSetupUrl.startsWith('https://') ? `Thêm eSIM trên iPhone: ${appleSetupUrl}\n` : ''}${androidSetupUrl.startsWith('https://') ? `Thêm eSIM trên Android: ${androidSetupUrl}\n` : ''}`
+    : `Mở trang đơn để lấy mã QR: ${accountUrl}\n`;
+
   return {
     subject: `Mã cài eSIM đã sẵn sàng — đơn ${orderCode}`,
     html: `<p>Xin chào ${safeName},</p>
 <p>eSIM du lịch của đơn <strong>${safeOrder}</strong>${safePlan ? ` (${safePlan})` : ''} đã sẵn sàng trên CardOn.</p>
-<p><strong>Cách cài</strong></p>
+${qrHtml}
+<p><strong>Cài trên iPhone / iPad</strong></p>
 <ol>
 <li>Giữ kết nối Wi‑Fi.</li>
-<li>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></li>
-<li>Mở mã cài / QR, rồi chọn <em>Thêm eSIM trên iPhone</em> hoặc <em>Thêm eSIM trên Android</em>, hoặc nhập thủ công SM-DP+ / mã kích hoạt.</li>
+<li>Vào Cài đặt → Di động → Thêm eSIM (hoặc bấm <em>Thêm eSIM trên iPhone</em> ở trên).</li>
+<li>Quét mã QR trong email này, hoặc nhập SM-DP+ / mã kích hoạt thủ công.</li>
+<li>Đặt nhãn cho eSIM, rồi bật dữ liệu di động khi đến nơi.</li>
 </ol>
+<p><strong>Cài trên Android</strong></p>
+<ol>
+<li>Giữ kết nối Wi‑Fi.</li>
+<li>Vào Cài đặt → Mạng và internet → SIM → Thêm eSIM (hoặc bấm <em>Thêm eSIM trên Android</em> ở trên).</li>
+<li>Quét mã QR, hoặc dán mã cài / nhập SM-DP+.</li>
+<li>Đặt eSIM này làm SIM dữ liệu khi đến nơi.</li>
+</ol>
+<p>${openLabel}: <a href="${safeAccount}">${safeAccount}</a></p>
 ${cloudHtml}
-<p>Email này <strong>không</strong> chứa mã cài đặt. Không gửi QR/LPA cho người khác.</p>`,
+<p><strong>Không</strong> chuyển tiếp email này. Giữ mã QR / mã cài riêng tư.</p>`,
     text: `Xin chào ${name},
 eSIM du lịch đơn ${orderCode}${planLine ? ` (${planLine})` : ''} đã sẵn sàng trên CardOn.
-1) Giữ Wi-Fi
-2) ${openLabel}: ${accountUrl}
-3) Mở mã cài / QR, rồi Thêm eSIM trên iPhone hoặc Android, hoặc nhập SM-DP+ thủ công.${cloudText}
-Email này không chứa mã cài đặt.`,
+${qrText}
+iPhone: Wi-Fi → Cài đặt → Di động → Thêm eSIM → quét QR hoặc nhập SM-DP+ thủ công.
+Android: Wi-Fi → Cài đặt → Mạng và internet → SIM → Thêm eSIM → quét QR hoặc dán mã cài.
+${openLabel}: ${accountUrl}${cloudText}
+Không chuyển tiếp email này. Giữ mã QR / mã cài riêng tư.`,
   };
 }
 
