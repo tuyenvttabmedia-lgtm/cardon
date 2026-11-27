@@ -122,7 +122,7 @@ export const journeyVi = {
   'checkout.overLimit': 'Đơn hàng vượt quá giới hạn',
   'checkout.unavailable': 'Thanh toán tạm thời chưa khả dụng. Thử lại sau hoặc liên hệ hỗ trợ.',
   'checkout.esimGuestHint':
-    'Nhập email để nhận QR eSIM và hướng dẫn cài đặt. Không bắt buộc đăng ký tài khoản.',
+    'Nhập email để nhận thông báo + hướng dẫn cài. Mã cài/QR xem trên trang đơn hoặc Tài khoản → eSIM. Không bắt buộc đăng ký tài khoản.',
   'checkout.esimLogin': 'Đăng nhập trước khi mua eSIM',
   'checkout.emailRequired': 'Vui lòng nhập email để nhận đơn hàng',
   'checkout.esimLoading': 'Đang tải gói eSIM...',
@@ -359,7 +359,8 @@ export const journeyVi = {
   'esim.faqWhat': 'eSIM du lịch là gì?',
   'esim.faqWhatA': 'eSIM là SIM điện tử cài bằng mã QR hoặc mã cài đặt, không cần tháo SIM vật lý. Gói trên CardOn giúp bạn có dữ liệu di động ngay khi đến nơi.',
   'esim.faqQr': 'Tôi nhận mã cài eSIM thế nào?',
-  'esim.faqQrA': 'Sau khi thanh toán thành công, mã cài được lưu trong mục eSIM của tài khoản CardOn. Mở trên thiết bị hỗ trợ eSIM và làm theo hướng dẫn.',
+  'esim.faqQrA':
+    'Sau khi thanh toán thành công, CardOn gửi email thông báo kèm hướng dẫn cài. Mã cài/QR được lưu trong mục eSIM của tài khoản (hoặc trang đơn guest). Mở trên thiết bị hỗ trợ eSIM và làm theo hướng dẫn.',
   'esim.faqDevice': 'Máy nào dùng được eSIM?',
   'esim.faqDeviceA': 'Chỉ thiết bị hỗ trợ eSIM (nhiều iPhone, Google Pixel, Samsung Galaxy mới). Kiểm tra cài đặt di động của máy trước khi mua.',
   'esim.faqHotspot': 'eSIM có phát Wi‑Fi (hotspot) được không?',
@@ -574,7 +575,7 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'checkout.overLimit': 'Order is over the limit',
   'checkout.unavailable': 'Payment is temporarily unavailable. Try again or contact support.',
   'checkout.esimGuestHint':
-    'Enter your email to receive the eSIM QR code and install guide. Account registration is optional.',
+    'Enter your email for the notice and install guide. The install code/QR is on the order page or Account → eSIM. Account registration is optional.',
   'checkout.esimLogin': 'Log in before buying an eSIM',
   'checkout.emailRequired': 'Enter an email so we can send the order',
   'checkout.esimLoading': 'Loading eSIM plan...',
@@ -811,7 +812,8 @@ export const journeyEn: Record<keyof typeof journeyVi, string> = {
   'esim.faqWhat': 'What is a travel eSIM?',
   'esim.faqWhatA': 'An eSIM is installed with a QR code or install code. You do not remove a physical SIM. A CardOn plan gives you mobile data when you arrive.',
   'esim.faqQr': 'How do I get the install code?',
-  'esim.faqQrA': 'After payment, the install code is stored in the eSIM section of your CardOn account. Open it on an eSIM phone and follow the steps.',
+  'esim.faqQrA':
+    'After payment, CardOn emails a notice with install steps. The install code/QR is stored under eSIM in your account (or the guest order page). Open it on an eSIM phone and follow the steps.',
   'esim.faqDevice': 'Which phones support eSIM?',
   'esim.faqDeviceA': 'Only phones with eSIM (many recent iPhone, Google Pixel and Samsung Galaxy models). Check mobile settings before you buy.',
   'esim.faqHotspot': 'Can I share the connection?',
