@@ -62,6 +62,9 @@ export class SmtpEmailProvider implements EmailProviderInterface {
         content: a.content,
         contentType: a.contentType,
         encoding: a.encoding,
+        ...(a.cid
+          ? { cid: a.cid, contentDisposition: 'inline' as const }
+          : {}),
       })),
       encoding: 'utf-8',
     });

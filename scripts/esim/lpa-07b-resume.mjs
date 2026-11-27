@@ -297,7 +297,8 @@ try {
                 report.recover = { used: 'none', recovered: false, reason: 'No identifier. No second CREATE.' };
               }
               report.persistReason = 'No CardOn order/quote write in this script.';
-              report.emailTemplateNote = 'ESIM_READY templates omit LPA (unit-tested).';
+              report.emailTemplateNote =
+                'ESIM_READY embeds live LPA/QR; sandbox/test templates still omit secrets (unit-tested).';
               finish(report);
             }
           }
