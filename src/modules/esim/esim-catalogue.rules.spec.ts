@@ -64,10 +64,12 @@ describe('esim-catalogue.rules', () => {
 
   it('translates Airalo activation policy for the storefront', () => {
     expect(activationLabelVi('first-usage')).toContain('kết nối mạng lần đầu');
+    expect(activationLabelVi('first-usage')).toContain('có thể cài trước khi bay');
     expect(activationLabelVi('on-installation')).toContain('khi cài eSIM');
+    expect(activationLabelVi('on-installation')).toContain('sẵn sàng dùng');
   });
 
-  it('keeps Vietnamese catalogue labels and emits English display labels without rewriting the plan code', () => {
+  it('keeps Vietnamese catalogue labels and emits English display labels with clear total/validity copy', () => {
     const shared = {
       destinationKey: 'jp',
       countryIso: 'JP',
@@ -86,25 +88,25 @@ describe('esim-catalogue.rules', () => {
     };
     const vi = presentStorefrontOfferText({ ...shared, locale: 'vi' });
     expect(vi.countryName).toBe('Nhật Bản');
-    expect(vi.dataLabel).toBe('1 GB');
-    expect(vi.durationLabel).toBe('7 ngày');
+    expect(vi.dataLabel).toBe('1 GB tổng');
+    expect(vi.durationLabel).toBe('7 ngày sử dụng');
     expect(vi.activationLabel).toContain('kết nối mạng lần đầu');
+    expect(vi.activationLabel).toContain('có thể cài trước khi bay');
+    expect(vi.summary).toContain('không phải dung lượng mỗi ngày');
     expect(vi.summary).toContain('Tốc độ: 5G.');
     expect(vi.summary).toContain('Nhà mạng: NTT.');
-    expect(vi.title).toBe('Nhật Bản — JP-1GB-7D - 7 ngày');
+    expect(vi.title).toBe('Nhật Bản — 1 GB tổng · 7 ngày sử dụng');
+    expect(vi.summary).toContain('1 GB tổng trong 7 ngày');
 
     const en = presentStorefrontOfferText({ ...shared, locale: 'en', unlimited: true, dataAmountMb: -1 });
     expect(en.countryName).toBe('Japan');
     expect(en.dataLabel).toBe('Unlimited');
-    expect(en.durationLabel).toBe('7 days');
-    expect(en.activationLabel).toBe('The plan starts when the eSIM first connects at the destination');
+    expect(en.durationLabel).toBe('7 days validity');
+    expect(en.activationLabel).toContain('first connects at the destination');
     expect(en.summary).toContain('Speed: 5G.');
     expect(en.summary).toContain('Network: NTT.');
-    expect(en.title).toBe('Japan — JP-1GB-7D - 7 days');
+    expect(en.title).toBe('Japan — Unlimited · 7 days validity');
     expect(en.productName).toBe('eSIM Japan');
-    expect(en.title).toContain('JP-1GB-7D');
-    expect(en.summary).toContain('1 GB - 7 days');
-    expect(vi.summary).toContain('1 GB - 7 ngày');
     expect(displayProviderText('Phủ sóng toàn bộ Nhật Bản.', 'en')).toBe('');
     expect(displayProviderText('Phủ sóng toàn bộ Nhật Bản.', 'vi')).toBe('Phủ sóng toàn bộ Nhật Bản.');
     expect(displayProviderText('1 GB - 7 ngày', 'en')).toBe('1 GB - 7 days');

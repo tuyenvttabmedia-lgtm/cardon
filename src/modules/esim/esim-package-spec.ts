@@ -1,4 +1,8 @@
-import { activationLabelVi } from './esim-catalogue.rules';
+import {
+  activationLabelVi,
+  formatStorefrontDataLabel,
+  formatStorefrontDurationLabel,
+} from './esim-catalogue.rules';
 
 export const CATALOGUE_CURRENT_NOTICE =
   'Thông số theo catalogue hiện tại, có thể khác lúc mua.';
@@ -29,15 +33,11 @@ export interface EsimCataloguePackageRow {
 }
 
 export function formatCatalogueDataLabel(amountMb: number, unlimited: boolean): string {
-  if (unlimited || amountMb < 0) return 'Không giới hạn';
-  if (amountMb >= 1024 && amountMb % 1024 === 0) return `${amountMb / 1024} GB`;
-  if (amountMb >= 1000 && amountMb % 1000 === 0) return `${amountMb / 1000} GB`;
-  return `${amountMb} MB`;
+  return formatStorefrontDataLabel(amountMb, unlimited, 'vi');
 }
 
 export function formatCatalogueDurationLabel(duration: number, unit = 'day'): string {
-  if (unit === 'day') return `${duration} ngày`;
-  return `${duration} ${unit}`.trim();
+  return formatStorefrontDurationLabel(duration, unit, 'vi');
 }
 
 export function emptyEsimPackageSpec(fallbackTitle?: string | null): EsimPackageSpec {
@@ -66,10 +66,12 @@ export function buildEsimPackageSpec(
   const fairUsagePolicy = hideSupplierBrand(
     readString(catalogue?.fairUsagePolicy) || readString(meta?.fairUsagePolicy),
   );
+  const dataAllowanceLabel = formatCatalogueDataLabel(row.dataAmountMb, row.isUnlimited);
+  const validityLabel = formatCatalogueDurationLabel(row.validityDays, 'day');
   return {
     title: row.title.trim() || fallbackTitle?.trim() || row.variant?.name?.trim() || null,
-    dataAllowanceLabel: formatCatalogueDataLabel(row.dataAmountMb, row.isUnlimited),
-    validityLabel: formatCatalogueDurationLabel(row.validityDays, 'day'),
+    dataAllowanceLabel,
+    validityLabel,
     activationLabel: activationPolicy ? activationLabelVi(activationPolicy) : activationLabelVi(''),
     fupClear: row.fupClear,
     fairUsagePolicy: fairUsagePolicy || null,

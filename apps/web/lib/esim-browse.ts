@@ -249,7 +249,7 @@ export function foldEsimText(value: string): string {
 }
 
 export function isUnlimitedDataLabel(label: string): boolean {
-  return /^(không|unlimited)\b/i.test(label.trim());
+  return /^(không giới hạn|unlimited)\b/i.test(label.trim());
 }
 
 export function dataAmountMb(label: string): number {
