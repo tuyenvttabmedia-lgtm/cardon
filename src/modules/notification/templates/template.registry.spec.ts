@@ -95,6 +95,9 @@ describe('eSIM email templates', () => {
     expect(ready.html).toContain('Asia');
     expect(ready.html).toContain('esims.cloud/keyon/demo');
     expect(ready.html).toContain('8265');
+    expect(ready.html).toMatch(/eSIM link|Theo dõi dung lượng/i);
+    expect(ready.html).toMatch(/Access code/i);
+    expect(ready.html).toMatch(/tạo tài khoản CardOn|Create a free CardOn account/i);
     expect(ready.html).toContain(FIXTURE_ACCOUNT);
     expect(ready.html).toContain(FIXTURE_LPA);
     expect(ready.html).toContain(`cid:${ESIM_INSTALL_QR_CID}`);
