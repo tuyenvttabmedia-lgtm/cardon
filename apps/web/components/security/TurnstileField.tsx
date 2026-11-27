@@ -111,19 +111,19 @@ export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
     const containerRef = useRef<HTMLDivElement | null>(null);
     const widgetIdRef = useRef<string | null>(null);
     const tokenRef = useRef<string | null>(null);
+    // Keep latest callback in a ref so parent inline handlers do not remount the widget.
+    const onTokenChangeRef = useRef(onTokenChange);
+    onTokenChangeRef.current = onTokenChange;
     const [status, setStatus] = useState<'idle' | 'loading' | 'ready' | 'error' | 'unconfigured'>(
       siteKey ? 'loading' : 'unconfigured',
     );
     const [verified, setVerified] = useState(false);
 
-    const setToken = useCallback(
-      (token: string | null) => {
-        tokenRef.current = token;
-        setVerified(Boolean(token));
-        onTokenChange?.(token);
-      },
-      [onTokenChange],
-    );
+    const setToken = useCallback((token: string | null) => {
+      tokenRef.current = token;
+      setVerified(Boolean(token));
+      onTokenChangeRef.current?.(token);
+    }, []);
 
     const reset = useCallback(() => {
       setToken(null);
@@ -184,7 +184,7 @@ export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
               setStatus('error');
             },
           });
-          setStatus('ready');
+          if (!cancelled) setStatus('ready');
         } catch {
           if (!cancelled) setStatus('error');
         }
@@ -201,6 +201,7 @@ export const TurnstileField = forwardRef<TurnstileFieldHandle, Props>(
           widgetIdRef.current = null;
         }
       };
+      // Only remount when site key / action change — never on parent re-render.
     }, [siteKey, action, setToken]);
 
     if (!siteKey) {

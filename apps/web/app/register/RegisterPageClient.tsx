@@ -373,11 +373,6 @@ function RegisterForm() {
           >
             {loading ? t('auth.registering') : t('auth.register')}
           </Button>
-          {captchaRequired && captchaToken ? (
-            <p className="text-center text-xs text-cardon-gray">
-              {t('auth.captchaReady')}
-            </p>
-          ) : null}
         </form>
       </AuthLayout>
     </>
